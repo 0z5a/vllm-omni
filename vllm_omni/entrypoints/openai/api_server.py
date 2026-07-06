@@ -451,7 +451,7 @@ async def omni_run_server(args, **uvicorn_kwargs) -> None:
     # Add process-specific prefix to stdout and stderr.
     decorate_logs("APIServer", skip_if_decorated=True)
 
-    listen_address, sock = setup_openai_server(args)
+    listen_address, sock = setup_openai_server(args, reuse_port=False)
 
     # Unified use of omni_run_server_worker, AsyncOmni automatically handles LLM and Diffusion models
     await omni_run_server_worker(listen_address, sock, args, **uvicorn_kwargs)

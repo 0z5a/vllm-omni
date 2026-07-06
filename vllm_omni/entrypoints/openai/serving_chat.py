@@ -41,6 +41,7 @@ except ImportError:
     soundfile = None
 
 
+from vllm.entrypoints.generate.base.serving import clamp_prompt_logprobs
 from vllm.entrypoints.launcher import terminate_if_errored
 from vllm.entrypoints.openai.chat_completion.protocol import (
     ChatCompletionNamedToolChoiceParam,
@@ -64,7 +65,6 @@ from vllm.entrypoints.openai.engine.protocol import (
     ToolCall,
     UsageInfo,
 )
-from vllm.entrypoints.openai.engine.serving import clamp_prompt_logprobs
 from vllm.entrypoints.openai.parser.harmony_utils import (
     get_streamable_parser_for_assistant,
 )
