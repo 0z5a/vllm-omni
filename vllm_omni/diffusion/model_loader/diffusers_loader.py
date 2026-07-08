@@ -421,10 +421,14 @@ class DiffusersPipelineLoader:
         # load (padded / partially-loaded layers) remain on ``meta``. Upstream's
         # base_loader calls finalize_layerwise_processing() to materialize them;
         # the diffusion loader must mirror that, otherwise the module.to() below
-        # raises "Cannot copy out of meta tensor; no data!". Import lazily and only
-        # when online quant is actually in use, so older vLLM (no meta-device quant)
-        # is unaffected.
-        if self._has_online_quant(model):
+        # raises "Cannot copy out of meta tensor; no data!". This whole meta-device
+        # handling is gated on online quant actually being in use, so that the
+        # proven code path for everything else (in particular FSDP/HSDP-sharded
+        # params, whose per-parameter .data cannot be cross-device reassigned) is
+        # left untouched. Import lazily so older vLLM (no meta-device quant) is
+        # unaffected.
+        has_online_quant = self._has_online_quant(model)
+        if has_online_quant:
             from vllm.model_executor.model_loader.reload.layerwise import (
                 finalize_layerwise_processing,
             )
@@ -436,13 +440,17 @@ class DiffusersPipelineLoader:
 
         for _, module in model.named_modules():
             quant_method = getattr(module, "quant_method", None)
-            if quant_method is not None and isinstance(quant_method, QuantizeMethodBase):
+            if quant_method is None or not isinstance(quant_method, QuantizeMethodBase):
+                continue
+
+            if has_online_quant:
+                # Online quant may leave straggler params on the ``meta`` device.
                 # Move only real (non-meta) params onto the target device for
                 # processing and restore them afterward, mirroring upstream vLLM's
-                # device_loading_context. A blanket module.to(target_device) would
-                # raise NotImplementedError on any param still on the meta device
-                # (deferred online-quant materialization); those are handled by the
-                # quant method / finalize step above and must not be moved with .to().
+                # device_loading_context — a blanket module.to(target_device) would
+                # raise NotImplementedError on meta params. Online quant initializes
+                # on the accelerator, so params are normally already on the target
+                # device and this loop is a no-op move; the point is to skip meta.
                 original_devices: dict[str, torch.device] = {}
                 for name, param in module.named_parameters():
                     if param.device.type != "meta" and param.device != target_device:
@@ -456,6 +464,22 @@ class DiffusersPipelineLoader:
                 for name, param in module.named_parameters():
                     if name in original_devices:
                         param.data = param.data.to(original_devices[name])
+            else:
+                # No meta params possible here. Preserve the original FSDP/HSDP-aware
+                # whole-module move (module.to()), which correctly handles sharded
+                # DTensor params that per-parameter .data reassignment cannot.
+                module_device = next(module.parameters(), None)
+                if module_device is not None:
+                    module_device = module_device.device
+                needs_device_move = module_device != target_device
+
+                if needs_device_move:
+                    module.to(target_device)
+
+                quant_method.process_weights_after_loading(module)
+
+                if needs_device_move:
+                    module.to(module_device)
 
     def load_weights(self, model: nn.Module) -> None:
         weights_to_load = self._get_expected_parameter_names(model)
