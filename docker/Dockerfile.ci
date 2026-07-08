@@ -55,14 +55,20 @@ RUN uv pip install --system --force-reinstall \
     "torch==2.11.0" "torchaudio==2.11.0" "torchvision==0.26.0" \
     --torch-backend cu130
 
-# CUDA 13 JIT linker: libnvJitLink.so.13 ships only in the nvidia-cuda-nvjitlink-cu13
-# pip wheel (the v0.24.0 base image's /usr/local/cuda toolkit is CUDA 12, so the
-# LD_LIBRARY_PATH above never resolves the .so.13). The cu130 torch/vllm wheels pull
-# this package into site-packages, but its lib dir is not on the dynamic-loader path,
-# so bitsandbytes / torch.compile worker subprocesses fail to dlopen it. Register the
-# actual lib dir with ldconfig (system-wide, survives subprocess env resets).
-RUN uv pip install --system "nvidia-cuda-nvjitlink-cu13" && \
-    NVJITLINK_LIB="$(find / -name 'libnvJitLink.so.13*' 2>/dev/null | head -1)" && \
+# CUDA 13 JIT linker: libnvJitLink.so.13 is provided by the nvidia-nvjitlink
+# package that the cu130 torch/vllm wheels above pull into site-packages (the
+# v0.24.0 base image's /usr/local/cuda toolkit is CUDA 12, so the LD_LIBRARY_PATH
+# above never resolves the .so.13). Its lib dir is not on the dynamic-loader path,
+# so bitsandbytes / torch.compile worker subprocesses fail to dlopen it. Locate the
+# already-installed lib and register its dir with ldconfig (system-wide, survives
+# subprocess env resets). Only fall back to the pip wheel (correct name:
+# nvidia-nvjitlink-cu13, NOT nvidia-cuda-nvjitlink-cu13, which does not exist) if
+# the torch deps did not bring it in.
+RUN NVJITLINK_LIB="$(find / -name 'libnvJitLink.so.13*' 2>/dev/null | head -1)" && \
+    if [ -z "$NVJITLINK_LIB" ]; then \
+        uv pip install --system "nvidia-nvjitlink-cu13" && \
+        NVJITLINK_LIB="$(find / -name 'libnvJitLink.so.13*' 2>/dev/null | head -1)"; \
+    fi && \
     test -n "$NVJITLINK_LIB" && \
     dirname "$NVJITLINK_LIB" > /etc/ld.so.conf.d/nvjitlink-cu13.conf && \
     ldconfig && \
