@@ -66,6 +66,7 @@ EXCLUDED_MODELS = [
     "AudioXPipeline",
     "HunyuanVideo15Pipeline",
     "HunyuanVideo15ImageToVideoPipeline",
+    "LingBotVideoPipeline",
     "MagiHumanPipeline",
     "OmniVoicePipeline",
     "OmniVoice",
