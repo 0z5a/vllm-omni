@@ -224,9 +224,7 @@ def _assert_realtime_accuracy(
     assert final_text, "Expected non-empty transcription (model text stream)"
 
     wav_out = _wav_bytes_from_pcm16(result["output_pcm"], result["output_sample_rate"])
-    whisper_text = convert_audio_bytes_to_text(
-        wav_out, model_size=whisper_model_size
-    ).strip()
+    whisper_text = convert_audio_bytes_to_text(wav_out, model_size=whisper_model_size).strip()
     assert whisper_text, "Whisper returned empty string for synthesized output audio"
 
     sim = cosine_similarity_text(whisper_text.lower(), final_text.lower())
