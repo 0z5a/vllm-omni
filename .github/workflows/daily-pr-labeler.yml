@@ -1,0 +1,180 @@
+name: Daily PR labeling
+
+on:
+  schedule:
+    # Run away from the top of the hour to reduce scheduler contention.
+    - cron: "17 1 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+  pull-requests: write
+
+concurrency:
+  group: daily-pr-labeler
+  cancel-in-progress: true
+
+jobs:
+  label-open-prs:
+    if: github.repository == 'vllm-project/vllm-omni'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Add relevant labels to open PRs
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const { owner, repo } = context.repo;
+
+            // These labels are reserved for CI control and must never be added here.
+            const forbiddenLabels = new Set([
+              "CI/CD",
+              "ci-failure",
+              "diffusion-x2iat-test",
+              "diffusion-x2v-test",
+              "merge-test",
+              "nightly-test",
+              "npu-test",
+              "omni-test",
+              "ready",
+              "tts-test",
+              "weekly-test",
+            ]);
+
+            const isForbiddenLabel = (label) =>
+              forbiddenLabels.has(label) || /\b(?:ci|test)\b/i.test(label);
+
+            const prs = await github.paginate(github.rest.pulls.list, {
+              owner,
+              repo,
+              state: "open",
+              per_page: 100,
+            });
+
+            const changed = [];
+            const failures = [];
+
+            for (const pr of prs) {
+              // PR titles in this repository consistently carry the change area/type.
+              // Avoid body matching because the PR template contains generic keywords.
+              const title = (pr.title || "").toLowerCase();
+              const has = (pattern) => pattern.test(title);
+              const labels = new Set();
+              const add = (label) => {
+                if (!isForbiddenLabel(label)) labels.add(label);
+              };
+
+              const documentation = has(
+                /\bdocs?\b|\bdocumentation\b|\brecipe\b|\bskills?\b|\bguide\b|\breadme\b/
+              );
+              const test = has(
+                /\btests?\b|\bpytest\b|\be2e\b|\bcoverage\b|\bmock\b|\btestcase\b/
+              );
+              const bug = has(
+                /\bbugfix\b|\bbug fix\b|\bbug\b|\bfix(?:es|ed|ing)?\b|\bcorrect(?:s|ing)?\b|\brepair\b|\bresolve\b|\bprevent\b|\bguard\b|\bharden\b|\brestore\b|\bsuppress\b|\bavoid\b|\breject\b|\bprotect\b|\bensure\b|\baddress\b/
+              );
+              const refactor = has(
+                /\brefactor\b|\bcleanup\b|\bchore\b|\breorganiz|\bunify\b|\bcentralize\b|\bsplit\b|\bmigrat|\brename\b|\bconsolidat|\bre-land\b/
+              );
+
+              if (documentation) add("documentation");
+              if (bug) add("bug");
+              if (refactor) add("refactor");
+
+              const explicitFeature = has(
+                /\bfeature\b|\bfeat\b|\badd\b|\benable\b|\ballow\b|\bimplement\b|\bintroduce\b|\boptimi[sz]\w*\b|\bperf(?:ormance)?\b|\bbenchmark\b|\bprofil(?:er|ing)?\b|\btracing\b|\bstreaming\b/
+              );
+              if (
+                !documentation &&
+                !test &&
+                !refactor &&
+                (explicitFeature || (!bug && has(/\bsupport\b/)))
+              ) {
+                add("enhancement");
+              }
+
+              if (
+                has(
+                  /\bquant(?:ization|ize|ized)?\b|\bfp8\b|\bfp4\b|\bnvfp\b|\bw4a4\b|\bmodelopt\b|\bawq\b|\bgptq\b|\bint8\b/
+                )
+              ) {
+                add("quantization");
+              }
+              if (
+                has(
+                  /\bdiffusion\b|\bdit\b|\bflux\b|\bwan\b|\bltx\b|\bhelios\b|\bhunyuanimage\b|\bqwen[- ]image\b|\bz-image\b|\bcosmos\b|\blingbot\b|\bimage\b|\bvideo\b|\btext-to-(?:video|image)\b/
+                )
+              ) {
+                add("diffusion");
+              }
+              if (
+                has(
+                  /\btts\b|\btext-to-speech\b|\bspeech\b|\bvocoder\b|\bvoice\b|\bcode2wav\b|\bcosyvoice\b|\bvoxcpm\b|\bmoss\b|\bfish speech\b|\baudiox\b|\bstep audio\b/
+                )
+              ) {
+                add("tts");
+              }
+              if (
+                has(
+                  /\bomni\b|\bmultimodal\b|\bmimo-audio\b|\bomnivoice\b|\bminicpm-o\b|\bqwen3-omni\b|\bqwen2\.5-omni\b/
+                )
+              ) {
+                add("omni");
+              }
+              if (
+                has(
+                  /\b(core|connector|engine|scheduler|worker|modelrunner|model runner|orchestrat|runtime|stage|transfer|cache|outputprocessor|output processor|entrypoint|config|ipc|shared memory|shm|serialization|requestoutput|request output|pipeline registry)\b/
+                )
+              ) {
+                add("core");
+              }
+              if (
+                has(
+                  /\bfrontend\b|\bapi\b|\bserver\b|\bcli\b|\bopenai\b|\bcomfyui\b|\bchat\/completions\b|\baudio\/(?:generate|speech)\b|\bimages\/generations\b/
+                )
+              ) {
+                add("frontend");
+              }
+
+              const newModel =
+                has(/\bnew model\b|\[new model\]/) ||
+                (!bug && has(/\[model\]/) && has(/\badd\b|\binitial\b|\bintegration\b|\bport\b/)) ||
+                has(/\badd .* model support\b|\binitial .* model integration\b|\bport .* model\b/);
+              if (newModel) add("new model");
+
+              if (has(/\bnpu\b|\bascend\b/)) add("NPU");
+              if (has(/\brocm\b|\bamd\b|\bgfx\d{3,4}\b|\bmi\d{2,4}[a-z]*\b/)) add("ROCm");
+              if (has(/\bxpu\b|\bintel\b/)) add("xpu");
+              if (has(/\bhardware plugin\b/)) add("Hardware Plugin");
+              if (has(/\bvla\b|\binternvla\b|\bopenpi\b|\bpi0(?:\.5)?\b|\bgr00t\b|\balpamayo\b/)) add("VLA");
+              if (has(/\bworld[- ]model\b|\blingbot[- ]world\b/)) add("world model");
+              if (has(/\brl\b|\breinforcement\b|\brollout\b/)) add("RL");
+              if (has(/\brfc\b/)) add("RFC");
+
+              const existing = new Set((pr.labels || []).map((label) => label.name));
+              const labelsToAdd = [...labels].filter((label) => !existing.has(label));
+              if (labelsToAdd.length === 0) continue;
+
+              try {
+                await github.rest.issues.addLabels({
+                  owner,
+                  repo,
+                  issue_number: pr.number,
+                  labels: labelsToAdd,
+                });
+                changed.push({ number: pr.number, labels: labelsToAdd });
+              } catch (error) {
+                failures.push({ number: pr.number, message: error.message });
+                core.warning(`PR #${pr.number}: ${error.message}`);
+              }
+            }
+
+            console.log(
+              JSON.stringify({
+                prsReviewed: prs.length,
+                prsChanged: changed.length,
+                labelsAdded: changed.reduce((count, pr) => count + pr.labels.length, 0),
+                failures,
+              })
+            );
