@@ -27,9 +27,8 @@ jobs:
           script: |
             const { owner, repo } = context.repo;
 
-            // These labels are reserved for CI control and must never be added here.
+            // These labels are reserved for CI control and must never be added automatically.
             const forbiddenLabels = new Set([
-              "CI/CD",
               "ci-failure",
               "diffusion-x2iat-test",
               "diffusion-x2v-test",
@@ -43,7 +42,7 @@ jobs:
             ]);
 
             const isForbiddenLabel = (label) =>
-              forbiddenLabels.has(label) || /\b(?:ci|test)\b/i.test(label);
+              forbiddenLabels.has(label) || /\btest\b/i.test(label);
 
             const prs = await github.paginate(github.rest.pulls.list, {
               owner,
@@ -69,7 +68,7 @@ jobs:
                 /\bdocs?\b|\bdocumentation\b|\brecipe\b|\bskills?\b|\bguide\b|\breadme\b/
               );
               const test = has(
-                /\btests?\b|\bpytest\b|\be2e\b|\bcoverage\b|\bmock\b|\btestcase\b/
+                /\btests?\b|\bpytest\b|\be2e\b|\bcoverage\b|\bmock\b|\btestcase\b|\bci\b|\bcd\b|\bbuildkite\b/
               );
               const bug = has(
                 /\bbugfix\b|\bbug fix\b|\bbug\b|\bfix(?:es|ed|ing)?\b|\bcorrect(?:s|ing)?\b|\brepair\b|\bresolve\b|\bprevent\b|\bguard\b|\bharden\b|\brestore\b|\bsuppress\b|\bavoid\b|\breject\b|\bprotect\b|\bensure\b|\baddress\b/
@@ -81,6 +80,7 @@ jobs:
               if (documentation) add("documentation");
               if (bug) add("bug");
               if (refactor) add("refactor");
+              if (test) add("CI/CD");
 
               const explicitFeature = has(
                 /\bfeature\b|\bfeat\b|\badd\b|\benable\b|\ballow\b|\bimplement\b|\bintroduce\b|\boptimi[sz]\w*\b|\bperf(?:ormance)?\b|\bbenchmark\b|\bprofil(?:er|ing)?\b|\btracing\b|\bstreaming\b/
