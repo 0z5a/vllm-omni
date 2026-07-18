@@ -153,6 +153,13 @@ class GPUGenerationModelRunner(OmniGPUModelRunner, OmniConnectorModelRunnerMixin
             if self.model_config.async_chunk and num_scheduled_tokens:
                 self._update_request_states(scheduler_output)
             deferred_state_corrections_fn = self._update_states(scheduler_output)
+
+            # Notify stateful models of finished requests before the
+            # zero-token early return. Request cleanup is a model lifecycle
+            # concern and does not depend on the inter-stage transfer mode.
+            if scheduler_output.finished_req_ids and hasattr(self.model, "on_requests_finished"):
+                self.model.on_requests_finished(scheduler_output.finished_req_ids)
+
             if not scheduler_output.total_num_scheduled_tokens:
                 return self.attach_omni_connector_output(EMPTY_MODEL_RUNNER_OUTPUT)
 
@@ -789,6 +796,10 @@ class GPUGenerationModelRunner(OmniGPUModelRunner, OmniConnectorModelRunnerMixin
             if hasattr(self.model, "get_dummy_runtime_additional_information"):
                 runtime_addi = self.model.get_dummy_runtime_additional_information(num_reqs)
                 model_kwargs["runtime_additional_information"] = runtime_addi
+            # Generation-stage code2wav models split flat input_ids using this
+            # shared contract. Dummy/profile runs use padded synthetic inputs,
+            # so expose one synthetic segment covering the actual tensor length.
+            model_kwargs["seq_token_counts"] = [int(num_tokens_padded)]
 
             if self.uses_mrope:
                 positions = self.mrope_positions.gpu[:, :num_tokens_padded]
