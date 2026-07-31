@@ -681,7 +681,9 @@ class TestDistributedReceive:
     def test_tp_without_cfg_keeps_independent_receive_path(self):
         mgr = _make_manager(from_tp=2, to_tp=2, local_rank=1)
         req = SimpleNamespace(request_id="req-1", sampling_params=SimpleNamespace())
-        world_group = _MockBroadcastGroup(world_size=2, rank_in_group=1)
+        # broadcast_value=True: rank 0's verdict says every rank received its
+        # shard, so the per-rank receive result stands (see #5627 consensus).
+        world_group = _MockBroadcastGroup(world_size=2, rank_in_group=1, broadcast_value=True)
         mgr.receive_multi_kv_cache = MagicMock(return_value=True)
 
         with (
@@ -708,6 +710,10 @@ class TestDistributedReceive:
             assert mgr.receive_multi_kv_cache_distributed(req, target_device=torch.device("cpu")) is True
 
         mgr.receive_multi_kv_cache.assert_called_once_with(req, None, torch.device("cpu"))
+        # Pure TP still fetches per-rank (no leader→follower distribution),
+        # but each rank now reports its receive flag for the all-or-nothing
+        # verdict instead of silently diverging on a miss (#5627).
+        assert world_group.send_calls == [(0, True)]
 
     # ── SP-only scenarios ────────────────────────────────────────────
 
