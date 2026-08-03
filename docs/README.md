@@ -52,7 +52,7 @@ vLLM-Omni is flexible and easy to use with:
 - Tensor, pipeline, data and expert parallelism support for distributed inference
 - Streaming outputs
 - OpenAI-compatible API server
-- **Experimental:** Full-duplex realtime serving with streaming audio input and output
+- Full-duplex realtime serving with streaming audio input and output (experimental)
 
 vLLM-Omni seamlessly supports most popular open-source models on HuggingFace, including:
 
