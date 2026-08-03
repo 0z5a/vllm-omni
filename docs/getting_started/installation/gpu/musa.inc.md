@@ -28,7 +28,7 @@ vLLM-Omni for MUSA requires building from source. Pre-built wheels are not curre
 ```bash
 git clone https://github.com/MooreThreads/vllm-musa.git
 cd vllm-musa
-git checkout v0.18.0-dev
+git checkout v0.26.0-dev
 pip install . --no-build-isolation -v
 ```
 
