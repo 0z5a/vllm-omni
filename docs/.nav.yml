@@ -120,6 +120,7 @@ nav:
       - design/feature/omni_async_output_materialization.md
       - design/feature/vae_parallel.md
       - design/feature/diffusion_continuous_batching.md
+      - design/feature/distributed_layerwise_offload.md
     - Module Design:
       - design/module/ar_module.md
       - design/module/dit_module.md

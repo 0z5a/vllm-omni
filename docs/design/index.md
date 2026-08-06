@@ -12,6 +12,7 @@ This section contains design documents and architecture specifications for vLLM-
 - [Ray-based Execution](feature/ray_based_execution.md)
 - [Async Omni Output Materialization](feature/omni_async_output_materialization.md)
 - [Diffusion Continuous Batching](feature/diffusion_continuous_batching.md)
+- [Distributed Layerwise Offload](feature/distributed_layerwise_offload.md)
 
 ## Infrastructure Design Documents
 
