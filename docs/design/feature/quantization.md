@@ -3,7 +3,7 @@
 This document describes the quantization architecture in vLLM-Omni and the
 extension points for contributors. For user-facing configuration, supported
 hardware, and method-specific instructions, see the
-[quantization user guide](../../user_guide/quantization/index.md).
+[quantization user guide](../../user_guide/quantization/overview.md).
 
 ## Goals and scope
 
