@@ -13,7 +13,6 @@ while the source paths remain stable so existing links continue to work.
 ### Runtime and stage execution
 
 - [Disaggregated Inference](feature/disaggregated_inference.md)
-- [Ray-based Execution](feature/ray_based_execution.md)
 - [Async Chunk](feature/async_chunk.md)
 - [Async Diffusion Output](feature/async_diffusion_output.md)
 - [Async Omni Output Materialization](feature/omni_async_output_materialization.md)
