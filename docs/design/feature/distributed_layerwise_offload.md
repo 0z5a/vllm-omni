@@ -56,6 +56,8 @@ AllGather:                [full N+1]             [full N+2]
 Buffers:    [current slot]       [prefetch slot]       [current slot]
 ```
 
+![DLO double-buffer prefetch pipeline](../figures/dlo/dlo_pipeline.gif)
+
 The backend uses two shared device buffers, so accelerator weight residency is
 bounded by the largest streamed blocks rather than the complete model.
 
