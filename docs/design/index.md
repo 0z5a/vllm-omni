@@ -47,7 +47,7 @@ while the source paths remain stable so existing links continue to work.
 
 #### Quantization
 
-- [Quantization](../user_guide/quantization/index.md)
+- [Quantization](feature/quantization.md)
 
 - [Cache-DiT](feature/cache_dit.md)
 - [TeaCache](feature/teacache.md)

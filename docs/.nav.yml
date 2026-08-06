@@ -129,7 +129,7 @@ nav:
           - VAE Patch Parallelism: design/feature/vae_parallel.md
         - Attention Backends:
           - Skip-Softmax: design/feature/skip_softmax.md
-        - Quantization: user_guide/quantization/index.md
+        - Quantization: design/feature/quantization.md
         - Cache-DiT: design/feature/cache_dit.md
         - TeaCache: design/feature/teacache.md
         - Diffusion Continuous Batching: design/feature/diffusion_continuous_batching.md
