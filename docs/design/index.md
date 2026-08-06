@@ -70,10 +70,3 @@ while the source paths remain stable so existing links continue to work.
 
 - [Entrypoint Module](module/entrypoint_module.md)
 - [AsyncOmni Architecture (Qwen3-Omni Example)](module/async_omni_architecture.md)
-
-## RFCs and Experimental Work
-
-- [AR-Diffusion Pipeline Capability](ar_diffusion_pipeline_capability.md)
-- [Diffusion Operator Boundary (RFC)](diffusion_ops.md)
-- [Unified Error Handling (RFC)](unified_error_handling.md)
-- [Production-Grade NVIDIA Blackwell Support (RFC)](blackwell_production_support.md)
