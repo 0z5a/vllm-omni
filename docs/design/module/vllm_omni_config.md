@@ -2,6 +2,8 @@
 title: vLLM-Omni Configuration
 kind: module
 status: draft
+architecture_state: deferred-pending-refactor
+ownership_status: provisional
 owners:
   - "@lishunyang12"
   - "@alex-jw-brooks"
@@ -16,32 +18,39 @@ validation_paths:
   - tests/config/**
 upstream_refs:
   - vllm.config
-last_reviewed: 2026-07-16
+last_reviewed: 2026-08-07
+last_verified_commit: 3d7fc3b9ba3cac88d579d4dc35b78b0b641675fc
 ---
 
 # vLLM-Omni configuration
 
-Configuration defines how user input becomes validated engine, stage,
-deployment, and platform settings.
+This page intentionally records discovery paths only. Substantive
+configuration ownership and contract work is deferred until the active
+configuration refactoring has settled.
 
-## Candidate invariants
+## Deferred contract scope
 
-### CONFIG-INV-001: Configuration is validated before startup
+The current code and tests remain authoritative for parsing, defaults,
+overrides, deployment topology, stage construction, and runtime projection.
+This draft does not define a stable precedence model, environment-variable
+capture rule, canonical configuration object, or invariant namespace.
 
-**Rule:** Invalid stage graphs, resource assignments, and incompatible options
-MUST fail before managed runtime processes start.
+The PR review proposal to capture environment-derived values in configuration
+objects at initialization is an open design question, not a current
+invariant.
 
-### CONFIG-INV-002: Precedence is deterministic
+## Safe-change guide while deferred
 
-**Rule:** Defaults, files, environment variables, and CLI overrides MUST have a
-documented and deterministic precedence.
+Changes should trace every affected producer to its runtime consumer and test
+the structured, legacy, CLI, and deployment paths that are actually supported.
+Do not infer a stable contract from this placeholder page.
 
-### CONFIG-INV-003: Runtime modules consume validated configuration
+## Promotion gate
 
-**Rule:** Runtime modules MUST NOT independently reinterpret raw user
-configuration.
-
-## Safe-change guide
-
-Test defaults, parsing, override precedence, serialization, invalid
-combinations, and representative multi-stage configurations.
+- Finish or stabilize the configuration refactor and identify the canonical
+  runtime configuration representation.
+- Confirm technical owners, primary path exceptions, and validation owners.
+- Document parsing and override precedence, including when environment values
+  are captured.
+- Allocate an invariant namespace only after those behaviors are enforced and
+  owner-approved.
