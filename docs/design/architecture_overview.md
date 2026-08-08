@@ -1,6 +1,6 @@
 # Architecture Overview
 
-This document outlines the architectural design for vLLM-Omni.
+This document outlines the architecture of vLLM-Omni.
 
 <p align="center">
   <picture>
@@ -9,194 +9,281 @@ This document outlines the architectural design for vLLM-Omni.
   </picture>
 </p>
 
-# Goals
+## Design goals
 
-The primary goal of the vLLM-Omni project is to build the fastest and easiest-to-use open-source Omni-Modality model inference & serving engine. vLLM-Omni extends the original vLLM, which was created to support large language models for text-based autoregressive (AR) generation tasks. vLLM-Omni is designed to support:
+The primary goal of vLLM-Omni is to provide a fast and easy-to-use inference
+and serving engine for omni-modality models. vLLM-Omni extends vLLM's
+text-oriented autoregressive (AR) runtime with stage-based execution for
+non-textual outputs and non-autoregressive model components.
 
-* **Non-textual Output:** Enables the integration, efficient processing and output of various data types, including but not limited to, images, audio, video, and action trajectories, alongside text.
-* **Non-Autoregressive Structure:** Support model structure beyond autoregressive, especially Diffusion Transformer (DiT), which is widely used in visual and audio generation.
-* **Integration with vLLM Core:** Maintain compatibility and leverage existing vLLM key modules and optimizations where applicable.
-* **Extensibility:** Design a modular and flexible architecture that can easily accommodate new modalities, model architectures, and output formats.
+The architecture is designed to:
 
+* support text, image, audio, video, and action inputs and outputs;
+* compose autoregressive, generation, and diffusion stages in one pipeline;
+* reuse vLLM scheduling, cache, distributed-execution, and serving
+  primitives where they fit; and
+* keep model topology, deployment placement, runtime lifecycle, transport,
+  and public API concerns in separate layers.
 
-# Representative omni-modality models
+## Model execution topologies
 
-According to analysis for current popular open-source models, most of them have the combination of AR+DiT. Specifically, they can be further categorized into 3 types below:
+vLLM-Omni is not limited to one model graph. A registered `PipelineConfig`
+defines the stages and their relationships, while `DeployConfig` supplies the
+placement and runtime choices for a particular deployment.
 
-**DiT as a main structure, with AR as text encoder (e.g.: Qwen-Image)**
-  A powerful image generation foundation model capable of complex text rendering and precise image editing.
+| Topology | Representative examples | Runtime shape |
+| --- | --- | --- |
+| AR plus downstream generation or diffusion | Qwen3-Omni, Qwen3-TTS, MiniCPM-o 4.5 | An AR stage produces text, codes, or conditioning for one or more downstream stages. |
+| Diffusion-first generation | Qwen-Image, FLUX, HunyuanImage3, Cosmos3, Krea 2 | A diffusion stage owns denoising and may use an auxiliary text or multimodal encoder. |
+| Joint multimodal generation | MiniMax H3, LTX-2 | A pipeline combines multiple model components to produce synchronized or multimodal artifacts such as video and audio. |
+| Stateful or full-duplex interaction | MiniCPM-o 4.5 and experimental world-model paths | The runtime keeps session-scoped state and supports streaming, cancellation, or incremental input. |
+
+The following illustrations show common model-level arrangements. They are
+examples of model topology, not constraints on the runtime.
+
+### DiT as the main structure, with AR as an encoder
+
+For example, Qwen-Image uses an AR or text-encoding component to condition a
+diffusion transformer.
 
 <p align="center">
   <picture>
     <source media="(prefers-color-scheme: dark)" src="https://raw.githubusercontent.com/vllm-project/vllm-omni/refs/heads/main/docs/source/architecture/dit-main-architecture.png">
-    <img alt="Qwen-Image" src="https://raw.githubusercontent.com/vllm-project/vllm-omni/refs/heads/main/docs/source/architecture/dit-main-architecture.png" width=30%>
+    <img alt="Diffusion transformer as the main model structure" src="https://raw.githubusercontent.com/vllm-project/vllm-omni/refs/heads/main/docs/source/architecture/dit-main-architecture.png" width=30%>
   </picture>
 </p>
 
-**AR as a main structure, with DiT as multi-modal generator (e.g. BAGEL)**
-  A unified multimodal comprehension and generation model, with cot text output and visual generation.
+### AR as the main structure, with a diffusion generator
+
+For example, BAGEL uses an AR model for multimodal understanding and text
+reasoning, with a diffusion component for visual generation.
 
 <p align="center">
   <picture>
     <source media="(prefers-color-scheme: dark)" src="https://raw.githubusercontent.com/vllm-project/vllm-omni/refs/heads/main/docs/source/architecture/ar-main-architecture.png">
-    <img alt="Bagel" src="https://raw.githubusercontent.com/vllm-project/vllm-omni/refs/heads/main/docs/source/architecture/ar-main-architecture.png" width=30%>
+    <img alt="Autoregressive model with a diffusion generator" src="https://raw.githubusercontent.com/vllm-project/vllm-omni/refs/heads/main/docs/source/architecture/ar-main-architecture.png" width=30%>
   </picture>
 </p>
 
-**AR+DiT (e.g. Qwen-Omni)**
-  A natively end-to-end omni-modal LLM for multimodal inputs (text/image/audio/video...) and outputs (text/audio...).
+### AR and DiT in one multimodal pipeline
+
+For example, Qwen-Omni combines multimodal encoders, an AR language model,
+and a modality generator.
 
 <p align="center">
   <picture>
     <source media="(prefers-color-scheme: dark)" src="https://raw.githubusercontent.com/vllm-project/vllm-omni/refs/heads/main/docs/source/architecture/ar-dit-main-architecture.png">
-    <img alt="Qwen-Omni" src="https://raw.githubusercontent.com/vllm-project/vllm-omni/refs/heads/main/docs/source/architecture/ar-dit-main-architecture.png" width=30%>
+    <img alt="Autoregressive and diffusion components in one pipeline" src="https://raw.githubusercontent.com/vllm-project/vllm-omni/refs/heads/main/docs/source/architecture/ar-dit-main-architecture.png" width=30%>
   </picture>
 </p>
 
-# vLLM-Omni main architecture
+## System architecture
 
-<p align="center">
-  <picture>
-    <source media="(prefers-color-scheme: dark)" src="https://raw.githubusercontent.com/vllm-project/vllm-omni/refs/heads/main/docs/source/architecture/vllm-omni-main-architecture.png">
-    <img alt="vLLM-Omni Main Architecture" src="https://raw.githubusercontent.com/vllm-project/vllm-omni/refs/heads/main/docs/source/architecture/vllm-omni-main-architecture.png" width=55%>
-  </picture>
-</p>
+The runtime is organized around an engine, an orchestrator, stage lifecycle
+management, and independent AR and diffusion stage implementations.
 
-## Key Components
+```mermaid
+flowchart TB
+    entry["Entrypoints<br/>Omni / AsyncOmni / CLI / OpenAI-compatible APIs / duplex WebSocket"]
+    engine["AsyncOmniEngine<br/>engine composition root and background loop"]
+    orchestrator["Orchestrator<br/>request state, cross-stage routing, correlation, and output ordering"]
+    runtime["StageRuntime or DistStageRuntime<br/>placement, replicas, readiness, and lifecycle"]
+    clients["StagePool and stage clients<br/>StageEngineCoreClient / StageDiffusionClient"]
+    ar["AR stages<br/>vLLM engine, scheduler, worker, and model runner"]
+    diffusion["Diffusion stages<br/>DiffusionEngine, scheduler, executor, worker, and pipeline"]
+    connector["OmniConnector<br/>payload and KV transport plus synchronization"]
+    outputs["MultimodalPayload and OmniRequestOutput<br/>tensors, metadata, streaming chunks, and final artifacts"]
 
-| Component         | Description                                                                                                                              |
-| ----------------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
-| **OmniRouter**    | provide an intelligent router for Omni-modality requests dispatch                                                                        |
-| **EntryPoints**   | define the APIs for offline/online serving (APIServer, Omni/AsyncOmni), while `AsyncOmniEngine` and `Orchestrator` coordinate multi-stage AR/DiT execution |
-| **AR**            | adapted for omni-modality models while inheriting efficient features from vLLM, such as cache management                                 |
-| **Diffusion**     | natively implemented and optimized using acceleration components                                                                         |
-| **OmniConnector** | supports fully disaggregation based on E/P/D/G (Encoding/Processing/Decoding/Generation) disaggregation across stages                    |
+    entry --> engine
+    engine --> orchestrator
+    engine --> runtime
+    runtime --> clients
+    clients --> ar
+    clients --> diffusion
+    ar <--> connector
+    diffusion <--> connector
+    ar --> outputs
+    diffusion --> outputs
+    outputs --> entry
+```
 
-Disaggregated stages are managed through stage configuration. In Qwen3-Omni, Thinker/Talker/Code2wav are declared as separate configured stages, and runtime routing is handled by `Orchestrator` over `StageEngineCoreClient` / `StageDiffusionClient`.
+### Key components
+
+| Component | Responsibility |
+| --- | --- |
+| **Entrypoints** | Translate offline, CLI, OpenAI-compatible, and duplex requests into engine operations and render outputs back to public protocols. |
+| **Configuration resolution** | Combines pipeline topology, deployment settings, model metadata, and user overrides into a validated control-plane configuration. |
+| **AsyncOmniEngine** | Owns engine composition, the background event loop, stage initialization, request submission, and output collection. |
+| **Orchestrator** | Owns cross-stage request state, stage-to-stage routing, companion tracking, correlation, cancellation, and output ordering. It does not own model selection or deployment placement. |
+| **StageRuntime** | Expands logical stages into local or distributed replicas, starts stage clients and processes, and manages readiness, affinity, failure, and shutdown. |
+| **AR runtime** | Extends vLLM's scheduler, KV-cache, worker, and model-runner path for omni-modality inputs and inter-stage outputs. |
+| **Diffusion runtime** | Schedules and executes denoising workloads through diffusion executors, workers, pipelines, acceleration backends, and output materialization. |
+| **OmniConnector** | Transports stage payloads and KV-cache data and provides synchronization. Connectors transport data; they do not choose the next logical stage. |
+| **Multimodal outputs** | `MultimodalPayload` separates tensor content from metadata, while `OmniRequestOutput` carries pipeline and diffusion results through the common output path. |
+
+## Configuration and runtime resolution
+
+The control plane has five conceptual layers. Authoring inputs are resolved
+once into a complete, transport-safe configuration before runtime processes are
+started. This keeps stage topology and model capabilities distinct from
+deployment placement and from process-local engine objects.
+
+```mermaid
+flowchart TB
+    subgraph authoring["Layer 1: Authoring inputs"]
+        pipeline["PipelineConfig<br/>frozen stage topology and execution types<br/>model capabilities and stage relationships"]
+        deploy["DeployConfig<br/>placement, replicas, devices, and environment<br/>deploy-time defaults and connector definitions"]
+        overrides["CLI / Python overrides"]
+        metadata["HF or diffusion model metadata"]
+        legacy["Legacy YAML adapter<br/>migration-only input; removed after model parity"]
+    end
+
+    request["Layer 2: OmniConfigResolveRequest"]
+    resolve["resolve_omni_config()<br/>selects exactly one source path<br/>loads model metadata once<br/>applies precedence and stage overrides once<br/>resolves connectors, requests, runtime placement, and engine specs<br/>validates the complete pipeline"]
+    resolved["Layer 3: Resolved and transport-safe control-plane config<br/>VllmOmniConfig<br/>pipeline_config: PipelineConfig<br/>orchestrator_config: VllmOmniOrchestratorConfig<br/>stage_configs: tuple[VllmOmniStageConfig, ...]<br/>stage_pipeline_config · runtime_config · connector_config · request_config · engine_spec"]
+    launch["Layer 4: Runtime-only launch planning<br/>StageRuntime<br/>replica expansion · device allocation · local or remote launch<br/>ReplicaInitPlan remains private runtime state"]
+    materialize["Layer 5: Owning-process materialization<br/>materialize_engine_config(stage)"]
+    ar_config["VllmConfig<br/>vLLM-backed engine"]
+    diffusion_config["enriched OmniDiffusionConfig<br/>diffusion engine"]
+
+    authoring --> request
+    request --> resolve
+    resolve --> resolved
+    resolved --> launch
+    launch --> materialize
+    materialize --> ar_config
+    materialize --> diffusion_config
+```
+
+The resolver names in this diagram describe the intended single resolution
+boundary. In the current implementation, the corresponding path is carried
+out by `StageConfigFactory.create_from_model()` and
+`VllmOmniConfig.from_pipeline_config()` in
+[`vllm_omni/config`](https://github.com/vllm-project/vllm-omni/tree/main/vllm_omni/config).
+The legacy `stage_args` YAML path remains only for models that have not yet
+migrated to `PipelineConfig` and `DeployConfig`.
+
+In the typed path, the common `VllmOmniStageConfig` slot in the
+diagram is realized by `VllmOmniARStageConfig`,
+`VllmOmniGenerationStageConfig`, or `VllmOmniDiffusionStageConfig`. The
+diagram's request and engine-spec fields describe the control-plane boundary;
+the current implementation stores their equivalent projections in the
+structured stage configuration and materializes backend-specific engine
+objects during stage initialization.
+
+The important ownership rules are:
+
+1. `PipelineConfig` is the source of truth for stage topology, execution type,
+   model capabilities, and stage relationships.
+2. `DeployConfig` describes placement, replicas, devices, connectors, and
+   deploy-time defaults; it does not redefine the model graph.
+3. CLI and Python overrides are applied at the resolution boundary, with
+   per-stage overrides taking precedence over global values where supported.
+4. `StageRuntime` owns launch planning and replica lifecycle. `ReplicaInitPlan`
+   is runtime-private state, not a user configuration object.
+5. `VllmConfig` and the enriched `OmniDiffusionConfig` are materialized in the
+   process that owns the corresponding engine.
 
 ## Main features
 
-vLLM-Omni aims to be fast, flexible, and easy to use with the following features:
+### Stage-based execution and disaggregation
 
-### Performance and Acceleration
+Each logical stage declares its inputs, outputs, execution type, and connector
+edges. The orchestrator routes requests according to those declared
+relationships, while `OmniConnector` implementations move data or KV-cache
+payloads across processes, devices, or nodes. Qwen3-Omni, for example, can
+represent Thinker, Talker, and Code2Wav as separate stages.
 
-The framework achieves high performance through several optimization techniques:
+### AR and diffusion acceleration
 
-* **Efficient AR Support:** Leverages efficient KV cache management inherited from vLLM.
-* **Pipelined Execution:** Uses pipelined stage execution overlapping to ensure high throughput.
-* **Full Disaggregation:** Relies on the OmniConnector and dynamic resource allocation across stages.
-* **Diffusion Acceleration:** Includes integrated support for diffusion acceleration. This is managed by the acceleration layer, which handles:
-    * **Cache:** Includes DBCache, TeaCache and third-party integration(e.g., [cache-dit](https://github.com/vipshop/cache-dit)).
-    * **Parallelism:** Supports TP, CP, USP, and CFG.
-    * **Attention:** Provides an interface for third-party integration (e.g., FA3, SAGE, MindIE-SD).
-    * **Quantization:** Supports various quantization implementations including FP8 and AWQ.
-    * **FusedOps:** Allows for custom and third-party integration.
+The two runtime families share the stage and output contracts while retaining
+their specialized execution paths:
 
-### Classifier-Free Guidance (CFG) Companion Flow
+* **AR stages:** vLLM scheduling, KV-cache management, batching, CUDA Graphs,
+  and model-runner optimizations.
+* **Diffusion stages:** continuous batching, compile granularity, cache
+  acceleration, attention backends, quantization, CPU or layerwise offload,
+  tensor/sequence/CFG/VAE parallelism, and distributed layerwise offload.
 
-vLLM-Omni natively models Classifier-Free Guidance (CFG) across disaggregated multi-stage setups via a "companion request" paradigm, eliminating redundant textual/multimodal context computation boundaries:
-1. **Prompt Expansion:** In the initial autoregressive (AR) stage, a customized `prompt_expand_func` hook intercepts incoming generation prompts and pairs them directly with negative companion prompts (e.g., a default negative prompt) on the fly, tagging the secondary prompt with a specific internal role (`cfg_text`).
-2. **Synchronized KV Cache Transfer:** The AR stage evaluates both the primary and companion sequence batches concurrently. The `OmniConnector` captures these specific structural dependencies and reliably passes the positive and negative outcome KV caches seamlessly across stage boundaries via shared memory or network protocols.
-3. **KV Cache Collection & Injection:** Upon reaching the downstream Diffusion (DiT) Engine, an assigned `cfg_kv_collect_func` automatically intercepts the mapped companion caches (`cfg_text_past_key_values`). These auxiliary dependencies are natively gathered and seamlessly bound to the primary generation sequence variables, enabling the DiT Engine to cleanly implement cross-attention CFG guidance over accurate conditioning and unconditioning structures in parallel.
+### Classifier-Free Guidance companion flow
 
-### Flexibility and Usability
+CFG can be represented as companion requests that share the parent request's
+stage affinity and transport lifecycle:
 
-vLLM-Omni is designed to be flexible and straightforward for users:
+1. A model-provided `prompt_expand_func` expands the initial prompt into a
+   primary request and one or more companion requests.
+2. The `Orchestrator` tracks parent/companion identities and waits for the
+   required stage outputs. The connector transfers the associated KV-cache
+   payloads across the stage boundary.
+3. A downstream diffusion stage invokes its `cfg_kv_collect_func` to collect
+   companion KV data and apply model-specific guidance inputs.
 
-* **Heterogeneous Pipeline Abstraction:** Manages complex model workflows effectively.
-* **Hugging Face Integration:** Offers seamless integration with popular Hugging Face models.
-* **Distributed Inference:** Supports tensor, pipeline, data, and expert parallelism.
-* **Streaming Outputs:** Supports streaming outputs.
-* **Unified API:** Provides a consistent and unified API interface compatible with vLLM.
-* **OpenAI-compatible API Server:** Includes a FastAPI-based server for online serving that is compatible with the OpenAI API.
+See [CFG parallelism](feature/cfg_parallel.md) for the diffusion-side
+configuration and constraints.
 
-# Interface design
+### Distributed inference and memory efficiency
 
-If you use vLLM, then you know how to use vLLM-Omni from Day 0:
+The deployment layer can combine stage replicas with vLLM parallelism and
+diffusion parallelism. Composable strategies make common layouts reusable,
+while CPU offload, layerwise offload, and distributed layerwise offload allow
+large diffusion pipelines to run under tighter device-memory budgets.
 
-<p align="center">
-  <picture>
-    <source media="(prefers-color-scheme: dark)" src="https://raw.githubusercontent.com/vllm-project/vllm-omni/refs/heads/main/docs/source/architecture/vllm-omni-user-interface.png">
-    <img alt="vLLM-Omni interface design" src="https://raw.githubusercontent.com/vllm-project/vllm-omni/refs/heads/main/docs/source/architecture/vllm-omni-user-interface.png" width=55%>
-  </picture>
-</p>
+### Extensibility
 
-Taking **Qwen3-Omni** as an example:
+New model families contribute a pipeline definition, stage implementations,
+input/output adapters, and optional acceleration or connector integrations.
+The central engine and orchestrator remain model-agnostic; model-specific
+behavior is selected by resolved stage metadata and explicit extension hooks.
 
-## Offline Inference
-The **Omni** class provides a Python interface for offline batched inference. Users initialize the Omni class with a Hugging Face model name and use the generate method, passing inputs that include both text prompts and multi-modal data:
+## Interfaces
 
+The public interfaces map onto the same engine and stage boundaries:
+
+```mermaid
+flowchart LR
+    offline["Offline Python<br/>Omni.generate()"] --> engine["AsyncOmniEngine"]
+    online["OpenAI-compatible serving<br/>vllm serve ... --omni"] --> engine
+    duplex["Experimental duplex WebSocket<br/>/v1/duplex or realtime duplex"] --> engine
+    engine --> stages["Configured AR and diffusion stages"]
+    stages --> result["Streaming or final multimodal output"]
 ```
-# Create an omni runtime with HF model name.
+
+### Offline inference
+
+The **Omni** class provides a Python interface for offline batched inference:
+
+```python
 from vllm_omni.entrypoints.omni import Omni
 
 omni = Omni(model="Qwen/Qwen3-Omni-30B-A3B-Instruct")
 
-# Example prompts.
-om_inputs = {"prompt": prompt,
-             "multi_modal_data": {
-                 "video": video_frames,
-                 "audio": audio_signal,
-             }}
+om_inputs = {
+    "prompt": prompt,
+    "multi_modal_data": {
+        "video": video_frames,
+        "audio": audio_signal,
+    },
+}
 
-# Generate texts and audio from the multi-modality inputs.
 outputs = omni.generate(om_inputs, sampling_params_list)
 ```
 
-## Online Serving
-Similar to vLLM, vLLM-Omni also provides a FastAPI-based server for online serving. Users can launch the server using the vllm serve command with the `--omni` flag:
+### Online serving
 
-```
+The OpenAI-compatible server uses the same stage configuration and engine
+boundaries:
+
+```bash
 vllm serve Qwen/Qwen3-Omni-30B-A3B-Instruct --omni --port 8091
 ```
 
-Users can send requests to the server using curl:
+For example, a Qwen3-Omni chat request can contain text, image, audio, or
+video content and a `sampling_params_list` for its configured stages. See the
+[Qwen3-Omni serving example](../user_guide/examples/online_serving/qwen3_omni.md)
+and the [examples](https://github.com/vllm-project/vllm-omni/tree/main/examples)
+for complete requests.
 
-```
-# prepare user content
-user_content='[
-        {
-          "type": "video_url",
-          "video_url": {
-            "url": "'"$SAMPLE_VIDEO_URL"'"
-          }
-        },
-        {
-          "type": "text",
-          "text": "Why is this video funny?"
-        }
-      ]'
-    sampling_params_list='[
-      '"$thinker_sampling_params"',
-      '"$talker_sampling_params"',
-      '"$code2wav_sampling_params"'
-    ]'
-    mm_processor_kwargs="{}"
-
-# send the request
-curl -sS -X POST http://localhost:8091/v1/chat/completions \
-    -H "Content-Type: application/json" \
-    -d @- <<EOF
-{
-  "model": "Qwen/Qwen3-Omni-30B-A3B-Instruct",
-  "sampling_params_list": $sampling_params_list,
-  "mm_processor_kwargs": $mm_processor_kwargs,
-  "messages": [
-    {
-      "role": "system",
-      "content": [
-        {
-          "type": "text",
-          "text": "You are Qwen, a virtual human developed by the Qwen Team, Alibaba Group, capable of perceiving auditory and visual inputs, as well as generating text and speech."
-        }
-      ]
-    },
-    {
-      "role": "user",
-      "content": $user_content
-    }
-  ]
-}
-```
-
-For more usages, please refer to [examples](https://github.com/vllm-project/vllm-omni/tree/main/examples).
+Some pipelines expose additional OpenAI-compatible endpoints, such as joint
+video/audio generation. Endpoint support remains model-specific; consult the
+relevant model guide before assuming that every OpenAI route applies to every
+pipeline.
