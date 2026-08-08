@@ -256,13 +256,11 @@ resources.
 
 ## System architecture
 
-The overview below adapts the [general vLLM-Omni architecture
-slide](https://docs.google.com/presentation/d/111-L8zF7A1j_YI_cR8JsblofdScdRr2f/edit?slide=id.p17#slide=id.p17)
-to the current stage-based runtime. It keeps only the main components:
-entrypoints, the shared `AsyncOmniEngine`, request orchestration, stage
-lifecycle management, AR and diffusion execution modules, model/layer
-operations, connector transport, and multimodal outputs. `AsyncOmniEngine` is
-the composition root between the entrypoints and the orchestrator.
+The figure shows the main components of the stage-based runtime: entrypoints,
+the shared `AsyncOmniEngine`, request orchestration, stage lifecycle
+management, AR and diffusion execution modules, model/layer operations,
+connector transport, and multimodal outputs. `AsyncOmniEngine` is the
+composition root between the entrypoints and the orchestrator.
 
 ```mermaid
 flowchart TB
