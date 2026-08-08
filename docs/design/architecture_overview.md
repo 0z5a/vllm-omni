@@ -128,31 +128,18 @@ once into a complete, transport-safe configuration before runtime processes are
 started. This keeps stage topology and model capabilities distinct from
 deployment placement and from process-local engine objects.
 
+The figure shows only the primary hand-off object for each layer; the detailed
+inputs, fields, and ownership rules are described below.
+
 ```mermaid
 flowchart TB
-    subgraph authoring["Layer 1: Authoring inputs"]
-        pipeline["PipelineConfig<br/>frozen stage topology and execution types<br/>model capabilities and stage relationships"]
-        deploy["DeployConfig<br/>placement, replicas, devices, and environment<br/>deploy-time defaults and connector definitions"]
-        overrides["CLI / Python overrides"]
-        metadata["HF or diffusion model metadata"]
-        legacy["Legacy YAML adapter<br/>migration-only input; removed after model parity"]
-    end
+    layer1["Layer 1 · Authoring inputs<br/>PipelineConfig + DeployConfig"]
+    layer2["Layer 2 · Resolve once<br/>OmniConfigResolveRequest<br/>resolve_omni_config()"]
+    layer3["Layer 3 · Transport-safe control plane<br/>VllmOmniConfig"]
+    layer4["Layer 4 · Runtime launch planning<br/>StageRuntime"]
+    layer5["Layer 5 · Engine materialization<br/>VllmConfig / OmniDiffusionConfig"]
 
-    request["Layer 2: OmniConfigResolveRequest"]
-    resolve["resolve_omni_config()<br/>selects exactly one source path<br/>loads model metadata once<br/>applies precedence and stage overrides once<br/>resolves connectors, requests, runtime placement, and engine specs<br/>validates the complete pipeline"]
-    resolved["Layer 3: Resolved and transport-safe control-plane config<br/>VllmOmniConfig<br/>pipeline_config: PipelineConfig<br/>orchestrator_config: VllmOmniOrchestratorConfig<br/>stage_configs: tuple[VllmOmniStageConfig, ...]<br/>stage_pipeline_config · runtime_config · connector_config · request_config · engine_spec"]
-    launch["Layer 4: Runtime-only launch planning<br/>StageRuntime<br/>replica expansion · device allocation · local or remote launch<br/>ReplicaInitPlan remains private runtime state"]
-    materialize["Layer 5: Owning-process materialization<br/>materialize_engine_config(stage)"]
-    ar_config["VllmConfig<br/>vLLM-backed engine"]
-    diffusion_config["enriched OmniDiffusionConfig<br/>diffusion engine"]
-
-    authoring --> request
-    request --> resolve
-    resolve --> resolved
-    resolved --> launch
-    launch --> materialize
-    materialize --> ar_config
-    materialize --> diffusion_config
+    layer1 --> layer2 --> layer3 --> layer4 --> layer5
 ```
 
 The resolver names in this diagram describe the intended single resolution
@@ -166,10 +153,10 @@ migrated to `PipelineConfig` and `DeployConfig`.
 In the typed path, the common `VllmOmniStageConfig` slot in the
 diagram is realized by `VllmOmniARStageConfig`,
 `VllmOmniGenerationStageConfig`, or `VllmOmniDiffusionStageConfig`. The
-diagram's request and engine-spec fields describe the control-plane boundary;
-the current implementation stores their equivalent projections in the
-structured stage configuration and materializes backend-specific engine
-objects during stage initialization.
+request and engine-spec fields belong to the control-plane boundary; the
+current implementation stores their equivalent projections in the structured
+stage configuration and materializes backend-specific engine objects during
+stage initialization.
 
 The important ownership rules are:
 
