@@ -256,32 +256,44 @@ resources.
 
 ## System architecture
 
-The runtime is organized around an engine, an orchestrator, stage lifecycle
-management, and independent AR and diffusion stage implementations.
+The overview below adapts the [general vLLM-Omni architecture
+slide](https://docs.google.com/presentation/d/111-L8zF7A1j_YI_cR8JsblofdScdRr2f/edit?slide=id.p17#slide=id.p17)
+to the current stage-based runtime. It keeps only the main components:
+entrypoints, the shared `AsyncOmniEngine`, request orchestration, stage
+lifecycle management, AR and diffusion execution modules, model/layer
+operations, connector transport, and multimodal outputs. `AsyncOmniEngine` is
+the composition root between the entrypoints and the orchestrator.
 
 ```mermaid
 flowchart TB
-    entry["Entrypoints<br/>Omni / AsyncOmni / CLI / OpenAI-compatible APIs / duplex WebSocket"]
-    engine["AsyncOmniEngine<br/>engine composition root and background loop"]
-    orchestrator["Orchestrator<br/>request state, cross-stage routing, correlation, and output ordering"]
-    runtime["StageRuntime or DistStageRuntime<br/>placement, replicas, readiness, and lifecycle"]
-    clients["StagePool and stage clients<br/>StageEngineCoreClient / StageDiffusionClient"]
-    ar["AR stages<br/>vLLM engine, scheduler, worker, and model runner"]
-    diffusion["Diffusion stages<br/>DiffusionEngine, scheduler, executor, worker, and pipeline"]
-    connector["OmniConnector<br/>payload and KV transport plus synchronization"]
-    outputs["MultimodalPayload and OmniRequestOutput<br/>tensors, metadata, streaming chunks, and final artifacts"]
+    subgraph omni["vLLM-Omni"]
+        subgraph entry["Entry points"]
+            api["API server"]
+            client["Omni / AsyncOmni"]
+        end
+        engine["AsyncOmniEngine<br/>composition root and background loop"]
+        orchestrator["Orchestrator<br/>request state and cross-stage routing"]
+        runtime["StageRuntime<br/>placement, replicas, readiness, and lifecycle"]
+        ar["AR module<br/>vLLM engine, scheduler, cache, executor, worker, and model runner"]
+        diffusion["Diffusion module<br/>scheduler, worker, model runner, and pipeline"]
+        ops["Model / layer / ops<br/>attention, parallelism, and quantization"]
+        connector["OmniConnector<br/>payload and KV transport plus synchronization"]
+        outputs["Multimodal outputs<br/>streaming chunks and final artifacts"]
 
-    entry --> engine
-    engine --> orchestrator
-    engine --> runtime
-    runtime --> clients
-    clients --> ar
-    clients --> diffusion
-    ar <--> connector
-    diffusion <--> connector
-    ar --> outputs
-    diffusion --> outputs
-    outputs --> entry
+        api --> engine
+        client --> engine
+        engine --> orchestrator
+        engine --> runtime
+        orchestrator --> runtime
+        runtime --> ar
+        runtime --> diffusion
+        ar -. uses .-> ops
+        diffusion -. uses .-> ops
+        ar -. transports through .-> connector
+        diffusion -. transports through .-> connector
+        ar --> outputs
+        diffusion --> outputs
+    end
 ```
 
 ### Key components
