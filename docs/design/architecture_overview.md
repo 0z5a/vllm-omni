@@ -25,57 +25,190 @@ The architecture is designed to:
 * keep model topology, deployment placement, runtime lifecycle, transport,
   and public API concerns in separate layers.
 
-## Model execution topologies
+## Model execution
 
-vLLM-Omni is not limited to one model graph. A registered `PipelineConfig`
-defines the stages and their relationships, while `DeployConfig` supplies the
-placement and runtime choices for a particular deployment.
+Model execution is easiest to compare on two separate axes. First, identify
+the model-owned components that run at each stage. Then describe how the
+runtime executes those components: batching, attention, parallelism, and
+quantization. The four examples below use that order. Their runtime rows are
+representative deployment profiles; a model can have more than one valid
+`PipelineConfig` and `DeployConfig`.
 
-| Topology | Representative examples | Runtime shape |
+| Model | Model-owned path | vLLM-Omni stage view | Primary serving target |
+| --- | --- | --- | --- |
+| Qwen3-Omni | Thinker → Talker → Code2Wav | Three stages with asynchronous chunk hand-off | TTFT/TTFP, TPOT, E2EL, audio RTF, and concurrent throughput |
+| HunyuanImage-3.0 | Multimodal AR understanding/reasoning plus image-generation DiT | AR-only, DiT-only, or split AR → DiT deployment | DiT E2EL/denoising latency and image throughput; TTFT/TPOT for AR tasks |
+| MiniMax-H3 | Shared multimodal conditioning plus task-specific FL2VA or Ref2VA DiT and video/audio VAEs | One diffusion stage; the request selects the DiT partition | Video/audio E2EL and media throughput; RTF when audio streaming is measured |
+| Cosmos3 | Unified MoT reasoner tower plus diffusion generator tower | One diffusion pipeline materializes both towers inside the stage | Image/video/action E2EL and throughput; RTF for synchronized audio |
+
+### Serving metric vocabulary
+
+The target metric follows the output modality, not just the model name.
+
+| Metric | Meaning in this document | Most useful for |
 | --- | --- | --- |
-| AR plus downstream generation or diffusion | Qwen3-Omni, Qwen3-TTS, MiniCPM-o 4.5 | An AR stage produces text, codes, or conditioning for one or more downstream stages. |
-| Diffusion-first generation | Qwen-Image, FLUX, HunyuanImage3, Cosmos3, Krea 2 | A diffusion stage owns denoising and may use an auxiliary text or multimodal encoder. |
-| Joint multimodal generation | MiniMax H3, LTX-2 | A pipeline combines multiple model components to produce synchronized or multimodal artifacts such as video and audio. |
-| Stateful or full-duplex interaction | MiniCPM-o 4.5 and experimental world-model paths | The runtime keeps session-scoped state and supports streaming, cancellation, or incremental input. |
+| **TTFT** | Time to the first text token | AR reasoning or text output |
+| **TPOT** | Time per output token after the first token | AR decode stages |
+| **TTFP** | Time to the first streamed media packet, such as audio | Interactive speech and multimodal chat |
+| **E2EL** | End-to-end latency from request admission to the final output | Image, video, audio, and action requests |
+| **RTF** | Wall-clock processing time divided by generated audio duration; lower is faster than real time | Audio generation |
+| **Throughput** | Requests, tokens, or media seconds produced per wall-clock second | Offline and concurrent serving |
 
-The following illustrations show common model-level arrangements. They are
-examples of model topology, not constraints on the runtime.
+### Qwen3-Omni: streaming AR pipeline
 
-### DiT as the main structure, with AR as an encoder
-
-For example, Qwen-Image uses an AR or text-encoding component to condition a
-diffusion transformer.
-
-<p align="center">
-  <picture>
-    <source media="(prefers-color-scheme: dark)" src="https://raw.githubusercontent.com/vllm-project/vllm-omni/refs/heads/main/docs/source/architecture/dit-main-architecture.png">
-    <img alt="Diffusion transformer as the main model structure" src="https://raw.githubusercontent.com/vllm-project/vllm-omni/refs/heads/main/docs/source/architecture/dit-main-architecture.png" width=30%>
-  </picture>
-</p>
-
-### AR as the main structure, with a diffusion generator
-
-For example, BAGEL uses an AR model for multimodal understanding and text
-reasoning, with a diffusion component for visual generation.
+Qwen3-Omni is a useful example of a pipeline whose user-visible latency is
+determined by several sequential model components. The Thinker produces text
+and conditioning, the Talker produces audio codec tokens, and Code2Wav
+renders those tokens into audio. The [Qwen3-Omni technical
+report](https://arxiv.org/abs/2509.17765) describes the model components; the
+figure below shows the stage-level streaming schedule used by vLLM-Omni.
 
 <p align="center">
-  <picture>
-    <source media="(prefers-color-scheme: dark)" src="https://raw.githubusercontent.com/vllm-project/vllm-omni/refs/heads/main/docs/source/architecture/ar-main-architecture.png">
-    <img alt="Autoregressive model with a diffusion generator" src="https://raw.githubusercontent.com/vllm-project/vllm-omni/refs/heads/main/docs/source/architecture/ar-main-architecture.png" width=30%>
-  </picture>
+  <a href="https://github.com/vllm-project/vllm-omni/blob/main/docs/source/architecture/qwen3-omni-async-chunk.png">
+    <img alt="Qwen3-Omni Thinker, Talker, and Code2Wav streaming stages" src="https://raw.githubusercontent.com/vllm-project/vllm-omni/refs/heads/main/docs/source/architecture/qwen3-omni-async-chunk.png" width="80%">
+  </a>
 </p>
 
-### AR and DiT in one multimodal pipeline
+#### Model architecture by stage
 
-For example, Qwen-Omni combines multimodal encoders, an AR language model,
-and a modality generator.
+| Stage | Model component | Stage output |
+| --- | --- | --- |
+| **Thinker** | AuT audio encoder, SigLIP2 vision encoder, and the 30B-total/3B-active Thinker MoE Transformer | Text tokens and conditioning for the Talker |
+| **Talker** | 3B-total/0.3B-active Talker MoE Transformer with the MTP code-prediction path | Text tokens and audio codec tokens |
+| **Code2Wav** | Approximately 200M-parameter ConvNet audio decoder | Waveform/audio chunks |
+
+#### Representative stage execution
+
+| Stage | Batching | Attention and execution | Parallelism | Quantization |
+| --- | --- | --- | --- | --- |
+| **Thinker** | Continuous batching with stage-local `max_num_seqs` and token budgets | vLLM KV-cached AR attention; CUDA Graph execution when the stage is not eager | Independent stage placement; use the AR runtime's configured tensor parallelism | Supported ModelOpt FP8/NVFP4 or AutoRound checkpoint paths target the Thinker; encoders remain BF16 in the documented paths |
+| **Talker** | Continuous batching over autoregressive decode requests | KV-cached token decode with async-chunk output to Code2Wav | Independent stage placement; typically a separate GPU or replica from Thinker | BF16 baseline; no generic Talker quantization path is assumed |
+| **Code2Wav** | Static/chunk batching for codec-to-waveform decode | Non-AR chunked audio decode; eager execution is commonly retained | Separate stage or colocated placement, depending on the deployment | BF16 baseline; keep codec/vocoder precision model-specific |
+
+For this pipeline, the main serving target is interactive responsiveness:
+TTFT for text, TTFP for the first audio packet, TPOT for autoregressive decode,
+E2EL for the complete answer, and RTF/throughput for sustained audio serving.
+Async chunking and streaming primarily reduce TTFP and improve stage overlap;
+batching and CUDA Graphs primarily improve E2EL and throughput. See the
+[Qwen3-Omni recipe](https://github.com/vllm-project/vllm-omni/blob/main/recipes/Qwen/Qwen3-Omni.md)
+and [async chunk design](feature/async_chunk.md) for the deployment details.
+
+### HunyuanImage-3.0: shared multimodal model, split deployment choices
+
+The official [HunyuanImage-3.0 technical
+report](https://arxiv.org/abs/2509.23951) presents a shared decoder-only
+backbone serving image understanding, language modeling, and image
+generation. Its framework figure is useful for separating model components
+from the deployment decomposition:
 
 <p align="center">
-  <picture>
-    <source media="(prefers-color-scheme: dark)" src="https://raw.githubusercontent.com/vllm-project/vllm-omni/refs/heads/main/docs/source/architecture/ar-dit-main-architecture.png">
-    <img alt="Autoregressive and diffusion components in one pipeline" src="https://raw.githubusercontent.com/vllm-project/vllm-omni/refs/heads/main/docs/source/architecture/ar-dit-main-architecture.png" width=30%>
-  </picture>
+  <a href="https://github.com/Tencent-Hunyuan/HunyuanImage-3.0/blob/main/assets/framework.png">
+    <img alt="HunyuanImage-3.0 framework for understanding, language modeling, and image generation" src="https://raw.githubusercontent.com/Tencent-Hunyuan/HunyuanImage-3.0/main/assets/framework.png" width="95%">
+  </a>
 </p>
+
+#### Model architecture by stage
+
+| Stage or component | Model component | Stage output |
+| --- | --- | --- |
+| **AR understanding/reasoning** | Understanding and generation encoders feeding the Hunyuan-A13B decoder-only Transformer and text detokenizer | Text responses or image-generation conditioning |
+| **Image generation** | Generation encoder, diffusion prediction path/Gen. Decoder, and the image VAE decode path | Image latents and final images |
+
+The vLLM-Omni deployment may expose the AR path only, the DiT path only, or
+both as an AR → DiT pipeline with a connector between them. That is a runtime
+decomposition of the model's capabilities; it should not be read as a claim
+that the published framework figure contains two unrelated backbones.
+
+#### Representative stage execution
+
+| Stage | Batching | Attention and execution | Parallelism | Quantization |
+| --- | --- | --- | --- | --- |
+| **AR** | Standard vLLM continuous batching when serving understanding/text tasks | KV-cached causal attention | Tensor/expert parallelism follows the selected AR deployment | Checkpoint-specific; do not infer DiT FP8 settings for the AR checkpoint |
+| **DiT + VAE** | Request batching or step-wise batching; Hunyuan step batching with more than one request requires `TORCH_SDPA` | `TORCH_SDPA` is used because the model mixes causal and full attention | Validated profiles include TP4, TP2 + sequence parallelism, TP2 + CFG parallelism, and expert parallelism for MoE weights | Online FP8 and ModelOpt mixed FP8/NVFP4 are documented for the DiT; VAE precision stays separate |
+
+Image generation is therefore measured mainly with per-image E2EL/denoising
+latency, peak memory, and images-per-second throughput. TTFT and TPOT remain
+meaningful for the optional AR understanding path, but they are not the right
+headline metrics for the DiT path. See the
+[HunyuanImage-3.0 recipe](https://github.com/vllm-project/vllm-omni/blob/main/recipes/Tencent/HunyuanImage-3.0-Instruct.md)
+for the validated batching, attention, and quantization combinations.
+
+### MiniMax-H3: one diffusion stage with task-selected DiTs
+
+MiniMax-H3 illustrates a different boundary. The vLLM-Omni implementation
+loads shared conditioning and decode components once and selects one of two
+task-specific DiTs per request. The current
+[MiniMax H3 release overview](https://minimaxi.com/blog/minimax-h3) says that a
+detailed H3 technical report is forthcoming, so this section uses the
+implementation and serving recipe as the source for the stage mapping rather
+than implying an unavailable published architecture figure.
+
+#### Model architecture by stage
+
+| Stage | Model component | Stage output |
+| --- | --- | --- |
+| **Diffusion stage: shared path** | Tokenizer/processor, Qwen3-VL text encoder, video VAE, and audio VAE | Packed text, image, video, and audio conditioning plus decoded media |
+| **Diffusion stage: `FL2VA`** | Task-specific DiT for text-to-video+audio (`t2va`) and first-frame-to-video+audio (`fl2va`) | Synchronized video and stereo audio |
+| **Diffusion stage: `Ref2VA`** | Task-specific DiT for mixed image/video/audio reference generation (`ref2va`) | Reference-conditioned video and stereo audio |
+
+Both DiT partitions live behind one logical diffusion stage; `task` selects
+which partition runs. This is different from Qwen3-Omni's three stage
+pipeline, even though both models produce synchronized audio and video-like
+outputs.
+
+#### Representative stage execution
+
+| Stage | Batching | Attention and execution | Parallelism | Quantization |
+| --- | --- | --- | --- | --- |
+| **Shared encoder + selected DiT** | The current H3 implementation executes one generation request per diffusion batch; use concurrency for service-level throughput | cuDNN attention for the validated two-GPU consumer profile; TRTLLM attention or FlashAttention-4 on supported Blackwell profiles | TP2 plus text-encoder TP and VAE patch parallelism on two GPUs; Ulysses and tiled VAE patch parallelism on four GPUs; DLO/CPU offload trade memory for transfer time | Online FP8 applies to eligible DiT linears; text encoder and VAEs remain BF16/FP32, and FP8 is incompatible with layerwise offload |
+
+The primary target is video/audio E2EL and media throughput, with RTF useful
+when the audio stream is evaluated independently. TTFT and TPOT do not
+describe the main H3 generation path because the user-visible output is
+diffusion media rather than a token stream. The
+[MiniMax-H3 recipe](https://github.com/vllm-project/vllm-omni/blob/main/recipes/MiniMaxAI/MiniMax-H3.md)
+contains the hardware-specific profiles and warmup requirements.
+
+### Cosmos3: unified MoT reasoner and generator
+
+Cosmos3 uses a Mixture-of-Transformers (MoT) design. The official [Cosmos 3
+technical report](https://research.nvidia.com/labs/cosmos-lab/cosmos3/technical-report.pdf)
+describes autoregressive reasoner tokens and diffusion generator tokens in one
+model sequence. The figure below is the corresponding two-tower overview from
+NVIDIA's [technical explanation](https://developer.nvidia.com/blog/develop-physical-ai-reasoning-world-and-action-models-with-nvidia-cosmos-3/).
+
+<p align="center">
+  <a href="https://developer.nvidia.com/blog/develop-physical-ai-reasoning-world-and-action-models-with-nvidia-cosmos-3/">
+    <img alt="Cosmos3 autoregressive reasoner and diffusion generator towers" src="https://developer-blogs.nvidia.com/wp-content/uploads/2026/05/image-11-e1780000686151.webp" width="95%">
+  </a>
+</p>
+
+#### Model architecture by stage
+
+| Stage or component | Model component | Stage output |
+| --- | --- | --- |
+| **Reasoner tower** | Autoregressive VLM path with causal attention over language and optional vision/action context; runs once per generation request | Discrete reasoning/context tokens |
+| **Generator tower** | Diffusion path with full attention over the generator tokens and the reasoner K/V context; runs for each denoising step | Image, video, audio, or action tokens |
+| **Shared pipeline** | `Cosmos3OmniDiffusersPipeline` plus modality encoders/decoders and VAE paths | Final image/video/audio or action response |
+
+The reasoner and generator are model-owned components, not two independent
+vLLM-Omni stages by default. The current Cosmos3 pipeline materializes both
+inside one diffusion stage; model-level CPU offload can swap the reasoner and
+generator components between their phases.
+
+#### Representative stage execution
+
+| Stage | Batching | Attention and execution | Parallelism | Quantization |
+| --- | --- | --- | --- | --- |
+| **Reasoner + generator pipeline** | Use request batching or step execution only when the selected pipeline advertises that capability; otherwise use `max_num_seqs=1` | Causal attention for reasoner tokens and full attention for diffusion tokens; the validated recipe uses a platform-selected aiter FlashAttention path with `TORCH_SDPA` fallback | Ulysses/context parallelism or tensor parallelism for the transformer; VAE tiling and layerwise/model-level offload address activation and weight memory | Online FP8 is supported for the diffusion pipeline; AutoRound/checkpoint-specific paths and quality validation remain separate from the BF16 baseline |
+
+For Cosmos3, generation E2EL and output throughput are the primary targets.
+Action-policy workloads add a control-loop latency target, while synchronized
+audio workloads add RTF. TTFT/TPOT are appropriate for a reasoner-only service,
+but not for the full diffusion generation path. See the
+[Cosmos3 recipe](https://github.com/vllm-project/vllm-omni/blob/main/recipes/cosmos3/Cosmos3-Nano.md)
+and [diffusion execution modes](../user_guide/diffusion/execution_modes.md)
+for the current runtime choices.
 
 ## System architecture
 
