@@ -114,7 +114,7 @@ flowchart TB
 | **Entrypoints** | Translate offline, CLI, OpenAI-compatible, and duplex requests into engine operations and render outputs back to public protocols. |
 | **Configuration resolution** | Combines pipeline topology, deployment settings, model metadata, and user overrides into a validated control-plane configuration. |
 | **AsyncOmniEngine** | Owns engine composition, the background event loop, stage initialization, request submission, and output collection. |
-| **Orchestrator** | Owns cross-stage request state, stage-to-stage routing, companion tracking, correlation, cancellation, and output ordering. It does not own model selection or deployment placement. |
+| **Orchestrator** | Owns cross-stage request state, stage-to-stage routing, request correlation, cancellation, and output ordering. It does not own model selection or deployment placement. |
 | **StageRuntime** | Expands logical stages into local or distributed replicas, starts stage clients and processes, and manages readiness, affinity, failure, and shutdown. |
 | **AR runtime** | Extends vLLM's scheduler, KV-cache, worker, and model-runner path for omni-modality inputs and inter-stage outputs. |
 | **Diffusion runtime** | Schedules and executes denoising workloads through diffusion executors, workers, pipelines, acceleration backends, and output materialization. |
