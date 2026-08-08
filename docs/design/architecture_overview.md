@@ -38,7 +38,7 @@ representative deployment profiles; a model can have more than one valid
 | --- | --- | --- | --- |
 | Qwen3-Omni | Thinker → Talker → Code2Wav | Three stages with asynchronous chunk hand-off | TTFT/TTFP, TPOT, E2EL, audio RTF, and concurrent throughput |
 | HunyuanImage-3.0 | Multimodal AR understanding/reasoning plus image-generation DiT | AR-only, DiT-only, or split AR → DiT deployment | DiT E2EL/denoising latency and image throughput; TTFT/TPOT for AR tasks |
-| MiniMax-H3 | Shared multimodal conditioning plus task-specific FL2VA or Ref2VA DiT and video/audio VAEs | One diffusion stage; the request selects the DiT partition | Video/audio E2EL and media throughput; RTF when audio streaming is measured |
+| MiniMax-H3 | Text encoder → task-specific FL2VA or Ref2VA DiT → video/audio VAE decoder | Three logical components; the default pipeline may co-locate them in one diffusion stage | Video/audio E2EL and media throughput; RTF when audio streaming is measured |
 | Cosmos3 | Unified MoT reasoner tower plus diffusion generator tower | One diffusion pipeline materializes both towers inside the stage | Image/video/action E2EL and throughput; RTF for synchronized audio |
 
 ### Serving metric vocabulary
@@ -133,11 +133,16 @@ headline metrics for the DiT path. See the
 [HunyuanImage-3.0 recipe](https://github.com/vllm-project/vllm-omni/blob/main/recipes/Tencent/HunyuanImage-3.0-Instruct.md)
 for the validated batching, attention, and quantization combinations.
 
-### MiniMax-H3: one diffusion stage with task-selected DiTs
+### MiniMax-H3: split conditioning, denoising, and decode
 
-MiniMax-H3 illustrates a different boundary. The vLLM-Omni implementation
-loads shared conditioning and decode components once and selects one of two
-task-specific DiTs per request. The current
+MiniMax-H3 can be described as three logical execution components:
+`Text Encoder → task-selected DiT → VAE Decoder`. The vLLM-Omni implementation
+loads the shared conditioning and decode components once and selects one of
+two task-specific DiTs per request in the default pipeline. A deployment can
+keep these components co-located or promote the text encoder and VAE decoder
+to separate stage boundaries when placement, memory, or reuse makes that
+useful; the split below is an architectural view, not a claim that the
+current recipe launches three processes. The current
 [MiniMax H3 release overview](https://minimaxi.com/blog/minimax-h3) says that a
 detailed H3 technical report is forthcoming, so this section uses the
 implementation and serving recipe as the source for the stage mapping rather
@@ -145,27 +150,32 @@ than implying an unavailable published architecture figure.
 
 #### Model architecture by stage
 
-| Stage | Model component | Stage output |
+| Logical stage | Model component | Stage output |
 | --- | --- | --- |
-| **Diffusion stage: shared path** | Tokenizer/processor, Qwen3-VL text encoder, video VAE, and audio VAE | Packed text, image, video, and audio conditioning plus decoded media |
-| **Diffusion stage: `FL2VA`** | Task-specific DiT for text-to-video+audio (`t2va`) and first-frame-to-video+audio (`fl2va`) | Synchronized video and stereo audio |
-| **Diffusion stage: `Ref2VA`** | Task-specific DiT for mixed image/video/audio reference generation (`ref2va`) | Reference-conditioned video and stereo audio |
+| **Text Encoder** | Tokenizer/processor and Qwen3-VL text encoder; vision/audio references are prepared alongside the text condition | Packed multimodal conditioning for denoising |
+| **DiT** | Task-specific `FL2VA` DiT for text/first-frame generation or `Ref2VA` DiT for mixed references | Video and audio latent tokens |
+| **VAE Decoder** | Video VAE and audio VAE decode the generated latents and assemble the synchronized output | H.264 video and stereo audio in the final MP4 |
 
-Both DiT partitions live behind one logical diffusion stage; `task` selects
-which partition runs. This is different from Qwen3-Omni's three stage
-pipeline, even though both models produce synchronized audio and video-like
-outputs.
+Both DiT partitions remain behind one task-selection point; `task` chooses
+which partition runs. In the default implementation, the three logical
+components execute inside one diffusion stage. This is different from
+Qwen3-Omni's three independently scheduled stages, even though both models
+produce synchronized audio and video-like outputs.
 
 #### Representative stage execution
 
-| Stage | Batching | Attention and execution | Parallelism | Quantization |
+| Logical stage | Batching | Attention and execution | Parallelism | Quantization |
 | --- | --- | --- | --- | --- |
-| **Shared encoder + selected DiT** | The current H3 implementation executes one generation request per diffusion batch; use concurrency for service-level throughput | cuDNN attention for the validated two-GPU consumer profile; TRTLLM attention or FlashAttention-4 on supported Blackwell profiles | TP2 plus text-encoder TP and VAE patch parallelism on two GPUs; Ulysses and tiled VAE patch parallelism on four GPUs; DLO/CPU offload trade memory for transfer time | Online FP8 applies to eligible DiT linears; text encoder and VAEs remain BF16/FP32, and FP8 is incompatible with layerwise offload |
+| **Text Encoder** | A split deployment can batch prompt/reference encoding independently; the default co-located pipeline follows the diffusion request scheduler | Qwen3-VL attention and multimodal preprocessing | `--text-encoder-tp-size N` shards the encoder across the first `N` DiT ranks; a separately placed encoder would use its own stage placement | BF16/FP32 baseline; the H3 DiT FP8 path does not quantize the text encoder |
+| **DiT** | The current H3 implementation executes one generation request per diffusion batch; use concurrency for service-level throughput | cuDNN attention for the validated two-GPU consumer profile; TRTLLM attention or FlashAttention-4 on supported Blackwell profiles | TP2 plus text-encoder TP and Ulysses/VAE parallel groups on multi-GPU profiles; DLO/CPU offload trade memory for transfer time | Online FP8 applies to eligible DiT linears and is incompatible with layerwise offload |
+| **VAE Decoder** | Decode follows each generation request; tile/patch work can be distributed even when denoising is not batched | VAE decode kernels rather than DiT attention | VAE patch parallelism and native tiled decode; a split decoder can receive latents from the DiT stage | BF16/FP32 baseline; the documented H3 FP8 path leaves both VAEs unchanged |
 
-The primary target is video/audio E2EL and media throughput, with RTF useful
-when the audio stream is evaluated independently. TTFT and TPOT do not
-describe the main H3 generation path because the user-visible output is
-diffusion media rather than a token stream. The
+The primary target is video/audio E2EL and media throughput, with the logical
+stage boundaries making prompt encoding, denoising, and VAE decode costs
+separately measurable. RTF is useful when the audio stream is evaluated
+independently. TTFT and TPOT do not describe the main H3 generation path
+because the user-visible output is diffusion media rather than a token stream.
+The
 [MiniMax-H3 recipe](https://github.com/vllm-project/vllm-omni/blob/main/recipes/MiniMaxAI/MiniMax-H3.md)
 contains the hardware-specific profiles and warmup requirements.
 
