@@ -220,6 +220,50 @@ but not for the full diffusion generation path. See the
 and [diffusion execution modes](../user_guide/diffusion/execution_modes.md)
 for the current runtime choices.
 
+## Why the stage-based architecture follows from these examples
+
+The four representative pipelines show that omni-modality serving is not one
+execution problem. Autoregressive decoding, diffusion denoising, multimodal
+encoding, and media decoding have different scheduling, attention, parallelism,
+memory, and quantization requirements. The architecture therefore needs a
+unit that can be optimized and resourced independently while remaining part of
+one request pipeline.
+
+| Observation | Design implication | vLLM-Omni response |
+| --- | --- | --- |
+| AR, diffusion, encoder, and decoder components have different execution loops | One scheduler and one execution policy cannot fit every component | Specialized AR, generation, and diffusion stage runtimes |
+| A model can be deployed as AR-only, DiT-only, or AR → DiT | Model structure must be separate from deployment topology | `PipelineConfig` describes logical stages and relationships; `DeployConfig` describes placement and resources |
+| Text encoders, DiTs, and VAE decoders have different batch and memory behavior | Batching, attention, parallelism, and quantization must be stage-local | Each stage carries its own runtime and engine configuration |
+| MiniMax-H3 can co-locate or logically split its text encoder and VAE decoder | A stage boundary should be configurable rather than forcing a process boundary | Logical stages can be co-located or assigned independent runtime placement |
+| Qwen3-Omni transfers hidden states and codec chunks across stages | Large intermediate data needs typed transport and synchronization | `OmniConnector` transports payloads and KV-cache data without owning model routing |
+| Requests span multiple stages and may be cancelled or produce ordered streaming output | Cross-stage request state needs a separate control plane | `Orchestrator` owns correlation, cancellation, routing state, and output ordering |
+| Qwen3-Omni optimizes first-packet latency while image/video models optimize E2EL and throughput | Performance objectives must be model- and stage-aware | TTFT/TPOT/TTFP, E2EL, RTF, and throughput are measured according to the output modality |
+
+This leads to a precise definition of a stage: it is a logical execution unit
+with its own model component, execution policy, resource ownership, and
+performance objectives. A stage is not necessarily a separate process. Cosmos3
+keeps its reasoner and generator inside one diffusion pipeline, while
+MiniMax-H3 exposes useful logical boundaries between text encoding, denoising,
+and VAE decoding. Both are valid mappings of the same abstraction.
+
+The resulting separation can be summarized as:
+
+```text
+Model structure       What is computed and how components are related
+        ↓
+PipelineConfig        Which logical stages exist and how they are connected
+        ↓
+Stage runtime policy  How each stage batches, attends, parallelizes, and quantizes
+        ↓
+DeployConfig           Where stages run, with which devices, replicas, and connectors
+```
+
+`AsyncOmniEngine` and `Orchestrator` coordinate the pipeline, `OmniConnector`
+transports stage outputs, and `StageRuntime` materializes the selected
+placement. This separation lets one logical model support multiple serving
+topologies without coupling model code to process layout or deployment
+resources.
+
 ## System architecture
 
 The runtime is organized around an engine, an orchestrator, stage lifecycle
