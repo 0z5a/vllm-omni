@@ -173,54 +173,54 @@ The important ownership rules are:
 
 ## Main features
 
-### Stage-based execution and disaggregation
+The feature surface is grouped to match the
+[feature design documents](index.md#feature-design-documents). This page
+summarizes each feature's architectural role; the linked design document is
+the source for configuration, compatibility, and implementation details.
 
-Each logical stage declares its inputs, outputs, execution type, and connector
-edges. The orchestrator routes requests according to those declared
-relationships, while `OmniConnector` implementations move data or KV-cache
-payloads across processes, devices, or nodes. Qwen3-Omni, for example, can
-represent Thinker, Talker, and Code2Wav as separate stages.
+### Runtime and stage execution
 
-### AR and diffusion acceleration
+* **Disaggregated inference:** Logical stages can run in separate processes,
+  devices, or nodes while the orchestrator preserves their declared
+  relationships. `OmniConnector` implementations transfer stage data and
+  control-plane metadata. See [Disaggregated Inference](feature/disaggregated_inference.md).
+* **Asynchronous stage and output execution:** [Async Chunk](feature/async_chunk.md)
+  forwards partial stage outputs as they become available. [Async Diffusion
+  Output](feature/async_diffusion_output.md) overlaps device-to-host output
+  packing with the next diffusion request, while [Async Omni Output
+  Materialization](feature/omni_async_output_materialization.md) moves
+  CPU-side payload construction off the AR decode critical path.
+* **Automatic prefix caching:** [Automatic Prefix Caching in Omni Models](feature/prefix_caching.md)
+  reuses KV-cache-aligned stage outputs and multimodal tensors for requests
+  with common prefixes.
 
-The two runtime families share the stage and output contracts while retaining
-their specialized execution paths:
+### Communication
 
-* **AR stages:** vLLM scheduling, KV-cache management, batching, CUDA Graphs,
-  and model-runner optimizations.
-* **Diffusion stages:** continuous batching, compile granularity, cache
-  acceleration, attention backends, quantization, CPU or layerwise offload,
-  tensor/sequence/CFG/VAE parallelism, and distributed layerwise offload.
+* **OmniConnector transport:** The connector contract carries tensors, KV-cache
+  data, and transport metadata across stage boundaries. The available
+  implementations cover shared memory and multi-node Mooncake, Mori, and
+  Yuanrong transports; see [Disaggregated Inference](feature/disaggregated_inference.md)
+  for the connector choices and configuration model.
 
-### Classifier-Free Guidance companion flow
+### Diffusion acceleration
 
-CFG can be represented as companion requests that share the parent request's
-stage affinity and transport lifecycle:
-
-1. A model-provided `prompt_expand_func` expands the initial prompt into a
-   primary request and one or more companion requests.
-2. The `Orchestrator` tracks parent/companion identities and waits for the
-   required stage outputs. The connector transfers the associated KV-cache
-   payloads across the stage boundary.
-3. A downstream diffusion stage invokes its `cfg_kv_collect_func` to collect
-   companion KV data and apply model-specific guidance inputs.
-
-See [CFG parallelism](feature/cfg_parallel.md) for the diffusion-side
-configuration and constraints.
-
-### Distributed inference and memory efficiency
-
-The deployment layer can combine stage replicas with vLLM parallelism and
-diffusion parallelism. Composable strategies make common layouts reusable,
-while CPU offload, layerwise offload, and distributed layerwise offload allow
-large diffusion pipelines to run under tighter device-memory budgets.
-
-### Extensibility
-
-New model families contribute a pipeline definition, stage implementations,
-input/output adapters, and optional acceleration or connector integrations.
-The central engine and orchestrator remain model-agnostic; model-specific
-behavior is selected by resolved stage metadata and explicit extension hooks.
+* **Request and step batching:** [Diffusion Continuous Batching](feature/diffusion_continuous_batching.md)
+  defines request-batch and step-batch execution, scheduler admission, and the
+  common streaming output path.
+* **Composable parallelism:** Diffusion stages can combine [CFG-Parallel](feature/cfg_parallel.md),
+  [Expert Parallel](feature/expert_parallel.md), [HSDP](feature/hsdp.md),
+  [Pipeline Parallel](feature/pipeline_parallel.md), [Sequence Parallel](feature/sequence_parallel.md),
+  [Tensor Parallel](feature/tensor_parallel.md), and [VAE Patch Parallelism](feature/vae_parallel.md)
+  according to the pipeline and hardware topology.
+* **Attention and cache acceleration:** [Skip-Softmax](feature/skip_softmax.md),
+  [Cache-DiT](feature/cache_dit.md), and [TeaCache](feature/teacache.md)
+  provide backend and denoising-step optimizations without changing the
+  stage contract.
+* **Quantization and memory efficiency:** [Quantization](feature/quantization.md)
+  resolves per-pipeline or per-component quantization configurations, while
+  [Distributed Layerwise Offload](feature/distributed_layerwise_offload.md)
+  streams diffusion blocks from host memory within the existing parallel
+  topology.
 
 ## Interfaces
 
