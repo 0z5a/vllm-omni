@@ -27,12 +27,11 @@ The architecture is designed to:
 
 ## Model execution
 
-Model execution is easiest to compare on two separate axes. First, identify
-the model-owned components that run at each stage. Then describe how the
-runtime executes those components: batching, attention, parallelism, and
-quantization. The four examples below use that order. Their runtime rows are
-representative deployment profiles; a model can have more than one valid
-`PipelineConfig` and `DeployConfig`.
+These four examples show how vLLM-Omni maps model components to stage-local
+execution policies. Each summary covers the model-owned path, batching,
+attention, parallelism, quantization, and primary serving targets. The profiles
+are representative; a model may support multiple `PipelineConfig` and
+`DeployConfig` combinations.
 
 | Model | Model-owned path | vLLM-Omni stage view | Primary serving target |
 | --- | --- | --- | --- |
@@ -56,12 +55,10 @@ The target metric follows the output modality, not just the model name.
 
 ### Qwen3-Omni: streaming AR pipeline
 
-Qwen3-Omni is a useful example of a pipeline whose user-visible latency is
-determined by several sequential model components. The Thinker produces text
-and conditioning, the Talker produces audio codec tokens, and Code2Wav
-renders those tokens into audio. The [Qwen3-Omni technical
-report](https://arxiv.org/abs/2509.17765) describes the model components; the
-figure below shows the stage-level streaming schedule used by vLLM-Omni.
+Qwen3-Omni illustrates a multi-stage streaming AR pipeline: Thinker → Talker →
+Code2Wav. The [technical report](https://arxiv.org/abs/2509.17765) describes
+the model components, and the figure shows the stage-level streaming schedule
+used by vLLM-Omni.
 
 <p align="center">
   <a href="https://github.com/vllm-project/vllm-omni/blob/main/docs/source/architecture/qwen3-omni-async-chunk.png">
@@ -95,11 +92,10 @@ and [async chunk design](feature/async_chunk.md) for the deployment details.
 
 ### HunyuanImage-3.0: shared multimodal model, split deployment choices
 
-The official [HunyuanImage-3.0 technical
-report](https://arxiv.org/abs/2509.23951) presents a shared decoder-only
-backbone serving image understanding, language modeling, and image
-generation. Its framework figure is useful for separating model components
-from the deployment decomposition:
+HunyuanImage-3.0 illustrates a shared multimodal model with flexible AR, DiT,
+and split AR → DiT deployment. The official [technical
+report](https://arxiv.org/abs/2509.23951) provides the model view; the tables
+below map it to vLLM-Omni stages.
 
 <p align="center">
   <a href="https://github.com/Tencent-Hunyuan/HunyuanImage-3.0/blob/main/assets/framework.png">
@@ -135,18 +131,12 @@ for the validated batching, attention, and quantization combinations.
 
 ### MiniMax-H3: split conditioning, denoising, and decode
 
-MiniMax-H3 can be described as three logical execution components:
-`Text Encoder → task-selected DiT → VAE Decoder`. The vLLM-Omni implementation
-loads the shared conditioning and decode components once and selects one of
-two task-specific DiTs per request in the default pipeline. A deployment can
-keep these components co-located or promote the text encoder and VAE decoder
-to separate stage boundaries when placement, memory, or reuse makes that
-useful; the split below is an architectural view, not a claim that the
-current recipe launches three processes. The current
-[MiniMax H3 release overview](https://minimaxi.com/blog/minimax-h3) says that a
-detailed H3 technical report is forthcoming, so this section uses the
-implementation and serving recipe as the source for the stage mapping rather
-than implying an unavailable published architecture figure.
+MiniMax-H3 illustrates logical boundaries between text encoding, task-specific
+denoising, and media decoding: `Text Encoder → DiT → VAE Decoder`. The default
+pipeline co-locates these components, while deployment may split them for
+placement, memory, or reuse. The stage mapping follows the implementation and
+serving recipe; the [release overview](https://minimaxi.com/blog/minimax-h3)
+notes that a detailed technical report is forthcoming.
 
 #### Model architecture by stage
 
@@ -181,11 +171,11 @@ contains the hardware-specific profiles and warmup requirements.
 
 ### Cosmos3: unified MoT reasoner and generator
 
-Cosmos3 uses a Mixture-of-Transformers (MoT) design. The official [Cosmos 3
-technical report](https://research.nvidia.com/labs/cosmos-lab/cosmos3/technical-report.pdf)
-describes autoregressive reasoner tokens and diffusion generator tokens in one
-model sequence. The figure below is the corresponding two-tower overview from
-NVIDIA's [technical explanation](https://developer.nvidia.com/blog/develop-physical-ai-reasoning-world-and-action-models-with-nvidia-cosmos-3/).
+Cosmos3 illustrates a unified Mixture-of-Transformers (MoT) reasoner and
+diffusion generator. The official [technical
+report](https://research.nvidia.com/labs/cosmos-lab/cosmos3/technical-report.pdf)
+and NVIDIA's [technical explanation](https://developer.nvidia.com/blog/develop-physical-ai-reasoning-world-and-action-models-with-nvidia-cosmos-3/)
+provide the two-tower model view used below.
 
 <p align="center">
   <a href="https://developer.nvidia.com/blog/develop-physical-ai-reasoning-world-and-action-models-with-nvidia-cosmos-3/">
