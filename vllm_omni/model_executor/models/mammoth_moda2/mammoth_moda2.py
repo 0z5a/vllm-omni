@@ -49,7 +49,6 @@ from vllm.model_executor.models.utils import (
 from vllm.multimodal import MULTIMODAL_REGISTRY
 from vllm.sequence import IntermediateTensors
 from vllm.transformers_utils.config import (
-    is_interleaved,
     patch_rope_parameters,
     set_default_rope_theta,
 )
@@ -57,6 +56,19 @@ from vllm.transformers_utils.config import (
 from vllm_omni.model_executor.models.output_templates import OmniOutput
 from vllm_omni.model_executor.models.utils import add_prefix_to_loaded_weights
 from vllm_omni.transformers_utils.configs.mammoth_moda2 import Mammothmoda2Config
+
+
+def _is_interleaved(config) -> bool:
+    """Detect if the model with this config is used with interleaved attention.
+
+    Replicates the helper that was removed from upstream
+    ``vllm.transformers_utils.config`` (vLLM commit 26d725c334,
+    "[Model] Add VaultGemma via Transformers modeling backend").
+    """
+    text_config = config.get_text_config()
+    if layer_types := getattr(text_config, "layer_types", None):
+        return len(set(layer_types)) > 1
+    return False
 
 
 def _runtime_meta(runtime_info: dict[str, Any]) -> dict[str, Any]:
@@ -289,7 +301,7 @@ class MammothModa2Qwen2ForCausalLM(nn.Module, SupportsPP):
         quant_config = vllm_config.quant_config
         self.prefix = prefix
 
-        if is_interleaved(vllm_config.model_config.hf_text_config):
+        if _is_interleaved(vllm_config.model_config.hf_text_config):
             assert config.max_window_layers == config.num_hidden_layers, (
                 "Sliding window for some but all layers is not supported. "
                 f"This model uses sliding window but `max_window_layers` = {config.max_window_layers} "
