@@ -37,7 +37,7 @@ are representative; a model may support multiple `PipelineConfig` and
 | --- | --- | --- | --- |
 | Qwen3-Omni | Thinker → Talker → Code2Wav | Three stages with asynchronous chunk hand-off | TTFT/TTFP, TPOT, E2EL, audio RTF, and concurrent throughput |
 | HunyuanImage-3.0 | Multimodal AR understanding/reasoning plus image-generation DiT | AR-only, DiT-only, or split AR → DiT deployment | DiT E2EL/denoising latency and image throughput; TTFT/TPOT for AR tasks |
-| MiniMax-H3 | Text encoder → task-specific FL2VA or Ref2VA DiT → video/audio VAE decoder | Three logical components; the default pipeline may co-locate them in one diffusion stage | Video/audio E2EL and media throughput; RTF when audio streaming is measured |
+| MiniMax-H3 | Text encoder → task-specific FL2VA or Ref2VA DiT → video/audio VAE decoder | Three logical component/phase boundaries within one registered diffusion stage | Video/audio E2EL and media throughput; RTF when audio streaming is measured |
 | Cosmos3 | Unified MoT reasoner tower plus diffusion generator tower | One diffusion pipeline materializes both towers inside the stage | Image/video/action E2EL and throughput; RTF for synchronized audio |
 
 ### Serving metric vocabulary
@@ -129,39 +129,41 @@ headline metrics for the DiT path. See the
 [HunyuanImage-3.0 recipe](https://github.com/vllm-project/vllm-omni/blob/main/recipes/Tencent/HunyuanImage-3.0-Instruct.md)
 for the validated batching, attention, and quantization combinations.
 
-### MiniMax-H3: split conditioning, denoising, and decode
+### MiniMax-H3: conditioning, denoising, and decode
 
-MiniMax-H3 illustrates logical boundaries between text encoding, task-specific
-denoising, and media decoding: `Text Encoder → DiT → VAE Decoder`. The default
-pipeline co-locates these components, while deployment may split them for
-placement, memory, or reuse. The stage mapping follows the implementation and
+MiniMax-H3 illustrates logical component and phase boundaries between text
+encoding, task-specific denoising, and media decoding:
+`Text Encoder → DiT → VAE Decoder`. The current registered topology co-locates
+these components in one diffusion stage. These boundaries are useful for
+profiling and offload; independent placement would require a future
+multi-stage `PipelineConfig`. The stage mapping follows the implementation and
 serving recipe; the [release overview](https://minimaxi.com/blog/minimax-h3)
 notes that a detailed technical report is forthcoming.
 
-#### Model architecture by stage
+#### Model architecture by component
 
-| Logical stage | Model component | Stage output |
+| Logical component | Model component | Component output |
 | --- | --- | --- |
 | **Text Encoder** | Tokenizer/processor and Qwen3-VL text encoder; vision/audio references are prepared alongside the text condition | Packed multimodal conditioning for denoising |
 | **DiT** | Task-specific `FL2VA` DiT for text/first-frame generation or `Ref2VA` DiT for mixed references | Video and audio latent tokens |
-| **VAE Decoder** | Video VAE and audio VAE decode the generated latents and assemble the synchronized output | H.264 video and stereo audio in the final MP4 |
+| **VAE Decoder** | Video VAE and audio VAE decode the generated latents and assemble the synchronized output | Decoded video frames and stereo waveform, with FPS and audio sample rate metadata |
 
 Both DiT partitions remain behind one task-selection point; `task` chooses
-which partition runs. In the default implementation, the three logical
+which partition runs. In the current implementation, the three logical
 components execute inside one diffusion stage. This is different from
 Qwen3-Omni's three independently scheduled stages, even though both models
 produce synchronized audio and video-like outputs.
 
-#### Representative stage execution
+#### Representative component execution
 
-| Logical stage | Batching | Attention and execution | Parallelism | Quantization |
+| Logical component | Batching | Attention and execution | Parallelism | Quantization |
 | --- | --- | --- | --- | --- |
-| **Text Encoder** | A split deployment can batch prompt/reference encoding independently; the default co-located pipeline follows the diffusion request scheduler | Qwen3-VL attention and multimodal preprocessing | `--text-encoder-tp-size N` shards the encoder across the first `N` DiT ranks; a separately placed encoder would use its own stage placement | BF16/FP32 baseline; the H3 DiT FP8 path does not quantize the text encoder |
+| **Text Encoder** | The current co-located pipeline follows the diffusion request scheduler; independent prompt/reference batching would require a separate multi-stage topology | Qwen3-VL attention and multimodal preprocessing | `--text-encoder-tp-size N` shards the encoder across the first `N` DiT ranks; independent placement is not part of the current topology | BF16/FP32 baseline; the H3 DiT FP8 path does not quantize the text encoder |
 | **DiT** | The current H3 implementation executes one generation request per diffusion batch; use concurrency for service-level throughput | cuDNN attention for the validated two-GPU consumer profile; TRTLLM attention or FlashAttention-4 on supported Blackwell profiles | TP2 plus text-encoder TP and Ulysses/VAE parallel groups on multi-GPU profiles; DLO/CPU offload trade memory for transfer time | Online FP8 applies to eligible DiT linears and is incompatible with layerwise offload |
-| **VAE Decoder** | Decode follows each generation request; tile/patch work can be distributed even when denoising is not batched | VAE decode kernels rather than DiT attention | VAE patch parallelism and native tiled decode; a split decoder can receive latents from the DiT stage | BF16/FP32 baseline; the documented H3 FP8 path leaves both VAEs unchanged |
+| **VAE Decoder** | Decode follows each generation request; tile/patch work can be distributed even when denoising is not batched | VAE decode kernels rather than DiT attention | VAE patch parallelism and native tiled decode within the diffusion stage | BF16/FP32 baseline; the documented H3 FP8 path leaves both VAEs unchanged |
 
 The primary target is video/audio E2EL and media throughput, with the logical
-stage boundaries making prompt encoding, denoising, and VAE decode costs
+component boundaries making prompt encoding, denoising, and VAE decode costs
 separately measurable. RTF is useful when the audio stream is evaluated
 independently. TTFT and TPOT do not describe the main H3 generation path
 because the user-visible output is diffusion media rather than a token stream.
@@ -321,7 +323,7 @@ inputs, fields, and ownership rules are described below.
 ```mermaid
 flowchart TB
     layer1["Layer 1 · Authoring inputs<br/>PipelineConfig + DeployConfig"]
-    layer2["Layer 2 · Resolve once<br/>OmniConfigResolveRequest<br/>resolve_omni_config()"]
+    layer2["Layer 2 · Resolve once<br/>StageConfigFactory.create_from_model()<br/>VllmOmniConfig.from_pipeline_config()"]
     layer3["Layer 3 · Transport-safe control plane<br/>VllmOmniConfig"]
     layer4["Layer 4 · Runtime launch planning<br/>StageRuntime"]
     layer5["Layer 5 · Engine materialization<br/>VllmConfig / OmniDiffusionConfig"]
@@ -329,21 +331,20 @@ flowchart TB
     layer1 --> layer2 --> layer3 --> layer4 --> layer5
 ```
 
-The resolver names in this diagram describe the intended single resolution
-boundary. In the current implementation, the corresponding path is carried
-out by `StageConfigFactory.create_from_model()` and
+The single resolution boundary is implemented by
+`StageConfigFactory.create_from_model()` and
 `VllmOmniConfig.from_pipeline_config()` in
 [`vllm_omni/config`](https://github.com/vllm-project/vllm-omni/tree/main/vllm_omni/config).
 The legacy `stage_args` YAML path remains only for models that have not yet
 migrated to `PipelineConfig` and `DeployConfig`.
 
-In the typed path, the common `VllmOmniStageConfig` slot in the
-diagram is realized by `VllmOmniARStageConfig`,
-`VllmOmniGenerationStageConfig`, or `VllmOmniDiffusionStageConfig`. The
-request and engine-spec fields belong to the control-plane boundary; the
-current implementation stores their equivalent projections in the structured
-stage configuration and materializes backend-specific engine objects during
-stage initialization.
+In the typed path, each stage configuration derives from
+`BaseVllmOmniStageConfig` and is specialized as
+`VllmOmniARStageConfig`, `VllmOmniGenerationStageConfig`, or
+`VllmOmniDiffusionStageConfig`. The request and engine-spec fields belong to the
+control-plane boundary; the current implementation stores their equivalent
+projections in the structured stage configuration and materializes
+backend-specific engine objects during stage initialization.
 
 The important ownership rules are:
 
