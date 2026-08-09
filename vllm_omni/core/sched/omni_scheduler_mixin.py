@@ -94,6 +94,15 @@ class OmniSchedulerMixin:
             adapter.segment_finished_requests.discard(session.request_id)
         session._output_token_ids.clear()
         session._all_token_ids.clear()
+        # In-flight outputs from the previous segment were optimistically
+        # scheduled (async lookahead). Mark them stale so update_from_output
+        # drops them instead of underflowing num_output_placeholders
+        # (vLLM 0.27 a0c092ee72 removed async_tokens_to_discard).
+        session.num_stale_output_tokens += int(
+            getattr(session, "num_output_placeholders", 0) or 0
+        )
+        session.num_output_placeholders = 0
+        session.spec_token_ids = []
         new_prompt = update.prompt_token_ids or ()
         session._all_token_ids.extend(new_prompt)
         session.num_computed_tokens = 0

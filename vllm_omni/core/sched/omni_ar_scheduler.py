@@ -325,6 +325,18 @@ class OmniARScheduler(OmniSchedulerMixin, VLLMScheduler):
                 # max(0, computed - in_flight), so a leaked counter silently
                 # freezes sliding-window block freeing.
                 request.num_in_flight_tokens -= num_tokens_scheduled
+            # vLLM 0.27 (a0c092ee72) removed the async_tokens_to_discard
+            # handling from the upstream scheduler and replaced it with the
+            # num_stale_output_tokens/is_stale mechanism. Omni's discard
+            # sites (segment stop, streaming-session replacement) record the
+            # in-flight share here; the delayed outputs are dropped below
+            # instead of decrementing num_output_placeholders (which the
+            # discard zeroed) and underflowing the upstream assert.
+            output_is_stale = False
+            if request is not None and request.num_stale_output_tokens > 0:
+                output_is_stale = True
+                request.num_stale_output_tokens -= num_tokens_scheduled
+                assert request.num_stale_output_tokens >= 0
             if failed_kv_load_req_ids and req_id in failed_kv_load_req_ids:
                 # Skip requests that were recovered from KV load failure
                 continue
@@ -332,6 +344,12 @@ class OmniARScheduler(OmniSchedulerMixin, VLLMScheduler):
                 # The request is already finished. This can happen if the
                 # request is aborted while the model is executing it (e.g.,
                 # in pipeline parallelism or async scheduling).
+                continue
+            if output_is_stale:
+                # Output of a step scheduled before the request's in-flight
+                # tokens were discarded (segment stop / session replacement).
+                # num_computed_tokens was rolled back at the discard site, so
+                # this output must not be appended or emitted.
                 continue
 
             req_index = model_runner_output.req_id_to_index[req_id]
@@ -452,10 +470,21 @@ class OmniARScheduler(OmniSchedulerMixin, VLLMScheduler):
                             # connector. This update only resumes polling for the next segment.
                             self.chunk_transfer_adapter.segment_finished_requests.discard(request.request_id)
                     outstanding_async_tokens = request.num_output_placeholders
+                    # Always record the discard signal (0 when nothing is in
+                    # flight). Upstream a0c092ee72 removed the
+                    # `async_tokens_to_discard` default from `Request`; it
+                    # remains an omni-only signal set here on every segment
+                    # stop, so a stop with no outstanding placeholders
+                    # explicitly records 0.
+                    request.async_tokens_to_discard = outstanding_async_tokens
                     if outstanding_async_tokens > 0:
                         # Discard only outputs that are already in flight and
                         # roll back their optimistic computed-token accounting.
-                        request.async_tokens_to_discard = outstanding_async_tokens
+                        # Record the in-flight share as stale so the delayed
+                        # outputs (async scheduling lookahead) are dropped in
+                        # update_from_output instead of underflowing
+                        # num_output_placeholders (vLLM 0.27 a0c092ee72).
+                        request.num_stale_output_tokens += outstanding_async_tokens
                         request.num_computed_tokens -= outstanding_async_tokens
                         request.num_output_placeholders = 0
                     request.spec_token_ids = []
@@ -587,6 +616,11 @@ class OmniARScheduler(OmniSchedulerMixin, VLLMScheduler):
             # segment's next token. Drop that late token instead of
             # appending it to the new streaming segment.
             session.async_tokens_to_discard = 1
+            # Mark the in-flight share stale so the delayed outputs are
+            # dropped in update_from_output (vLLM 0.27 a0c092ee72 removed
+            # the async_tokens_to_discard handling from the upstream
+            # scheduler).
+            session.num_stale_output_tokens += session.num_output_placeholders
             session.num_computed_tokens -= session.num_output_placeholders
             session.num_output_placeholders = 0
             session.spec_token_ids = []
