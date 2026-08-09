@@ -19,11 +19,31 @@ SCRIPT_DIR = Path(__file__).resolve().parent
 if str(SCRIPT_DIR) not in sys.path:
     sys.path.insert(0, str(SCRIPT_DIR))
 
-from minicpmo_realtime_duplex_scenarios import (  # noqa: E402
-    _ref_audio_data_url,
-    _url_with_model,
-    run_demo,
-)
+# Imported lazily, NOT at module scope: minicpmo_realtime_duplex_scenarios pulls
+# in vllm_omni.experimental.fullduplex.client -> vllm_omni -> vllm_omni.patch ->
+# vllm.config -> vllm.model_executor.layers.quantization, which costs 26-49s on
+# this box under vLLM 0.27. At module scope even `--help` paid that, so
+# test_realtime_duplex_multi_session_script_is_directly_executable timed out at
+# its 20s budget. None of these names are needed until after parse_args(), so
+# deferring them keeps `--help` instant while leaving every call site unchanged.
+
+
+def _ref_audio_data_url(*args, **kwargs):  # noqa: E402
+    from minicpmo_realtime_duplex_scenarios import _ref_audio_data_url as _impl
+
+    return _impl(*args, **kwargs)
+
+
+def _url_with_model(*args, **kwargs):  # noqa: E402
+    from minicpmo_realtime_duplex_scenarios import _url_with_model as _impl
+
+    return _impl(*args, **kwargs)
+
+
+async def run_demo(*args, **kwargs):  # noqa: E402
+    from minicpmo_realtime_duplex_scenarios import run_demo as _impl
+
+    return await _impl(*args, **kwargs)
 
 
 def _with_resume_mode(url: str) -> str:
