@@ -24,6 +24,23 @@ SERVING_MODE_TITLES = {
     "online_serving": "Online serving",
 }
 
+# Keep the Examples navigation focused on reusable modality/task entry points.
+# Model-specific scripts remain available under ``examples/`` and are surfaced
+# from these shared pages instead of getting one page per model.
+GENERAL_EXAMPLE_SLUGS = frozenset(
+    {
+        "image_to_image",
+        "image_to_video",
+        "speech_to_video",
+        "text_to_audio",
+        "text_to_image",
+        "text_to_speech",
+        "text_to_video",
+        "x_to_text",
+        "x_to_video_audio",
+    }
+)
+
 # Generated example pages keep their source-derived URLs even when their
 # navigation category changes. Quantization helpers are feature documentation,
 # not user-serving examples, so keep them under the existing Features /
@@ -54,6 +71,13 @@ def load_model_display_names() -> dict[str, str]:
 
 
 MODEL_DISPLAY_NAMES = load_model_display_names()
+
+
+def is_general_example(example: "Example") -> bool:
+    """Return whether an example should get a generated serving page."""
+    if example.category not in SERVING_MODE_TITLES:
+        return True
+    return example.path.stem in GENERAL_EXAMPLE_SLUGS
 
 
 def fix_case(text: str) -> str:
@@ -431,6 +455,8 @@ def on_startup(command: Literal["build", "gh-deploy", "serve"], dirty: bool):
         # Find examples in subdirectories
         for path in category.glob("*/*.md"):
             examples.append(Example(path.parent, category.stem))
+
+    examples = [example for example in examples if is_general_example(example)]
 
     # Generate the example documentation
     for example in sorted(examples, key=lambda e: e.path.stem):
