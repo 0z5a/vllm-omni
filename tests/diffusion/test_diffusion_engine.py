@@ -534,6 +534,18 @@ class TestDiffusionCompileConfig:
         with pytest.raises(TypeError, match="diffusion_compile_dynamic"):
             OmniDiffusionConfig(model="test", diffusion_compile_dynamic="false")
 
+    def test_channels_last_3d_is_opt_in_and_strict(self) -> None:
+        assert OmniDiffusionConfig(model="test").vae_use_channels_last_3d is False
+        assert (
+            OmniDiffusionConfig.from_kwargs(
+                model="test",
+                vae_use_channels_last_3d=True,
+            ).vae_use_channels_last_3d
+            is True
+        )
+        with pytest.raises(TypeError, match="vae_use_channels_last_3d"):
+            OmniDiffusionConfig(model="test", vae_use_channels_last_3d="true")
+
     @pytest.mark.parametrize(
         "kwargs, feature",
         [
