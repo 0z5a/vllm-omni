@@ -25,8 +25,6 @@ _MIN_AUDIO_BYTES_BASIC = 10000
 
 pytestmark = [
     pytest.mark.parametrize("omni_server", TEST_PARAMS, indirect=True),
-    pytest.mark.core_model,
-    pytest.mark.advanced_model,
     pytest.mark.slow,
     pytest.mark.tts,
 ]
@@ -120,11 +118,16 @@ def test_speech_instructions(omni_server, openai_client) -> None:
                 "response_format": "wav",
                 "timeout": 120.0,
                 "instructions": instruction,
-                # Grade a below-threshold result with whisper large-v3 before
-                # failing. whisper-small mishears these short clips: it heard
-                # "The boy was there when sun rose." (dropped "the"), giving
-                # sim=0.87 against the 0.9 threshold — an ASR miss, not a TTS
-                # regression. Same opt-in as test_higgs_audio_v3.py.
+                # Re-grade a below-threshold result with whisper large-v3 before
+                # failing, so a miss is attributable rather than ambiguous. Same
+                # opt-in as test_higgs_audio_v3.py.
+                #
+                # Note: for this input it does NOT rescue the check — small and
+                # large-v3 both transcribe "The boy was there when sun rose."
+                # (sim=0.87 each) against an input of "...when the sun rose.",
+                # i.e. the TTS really does drop the article. That is the value
+                # here: two independent ASR models agreeing rules out a grader
+                # flake and points at the model.
                 "transcript_escalation_model": "large-v3",
             }
         )
