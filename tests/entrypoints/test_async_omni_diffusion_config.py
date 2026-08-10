@@ -20,6 +20,7 @@ def test_default_stage_config_includes_cache_backend():
             "cache_backend": "cache_dit",
             "cache_config": '{"Fn_compute_blocks": 2}',
             "vae_use_slicing": True,
+            "vae_use_channels_last_3d": True,
             "ulysses_degree": 2,
         }
     )[0]
@@ -29,6 +30,7 @@ def test_default_stage_config_includes_cache_backend():
     assert engine_args["cache_backend"] == "cache_dit"
     assert engine_args["cache_config"]["Fn_compute_blocks"] == 2
     assert engine_args["vae_use_slicing"] is True
+    assert engine_args["vae_use_channels_last_3d"] is True
     assert engine_args["parallel_config"].ulysses_degree == 2
     assert engine_args["model_stage"] == "diffusion"
 
@@ -369,6 +371,25 @@ def test_serve_cli_accepts_diffusion_compile_controls():
     assert args.diffusion_compile_dynamic is False
     assert stage_cfg["engine_args"]["diffusion_compile_granularity"] == "full"
     assert stage_cfg["engine_args"]["diffusion_compile_dynamic"] is False
+
+
+def test_serve_cli_accepts_vae_channels_last_3d_opt_in():
+    parser = TrackingArgumentParser()
+    subparsers = parser.add_subparsers(dest="command")
+    OmniServeCommand().subparser_init(subparsers)
+    args = parser.parse_args(
+        [
+            "serve",
+            "Lightricks/LTX-2",
+            "--omni",
+            "--vae-use-channels-last-3d",
+        ]
+    )
+
+    stage_cfg = AsyncOmniEngine._create_default_diffusion_stage_cfg(args.get_explicit_kwargs_dict())[0]
+
+    assert args.vae_use_channels_last_3d is True
+    assert stage_cfg["engine_args"]["vae_use_channels_last_3d"] is True
 
 
 def test_serve_cli_accepts_diffusion_attention_backend():

@@ -365,6 +365,8 @@ def initialize_pipeline_components(pipeline: Any, od_config: Any) -> None:
         local_files_only=local_files_only,
         dtype=dtype,
     )
+    if getattr(od_config, "vae_use_channels_last_3d", False):
+        pipeline.vae.enable_channels_last_3d()
     pipeline.audio_vae = _load_component(
         AutoencoderKLLTX2Audio,
         model,
