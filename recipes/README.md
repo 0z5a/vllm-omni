@@ -19,11 +19,10 @@ add files for this repo. Use one Markdown file per model family by default.
 > Individual pages resolve at `https://recipes.vllm.ai/<provider>/<model-id>`,
 > e.g. [`bosonai/higgs-audio-v3-tts-4b`](https://recipes.vllm.ai/bosonai/higgs-audio-v3-tts-4b).
 
-The exact checkpoint/task mapping used by the Supported Models documentation
-is tracked in
-[`docs/models/recipe_coverage.yaml`](../docs/models/recipe_coverage.yaml).
-This registry records link precedence; the recipe files in this directory
-remain the source of truth for commands and validation details.
+The `Recipe` column in the Supported Models documentation links to the
+published recipe when available and otherwise to the corresponding recipe in
+this directory. The recipe files remain the source of truth for commands and
+validation details.
 
 Example layout:
 

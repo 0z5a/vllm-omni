@@ -96,41 +96,16 @@ th {
 | `ErnieImagePipeline` | ERNIE-Image | `baidu/ERNIE-Image`, `baidu/ERNIE-Image-Turbo` | ✅︎ | ✅︎ | ✅︎ | ✅︎ | — |
 |`HiDreamImagePipeline` | HiDream-I1-Full | `HiDream-ai/HiDream-I1-Full` | ✅︎ | ✅︎ | | | — |
 
-The `Recipe` column links the exact checkpoint/task entry from
-[`recipe_coverage.yaml`](https://github.com/vllm-project/vllm-omni/blob/main/docs/models/recipe_coverage.yaml).
-`Published` is preferred when a corresponding `recipes.vllm.ai` page exists;
-otherwise the link points to the repository recipe. `—` means that the exact
-checkpoint/task mapping has not been audited yet.
+The `Recipe` column links the corresponding deployment recipe. `Published` is
+preferred when a corresponding `recipes.vllm.ai` page exists; otherwise the
+link points to the repository recipe. `—` means that no recipe link has been
+added for that model row yet.
 
 For rows with an audited recipe link, the hardware checkmarks reflect hardware
 explicitly documented in that recipe. Other rows retain the implementation
-support metadata until their recipe coverage is audited.
+support metadata until their recipe is audited.
 
 ✅︎ indicates the model is supported on that backend. Empty cells mean not listed as supported on that backend.
-
-## Recipe and Example Coverage
-
-The table above describes implementation and backend support. It does not
-imply that a model has a validated deployment recipe.
-
-Recipe and example coverage is tracked per exact Hugging Face checkpoint and
-task in the machine-readable
-[`recipe_coverage.yaml`](https://github.com/vllm-project/vllm-omni/blob/main/docs/models/recipe_coverage.yaml).
-The registry is populated as coverage is audited and is the source of truth
-for mapping exact checkpoints and tasks to links. Recipe files under
-[`recipes/`](https://github.com/vllm-project/vllm-omni/tree/main/recipes) remain
-the source of truth for commands and validation details. It uses the following
-link precedence:
-
-1. `published`: link to the published `recipes.vllm.ai` page.
-2. `repository`: link to the in-repository recipe until a published page exists.
-3. `no_validated_recipe_yet`: show `No validated recipe yet` only when that
-   result has been explicitly audited.
-4. A checkpoint/task without an entry: coverage has not been audited yet.
-
-Split entries whenever checkpoints, tasks, examples, or validation evidence
-differ. A single Supported Models row may therefore map to multiple registry
-entries.
 
 <sup>H3</sup> MiniMax H3 AMD GPU support is validated on gfx942 (MI300X) and
 gfx950 (MI350) in BF16, using the AITER `FLASH_ATTN` diffusion attention backend.
