@@ -120,6 +120,12 @@ def test_speech_instructions(omni_server, openai_client) -> None:
                 "response_format": "wav",
                 "timeout": 120.0,
                 "instructions": instruction,
+                # Grade a below-threshold result with whisper large-v3 before
+                # failing. whisper-small mishears these short clips: it heard
+                # "The boy was there when sun rose." (dropped "the"), giving
+                # sim=0.87 against the 0.9 threshold — an ASR miss, not a TTS
+                # regression. Same opt-in as test_higgs_audio_v3.py.
+                "transcript_escalation_model": "large-v3",
             }
         )
 
