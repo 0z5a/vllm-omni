@@ -1407,6 +1407,7 @@ class AsyncOmniEngine:
         final_stage_id: int = 0,
         final_output_stage_ids: Sequence[int] | None = None,
         arrival_time: float | None = None,
+        lora_request: Any = None,
         *,
         resumable: bool = True,
     ) -> None:
@@ -1419,6 +1420,7 @@ class AsyncOmniEngine:
             final_stage_id=final_stage_id,
             final_output_stage_ids=final_output_stage_ids,
             arrival_time=arrival_time,
+            lora_request=lora_request,
             resumable=resumable,
             message_type="streaming_update",
         )
@@ -1433,6 +1435,7 @@ class AsyncOmniEngine:
         final_stage_id: int = 0,
         final_output_stage_ids: Sequence[int] | None = None,
         arrival_time: float | None = None,
+        lora_request: Any = None,
         *,
         resumable: bool = True,
     ) -> None:
@@ -1445,6 +1448,7 @@ class AsyncOmniEngine:
             final_stage_id=final_stage_id,
             final_output_stage_ids=final_output_stage_ids,
             arrival_time=arrival_time,
+            lora_request=lora_request,
             resumable=resumable,
         )
 
