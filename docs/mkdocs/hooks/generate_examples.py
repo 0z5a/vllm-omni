@@ -41,6 +41,7 @@ GENERAL_EXAMPLE_SLUGS = frozenset(
     }
 )
 
+
 def load_model_display_names() -> dict[str, str]:
     try:
         with open(MODEL_DISPLAY_NAMES_FILE, encoding="utf-8") as f:
