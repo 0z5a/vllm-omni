@@ -127,8 +127,21 @@ class Qwen3OmniMoeForConditionalGeneration(
         code2wav_config: Qwen3OmniMoeCode2WavConfig = config.code2wav_config
         self.code2wav_config = code2wav_config
 
-        # Determine model stage
-        self.model_stage = vllm_config.model_config.model_stage
+        # Determine model stage. model_stage is injected by omni's staged
+        # startup (engine/stage_init_utils.py); a plain, non-staged vLLM run
+        # never sets it, and reading it directly raised
+        #   AttributeError: 'ModelConfig' object has no attribute 'model_stage'
+        # killing the engine core before it became ready. That path became
+        # reachable once omni archs began overriding upstream's in the global
+        # registry, so this class is now also constructed for non-staged runs
+        # such as the vLLM-text perf benchmark.
+        #
+        # Default to the thinker: it is the text-generation stage, which is what
+        # a non-staged run of this model is asking for. Same shape as
+        # dynin_omni ("token2text") and glm_tts ("glm_tts"). An explicitly wrong
+        # value still reaches the ValueError below rather than being silently
+        # accepted.
+        self.model_stage = getattr(vllm_config.model_config, "model_stage", None) or "thinker"
 
         if self.model_stage == "thinker":
             self.use_async_omni_output = True
