@@ -4,7 +4,6 @@
 from collections.abc import Iterable, Mapping, Sequence
 from typing import Any
 
-import numpy as np
 import torch
 from PIL import Image
 from vllm.outputs import RequestOutput
@@ -21,8 +20,6 @@ def extract_images_from_outputs(outputs: ImageOutputs) -> list[Image.Image]:
     Supported inputs:
     - OmniRequestOutput / list[OmniRequestOutput]
     - RequestOutput / list[RequestOutput] (compatibility fallback)
-
-    PIL images, NumPy arrays, and PyTorch tensors are normalized to PIL images.
     """
     for output in _iter_known_outputs(outputs):
         if isinstance(output, OmniRequestOutput):
@@ -61,9 +58,6 @@ def _iter_multimodal_image_payloads(output: OmniRequestOutput | RequestOutput) -
 
 
 def _iter_request_output_payloads(request_output: RequestOutput) -> Iterable[Any]:
-    images = getattr(request_output, "images", None)
-    if images is not None:
-        yield images
     mm = getattr(request_output, "multimodal_output", None)
     if mm is not None:
         yield from _image_values_from_mapping_like(mm)
@@ -88,8 +82,6 @@ def _coerce_images(payload: Any) -> list[Image.Image]:
         return []
     if isinstance(payload, Image.Image):
         return [payload]
-    if isinstance(payload, np.ndarray):
-        return _ndarray_to_images(payload)
     if isinstance(payload, torch.Tensor):
         return _tensor_to_images(payload)
     if isinstance(payload, list | tuple):
@@ -98,37 +90,6 @@ def _coerce_images(payload: Any) -> list[Image.Image]:
             images.extend(_coerce_images(item))
         return images
     return []
-
-
-def _ndarray_to_images(array: np.ndarray) -> list[Image.Image]:
-    if array.ndim == 4:
-        images: list[Image.Image] = []
-        for single in array:
-            images.extend(_ndarray_to_images(single))
-        return images
-    if array.ndim != 3 or array.size == 0:
-        return []
-
-    image = array
-    if image.shape[-1] not in (1, 3, 4):
-        if image.shape[0] not in (1, 3, 4):
-            return []
-        image = np.moveaxis(image, 0, -1)
-
-    if np.issubdtype(image.dtype, np.floating):
-        image = image.astype(np.float32, copy=False)
-        if image.min() < 0.0:
-            image = image / 2 + 0.5
-        image = np.clip(image, 0.0, 1.0) * 255
-    elif np.issubdtype(image.dtype, np.integer) or np.issubdtype(image.dtype, np.bool_):
-        image = np.clip(image, 0, 255)
-    else:
-        return []
-
-    image = image.astype(np.uint8)
-    if image.shape[-1] == 1:
-        image = image[..., 0]
-    return [Image.fromarray(np.ascontiguousarray(image))]
 
 
 def _tensor_to_images(tensor: torch.Tensor) -> list[Image.Image]:

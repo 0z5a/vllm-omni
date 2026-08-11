@@ -8,7 +8,9 @@ import time
 from pathlib import Path
 from typing import Any
 
+import numpy as np
 import torch
+from diffusers.utils import numpy_to_pil
 
 from vllm_omni.diffusion.data import logger
 from vllm_omni.diffusion.utils.image_output import extract_images_from_outputs
@@ -52,6 +54,17 @@ def parse_json_object(value: str, flag_name: str = "argument") -> dict[str, Any]
 
 
 parse_profiler_config = functools.partial(parse_json_object, flag_name="--profiler-config")
+
+
+def _normalize_images_for_save(images: list[Any]) -> list[Any]:
+    """Convert NumPy diffusion outputs to PIL images before saving."""
+    normalized = []
+    for image in images:
+        if isinstance(image, np.ndarray):
+            normalized.extend(numpy_to_pil(image))
+        else:
+            normalized.append(image)
+    return normalized
 
 
 def parse_args() -> argparse.Namespace:
@@ -604,10 +617,22 @@ def main():
         raise ValueError("No output generated from omni.generate()")
     logger.info(f"Outputs: {outputs}")
 
-    images = extract_images_from_outputs(outputs)
+    images = None
+    for output in outputs:
+        images = getattr(output, "images", None)
+        if images:
+            break
+        req_out = getattr(output, "request_output", None)
+        images = getattr(req_out, "images", None) if req_out is not None else None
+        if images:
+            break
+
+    if not images:
+        images = extract_images_from_outputs(outputs)
 
     if not images:
         raise ValueError("No images found in request_output")
+    images = _normalize_images_for_save(images)
 
     output_path = Path(args.output)
     output_path.parent.mkdir(parents=True, exist_ok=True)
