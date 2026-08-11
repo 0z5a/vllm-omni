@@ -141,13 +141,24 @@ def _validate_pixels(
     Raises:
         AssertionError: If any pixel differs beyond tolerance.
     """
+    mismatches = []
+    probes = []
     for ref in reference_pixels:
         x, y = ref["position"]
         expected = ref["rgb"]
         actual = image.getpixel((x, y))[:3]
-        assert all(abs(a - e) <= tolerance for a, e in zip(actual, expected)), (
-            f"Pixel mismatch at ({x}, {y}): expected {expected}, got {actual}"
-        )
+        probes.append(f'    {{"position": ({x}, {y}), "rgb": {actual}}},')
+        if not all(abs(a - e) <= tolerance for a, e in zip(actual, expected)):
+            mismatches.append(f"({x}, {y}): expected {expected}, got {actual}")
+    # Report every probe, not just the first mismatch: CI does not upload the
+    # generated image, so this failure message is the only place the full
+    # actual-value table exists when the goldens need to be regenerated.
+    assert not mismatches, (
+        f"Pixel mismatch at {len(mismatches)} probe(s) (tolerance ±{tolerance}):\n  "
+        + "\n  ".join(mismatches)
+        + "\nActual values at all probes (paste as the new reference table if re-goldening):\n"
+        + "\n".join(probes)
+    )
 
 
 def _generate_bagel_img2img(
