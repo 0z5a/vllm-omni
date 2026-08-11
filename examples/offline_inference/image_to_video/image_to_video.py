@@ -61,7 +61,9 @@ from vllm_omni.diffusion.utils.param_utils import apply_declared_extra_args
 from vllm_omni.entrypoints.omni import Omni
 from vllm_omni.inputs.data import OmniDiffusionSamplingParams
 from vllm_omni.model_extras import (
-    adapt_image_to_video_prompt,
+    build_image_to_video_prompt as build_model_image_to_video_prompt,
+)
+from vllm_omni.model_extras import (
     get_extra_body_params,
     get_model_class_name,
 )
@@ -542,7 +544,7 @@ def main():
         negative_prompt=negative_prompt,
         media_inputs=media_inputs,
     )
-    prompt_dict = adapt_image_to_video_prompt(
+    prompt_dict = build_model_image_to_video_prompt(
         model_class_name=model_class_name,
         prompt=prompt_dict,
         height=height,

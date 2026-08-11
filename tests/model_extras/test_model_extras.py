@@ -11,9 +11,9 @@ from PIL import Image
 from vllm_omni.diffusion.utils.param_utils import apply_declared_extra_args
 from vllm_omni.inputs.data import OmniDiffusionSamplingParams
 from vllm_omni.model_extras import (
-    adapt_image_to_video_prompt,
-    adapt_text_to_image_prompt,
     build_image_to_image_prompt,
+    build_image_to_video_prompt,
+    build_text_to_image_prompt,
     build_x_to_text_prompt,
     get_extra_body_params,
     get_extra_output_params,
@@ -281,7 +281,7 @@ def test_ming_flash_omni_declared_extra_args_route_into_sampling_params() -> Non
 @pytest.mark.core_model
 @pytest.mark.cpu
 def test_ming_flash_omni_text_to_image_prompt_builder() -> None:
-    assert adapt_text_to_image_prompt(
+    assert build_text_to_image_prompt(
         "MingImagePipeline",
         {
             "prompt": "Please draw a cute cat.",
@@ -302,7 +302,7 @@ def test_ming_flash_omni_text_to_image_prompt_builder() -> None:
     }
     # target_h/w are omitted when height/width are not supplied so the
     # pipeline's 1024x1024 default still applies.
-    assert adapt_text_to_image_prompt(
+    assert build_text_to_image_prompt(
         "MingImagePipeline",
         {"prompt": "Draw a poster.", "modalities": ["image"]},
     ) == {
@@ -424,7 +424,7 @@ def test_unknown_pipeline_has_empty_extra_registry() -> None:
 @pytest.mark.core_model
 @pytest.mark.cpu
 def test_bagel_text_to_image_prompt_builder() -> None:
-    assert adapt_text_to_image_prompt(
+    assert build_text_to_image_prompt(
         "BagelPipeline",
         {
             "prompt": "a cat",
@@ -470,7 +470,7 @@ def test_bagel_image_to_image_prompt_builder() -> None:
 def test_unknown_pipeline_preserves_canonical_text_to_image_prompt() -> None:
     canonical_prompt = {"prompt": "a cat", "modalities": ["image"]}
     assert (
-        adapt_text_to_image_prompt(
+        build_text_to_image_prompt(
             "UnknownPipeline",
             canonical_prompt,
             height=512,
@@ -497,7 +497,7 @@ def test_unknown_pipeline_uses_default_image_to_image_prompt() -> None:
 
 
 def _build_vace_prompt(media_inputs: dict[str, Any], *, num_frames: int = 5) -> dict:
-    return adapt_image_to_video_prompt(
+    return build_image_to_video_prompt(
         "WanVACEPipeline",
         {
             "prompt": "a bird flying",
@@ -591,7 +591,7 @@ def test_mammothmoda2_extra_registry_declares_request_and_response_params() -> N
         assert get_extra_output_params(model_class_name) == frozenset()
         assert should_init_extra_args_for_non_diffusion_stages(model_class_name) is True
 
-    wrapper_prompt = adapt_text_to_image_prompt(
+    wrapper_prompt = build_text_to_image_prompt(
         "MammothModa2ForConditionalGeneration",
         {"prompt": "a cat", "modalities": ["image"]},
         height=256,
@@ -605,7 +605,7 @@ def test_mammothmoda2_extra_registry_declares_request_and_response_params() -> N
 def test_mammothmoda2_text_to_image_prompt_builder() -> None:
     # Image dims are converted to the AR grid (width/16 x height/16); the negative
     # prompt is ignored (MammothModa2 t2i uses CFG, not an explicit negative path).
-    assert adapt_text_to_image_prompt(
+    assert build_text_to_image_prompt(
         "MammothModa2DiTPipeline",
         {
             "prompt": "a cat",

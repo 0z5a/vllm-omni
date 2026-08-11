@@ -1,14 +1,24 @@
 #!/bin/bash
-# Wan2.2 image-to-video curl example using the async video job API.
+# Shared image-to-video curl example using the async video job API.
 
 set -euo pipefail
 
 INPUT_IMAGE="${INPUT_IMAGE:-../../offline_inference/image_to_video/qwen-bear.png}"
 BASE_URL="${BASE_URL:-http://localhost:8099}"
-OUTPUT_PATH="${OUTPUT_PATH:-wan22_i2v_output.mp4}"
+OUTPUT_PATH="${OUTPUT_PATH:-image_to_video_output.mp4}"
+PROMPT="${PROMPT:-A bear playing with yarn, smooth motion}"
 NEGATIVE_PROMPT="${NEGATIVE_PROMPT:-}"
 SAMPLE_SOLVER="${SAMPLE_SOLVER:-}"
 POLL_INTERVAL="${POLL_INTERVAL:-2}"
+VIDEO_SECONDS="${VIDEO_SECONDS:-}"
+SIZE="${SIZE:-}"
+FPS="${FPS:-}"
+NUM_INFERENCE_STEPS="${NUM_INFERENCE_STEPS:-}"
+GUIDANCE_SCALE="${GUIDANCE_SCALE:-}"
+GUIDANCE_SCALE_2="${GUIDANCE_SCALE_2:-}"
+BOUNDARY_RATIO="${BOUNDARY_RATIO:-}"
+FLOW_SHIFT="${FLOW_SHIFT:-}"
+SEED="${SEED:-}"
 
 if [ ! -f "$INPUT_IMAGE" ]; then
     echo "Input image not found: $INPUT_IMAGE"
@@ -18,18 +28,27 @@ fi
 create_cmd=(
   curl -sS -X POST "${BASE_URL}/v1/videos"
   -H "Accept: application/json"
-  -F "prompt=A bear playing with yarn, smooth motion"
+  -F "prompt=${PROMPT}"
   -F "input_reference=@${INPUT_IMAGE}"
-  -F "seconds=2"
-  -F "size=832x480"
-  -F "fps=16"
-  -F "num_inference_steps=40"
-  -F "guidance_scale=1.0"
-  -F "guidance_scale_2=1.0"
-  -F "boundary_ratio=0.875"
-  -F "flow_shift=12.0"
-  -F "seed=42"
 )
+
+append_optional_field() {
+  local name="$1"
+  local value="$2"
+  if [ -n "${value}" ]; then
+    create_cmd+=(-F "${name}=${value}")
+  fi
+}
+
+append_optional_field "seconds" "${VIDEO_SECONDS}"
+append_optional_field "size" "${SIZE}"
+append_optional_field "fps" "${FPS}"
+append_optional_field "num_inference_steps" "${NUM_INFERENCE_STEPS}"
+append_optional_field "guidance_scale" "${GUIDANCE_SCALE}"
+append_optional_field "guidance_scale_2" "${GUIDANCE_SCALE_2}"
+append_optional_field "boundary_ratio" "${BOUNDARY_RATIO}"
+append_optional_field "flow_shift" "${FLOW_SHIFT}"
+append_optional_field "seed" "${SEED}"
 
 if [ -n "${NEGATIVE_PROMPT}" ]; then
   create_cmd+=(-F "negative_prompt=${NEGATIVE_PROMPT}")

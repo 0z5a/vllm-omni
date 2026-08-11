@@ -2,9 +2,9 @@
 # SPDX-FileCopyrightText: Copyright contributors to the vLLM project
 
 from vllm_omni.model_extras.registry import (
-    adapt_image_to_video_prompt,
-    adapt_text_to_image_prompt,
     build_image_to_image_prompt,
+    build_image_to_video_prompt,
+    build_text_to_image_prompt,
     build_x_to_text_prompt,
     get_extra_body_params,
     get_extra_output_params,
@@ -14,9 +14,9 @@ from vllm_omni.model_extras.registry import (
 )
 
 __all__ = [
-    "adapt_image_to_video_prompt",
-    "adapt_text_to_image_prompt",
     "build_image_to_image_prompt",
+    "build_image_to_video_prompt",
+    "build_text_to_image_prompt",
     "build_x_to_text_prompt",
     "get_extra_body_params",
     "get_extra_output_params",

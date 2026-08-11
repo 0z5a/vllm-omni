@@ -30,7 +30,7 @@ from vllm_omni.entrypoints.openai.stage_params import (
 from vllm_omni.entrypoints.openai.utils import get_stage_type, parse_lora_request
 from vllm_omni.entrypoints.openai.video_api_utils import _encode_video_bytes, encode_video_base64
 from vllm_omni.inputs.data import OmniDiffusionSamplingParams, OmniTextPrompt
-from vllm_omni.model_extras import adapt_image_to_video_prompt
+from vllm_omni.model_extras import build_image_to_video_prompt
 from vllm_omni.outputs.output_metadata import (
     DiffusionMetadataMapping,
     DiffusionMultimodalOutput,
@@ -259,7 +259,7 @@ class OmniOpenAIServingVideo:
         model_class_name = getattr(self._get_diffusion_od_config(), "model_class_name", None)
         prompt = cast(
             OmniTextPrompt,
-            adapt_image_to_video_prompt(
+            build_image_to_video_prompt(
                 model_class_name=model_class_name,
                 prompt=prompt,
                 height=gen_params.height,

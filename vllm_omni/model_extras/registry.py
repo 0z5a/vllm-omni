@@ -227,7 +227,7 @@ _EXTRA_SPECS: dict[str, dict[str, Any]] = {
 }
 
 # Multi-stage discovery reports the top-level wrapper rather than its DiT
-# submodule, so both names must resolve to the same request adapters.
+# submodule, so both names must resolve to the same request builders.
 _EXTRA_SPECS["MammothModa2ForConditionalGeneration"] = _EXTRA_SPECS["MammothModa2DiTPipeline"]
 _EXTRA_SPECS["Mammothmoda2Model"] = _EXTRA_SPECS["MammothModa2DiTPipeline"]
 
@@ -267,13 +267,13 @@ def should_init_extra_args_for_non_diffusion_stages(model_class_name: str | None
     return bool(spec and spec.get("init_extra_args_for_non_diffusion_stages", False))
 
 
-def adapt_text_to_image_prompt(
+def build_text_to_image_prompt(
     model_class_name: str | None,
     prompt: dict[str, Any],
     height: int | None = None,
     width: int | None = None,
 ) -> dict[str, Any]:
-    """Apply only model-specific changes to an example-owned T2I prompt."""
+    """Build a model-specific T2I prompt from an example-owned envelope."""
     spec = _get_spec(model_class_name)
     builder: TextToImagePromptBuilder | None = spec.get("text_to_image_prompt_builder") if spec else None
     if builder is None:
@@ -303,14 +303,14 @@ def build_image_to_image_prompt(
     return builder(prompt, negative_prompt, input_image, height, width)
 
 
-def adapt_image_to_video_prompt(
+def build_image_to_video_prompt(
     model_class_name: str | None,
     prompt: dict[str, Any],
     height: int | None = None,
     width: int | None = None,
     num_frames: int | None = None,
 ) -> dict[str, Any]:
-    """Apply only model-specific changes to an example-owned I2V prompt."""
+    """Build a model-specific I2V prompt from an example-owned envelope."""
     spec = _get_spec(model_class_name)
     builder: ImageToVideoPromptBuilder | None = spec.get("image_to_video_prompt_builder") if spec else None
     if builder is None:

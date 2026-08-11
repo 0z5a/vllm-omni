@@ -21,7 +21,9 @@ from vllm_omni.inputs.data import OmniDiffusionSamplingParams
 from vllm_omni.lora.request import LoRARequest
 from vllm_omni.lora.utils import stable_lora_int_id
 from vllm_omni.model_extras import (
-    adapt_text_to_image_prompt,
+    build_text_to_image_prompt as build_model_text_to_image_prompt,
+)
+from vllm_omni.model_extras import (
     get_extra_body_params,
     get_model_class_name,
     should_init_extra_args_for_non_diffusion_stages,
@@ -519,7 +521,7 @@ def main():
         prompt=args.prompt,
         negative_prompt=args.negative_prompt,
     )
-    prompt_dict = adapt_text_to_image_prompt(
+    prompt_dict = build_model_text_to_image_prompt(
         model_class_name=model_class_name,
         prompt=prompt_dict,
         height=args.height,

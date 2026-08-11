@@ -433,7 +433,7 @@ def test_i2v_video_generation_form(test_client, mocker: MockerFixture):
     assert input_image.size == (48, 32)
 
 
-def test_i2v_online_applies_model_specific_prompt_adapter() -> None:
+def test_i2v_online_applies_model_specific_prompt_builder() -> None:
     engine = FakeAsyncOmni()
     engine.model_class_name = "WanVACEPipeline"
     handler = OmniOpenAIServingVideo.for_diffusion(
@@ -451,7 +451,7 @@ def test_i2v_online_applies_model_specific_prompt_adapter() -> None:
                 height=16,
                 num_frames=5,
             ),
-            "vace-online-adapter",
+            "vace-online-builder",
             reference_image=ReferenceImage(image),
         )
     )
