@@ -11,6 +11,10 @@ in the active navigation.
 
 ## Feature Design Documents
 
+For user-facing configuration and current compatibility, see the
+[Features overview](../features/README.md). A design document defines an
+implementation contract; it is not, by itself, a general support claim.
+
 ### Runtime and stage execution
 
 - [Disaggregated Inference](feature/disaggregated_inference.md)
