@@ -8,6 +8,7 @@ import hashlib
 import json
 import sys
 import uuid
+from functools import lru_cache
 from pathlib import Path
 from types import SimpleNamespace
 from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
@@ -16,34 +17,29 @@ import websockets
 from websockets.exceptions import ConnectionClosed
 
 SCRIPT_DIR = Path(__file__).resolve().parent
-if str(SCRIPT_DIR) not in sys.path:
-    sys.path.insert(0, str(SCRIPT_DIR))
-
-# Imported lazily, NOT at module scope: minicpmo_realtime_duplex_scenarios pulls
-# in vllm_omni.experimental.fullduplex.client -> vllm_omni -> vllm_omni.patch ->
-# vllm.config -> vllm.model_executor.layers.quantization, which costs 26-49s on
-# this box under vLLM 0.27. At module scope even `--help` paid that, so
-# test_realtime_duplex_multi_session_script_is_directly_executable timed out at
-# its 20s budget. None of these names are needed until after parse_args(), so
-# deferring them keeps `--help` instant while leaving every call site unchanged.
+REPO_ROOT = SCRIPT_DIR.parents[3]
+if str(REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(REPO_ROOT))
 
 
-def _ref_audio_data_url(*args, **kwargs):  # noqa: E402
-    from minicpmo_realtime_duplex_scenarios import _ref_audio_data_url as _impl
+@lru_cache(maxsize=1)
+def _scenario_module():
+    """Delay heavyweight vLLM imports so ``--help`` remains directly executable."""
+    from tests.e2e.online_serving.helpers import minicpmo_realtime_duplex_scenarios
 
-    return _impl(*args, **kwargs)
-
-
-def _url_with_model(*args, **kwargs):  # noqa: E402
-    from minicpmo_realtime_duplex_scenarios import _url_with_model as _impl
-
-    return _impl(*args, **kwargs)
+    return minicpmo_realtime_duplex_scenarios
 
 
-async def run_demo(*args, **kwargs):  # noqa: E402
-    from minicpmo_realtime_duplex_scenarios import run_demo as _impl
+def _ref_audio_data_url(path: str) -> str:
+    return _scenario_module()._ref_audio_data_url(path)
 
-    return await _impl(*args, **kwargs)
+
+def _url_with_model(*args, **kwargs) -> str:
+    return _scenario_module()._url_with_model(*args, **kwargs)
+
+
+async def run_demo(args):
+    return await _scenario_module().run_demo(args)
 
 
 def _with_resume_mode(url: str) -> str:
