@@ -577,6 +577,7 @@ class GPUGenerationModelRunner(OmniGPUModelRunner, OmniConnectorModelRunnerMixin
         is_graph_capturing: bool = False,
         num_active_loras: int = 0,
         profile_seq_lens: int | None = None,
+        randomize_inputs: bool = False,
     ) -> tuple[torch.Tensor, torch.Tensor]:
         """
         Run a dummy forward pass to warm up/profile run or capture the
@@ -836,7 +837,9 @@ class GPUGenerationModelRunner(OmniGPUModelRunner, OmniConnectorModelRunnerMixin
                     num_tokens_across_dp[:] = num_tokens_padded
 
             with (
-                self.maybe_randomize_inputs(input_ids, inputs_embeds),
+                self.maybe_randomize_inputs(
+                    input_ids, inputs_embeds, randomize_inputs=randomize_inputs
+                ),
                 set_forward_context(
                     attn_metadata,
                     self.vllm_config,
