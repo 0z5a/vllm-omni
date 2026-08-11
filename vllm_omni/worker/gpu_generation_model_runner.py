@@ -837,9 +837,14 @@ class GPUGenerationModelRunner(OmniGPUModelRunner, OmniConnectorModelRunnerMixin
                     num_tokens_across_dp[:] = num_tokens_padded
 
             with (
-                self.maybe_randomize_inputs(
-                    input_ids, inputs_embeds, randomize_inputs=randomize_inputs
-                ),
+                # Never randomize generation-stage dummy ids: they are
+                # structured payloads (e.g. packed RVQ codec codes that get
+                # code_offset added before embedding), so vocab-uniform random
+                # ids index past the codebook tables — CUDA device-side assert
+                # in code2wav warmup. The expert-balance rationale behind
+                # randomize_inputs targets text-MoE models, which generation
+                # stages are not. The kwarg stays accepted for vLLM API compat.
+                self.maybe_randomize_inputs(input_ids, inputs_embeds),
                 set_forward_context(
                     attn_metadata,
                     self.vllm_config,
