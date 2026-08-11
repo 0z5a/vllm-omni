@@ -3,7 +3,7 @@
 This example demonstrates online image-to-video generation with vLLM-Omni.
 The startup script defaults to Wan2.2, but `MODEL` can select any supported
 image-to-video model. The existing curl helper remains a concrete Wan2.2
-request, while the server side owns model-specific prompt processing.
+request through the standard Videos API.
 
 ## Start Server
 

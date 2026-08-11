@@ -3,7 +3,7 @@
 This example demonstrates online text-to-image generation with vLLM-Omni. The
 startup script and Python clients default to Qwen-Image, but `MODEL` can select
 any supported text-to-image model. The existing curl helper remains a concrete
-Qwen-Image request, while the server side owns model-specific prompt processing.
+Qwen-Image request through the standard Images API.
 
 ## Start Server
 

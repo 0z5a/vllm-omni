@@ -32,7 +32,7 @@ from vllm_omni.entrypoints.openai.protocol.videos import (
     VideoParams,
     VideoResponse,
 )
-from vllm_omni.entrypoints.openai.serving_video import OmniOpenAIServingVideo, ReferenceImage
+from vllm_omni.entrypoints.openai.serving_video import OmniOpenAIServingVideo
 from vllm_omni.entrypoints.openai.storage import LocalStorageManager
 from vllm_omni.entrypoints.openai.stores import AsyncDictStore, TaskRegistry
 from vllm_omni.errors import GuardrailViolationError
@@ -431,36 +431,6 @@ def test_i2v_video_generation_form(test_client, mocker: MockerFixture):
     input_image = prompt["multi_modal_data"]["image"]
     assert isinstance(input_image, Image.Image)
     assert input_image.size == (48, 32)
-
-
-def test_i2v_online_applies_model_specific_prompt_builder() -> None:
-    engine = FakeAsyncOmni()
-    engine.model_class_name = "WanVACEPipeline"
-    handler = OmniOpenAIServingVideo.for_diffusion(
-        diffusion_engine=engine,
-        model_name="Wan-AI/Wan2.1-VACE-1.3B-diffusers",
-    )
-    image = Image.new("RGB", (320, 16), "red")
-
-    asyncio.run(
-        handler._run_and_extract(
-            VideoGenerationRequest(
-                prompt="A bird flying",
-                negative_prompt="blurry",
-                width=320,
-                height=16,
-                num_frames=5,
-            ),
-            "vace-online-builder",
-            reference_image=ReferenceImage(image),
-        )
-    )
-
-    prompt = engine.captured_prompt
-    assert prompt["negative_prompt"] == "blurry"
-    assert len(prompt["multi_modal_data"]["video"]) == 5
-    assert len(prompt["multi_modal_data"]["mask"]) == 5
-    assert prompt["multi_modal_data"]["video"][0] is image
 
 
 def test_i2v_video_generation_resizes_input_to_requested_dimensions(test_client, mocker: MockerFixture):
