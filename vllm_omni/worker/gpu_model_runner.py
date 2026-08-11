@@ -1131,9 +1131,7 @@ class OmniGPUModelRunner(GPUModelRunner):
                     num_tokens_across_dp[:] = num_tokens_padded
 
             with (
-                self.maybe_randomize_inputs(
-                    input_ids, inputs_embeds, randomize_inputs=randomize_inputs
-                ),
+                self.maybe_randomize_inputs(input_ids, inputs_embeds, randomize_inputs=randomize_inputs),
                 set_forward_context(
                     attn_metadata,
                     self.vllm_config,
