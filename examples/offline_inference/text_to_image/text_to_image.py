@@ -604,18 +604,7 @@ def main():
         raise ValueError("No output generated from omni.generate()")
     logger.info(f"Outputs: {outputs}")
 
-    images = None
-    for output in outputs:
-        images = getattr(output, "images", None)
-        if images:
-            break
-        req_out = getattr(output, "request_output", None)
-        images = getattr(req_out, "images", None) if req_out is not None else None
-        if images:
-            break
-
-    if not images:
-        images = extract_images_from_outputs(outputs)
+    images = extract_images_from_outputs(outputs)
 
     if not images:
         raise ValueError("No images found in request_output")
