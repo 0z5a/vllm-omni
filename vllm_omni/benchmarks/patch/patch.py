@@ -1846,11 +1846,19 @@ async def benchmark(
             "input_lens": [output.prompt_len for output in outputs],
             "errors": [output.error for output in outputs],
         }
-    duplex_request_metrics = [metric for output in outputs for metric in (output.duplex_request_metrics or [])]
+    # Plain-vLLM backends (e.g. the vLLM-text perf config) return upstream
+    # RequestFuncOutput objects without the Mix duplex fields; read them
+    # tolerantly or the whole benchmark result is discarded ("fallback to
+    # template", completed=0) after every request already succeeded.
+    duplex_request_metrics = [
+        metric for output in outputs for metric in (getattr(output, "duplex_request_metrics", None) or [])
+    ]
     if duplex_request_metrics:
         result["duplex_request_metrics"] = duplex_request_metrics
     duplex_session_metrics = [
-        output.duplex_session_metrics for output in outputs if output.duplex_session_metrics is not None
+        session_metrics
+        for output in outputs
+        if (session_metrics := getattr(output, "duplex_session_metrics", None)) is not None
     ]
     if duplex_session_metrics:
         result["duplex_session_metrics"] = duplex_session_metrics
