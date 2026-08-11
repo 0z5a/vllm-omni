@@ -227,34 +227,23 @@ links to this section continue to work.
 
 ## Learn More
 
-**Cache Acceleration:**
+The Diffusion Acceleration navigation groups the remaining guides as follows:
 
-- **[TeaCache Configuration Guide](diffusion/cache_acceleration/teacache.md)** - Parameter tuning, performance tips, troubleshooting
-- **[Cache-DiT Advanced Guide](diffusion/cache_acceleration/cache_dit.md)** - DBCache, TaylorSeer, SCM techniques and optimization
+| Area | Guide |
+| --- | --- |
+| Compatibility | [Feature Compatibility](feature_compatibility.md) |
+| CPU offloading | [CPU Offloading](diffusion/cpu_offload.md) |
+| Cache acceleration | [TeaCache](diffusion/cache_acceleration/teacache.md), [Cache-DiT](diffusion/cache_acceleration/cache_dit.md) |
+| Parallelism | [Parallelism Overview](diffusion/parallelism/overview.md) |
+| Attention | [Attention Backends](diffusion/attention_backends.md) |
+| Compilation | [Regional Compilation](diffusion/regional_compilation.md) |
+| Video extension | [Frame Interpolation](diffusion/frame_interpolation.md) |
+| Startup | [Startup and Loading](diffusion/startup_and_loading.md) |
+| Adapters | [LoRA](diffusion/lora.md) |
 
-**Parallelism Methods:**
+Related cross-model and runtime features are documented separately:
 
-- **[Parallelism Overview](diffusion/parallelism/overview.md)** - Tensor Parallelism, Sequence Parallelism, CFG Parallelism, Pipeline Parallelism, HSDP, and Expert Parallelism
-
-**Memory Optimization:**
-
-- **[CPU Offload Guide](diffusion/cpu_offload.md)** - Offload model components to CPU, reduce GPU memory usage
-- **[VAE Parallelism Guide](diffusion/parallelism/vae_parallelism.md)** - Distribute VAE decode work across GPUs for high-resolution images and videos
-- **[Quantization](quantization/overview.md)** - Quantization methods for diffusion, multi-stage omni/TTS, and multi-stage diffusion models
-
-**Extensions:**
-
-- **[LoRA Inference Guide](diffusion/lora.md)** - Low-Rank Adaptation for style customization and fine-tuning
-- **[Frame Interpolation Guide](diffusion/frame_interpolation.md)** - Worker-side post-generation video frame interpolation for smoother motion
-
-**Execution Modes:**
-
-- **[Diffusion Execution Modes](diffusion/execution_modes.md)** - Configure request batching, step execution, continuous batching, and streaming output
-
-**Startup Optimization:**
-
-- **[Multi-Thread Weight Loading](#multi-thread-weight-loading)** - Speed up model startup by loading safetensors shards in parallel
-
-**Advanced Topics:**
-
-- **[Feature Compatibility](feature_compatibility.md)** - How to combine multiple features for maximum performance
+- [Quantization](quantization/overview.md) covers diffusion-only models,
+  multi-stage omni/TTS models, and multi-stage diffusion models.
+- [Execution Modes and Streaming](diffusion/execution_modes.md) covers the
+  diffusion runtime, including batching, step execution, and streaming output.

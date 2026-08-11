@@ -34,6 +34,10 @@ implementation contract; it is not, by itself, a general support claim.
 - [Yuanrong Store Connector](feature/omni_connectors/yuanrong_connector.md)
 - [Yuanrong Transfer Engine Connector](feature/omni_connectors/yuanrong_transfer_engine_connector.md)
 
+### Quantization
+
+- [Quantization](feature/quantization.md)
+
 ### Diffusion acceleration
 
 #### Parallelism
@@ -49,10 +53,6 @@ implementation contract; it is not, by itself, a general support claim.
 #### Attention Backends
 
 - [Skip-Softmax](feature/skip_softmax.md)
-
-#### Quantization
-
-- [Quantization](feature/quantization.md)
 
 - [Cache-DiT](feature/cache_dit.md)
 - [TeaCache](feature/teacache.md)

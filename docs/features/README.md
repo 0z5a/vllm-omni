@@ -35,12 +35,19 @@ features yet:
   design-level contract until its user-facing configuration and compatibility
   surface is consolidated.
 
+## Quantization
+
+Quantization is a cross-model feature rather than a diffusion-only
+optimization. The unified [`quantization_config` guide](../user_guide/quantization/overview.md)
+covers diffusion-only models, multi-stage omni/TTS models, and multi-stage
+diffusion models. Its [design contract](../design/feature/quantization.md)
+defines the shared configuration and backend extension points.
+
 ## Diffusion Acceleration
 
 | Goal | User guide | Related design contract |
 | --- | --- | --- |
 | Compare acceleration methods and supported combinations | [Overview](../user_guide/diffusion_features.md), [Feature Compatibility](../user_guide/feature_compatibility.md) | [Diffusion acceleration designs](../design/index.md#diffusion-acceleration) |
-| Reduce model memory with lower-precision weights | [Quantization](../user_guide/quantization/overview.md) | [Quantization](../design/feature/quantization.md) |
 | Move weights between host and device memory | [CPU Offloading](../user_guide/diffusion/cpu_offload.md) | [Distributed Layerwise Offload](../design/feature/distributed_layerwise_offload.md) |
 | Reuse denoising computation | [Cache Acceleration](../user_guide/diffusion/cache_acceleration/cache_dit.md) | [Cache-DiT](../design/feature/cache_dit.md), [TeaCache](../design/feature/teacache.md) |
 | Distribute diffusion work across devices | [Parallelism](../user_guide/diffusion/parallelism/overview.md) | [Parallelism designs](../design/index.md#parallelism) |
