@@ -120,3 +120,34 @@ def test_tp_accepts_checkpoint_supported_sizes():
     arch = MiniMaxH3DiTArchConfig()
     for tp_size in (1, 2, 4, 7):
         model._validate_tp_config(arch=arch, tp_size=tp_size)
+
+
+@pytest.mark.parametrize(("parallel_size", "enabled"), [(1, False), (2, True)])
+def test_video_vae_auto_mode_preserves_native_tile_parallelism(monkeypatch, parallel_size, enabled):
+    from vllm_omni.diffusion.models.minimax_h3 import vae as vae_module
+
+    parallel_state = {}
+    video_vae = object.__new__(vae_module.MiniMaxH3VideoVAE)
+    nn.Module.__init__(video_vae)
+    video_vae.remote = nn.Identity()
+    video_vae.model = type("FakeModel", (), {"parallel_tiling": False})()
+
+    monkeypatch.setattr(vae_module, "get_dit_group", lambda: object())
+    monkeypatch.setattr(vae_module.dist, "get_world_size", lambda group: 2)
+    monkeypatch.setattr(vae_module.dist, "get_rank", lambda group: 0)
+    monkeypatch.setattr(
+        vae_module.importlib,
+        "import_module",
+        lambda package: type(
+            "FakeParallelModule",
+            (),
+            {"get_parallel_state": staticmethod(lambda: parallel_state)},
+        )(),
+    )
+
+    video_vae.set_parallel_size(parallel_size, mode="auto")
+
+    assert video_vae.parallel_size == parallel_size
+    assert video_vae.model.parallel_tiling is enabled
+    assert parallel_state["group_size"] == parallel_size
+    assert parallel_state["sp_enabled"] is enabled

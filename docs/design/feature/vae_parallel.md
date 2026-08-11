@@ -451,16 +451,16 @@ Complete examples in the codebase:
 
 ## Spatially-Sharded Decode (Wan)
 
-The tile-parallel executor above assigns independent spatial **tiles** to ranks. The Wan VAE additionally supports a **spatially-sharded decode** backend, selected through `DiffusionParallelConfig.vae_parallel_mode` (`"spatial_shard_height"` or `"spatial_shard_width"`; default is `"tile"`).
+The tile-parallel executor above assigns independent spatial **tiles** to ranks. The Wan VAE additionally supports a **spatially-sharded decode** backend. `DiffusionParallelConfig.vae_parallel_mode="auto"` is the default; explicit `"tile"`, `"spatial_shard_height"`, and `"spatial_shard_width"` modes remain available.
 
 ### How it differs from tile parallel
 
-| Aspect | Tile parallel (`"tile"`) | Spatially-sharded (`"spatial_shard_height"`/`"spatial_shard_width"`) |
-|--------|--------------------------|-----------------------------------------------|
-| Unit of work | Independent overlapping tiles | A single global feature map sharded along H or W |
-| Cross-rank communication | Gather tiles to rank 0, stitch + blend | Per-conv **halo exchange** of boundary rows/cols (P2P) |
-| Output assembly | Blend overlapping tiles | All-gather shards on rank 0, trim padding (matches `broadcast_result=False`) |
-| Scope | Decode + encode | Decode only |
+| Aspect | Tile parallel (`"tile"`) | Automatic (`"auto"`) | Spatially-sharded (`"spatial_shard_height"`/`"spatial_shard_width"`) |
+|--------|--------------------------|----------------------|-----------------------------------------------|
+| Unit of work | Independent overlapping tiles | Chooses tile or a spatial shard per request | A single global feature map sharded along H or W |
+| Cross-rank communication | Gather tiles to rank 0, stitch + blend | Depends on the selected path | Per-conv **halo exchange** of boundary rows/cols (P2P) |
+| Output assembly | Blend overlapping tiles | Depends on the selected path | All-gather shards on rank 0, trim padding (matches `broadcast_result=False`) |
+| Scope | Decode + encode | Wan decode selection; encode remains tiled | Decode only |
 
 Spatial-shard decode swaps the decoder's spatial convolutions/padding for halo-exchanging variants (`WanDistConv2d`, `WanDistCausalConv3d`, `WanDistZeroPad2d`) so each rank only holds a shard of the activations but still sees the correct receptive field at shard boundaries. Implementation lives in `vllm_omni/diffusion/distributed/autoencoders/wan_spatial_shard.py`.
 
@@ -476,11 +476,11 @@ serve.py (--vae-parallel-mode) / OmniEngineArgs
   -> DistributedAutoencoderKLWan.tiled_decode dispatch
 ```
 
-`DistributedAutoencoderKLWan._spatial_shard_decode_enabled()` gates the path: it requires distributed decode to be enabled, a 5D latent, and `vae_patch_parallel_size == DiT group size`. Otherwise it logs a warning and falls back to tile-parallel decode.
+`DistributedAutoencoderKLWan._spatial_shard_decode_enabled()` gates the path: it requires distributed decode to be enabled, a 5D latent, and `vae_patch_parallel_size == DiT group size`. The method is reached only after Diffusers has selected tiled decode for the request. In `auto` mode the longer axis that can cover every rank is selected, with width winning ties. This policy is cached only through normal kernel shape caches; it is reevaluated for every request.
 
 ### Notes
 
-- The decoder is patched **in place** the first time spatial-shard decode runs and is bound to a single split dimension for the lifetime of the VAE instance.
+- The decoder is patched **in place** the first time spatial-shard decode runs. Its wrappers consult a context-local split dimension and retain an exact direct fallback, allowing later requests to select tile, height, or width safely.
 - Numerical correctness vs. single-GPU decode is covered by `tests/diffusion/distributed/test_wan_spatial_shard.py::test_spatial_shard_decode_matches_reference` (multi-GPU, nightly `full_model` + `distributed_cuda`).
 
 ---
