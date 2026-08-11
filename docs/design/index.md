@@ -50,7 +50,11 @@ implementation contract; it is not, by itself, a general support claim.
 - [Tensor Parallel](feature/tensor_parallel.md)
 - [VAE Patch Parallelism](feature/vae_parallel.md)
 
-#### Attention Backends
+#### Attention optimization
+
+The [Diffusion Attention Backends](../user_guide/diffusion/attention_backends.md)
+guide lists all selectable backends and their platform defaults. Skip-Softmax
+is the backend-related optimization with a standalone feature-design contract:
 
 - [Skip-Softmax](feature/skip_softmax.md)
 
