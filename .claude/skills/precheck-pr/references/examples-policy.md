@@ -60,6 +60,7 @@ Add one row to the pre-check report:
 Examples policy    ✓ no new Python example paths
 Examples policy    ⚠ generic helper belongs in tools/
 Examples policy    ✗ examples/offline_inference/new_model/end2end.py is model-specific
+Examples policy    ✗ examples/offline_inference/x_to_y_model_name.py is model-specific
 ```
 
 For a blocker, name the path, the model-specific behavior, and the appropriate
