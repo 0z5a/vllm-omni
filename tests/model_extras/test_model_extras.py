@@ -3,21 +3,58 @@
 
 from __future__ import annotations
 
+from typing import Any
+
 import pytest
 from PIL import Image
 
 from vllm_omni.diffusion.utils.param_utils import apply_declared_extra_args
 from vllm_omni.inputs.data import OmniDiffusionSamplingParams
 from vllm_omni.model_extras import (
+    adapt_image_to_video_prompt,
+    adapt_text_to_image_prompt,
     build_image_to_image_prompt,
-    build_image_to_video_prompt,
-    build_text_to_image_prompt,
     build_x_to_text_prompt,
     get_extra_body_params,
     get_extra_output_params,
     get_x_to_text_model_family,
     should_init_extra_args_for_non_diffusion_stages,
 )
+
+
+def build_text_to_image_prompt(
+    model_class_name: str,
+    prompt: str,
+    negative_prompt: str | None,
+    height: int | None = None,
+    width: int | None = None,
+) -> dict[str, Any]:
+    canonical_prompt: dict[str, Any] = {
+        "prompt": prompt,
+        "modalities": ["image"],
+    }
+    if negative_prompt is not None:
+        canonical_prompt["negative_prompt"] = negative_prompt
+    return adapt_text_to_image_prompt(model_class_name, canonical_prompt, height, width)
+
+
+def build_image_to_video_prompt(
+    model_class_name: str,
+    prompt: str,
+    negative_prompt: str | None,
+    media_inputs: dict[str, Any],
+    height: int | None = None,
+    width: int | None = None,
+    num_frames: int | None = None,
+) -> dict[str, Any]:
+    canonical_prompt: dict[str, Any] = {
+        "prompt": prompt,
+        "modalities": ["video"],
+        "multi_modal_data": media_inputs,
+    }
+    if negative_prompt is not None:
+        canonical_prompt["negative_prompt"] = negative_prompt
+    return adapt_image_to_video_prompt(model_class_name, canonical_prompt, height, width, num_frames)
 
 
 @pytest.mark.core_model
@@ -137,7 +174,7 @@ def test_lingbot_extra_registry_declares_request_params() -> None:
 
 @pytest.mark.core_model
 @pytest.mark.cpu
-def test_lingbot_text_to_image_prompt_builder_preserves_empty_negative_prompt() -> None:
+def test_lingbot_text_to_image_uses_canonical_prompt() -> None:
     assert build_text_to_image_prompt(
         "LingBotVideoPipeline",
         prompt="a red fox in fresh snow",
@@ -153,7 +190,7 @@ def test_lingbot_text_to_image_prompt_builder_preserves_empty_negative_prompt() 
 
 @pytest.mark.core_model
 @pytest.mark.cpu
-def test_lingbot_image_to_video_prompt_builder() -> None:
+def test_lingbot_image_to_video_uses_canonical_prompt() -> None:
     image = Image.new("RGB", (320, 192), "red")
     result = build_image_to_video_prompt(
         "LingBotVideoPipeline",
@@ -168,7 +205,6 @@ def test_lingbot_image_to_video_prompt_builder() -> None:
         "prompt": "the fox looks toward the camera",
         "modalities": ["video"],
         "multi_modal_data": {"image": image},
-        "num_frames": 9,
     }
 
 
@@ -184,16 +220,16 @@ def test_lingbot_image_to_video_prompt_builder() -> None:
     ],
     ids=["missing", "path", "multiple", "extra-modality"],
 )
-def test_lingbot_image_to_video_prompt_builder_rejects_invalid_media(
-    media_inputs: dict[str, object],
+def test_lingbot_image_to_video_leaves_media_validation_to_the_pipeline(
+    media_inputs: dict[str, Any],
 ) -> None:
-    with pytest.raises(ValueError, match="exactly one PIL image"):
-        build_image_to_video_prompt(
-            "LingBotVideoPipeline",
-            prompt="move",
-            negative_prompt=None,
-            media_inputs=media_inputs,
-        )
+    result = build_image_to_video_prompt(
+        "LingBotVideoPipeline",
+        prompt="move",
+        negative_prompt=None,
+        media_inputs=media_inputs,
+    )
+    assert result["multi_modal_data"] is media_inputs
 
 
 @pytest.mark.core_model
@@ -394,7 +430,7 @@ def test_ming_flash_omni_image_to_image_prompt_builder() -> None:
 @pytest.mark.core_model
 @pytest.mark.cpu
 @pytest.mark.parametrize("pipeline_name", ["Cosmos3OmniDiffusersPipeline", "Cosmos3OmniPipeline"])
-def test_cosmos3_text_to_image_prompt_builder_selects_image_modality(pipeline_name: str) -> None:
+def test_cosmos3_text_to_image_uses_canonical_prompt(pipeline_name: str) -> None:
     assert build_text_to_image_prompt(
         pipeline_name,
         prompt="a red sports car at golden hour",
@@ -543,14 +579,14 @@ def test_bagel_image_to_image_prompt_builder() -> None:
 
 @pytest.mark.core_model
 @pytest.mark.cpu
-def test_unknown_pipeline_uses_default_text_to_image_prompt() -> None:
+def test_unknown_pipeline_preserves_canonical_text_to_image_prompt() -> None:
     assert build_text_to_image_prompt(
         "UnknownPipeline",
         prompt="a cat",
         negative_prompt=None,
         height=512,
         width=512,
-    ) == {"prompt": "a cat"}
+    ) == {"prompt": "a cat", "modalities": ["image"]}
 
 
 @pytest.mark.core_model
@@ -569,7 +605,7 @@ def test_unknown_pipeline_uses_default_image_to_image_prompt() -> None:
     }
 
 
-def _build_vace_prompt(media_inputs: dict[str, object], *, num_frames: int = 5) -> dict:
+def _build_vace_prompt(media_inputs: dict[str, Any], *, num_frames: int = 5) -> dict:
     return build_image_to_video_prompt(
         "WanVACEPipeline",
         prompt="a bird flying",
@@ -597,7 +633,7 @@ def _build_vace_prompt(media_inputs: dict[str, object], *, num_frames: int = 5) 
     ],
     ids=["i2v", "v2lf", "flf2v", "inpaint", "r2v"],
 )
-def test_vace_image_to_video_prompt_builder(media_inputs: dict[str, object]) -> None:
+def test_vace_image_to_video_prompt_builder(media_inputs: dict[str, Any]) -> None:
     result = _build_vace_prompt(media_inputs)
     mmd = result["multi_modal_data"]
     if "reference_images" in mmd:
@@ -616,7 +652,7 @@ def test_vace_image_to_video_prompt_builder(media_inputs: dict[str, object]) -> 
         ({"control_image": Image.new("RGB", (320, 16))}, "Unsupported VACE media input"),
     ],
 )
-def test_vace_rejects_invalid_media_combinations(media_inputs: dict[str, object], message: str) -> None:
+def test_vace_rejects_invalid_media_combinations(media_inputs: dict[str, Any], message: str) -> None:
     with pytest.raises(ValueError, match=message):
         _build_vace_prompt(media_inputs)
 

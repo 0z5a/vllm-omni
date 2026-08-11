@@ -61,7 +61,7 @@ from vllm_omni.diffusion.utils.param_utils import apply_declared_extra_args
 from vllm_omni.entrypoints.omni import Omni
 from vllm_omni.inputs.data import OmniDiffusionSamplingParams
 from vllm_omni.model_extras import (
-    build_image_to_video_prompt,
+    adapt_image_to_video_prompt,
     get_extra_body_params,
     get_model_class_name,
 )
@@ -81,6 +81,22 @@ def parse_json_object(value: str, flag_name: str = "argument") -> dict[str, Any]
 
 
 parse_profiler_config = functools.partial(parse_json_object, flag_name="--profiler-config")
+
+
+def build_image_to_video_prompt(
+    prompt: str,
+    negative_prompt: str | None,
+    media_inputs: dict[str, Any],
+) -> dict[str, Any]:
+    """Build the canonical request envelope for the shared I2V example."""
+    result: dict[str, Any] = {
+        "prompt": prompt,
+        "modalities": ["video"],
+        "multi_modal_data": media_inputs,
+    }
+    if negative_prompt is not None:
+        result["negative_prompt"] = negative_prompt
+    return result
 
 
 def parse_args() -> argparse.Namespace:
@@ -522,10 +538,13 @@ def main():
         # Preserve the historical empty-prompt behavior for non-LTX examples.
         negative_prompt = ""
     prompt_dict = build_image_to_video_prompt(
-        model_class_name=model_class_name,
         prompt=args.prompt,
         negative_prompt=negative_prompt,
         media_inputs=media_inputs,
+    )
+    prompt_dict = adapt_image_to_video_prompt(
+        model_class_name=model_class_name,
+        prompt=prompt_dict,
         height=height,
         width=width,
         num_frames=num_frames,
