@@ -1688,6 +1688,9 @@ async def benchmark(
         async with semaphore:
             return await request_func(request_func_input=request_func_input, session=session, pbar=pbar)
 
+    # Ported from upstream vLLM v0.27.0 (vllm/benchmarks/serve.py), which added
+    # the probe_request_rate background probe; this file is the patched copy of
+    # that module and tracks its upstream base.
     probe_outputs: list[MixRequestFuncOutput] = []
     probe_stop = asyncio.Event()
 
