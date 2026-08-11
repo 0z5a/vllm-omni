@@ -209,6 +209,9 @@ class DiffusionParallelConfig:
     vae_parallel_mode: str = "tile"
     """VAE parallel decode strategy.
 
+    - "auto": Select the longer spatial-shard axis for validated Wan tiled
+      decodes on a full DiT-group topology; otherwise use patch/tile parallel
+      decode.
     - "tile": Patch/tile parallel decode (default). Each rank decodes a subset
       of spatial tiles and the results are stitched on rank 0.
     - "spatial_shard_height": Spatially-sharded decode that splits decoder
@@ -250,8 +253,9 @@ class DiffusionParallelConfig:
         assert self.allgather_degree > 0, "AllGather degree must be > 0"
         assert self.cfg_parallel_size > 0, "CFG parallel size must be > 0"
         assert self.vae_patch_parallel_size > 0, "VAE patch parallel size must be > 0"
-        assert self.vae_parallel_mode in {"tile", "spatial_shard_height", "spatial_shard_width"}, (
-            "vae_parallel_mode must be one of {'tile', 'spatial_shard_height', 'spatial_shard_width'}, "
+        assert self.vae_parallel_mode in {"auto", "tile", "spatial_shard_height", "spatial_shard_width"}, (
+            "vae_parallel_mode must be one of "
+            "{'auto', 'tile', 'spatial_shard_height', 'spatial_shard_width'}, "
             f"but got {self.vae_parallel_mode!r}."
         )
         if self.allgather_degree > 1:
