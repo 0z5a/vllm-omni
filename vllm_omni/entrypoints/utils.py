@@ -18,8 +18,8 @@ from vllm_omni.config.stage_config import _DEPLOY_DIR
 from vllm_omni.config.yaml_util import create_config, load_yaml_config, merge_configs
 from vllm_omni.diffusion.utils.hf_utils import (
     _looks_like_dreamzero,
-    _looks_like_magi2,
     get_diffusion_model_index,
+    resolve_native_diffusion_model_class,
 )
 from vllm_omni.entrypoints.stage_utils import _to_dict
 from vllm_omni.inputs.data import OmniSamplingParams
@@ -291,8 +291,9 @@ def resolve_model_config_path(model: str) -> str | None:
         model_type = hf_config.model_type
     except (ValueError, Exception):
         # If standard transformers format fails, try diffusers format
-        if _looks_like_magi2(model):
-            model_type = "Magi2Pipeline"
+        native_model_class = resolve_native_diffusion_model_class(model)
+        if native_model_class is not None:
+            model_type = native_model_class
         elif get_diffusion_model_index(model) is not None:
             model_type = _try_get_class_name_from_diffusers_config(model)
             if model_type is None:

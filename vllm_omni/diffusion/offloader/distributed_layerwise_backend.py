@@ -228,11 +228,6 @@ class DistributedLayerwiseOffloadHook(ModelHook):
                     # parameter as an mmap view avoids a private full-model
                     # copy in every worker.
                     local_t = mmap_transform(local_t)
-                # Offload storage is an inference-only host copy. Detaching
-                # prevents copy_ from retaining an autograd graph whose view
-                # semantics can also make all_gather_into_tensor reject its
-                # in-place output writes.
-                local_t = local_t.detach()
                 weights_with_local.append((name, t, local_t))
 
             total_numel = sum(local.numel() for _, _, local in weights_with_local)
@@ -687,9 +682,6 @@ class DistributedLayerwiseOffloadBackend(OffloadBackend):
         from safetensors import safe_open
 
         model_path = self.config.model_path
-        checkpoint_path = getattr(pipeline, "_get_mmap_checkpoint_path", None)
-        if callable(checkpoint_path):
-            model_path = os.fspath(checkpoint_path())
         if not model_path:
             logger.warning("No model_path for mmap weight loading, skipping")
             return
@@ -915,7 +907,6 @@ class DistributedLayerwiseOffloadBackend(OffloadBackend):
         # Each block param is assigned an mmap view (no RSS).
         # _shard_and_pin will later copy the shard portion to a private buffer.
         block_loaded = 0
-        pipeline_module_names = {id(module): name for name, module in pipeline.named_modules()}
         for dit_idx, dit_module in enumerate(modules.dits):
             dit_name = modules.dit_names[dit_idx]
             blocks_attr_names, blocks = get_blocks_from_dit(dit_module)
@@ -934,9 +925,7 @@ class DistributedLayerwiseOffloadBackend(OffloadBackend):
             for block_idx, block in enumerate(blocks):
                 # Build the full model param prefix for this block
                 # e.g. "transformer.language_model.layers.0" or "transformer.gen_layers.0"
-                block_full_prefix = pipeline_module_names.get(id(block))
-                if block_full_prefix is None:
-                    block_full_prefix = f"{dit_name}.{blocks_attr}.{block_idx}"
+                block_full_prefix = f"{dit_name}.{blocks_attr}.{block_idx}"
 
                 for bname, bparam in block.named_parameters():
                     if not (hasattr(bparam, "is_meta") and bparam.is_meta):
