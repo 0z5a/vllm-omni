@@ -477,14 +477,21 @@ class OmniARScheduler(OmniSchedulerMixin, VLLMScheduler):
                     # stop, so a stop with no outstanding placeholders
                     # explicitly records 0.
                     request.async_tokens_to_discard = outstanding_async_tokens
+                    # Seed the stale share in SCHEDULED-token units:
+                    # num_in_flight_tokens is exactly the unreported steps'
+                    # num_tokens_scheduled sum (settled per frame at the top
+                    # of this loop), and the drain subtracts each arriving
+                    # frame's num_tokens_scheduled — commensurable by
+                    # construction, so pre-discard frames drain to exactly
+                    # zero. Seeding from num_output_placeholders swallowed
+                    # valid new-segment frames or underflowed the drain
+                    # assert whenever placeholder counts diverged from
+                    # scheduled counts (spec drafts, in-flight prefill).
+                    if request.num_in_flight_tokens > 0:
+                        request.num_stale_output_tokens += request.num_in_flight_tokens
                     if outstanding_async_tokens > 0:
                         # Discard only outputs that are already in flight and
                         # roll back their optimistic computed-token accounting.
-                        # Record the in-flight share as stale so the delayed
-                        # outputs (async scheduling lookahead) are dropped in
-                        # update_from_output instead of underflowing
-                        # num_output_placeholders (vLLM 0.27 a0c092ee72).
-                        request.num_stale_output_tokens += outstanding_async_tokens
                         request.num_computed_tokens -= outstanding_async_tokens
                         request.num_output_placeholders = 0
                     request.spec_token_ids = []
@@ -611,16 +618,20 @@ class OmniARScheduler(OmniSchedulerMixin, VLLMScheduler):
         req_id = session.request_id
         self._new_prompt_len_snapshot[req_id] = len(update.prompt_token_ids)
         outstanding_async_tokens = getattr(session, "num_output_placeholders", 0)
+        # Seed the stale share in SCHEDULED-token units (see the segment-stop
+        # site in update_from_output): num_in_flight_tokens matches what each
+        # pre-replacement frame will drain, so the counter reaches exactly
+        # zero and the new segment's frames are never swallowed. This also
+        # covers an in-flight prefill chunk, which carries no placeholders
+        # but must still have its late output dropped.
+        in_flight_tokens = int(getattr(session, "num_in_flight_tokens", 0) or 0)
+        if in_flight_tokens > 0:
+            session.num_stale_output_tokens += in_flight_tokens
         if outstanding_async_tokens > 0:
             # Async scheduling may already have sampled the previous
             # segment's next token. Drop that late token instead of
             # appending it to the new streaming segment.
             session.async_tokens_to_discard = 1
-            # Mark the in-flight share stale so the delayed outputs are
-            # dropped in update_from_output (vLLM 0.27 a0c092ee72 removed
-            # the async_tokens_to_discard handling from the upstream
-            # scheduler).
-            session.num_stale_output_tokens += session.num_output_placeholders
             session.num_computed_tokens -= session.num_output_placeholders
             session.num_output_placeholders = 0
             session.spec_token_ids = []

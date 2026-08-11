@@ -16,9 +16,12 @@ segment — a hole in the talker's codec stream (garbled audio, text/audio
 mismatch) — or underflows its own assert on the new segment's prefill
 frame (engine-core death mid-step).
 
-These tests pin the drain behavior one frame at a time. The delivered /
-swallowed observable is whether ``_update_request_with_output`` runs for
-the frame.
+The fix seeds the counter from ``num_in_flight_tokens`` — the same
+scheduled-token units the drain subtracts — so every pre-discard frame
+drains exactly its own contribution and new-segment frames can never be
+swallowed. These tests pin that contract one frame at a time; the
+delivered / swallowed observable is whether ``_update_request_with_output``
+runs for the frame.
 """
 
 from __future__ import annotations
@@ -56,6 +59,8 @@ def _make_session() -> Request:
     if not hasattr(session, "num_stale_output_tokens"):
         # vLLM 0.27 defines this Request field; 0.26 (local dev) does not.
         session.num_stale_output_tokens = 0
+    if not hasattr(session, "num_in_flight_tokens"):
+        session.num_in_flight_tokens = 0
     return session
 
 
@@ -129,13 +134,13 @@ def _run_step(sched: MagicMock, session: Request, *, num_scheduled: int, token: 
 
 
 def test_exact_drain_delivers_new_segment_frame() -> None:
-    """Sanity: seed == arrivals. One in-flight frame at replacement, its late
-    output drains the counter, and the new segment's first frame is delivered.
-    """
+    """One in-flight decode frame at replacement: its late output drains the
+    counter exactly and the new segment's first frame is delivered."""
     session = _make_session()
     session.append_output_token_ids([7, 8, 9])
     session.num_computed_tokens = 6
     session.num_output_placeholders = 1
+    session.num_in_flight_tokens = 1
 
     _replace_streaming_session(session)
     assert session.num_stale_output_tokens == 1
@@ -146,32 +151,24 @@ def test_exact_drain_delivers_new_segment_frame() -> None:
     assert _run_step(sched, session, num_scheduled=1, token=43) is True  # new segment survives
 
 
-@pytest.mark.xfail(
-    reason="59b9e719 drain defect: leftover stale count swallows valid new-segment frames; "
-    "suspected driver of the seed-TTS WER regression (0.2695 -> 0.39, nightly 2946 -> 2949)",
-    strict=True,
-)
-def test_over_seeded_drain_swallows_valid_new_segment_frame() -> None:
-    """Seed > arrivals: the counter outlives the old segment and eats fresh tokens.
-
-    Two placeholders were in flight at replacement but only ONE late frame
-    reports (the 0.26-era comment above the seed site says exactly one late
-    token arrives; 0.26 seeded the counter with 1 for this reason). The 0.27
-    adaptation seeds with the placeholder count, so the new segment's first
-    valid frame is treated as stale and silently swallowed — a hole in the
-    output stream while the KV state advances past it.
-    """
+def test_two_in_flight_frames_drain_without_swallowing() -> None:
+    """Two in-flight decode frames: both late frames drop, the new segment's
+    first valid frame is delivered. A placeholder-based seed swallowed it
+    whenever fewer frames arrived than placeholders counted (the driver of
+    the seed-TTS WER regression, nightly 2946 -> 2949: 0.2695 -> 0.3936)."""
     session = _make_session()
     session.append_output_token_ids([7, 8, 9])
     session.num_computed_tokens = 7
     session.num_output_placeholders = 2
+    session.num_in_flight_tokens = 2
 
     _replace_streaming_session(session)
     assert session.num_stale_output_tokens == 2
 
     sched = _make_drain_sched(session)
-    assert _run_step(sched, session, num_scheduled=1, token=42) is False  # the one late frame
-    assert session.num_stale_output_tokens == 1  # leftover: nothing else in flight
+    assert _run_step(sched, session, num_scheduled=1, token=42) is False  # late frame 1
+    assert _run_step(sched, session, num_scheduled=1, token=44) is False  # late frame 2
+    assert session.num_stale_output_tokens == 0
 
     delivered = _run_step(sched, session, num_scheduled=1, token=43)  # new segment, frame 1
     assert delivered is True, (
@@ -180,55 +177,47 @@ def test_over_seeded_drain_swallows_valid_new_segment_frame() -> None:
     )
 
 
-@pytest.mark.xfail(
-    reason="59b9e719 drain defect: leftover stale count swallows valid new-segment frames; "
-    "suspected driver of the seed-TTS WER regression (0.2695 -> 0.39, nightly 2946 -> 2949)",
-    strict=True,
-)
-def test_spec_mismatch_drain_swallows_valid_frame() -> None:
-    """Seed counts placeholders (1 + spec drafts); drain counts scheduled tokens.
-
-    An in-flight MTP frame contributed 1 sampled + 2 draft placeholders
-    (seed 3), but its late frame reports num_tokens_scheduled == 2 (one
-    draft invalidated before execution). The leftover then swallows the new
-    segment's valid frame.
-    """
+def test_spec_placeholder_asymmetry_does_not_swallow_valid_frame() -> None:
+    """Placeholder counts can exceed scheduled counts (e.g. a draft
+    invalidated before execution): 1 in-flight MTP frame scheduled 2 tokens
+    but contributed 3 placeholders. Seeding from num_in_flight_tokens keeps
+    seed == drain, so the new segment's valid frame is delivered."""
     session = _make_session()
     session.append_output_token_ids([7])
     session.num_computed_tokens = 7
-    session.num_output_placeholders = 3  # 1 sampled + 2 spec drafts in flight
-
-    _replace_streaming_session(session)
-    assert session.num_stale_output_tokens == 3
-
-    sched = _make_drain_sched(session)
-    assert _run_step(sched, session, num_scheduled=2, token=42) is False  # late frame, 1 draft invalidated
-    delivered = _run_step(sched, session, num_scheduled=1, token=43)  # new segment, frame 1
-    assert delivered is True, (
-        "valid new-segment frame swallowed after spec seed/drain mismatch "
-        f"(num_stale_output_tokens left at {session.num_stale_output_tokens})"
-    )
-
-
-def test_leftover_stale_count_underflows_on_new_segment_prefill() -> None:
-    """A leftover counter smaller than the next frame's scheduled tokens
-    trips ``assert num_stale_output_tokens >= 0`` — in production that
-    exception escapes update_from_output and kills the engine-core step.
-    The replacement reset num_computed_tokens to 0, so the new segment's
-    first frame is a PREFILL whose num_tokens_scheduled is the prompt
-    length, far larger than any leftover.
-    """
-    session = _make_session()
-    session.append_output_token_ids([7, 8, 9])
-    session.num_computed_tokens = 7
-    session.num_output_placeholders = 2
+    session.num_output_placeholders = 3  # 1 sampled + 2 spec placeholders
+    session.num_in_flight_tokens = 2  # the frame actually scheduled 1 + 1 tokens
 
     _replace_streaming_session(session)
     assert session.num_stale_output_tokens == 2
 
     sched = _make_drain_sched(session)
-    assert _run_step(sched, session, num_scheduled=1, token=42) is False  # one late frame drains 1
+    assert _run_step(sched, session, num_scheduled=2, token=42) is False  # late MTP frame
+    assert session.num_stale_output_tokens == 0
+    delivered = _run_step(sched, session, num_scheduled=1, token=43)  # new segment, frame 1
+    assert delivered is True, (
+        "valid new-segment frame swallowed after spec placeholder asymmetry "
+        f"(num_stale_output_tokens left at {session.num_stale_output_tokens})"
+    )
 
-    # New segment prefill: 5 prompt tokens scheduled at once.
-    with pytest.raises(AssertionError):
-        _run_step(sched, session, num_scheduled=5, token=43)
+
+def test_in_flight_prefill_chunk_drains_exactly_without_underflow() -> None:
+    """An in-flight prefill chunk carries no placeholders but 5 scheduled
+    tokens. The placeholder-based seed missed it entirely (its late output
+    was appended to the rolled-back session) and any leftover counter
+    underflowed 'assert num_stale_output_tokens >= 0' on the chunk's arrival,
+    killing the engine-core step. Seeding from num_in_flight_tokens drops the
+    late chunk and drains to exactly zero."""
+    session = _make_session()
+    session.append_output_token_ids([7, 8, 9])
+    session.num_computed_tokens = 7
+    session.num_output_placeholders = 0  # prefill chunk: no placeholders
+    session.num_in_flight_tokens = 5  # the chunk's scheduled tokens
+
+    _replace_streaming_session(session)
+    assert session.num_stale_output_tokens == 5
+
+    sched = _make_drain_sched(session)
+    assert _run_step(sched, session, num_scheduled=5, token=42) is False  # late prefill chunk dropped
+    assert session.num_stale_output_tokens == 0
+    assert _run_step(sched, session, num_scheduled=1, token=43) is True  # new segment survives
