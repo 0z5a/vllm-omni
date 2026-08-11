@@ -142,6 +142,10 @@ class Qwen3OmniMoeForConditionalGeneration(
         # value still reaches the ValueError below rather than being silently
         # accepted.
         self.model_stage = getattr(vllm_config.model_config, "model_stage", None) or "thinker"
+        # Staged startup always injects model_stage; its absence means a plain
+        # vLLM run with no talker stage downstream, so no one consumes captured
+        # thinker layers and the forward must return what stock vLLM expects.
+        self.is_staged_run = getattr(vllm_config.model_config, "model_stage", None) is not None
 
         if self.model_stage == "thinker":
             self.use_async_omni_output = True
@@ -396,17 +400,21 @@ class Qwen3OmniMoeForConditionalGeneration(
                 inputs_embeds = inputs_embeds.to(thinker_dev)
 
             # Run thinker forward
-            # If talker expects a specific intermediate layer, capture it here
+            # If talker expects a specific intermediate layer, capture it here.
+            # Only staged runs have a talker stage to consume the capture; in a
+            # plain vLLM run capturing would waste a clone per layer per step
+            # and make the thinker return a tuple stock vLLM cannot handle.
             accept_layer = getattr(self.talker_config, "accept_hidden_layer", None)
             capture_kwargs = {}
-            if accept_layer is not None:
+            if accept_layer is not None and self.is_staged_run:
                 capture_kwargs = {
                     "capture_layer_indices": [0, int(accept_layer)],
                     "return_hidden_states": True,
                 }
 
-            # Run thinker
-            text_hidden_states, captured_layer_dict = self.thinker(
+            # Run thinker. Returns (text_hidden_states, captured_layer_dict)
+            # when capturing, a bare tensor otherwise.
+            return self.thinker(
                 input_ids=input_ids,
                 positions=positions,
                 intermediate_tensors=intermediate_tensors,
@@ -414,7 +422,6 @@ class Qwen3OmniMoeForConditionalGeneration(
                 **capture_kwargs,
                 **kwargs,
             )
-            return text_hidden_states, captured_layer_dict
 
         # ========== Stage 2.1: Talker ==========
         elif self.model_stage == "talker":
@@ -504,7 +511,11 @@ class Qwen3OmniMoeForConditionalGeneration(
             return model_outputs
 
         if self.model_stage == "thinker":
-            text_hidden_states, captured_layer_dict = model_outputs
+            if isinstance(model_outputs, tuple):
+                text_hidden_states, captured_layer_dict = model_outputs
+            else:
+                # Bare tensor: capture was not requested (no accept_hidden_layer).
+                text_hidden_states, captured_layer_dict = model_outputs, None
             # Compute thinker-side TTS token embeddings for BOS/EOS/PAD and expose via multimodal outputs.
             # These will later be projected into talker text space by the talker stage.
             multimodal_outputs: OmniPayload = captured_layer_dict if captured_layer_dict is not None else {}
