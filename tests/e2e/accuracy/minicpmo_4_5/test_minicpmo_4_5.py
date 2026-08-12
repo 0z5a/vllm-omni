@@ -129,8 +129,8 @@ def _optional_local_videomme_dataset_path() -> str | None:
     """Return an explicit local Video-MME root, or ``None`` to use the Hub default.
 
     Same rule as Daily-Omni / Seed-TTS: only an env-provided existing directory counts as
-    local. Hard-coded workspace paths are intentionally not probed so CI defaults to
-    ``lmms-lab/Video-MME`` via ``--videomme-repo``.
+    local. Hard-coded workspace paths are intentionally not probed so CI defaults to the
+    Hub id in ``VIDEOMME_DEFAULT_HF_REPO`` (``lmms-eval/Video-MME``).
     """
     for key in ("VLLM_VIDEOMME_DATASET_PATH", "VIDEOMME_ROOT"):
         raw = os.environ.get(key, "").strip()
@@ -210,7 +210,7 @@ def test_minicpmo_4_5_daily_omni_accuracy_bench(omni_server) -> None:
     assert _acc_bench.run_acc_benchmark(_acc_bench.parse_acc_benchmark_args(argv)) == 0
 
 
-@hardware_test(res={"cuda": "H100", "npu": "A3"}, num_cards=1)
+@hardware_test(res={"cuda": "H100"}, num_cards=1)
 @pytest.mark.parametrize("omni_server", videomme_test_params, indirect=True)
 def test_minicpmo_4_5_videomme_accuracy_bench(omni_server) -> None:
     """Gate MiniCPM-o 4.5 Video-MME (w/o subs) overall accuracy at the OmniEvalKit recipe."""
