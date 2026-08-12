@@ -77,5 +77,5 @@ while reusing sequential `.to()` movers.
 - Higher cold-start latency.
 - Transfers between encoder and denoising phases add latency.
 
-See the [model-level design](../../../design/feature/model_level_offload.md)
+See the [model-level design](../../../design/feature/offloader/cpu_offload.md)
 for lifecycle and extension invariants.

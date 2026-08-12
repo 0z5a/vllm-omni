@@ -53,7 +53,7 @@ class Flux2Transformer2DModel(nn.Module):
     ]
 ```
 
-See the [layerwise design](../../../design/feature/layerwise_offload.md) for
+See the [layerwise design](../../../design/feature/offloader/layerwise_offload.md) for
 the discovery and hook invariants. `OffloadPlan` is a separate declarative
 topology path for distributed layerwise offload.
 

@@ -5,9 +5,9 @@ The three strategies have separate user and design pages:
 
 | Strategy | User guide | Design contract |
 | --- | --- | --- |
-| Model-level | [Guide](../../user_guide/diffusion/offloader/cpu_offload.md) | [Design](model_level_offload.md) |
-| Layerwise | [Guide](../../user_guide/diffusion/offloader/layerwise_offload.md) | [Design](layerwise_offload.md) |
-| Distributed layerwise | [Guide](../../user_guide/diffusion/offloader/distributed_layerwise_offload.md) | [Design](distributed_layerwise_offload.md) |
+| Model-level | [Guide](../../../user_guide/diffusion/offloader/cpu_offload.md) | [Design](cpu_offload.md) |
+| Layerwise | [Guide](../../../user_guide/diffusion/offloader/layerwise_offload.md) | [Design](layerwise_offload.md) |
+| Distributed layerwise | [Guide](../../../user_guide/diffusion/offloader/distributed_layerwise_offload.md) | [Design](distributed_layerwise_offload.md) |
 
 ## Strategy selection
 
@@ -76,5 +76,5 @@ ownership.
 - Platform streams, events, synchronization, and cache management go through
   the vLLM-Omni platform abstraction.
 
-The diffusion [Offloader module design](../module/diffusion/offloader.md)
+The diffusion [Offloader module design](../../module/diffusion/offloader.md)
 describes how these feature contracts fit into the larger diffusion runtime.

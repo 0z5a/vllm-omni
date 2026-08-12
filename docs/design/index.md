@@ -61,10 +61,10 @@ The design contracts separate selection mechanics from backend algorithms:
 
 #### CPU offloading
 
-- [Overview and Shared Contracts](feature/cpu_offloading.md)
-- [Model-Level Offload](feature/model_level_offload.md)
-- [Layerwise Offload](feature/layerwise_offload.md)
-- [Distributed Layerwise Offload](feature/distributed_layerwise_offload.md)
+- [Overview and Shared Contracts](feature/offloader/README.md)
+- [Model-Level Offload](feature/offloader/cpu_offload.md)
+- [Layerwise Offload](feature/offloader/layerwise_offload.md)
+- [Distributed Layerwise Offload](feature/offloader/distributed_layerwise_offload.md)
 
 - [Cache-DiT](feature/cache_dit.md)
 - [TeaCache](feature/teacache.md)

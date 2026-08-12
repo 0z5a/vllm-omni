@@ -5,7 +5,7 @@ the coarsest strategy that meets your memory target: finer-grained streaming
 saves more device memory but adds more transfer and setup overhead.
 
 For the shared factory, discovery, and lifecycle contract, see the
-[CPU Offloading design](../../design/feature/cpu_offloading.md).
+[CPU Offloading design](../../design/feature/offloader/README.md).
 
 ## Choose a strategy
 

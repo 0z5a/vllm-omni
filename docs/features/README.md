@@ -48,7 +48,7 @@ defines the shared configuration and backend extension points.
 | Goal | User guide | Related design contract |
 | --- | --- | --- |
 | Compare acceleration methods and supported combinations | [Overview](../user_guide/diffusion_features.md), [Feature Compatibility](../user_guide/feature_compatibility.md) | [Diffusion acceleration designs](../design/index.md#diffusion-acceleration) |
-| Move weights between host and device memory | [CPU Offloading](../user_guide/diffusion/cpu_offload.md) | [CPU Offloading](../design/feature/cpu_offloading.md) |
+| Move weights between host and device memory | [CPU Offloading](../user_guide/diffusion/cpu_offload.md) | [CPU Offloading](../design/feature/offloader/README.md) |
 | Reuse denoising computation | [Cache Acceleration](../user_guide/diffusion/cache_acceleration/cache_dit.md) | [Cache-DiT](../design/feature/cache_dit.md), [TeaCache](../design/feature/teacache.md) |
 | Distribute diffusion work across devices | [Parallelism](../user_guide/diffusion/parallelism/overview.md) | [Parallelism designs](../design/index.md#parallelism) |
 | Select dense, sparse, or quantized attention paths | [Attention Backends](../user_guide/diffusion/attention_backends.md) | [Attention Backend Selection](../design/feature/attention_backend_selection.md) |

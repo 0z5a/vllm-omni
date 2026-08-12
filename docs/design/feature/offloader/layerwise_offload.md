@@ -2,7 +2,7 @@
 
 Layerwise offload streams transformer blocks through one accelerator. For
 commands and model support, see the
-[layerwise user guide](../../user_guide/diffusion/offloader/layerwise_offload.md).
+[layerwise user guide](../../../user_guide/diffusion/offloader/layerwise_offload.md).
 
 ## Hook ring
 
@@ -54,4 +54,4 @@ streamed by this backend.
   [Distributed Layerwise Offload](distributed_layerwise_offload.md).
 
 Shared selection and lifecycle behavior is defined in the
-[CPU Offloading design](cpu_offloading.md).
+[CPU Offloading design](README.md).

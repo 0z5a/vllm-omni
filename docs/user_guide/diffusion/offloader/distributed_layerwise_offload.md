@@ -5,7 +5,7 @@ deployments. With AllGather enabled, each rank stores roughly `1 / dp_size` of
 the host weights and reconstructs each layer at runtime. Without AllGather,
 each rank streams its standard-loader rank-local weights independently.
 
-See the [DLO feature design](../../../design/feature/distributed_layerwise_offload.md)
+See the [DLO feature design](../../../design/feature/offloader/distributed_layerwise_offload.md)
 for the implementation contract and compatibility matrix.
 
 ## Execution model

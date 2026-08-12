@@ -138,10 +138,10 @@ nav:
           - Backend Selection: design/feature/attention_backend_selection.md
           - Skip-Softmax: design/feature/skip_softmax.md
         - CPU Offloading:
-          - Overview: design/feature/cpu_offloading.md
-          - Model-Level: design/feature/model_level_offload.md
-          - Layerwise: design/feature/layerwise_offload.md
-          - Distributed Layerwise: design/feature/distributed_layerwise_offload.md
+          - Overview: design/feature/offloader/README.md
+          - Model-Level: design/feature/offloader/cpu_offload.md
+          - Layerwise: design/feature/offloader/layerwise_offload.md
+          - Distributed Layerwise: design/feature/offloader/distributed_layerwise_offload.md
         - Cache-DiT: design/feature/cache_dit.md
         - TeaCache: design/feature/teacache.md
         - Diffusion Continuous Batching: design/feature/diffusion_continuous_batching.md
