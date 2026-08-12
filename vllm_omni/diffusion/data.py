@@ -711,8 +711,6 @@ class OmniDiffusionConfig:
     # VAE memory optimization parameters
     vae_use_slicing: bool = False
     vae_use_tiling: bool = False
-    # Opt in because CL3D performance varies materially by model shape and GPU.
-    vae_use_channels_last_3d: bool = False
 
     # STA (Sliding Tile Attention) parameters
     mask_strategy_file_path: str | None = None
@@ -932,8 +930,6 @@ class OmniDiffusionConfig:
             )
         if not isinstance(self.diffusion_compile_dynamic, bool):
             raise TypeError(f"diffusion_compile_dynamic must be a bool, got {type(self.diffusion_compile_dynamic)!r}")
-        if not isinstance(self.vae_use_channels_last_3d, bool):
-            raise TypeError(f"vae_use_channels_last_3d must be a bool, got {type(self.vae_use_channels_last_3d)!r}")
         self.diffusion_kv_mode = parse_diffusion_kv_cache_mode(self.diffusion_kv_mode)
 
         if self.omni_kv_config is None:

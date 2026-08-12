@@ -13,6 +13,21 @@ pytestmark = [pytest.mark.core_model, pytest.mark.cpu]
 
 class TestLTXChannelsLast3D:
     @pytest.mark.parametrize(
+        ("extras", "expected"),
+        [({}, False), ({"ltx2_use_channels_last_3d": True}, True)],
+    )
+    def test_channels_last_opt_in_is_ltx2_model_extra(self, extras, expected):
+        from vllm_omni.diffusion.models.ltx2.ltx2_components import _ltx2_use_channels_last_3d
+
+        assert _ltx2_use_channels_last_3d(SimpleNamespace(extras=extras)) is expected
+
+    def test_channels_last_opt_in_rejects_non_boolean_model_extra(self):
+        from vllm_omni.diffusion.models.ltx2.ltx2_components import _ltx2_use_channels_last_3d
+
+        with pytest.raises(TypeError, match="ltx2_use_channels_last_3d"):
+            _ltx2_use_channels_last_3d(SimpleNamespace(extras={"ltx2_use_channels_last_3d": "true"}))
+
+    @pytest.mark.parametrize(
         ("causal", "kernel_size"),
         [
             (True, 3),
