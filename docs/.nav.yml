@@ -62,9 +62,9 @@ nav:
         - Feature Compatibility: user_guide/feature_compatibility.md
       - CPU Offloading:
         - Overview: user_guide/diffusion/cpu_offload.md
-        - Model-Level: user_guide/diffusion/cpu_offload/model_level.md
-        - Layerwise: user_guide/diffusion/cpu_offload/layerwise.md
-        - Distributed Layerwise: user_guide/diffusion/cpu_offload/distributed_layerwise.md
+        - Model-Level: user_guide/diffusion/offloader/cpu_offload.md
+        - Layerwise: user_guide/diffusion/offloader/layerwise_offload.md
+        - Distributed Layerwise: user_guide/diffusion/offloader/distributed_layerwise_offload.md
       - Cache Acceleration:
         - TeaCache: user_guide/diffusion/cache_acceleration/teacache.md
         - Cache-DiT: user_guide/diffusion/cache_acceleration/cache_dit.md

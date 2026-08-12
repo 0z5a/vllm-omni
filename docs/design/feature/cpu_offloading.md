@@ -5,9 +5,9 @@ The three strategies have separate user and design pages:
 
 | Strategy | User guide | Design contract |
 | --- | --- | --- |
-| Model-level | [Guide](../../user_guide/diffusion/cpu_offload/model_level.md) | [Design](model_level_offload.md) |
-| Layerwise | [Guide](../../user_guide/diffusion/cpu_offload/layerwise.md) | [Design](layerwise_offload.md) |
-| Distributed layerwise | [Guide](../../user_guide/diffusion/cpu_offload/distributed_layerwise.md) | [Design](distributed_layerwise_offload.md) |
+| Model-level | [Guide](../../user_guide/diffusion/offloader/cpu_offload.md) | [Design](model_level_offload.md) |
+| Layerwise | [Guide](../../user_guide/diffusion/offloader/layerwise_offload.md) | [Design](layerwise_offload.md) |
+| Distributed layerwise | [Guide](../../user_guide/diffusion/offloader/distributed_layerwise_offload.md) | [Design](distributed_layerwise_offload.md) |
 
 ## Strategy selection
 

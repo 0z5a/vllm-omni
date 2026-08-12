@@ -11,9 +11,9 @@ For the shared factory, discovery, and lifecycle contract, see the
 
 | Strategy | Device residency | Parallel scope | Guide |
 | --- | --- | --- | --- |
-| Model-level (sequential) | One pipeline component group at a time | Single device | [Model-Level Offloading](cpu_offload/model_level.md) |
-| Layerwise (blockwise) | One transformer block, with next-block prefetch | Single device | [Layerwise Offloading](cpu_offload/layerwise.md) |
-| Distributed layerwise | Fixed two-block device buffer; optional host-weight sharding and AllGather | Multiple GPU/NPU ranks | [Distributed Layerwise Offloading](cpu_offload/distributed_layerwise.md) |
+| Model-level (sequential) | One pipeline component group at a time | Single device | [Model-Level Offloading](offloader/cpu_offload.md) |
+| Layerwise (blockwise) | One transformer block, with next-block prefetch | Single device | [Layerwise Offloading](offloader/layerwise_offload.md) |
+| Distributed layerwise | Fixed two-block device buffer; optional host-weight sharding and AllGather | Multiple GPU/NPU ranks | [Distributed Layerwise Offloading](offloader/distributed_layerwise_offload.md) |
 
 All strategies use pinned host memory for faster transfers where applicable.
 Configuration priority is:
@@ -27,12 +27,12 @@ higher-priority strategy is selected.
 
 ## Quick selection
 
-- Use [model-level offloading](cpu_offload/model_level.md) when swapping whole
+- Use [model-level offloading](offloader/cpu_offload.md) when swapping whole
   encoders and DiTs is enough to fit and phase-boundary transfers are
   acceptable.
-- Use [layerwise offloading](cpu_offload/layerwise.md) for compute-heavy video
+- Use [layerwise offloading](offloader/layerwise_offload.md) for compute-heavy video
   DiTs where block transfers can overlap computation.
-- Use [distributed layerwise offloading](cpu_offload/distributed_layerwise.md)
+- Use [distributed layerwise offloading](offloader/distributed_layerwise_offload.md)
   when a multi-rank deployment also needs bounded device residency and,
   optionally, sharded host weights.
 
@@ -64,12 +64,12 @@ These headings preserve links to sections that moved into dedicated guides.
 
 ## Model-level (Sequential) Offloading
 
-See [Model-Level Offloading](cpu_offload/model_level.md).
+See [Model-Level Offloading](offloader/cpu_offload.md).
 
 ## Layerwise (Blockwise) Offloading
 
-See [Layerwise Offloading](cpu_offload/layerwise.md).
+See [Layerwise Offloading](offloader/layerwise_offload.md).
 
 ## Distributed Layerwise Offloading
 
-See [Distributed Layerwise Offloading](cpu_offload/distributed_layerwise.md).
+See [Distributed Layerwise Offloading](offloader/distributed_layerwise_offload.md).

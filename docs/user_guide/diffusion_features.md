@@ -217,7 +217,7 @@ The following tables show which models support each feature:
     3. CPU Offloading (Layerwise) and CPU Offloading (Module-wise) are not compatible.
     4. The CPU Offloading (Layerwise) row describes local layerwise offload.
        Multi-device Distributed Layerwise Offload has a separate topology and
-       compatibility matrix in the [Distributed Layerwise Offloading guide](diffusion/cpu_offload/distributed_layerwise.md).
+       compatibility matrix in the [Distributed Layerwise Offloading guide](diffusion/offloader/distributed_layerwise_offload.md).
     5. The compatibility matrix uses FP8 as the representative quantization method.
     6. Step Execution is not compatible with any diffusion cache backend. LoRA is supported, but each scheduled batch must use a single adapter (requests with different `lora_request` or `lora_scale` are kept in separate batches).
 

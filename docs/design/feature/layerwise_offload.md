@@ -2,7 +2,7 @@
 
 Layerwise offload streams transformer blocks through one accelerator. For
 commands and model support, see the
-[layerwise user guide](../../user_guide/diffusion/cpu_offload/layerwise.md).
+[layerwise user guide](../../user_guide/diffusion/offloader/layerwise_offload.md).
 
 ## Hook ring
 

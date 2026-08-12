@@ -7,7 +7,7 @@ either shard those host-side weights across an existing parallel group or keep
 the standard loader's rank-local weights and avoid an additional collective.
 
 For user-facing commands, see the
-[distributed layerwise offloading guide](../../user_guide/diffusion/cpu_offload/distributed_layerwise.md)
+[distributed layerwise offloading guide](../../user_guide/diffusion/offloader/distributed_layerwise_offload.md)
 and the [Cosmos3 recipe](https://github.com/vllm-project/vllm-omni/blob/main/recipes/cosmos3/Cosmos3-DistOffload.md).
 
 ## Status
