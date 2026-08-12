@@ -16,7 +16,7 @@ vllm_omni/diffusion/models/wan2_2/
 
 The transformer is loaded separately via `weights_sources` + `load_weights()`. Non-transformer components (VAE, text encoder) are loaded in `__init__` via `from_pretrained()`.
 
-### Custom model with external deps (e.g., DreamID-Omni)
+### External adapter (not native support)
 
 ```
 vllm_omni/diffusion/models/dreamid_omni/
@@ -29,7 +29,10 @@ examples/offline_inference/x_to_video_audio/
 └── download_dreamid_omni.py       # Downloads weights from 3 HF repos + clones code repo
 ```
 
-All weights loaded eagerly in `__init__`. `load_weights()` is a no-op. External dependency (`dreamid_omni` package) imported with try/except.
+All weights are loaded eagerly in `__init__`. `load_weights()` is a no-op. The
+external dependency is imported with try/except. Use this pattern only when the
+requested scope explicitly allows an adapter; it does not satisfy a request for
+a native vLLM-Omni implementation.
 
 ### Custom model with ported code (e.g., BAGEL)
 
@@ -87,7 +90,7 @@ init → load ALL weights eagerly via custom helpers → load_weights() = no-op
 - `load_weights()` is `pass`
 - Weights may come from multiple HF repos in different formats (`.pth`, `.safetensors`)
 
-Use this when:
+Use this only for an explicitly approved external adapter when:
 - The original model has complex, well-tested loading code you don't want to rewrite
 - Weights span multiple HF repos
 - Weight format is non-standard (e.g., a single `.pth` file, not sharded safetensors)
@@ -113,7 +116,14 @@ Custom model `model_index.json` (minimal):
 }
 ```
 
-The only **required** field is `_class_name` — it must match a key in `_DIFFUSION_MODELS` in `registry.py`. Other fields are model-specific and accessible via `od_config.model_config` dict.
+The only **required** field is `_class_name` — it must match a key in
+`_DIFFUSION_MODELS` in `registry.py`. Other fields are model-specific and
+accessible via `od_config.model_config`.
+
+When the released repository cannot be modified and contains neither this file
+nor a root `config.json`, use the generic native-checkpoint signature resolver.
+Match the exact Hub ID or a distinctive local file set; never infer support from
+a model-name substring.
 
 ## External Dependency Management
 
@@ -141,6 +151,10 @@ def download_dependency():
 ### Direct port (BAGEL pattern)
 
 Copy essential files from the original repo into `vllm_omni/diffusion/models/<name>/`. Adapt imports to use vllm-omni utilities. Benefits: no external dependency, no git clone step. Drawback: must maintain the ported code.
+
+This is the default for native model support. Keep the reference repository at
+a pinned revision for architecture analysis and golden outputs, but do not
+import it from production code.
 
 ## Multi-Modal Input/Output Protocols
 
