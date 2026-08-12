@@ -1,4 +1,8 @@
-# Prefill-Decode (PD) Disaggregation
+# Prefill-Decode (PD) Disaggregation (experimental)
+
+!!! warning "Experimental"
+    PD disaggregation support is experimental and currently documented only for
+    Qwen3-Omni. Its configuration and behavior may change without notice.
 
 PD disaggregation splits the Qwen3-Omni thinker into separate prefill and decode
 stages so prompt processing and token generation can run on different workers.
