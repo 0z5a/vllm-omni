@@ -156,18 +156,6 @@ vllm serve "Lightricks/LTX-2.5-Diffusers" \
     '{"0":{"height":512,"width":768,"num_frames":121,"fps":24,"frame_rate":24.0,"output_type":"np"}}'
 ```
 
-Then request an MP4 with synchronized audio:
-
-```bash
-curl -X POST http://localhost:8091/v1/videos/sync \
-  -F 'prompt=A red fox walks through a snowy forest at dawn while birds sing in the distance.' \
-  -F 'size=768x512' \
-  -F 'num_frames=121' \
-  -F 'fps=24' \
-  -F 'seed=42' \
-  -o ltx-2.5.mp4
-```
-
 The converted repository selects the distilled transformer by default. When a
 request supplies neither `sigmas`, `timesteps`, nor `num_inference_steps`, the
 adapter uses the official eight-sigma distilled schedule and disables CFG,

@@ -24,12 +24,9 @@ from torch import nn
 
 from vllm_omni.diffusion.data import DiffusionOutput, OmniDiffusionConfig
 from vllm_omni.diffusion.models.diffusers_adapter.pipeline_utils import (
-    LTX25_DIFFUSERS_COMMIT,
-    LTX25_DIFFUSERS_MODEL_ID,
-    LTX25_ORIGINAL_MODEL_ID,
     BasePipelineUtils,
     get_pipeline_utils,
-    is_ltx25_diffusers_model,
+    validate_model_compatibility,
 )
 from vllm_omni.diffusion.models.diffusers_adapter.quantization_utils import (
     apply_diffusers_quantization_config,
@@ -72,23 +69,6 @@ _DIFFUSERS_CONFIG_LOAD_KWARGS = {
     "token",
     "user_agent",
 }
-
-
-def _supports_ltx25_diffusers() -> bool:
-    """Check the standard-pipeline capabilities added with LTX-2.5."""
-    try:
-        import diffusers
-        import transformers
-
-        pipeline_class = diffusers.LTX2Pipeline
-        init_parameters = inspect.signature(pipeline_class.__init__).parameters
-        return (
-            "duration_head" in init_parameters
-            and "prompt_enhancer" in init_parameters
-            and hasattr(transformers, "Gemma4UnifiedForConditionalGeneration")
-        )
-    except (AttributeError, ImportError, RuntimeError):
-        return False
 
 
 class DiffusersAdapterPipeline(nn.Module, DiffusionPipelineProfilerMixin):
@@ -134,7 +114,11 @@ class DiffusersAdapterPipeline(nn.Module, DiffusionPipelineProfilerMixin):
 
         model_id = self.od_config.model
         dtype = self.od_config.dtype
-        self._validate_model_compatibility()
+        validate_model_compatibility(self.od_config)
+
+        pipeline_class = self.od_config.diffusers_pipeline_cls
+        pipeline_class_name = pipeline_class.__name__ if pipeline_class is not None else None
+        self._pipeline_utils = get_pipeline_utils(pipeline_class_name)
 
         load_kwargs = {
             "torch_dtype": dtype,
@@ -142,9 +126,6 @@ class DiffusersAdapterPipeline(nn.Module, DiffusionPipelineProfilerMixin):
         }
         convert_diffusers_quantization_config(load_kwargs)
 
-        pipeline_class = self.od_config.diffusers_pipeline_cls
-        pipeline_class_name = pipeline_class.__name__ if pipeline_class is not None else None
-        self._pipeline_utils = get_pipeline_utils(pipeline_class_name)
         self._pipeline_utils.update_load_kwargs(self.od_config, load_kwargs)
         component_names = (
             self._load_diffusers_component_names(model_id, load_kwargs)
@@ -288,23 +269,6 @@ class DiffusersAdapterPipeline(nn.Module, DiffusionPipelineProfilerMixin):
                     "Diffusers quantization config, or omit dduf_file for vLLM-Omni "
                     "quantization conversion."
                 )
-
-    def _validate_model_compatibility(self) -> None:
-        normalized_model = str(self.od_config.model).rstrip("/\\").replace("\\", "/").lower()
-        if normalized_model == LTX25_ORIGINAL_MODEL_ID.lower():
-            raise ValueError(
-                f"{LTX25_ORIGINAL_MODEL_ID} is a component-weight repository without a Diffusers "
-                f"model_index.json. Use the official converted repository {LTX25_DIFFUSERS_MODEL_ID} "
-                "with --diffusion-load-format diffusers."
-            )
-
-        if is_ltx25_diffusers_model(self.od_config) and not _supports_ltx25_diffusers():
-            raise ImportError(
-                f"{LTX25_DIFFUSERS_MODEL_ID} requires unreleased LTX-2.5 support from Diffusers and "
-                "Gemma 4 Unified support from Transformers. Install the source-preview dependencies with "
-                "`python -m pip install --upgrade 'transformers>=5.10.1' "
-                f"'diffusers @ git+https://github.com/huggingface/diffusers.git@{LTX25_DIFFUSERS_COMMIT}'`."
-            )
 
     def _load_diffusers_component_names(
         self,

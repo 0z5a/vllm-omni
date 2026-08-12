@@ -1,6 +1,7 @@
 # SPDX-License-Identifier: Apache-2.0
 # SPDX-FileCopyrightText: Copyright contributors to the vLLM project
 
+import inspect
 import json
 import logging
 from pathlib import Path
@@ -31,6 +32,23 @@ _LTX25_DISTILLED_GUIDANCE_DEFAULTS: dict[str, float] = {
     "guidance_rescale": 0.0,
     "audio_guidance_rescale": 0.0,
 }
+
+
+def _supports_ltx25_diffusers() -> bool:
+    """Check the standard-pipeline capabilities added with LTX-2.5."""
+    try:
+        import diffusers
+        import transformers
+
+        pipeline_class = diffusers.LTX2Pipeline
+        init_parameters = inspect.signature(pipeline_class.__init__).parameters
+        return (
+            "duration_head" in init_parameters
+            and "prompt_enhancer" in init_parameters
+            and hasattr(transformers, "Gemma4UnifiedForConditionalGeneration")
+        )
+    except (AttributeError, ImportError, RuntimeError):
+        return False
 
 
 def is_ltx25_diffusers_model(od_config: OmniDiffusionConfig) -> bool:
@@ -81,6 +99,25 @@ class BasePipelineUtils:
         call_kwargs: dict[str, Any],
     ) -> None:
         pass
+
+
+def validate_model_compatibility(od_config: OmniDiffusionConfig) -> None:
+    """Reject known model/dependency combinations before loading weights."""
+    normalized_model = str(od_config.model).rstrip("/\\").replace("\\", "/").lower()
+    if normalized_model == LTX25_ORIGINAL_MODEL_ID.lower():
+        raise ValueError(
+            f"{LTX25_ORIGINAL_MODEL_ID} is a component-weight repository without a Diffusers "
+            f"model_index.json. Use the official converted repository {LTX25_DIFFUSERS_MODEL_ID} "
+            "with --diffusion-load-format diffusers."
+        )
+
+    if is_ltx25_diffusers_model(od_config) and not _supports_ltx25_diffusers():
+        raise ImportError(
+            f"{LTX25_DIFFUSERS_MODEL_ID} requires unreleased LTX-2.5 support from Diffusers and "
+            "Gemma 4 Unified support from Transformers. Install the source-preview dependencies with "
+            "`python -m pip install --upgrade 'transformers>=5.10.1' "
+            f"'diffusers @ git+https://github.com/huggingface/diffusers.git@{LTX25_DIFFUSERS_COMMIT}'`."
+        )
 
 
 class LTX2PipelineUtils(BasePipelineUtils):

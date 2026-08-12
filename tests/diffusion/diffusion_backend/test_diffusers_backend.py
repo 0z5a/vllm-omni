@@ -194,7 +194,7 @@ class TestPipelineArgumentsHandling:
 
     def test_ltx25_requires_upstream_diffusers_feature(self, mocker):
         mocker.patch(
-            "vllm_omni.diffusion.models.diffusers_adapter.pipeline_diffusers_adapter._supports_ltx25_diffusers",
+            "vllm_omni.diffusion.models.diffusers_adapter.pipeline_utils._supports_ltx25_diffusers",
             return_value=False,
         )
         mock_from_pretrained = mocker.patch(
@@ -720,7 +720,7 @@ class TestPipelineArgumentsHandling:
         loaded_pipeline.vae = SimpleNamespace(enable_tiling=enable_tiling)
 
         mocker.patch(
-            "vllm_omni.diffusion.models.diffusers_adapter.pipeline_diffusers_adapter._supports_ltx25_diffusers",
+            "vllm_omni.diffusion.models.diffusers_adapter.pipeline_utils._supports_ltx25_diffusers",
             return_value=True,
         )
         mocker.patch(
