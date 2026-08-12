@@ -167,7 +167,7 @@ def main() -> None:
     ]
     native_cmd = [
         sys.executable,
-        "examples/offline_inference/text_to_video/text_to_video_lingbot.py",
+        "examples/offline_inference/text_to_video/text_to_video.py",
         "--model",
         args.model,
         "--prompt",
