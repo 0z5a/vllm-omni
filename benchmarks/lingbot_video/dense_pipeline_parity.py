@@ -170,6 +170,8 @@ def main() -> None:
         "examples/offline_inference/text_to_video/text_to_video.py",
         "--model",
         args.model,
+        "--model-class-name",
+        "LingBotVideoPipeline",
         "--prompt",
         args.prompt,
         "--output",

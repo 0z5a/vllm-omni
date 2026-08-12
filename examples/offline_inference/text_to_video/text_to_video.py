@@ -16,7 +16,7 @@ from vllm_omni.entrypoints.omni import Omni
 from vllm_omni.inputs.data import OmniDiffusionSamplingParams
 from vllm_omni.lora.request import LoRARequest
 from vllm_omni.lora.utils import stable_lora_int_id
-from vllm_omni.model_extras import get_extra_body_params, get_model_class_name
+from vllm_omni.model_extras import get_extra_body_params, get_model_class_name, get_output_tensor_range
 from vllm_omni.outputs import OmniRequestOutput
 from vllm_omni.platforms import current_omni_platform
 
@@ -155,13 +155,15 @@ def build_text_to_video_prompt(prompt: str, negative_prompt: str | None) -> dict
     return result
 
 
-def _normalize_float_tensor(tensor: torch.Tensor) -> torch.Tensor:
-    """Normalize decoded frames without remapping tensors already in [0, 1]."""
+def _normalize_float_tensor(tensor: torch.Tensor, source_range: str) -> torch.Tensor:
+    """Normalize decoded frames according to the pipeline's output contract."""
     if not tensor.is_floating_point():
         return tensor
-    if float(tensor.min()) < 0.0:
+    if source_range == "negative_one_to_one":
         return tensor.clamp(-1, 1) * 0.5 + 0.5
-    return tensor.clamp(0, 1)
+    if source_range == "zero_to_one":
+        return tensor.clamp(0, 1)
+    raise ValueError(f"Unsupported floating-point tensor range: {source_range!r}")
 
 
 def parse_profiler_config(value: str) -> dict[str, Any]:
@@ -514,6 +516,7 @@ def main():
     omni = Omni(**omni_kwargs)
     model_class_name = get_model_class_name(omni) or model_class_name
     declared_extra_body_params = get_extra_body_params(model_class_name)
+    output_tensor_range = get_output_tensor_range(model_class_name)
 
     if profiler_enabled:
         print("[Profiler] Starting profiling...")
@@ -663,7 +666,7 @@ def main():
                 frame_tensor = frame_tensor[0]
             if frame_tensor.dim() == 3 and frame_tensor.shape[0] in (3, 4):
                 frame_tensor = frame_tensor.permute(1, 2, 0)
-            frame_tensor = _normalize_float_tensor(frame_tensor)
+            frame_tensor = _normalize_float_tensor(frame_tensor, output_tensor_range)
             return frame_tensor.float().numpy()
         if isinstance(frame, np.ndarray):
             frame_array = frame
@@ -715,7 +718,7 @@ def main():
                 video_tensor = video_tensor[0]
         elif video_tensor.dim() == 4 and video_tensor.shape[0] in (3, 4):
             video_tensor = video_tensor.permute(1, 2, 3, 0)
-        video_tensor = _normalize_float_tensor(video_tensor)
+        video_tensor = _normalize_float_tensor(video_tensor, output_tensor_range)
         video_array = video_tensor.float().numpy()
     elif isinstance(frames, np.ndarray):
         video_array = frames

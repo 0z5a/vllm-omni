@@ -70,10 +70,22 @@ def test_lingbot_preset_matches_lingbot_defaults() -> None:
 def test_normalize_float_tensor_preserves_zero_to_one_frames() -> None:
     frames = torch.tensor([0.0, 0.25, 1.0, 1.5])
 
-    assert torch.equal(_normalize_float_tensor(frames), torch.tensor([0.0, 0.25, 1.0, 1.0]))
+    assert torch.equal(_normalize_float_tensor(frames, "zero_to_one"), torch.tensor([0.0, 0.25, 1.0, 1.0]))
 
 
 def test_normalize_float_tensor_maps_negative_one_to_one_frames() -> None:
     frames = torch.tensor([-1.5, -1.0, 0.0, 1.0, 1.5])
 
-    assert torch.equal(_normalize_float_tensor(frames), torch.tensor([0.0, 0.0, 0.5, 1.0, 1.0]))
+    assert torch.equal(
+        _normalize_float_tensor(frames, "negative_one_to_one"),
+        torch.tensor([0.0, 0.0, 0.5, 1.0, 1.0]),
+    )
+
+
+def test_normalize_float_tensor_uses_one_contract_for_ambiguous_frames() -> None:
+    frames = [torch.tensor([0.0, 0.5, 1.0]), torch.tensor([-1.0, 0.0, 1.0])]
+
+    normalized = [_normalize_float_tensor(frame, "negative_one_to_one") for frame in frames]
+
+    assert torch.equal(normalized[0], torch.tensor([0.5, 0.75, 1.0]))
+    assert torch.equal(normalized[1], torch.tensor([0.0, 0.5, 1.0]))
