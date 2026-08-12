@@ -1029,7 +1029,6 @@ class AsyncOmniEngine:
             "request_batch_max_wait_ms": kwargs.get("request_batch_max_wait_ms", 0.0),
             "vae_use_slicing": kwargs.get("vae_use_slicing", False),
             "vae_use_tiling": kwargs.get("vae_use_tiling", False),
-            "vae_use_channels_last_3d": kwargs.get("vae_use_channels_last_3d", False),
             "cache_backend": cache_backend,
             "cache_config": cache_config,
             "enable_cache_dit_summary": kwargs.get("enable_cache_dit_summary", False),
@@ -1076,6 +1075,7 @@ class AsyncOmniEngine:
             "streaming_output": kwargs.get("diffusion_streaming_output", False),
             "enable_ar_profiler": kwargs.get("enable_ar_profiler", False),
             "extras": {
+                **(kwargs.get("extras") or {}),
                 "auxiliary_text_encoder": kwargs.get("auxiliary_text_encoder", None),
                 "default_llama_model_id": kwargs.get("default_llama_model_id", "meta-llama/Meta-Llama-3.1-8B-Instruct"),
             },

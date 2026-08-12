@@ -668,15 +668,6 @@ class OmniServeCommand(CLISubcommand):
             action="store_true",
             help="Enable VAE tiling for memory optimization (useful for mitigating OOM issues).",
         )
-        omni_config_group.add_argument(
-            "--vae-use-channels-last-3d",
-            action="store_true",
-            help=(
-                "Use channels_last_3d Conv3d weights for supported VAEs. This is opt-in because performance "
-                "depends on model shape and GPU architecture."
-            ),
-        )
-
         # Parallel weight loading (faster diffusion startup)
         omni_config_group.add_argument(
             "--disable-multithread-weight-load",
