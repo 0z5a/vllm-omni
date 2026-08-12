@@ -14,7 +14,7 @@ Generate audio from text prompts using Stable Audio models via an OpenAI-compati
 ### 1. Start the Server
 
 ```bash
-vllm-omni serve stabilityai/stable-audio-open-1.0 \
+vllm serve stabilityai/stable-audio-open-1.0 \
     --host 0.0.0.0 \
     --port 8091 \
     --gpu-memory-utilization 0.9 \

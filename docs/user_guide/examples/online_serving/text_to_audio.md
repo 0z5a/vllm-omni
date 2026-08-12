@@ -15,7 +15,7 @@ This example demonstrates how to deploy Stable Audio models for online text-to-a
 ### Basic Start
 
 ```bash
-vllm-omni serve stabilityai/stable-audio-open-1.0 \
+vllm serve stabilityai/stable-audio-open-1.0 \
     --host 0.0.0.0 \
     --port 8091 \
     --gpu-memory-utilization 0.9 \

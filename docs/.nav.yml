@@ -5,7 +5,8 @@ nav:
     - getting_started/quickstart.md
     - getting_started/installation/*
   - Serving:
-    - OpenAI-Compatible API:
+    - API Server:
+      - Overview: serving/README.md
       - Chat Completions API: serving/chat_completions_api.md
       - Image Generation: serving/image_generation_api.md
       - Image Edit: serving/image_edit_api.md
