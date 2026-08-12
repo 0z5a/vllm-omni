@@ -123,7 +123,7 @@ nav:
           - Pipeline Parallel: design/feature/pipeline_parallel.md
           - Sequence Parallel: design/feature/sequence_parallel.md
           - Tensor Parallel: design/feature/tensor_parallel.md
-          - VAE Patch Parallelism: design/feature/vae_parallel.md
+          - VAE Parallelism: design/feature/vae_parallelism.md
         - Attention Optimization:
           - Skip-Softmax: design/feature/skip_softmax.md
         - Cache-DiT: design/feature/cache_dit.md
