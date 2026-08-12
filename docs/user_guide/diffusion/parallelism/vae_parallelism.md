@@ -161,8 +161,6 @@ vllm serve Wan-AI/Wan2.1-T2V-1.3B-Diffusers --omni \
 - It requires `vae_patch_parallel_size` to **match the DiT process group size**. `auto` quietly falls back to tile decode for a partial group; an explicitly forced spatial mode logs a warning.
 - The decoder's context-aware wrappers retain the direct path, so one process can alternate small/large and portrait/landscape requests safely.
 
-The automatic policy is adapted from [SGLang #28071](https://github.com/sgl-project/sglang/pull/28071) and narrowed to vLLM-Omni's parity-tested Wan backend.
-
 For end-to-end latency/throughput, launch serving with the desired `vae_parallel_mode` and use the existing diffusion serving benchmark:
 
 ```bash
