@@ -116,16 +116,15 @@ class DiffusersAdapterPipeline(nn.Module, DiffusionPipelineProfilerMixin):
         dtype = self.od_config.dtype
         validate_model_compatibility(self.od_config)
 
-        pipeline_class = self.od_config.diffusers_pipeline_cls
-        pipeline_class_name = pipeline_class.__name__ if pipeline_class is not None else None
-        self._pipeline_utils = get_pipeline_utils(pipeline_class_name)
-
         load_kwargs = {
             "torch_dtype": dtype,
             **self.od_config.diffusers_load_kwargs,
         }
         convert_diffusers_quantization_config(load_kwargs)
 
+        pipeline_class = self.od_config.diffusers_pipeline_cls
+        pipeline_class_name = pipeline_class.__name__ if pipeline_class is not None else None
+        self._pipeline_utils = get_pipeline_utils(pipeline_class_name)
         self._pipeline_utils.update_load_kwargs(self.od_config, load_kwargs)
         component_names = (
             self._load_diffusers_component_names(model_id, load_kwargs)
@@ -136,9 +135,6 @@ class DiffusersAdapterPipeline(nn.Module, DiffusionPipelineProfilerMixin):
         logger.debug(f"Loading diffusers pipeline with kwargs: {load_kwargs}")
 
         self._pipeline = DiffusionPipeline.from_pretrained(model_id, **load_kwargs)
-        # Gated repositories may be loadable with an explicit token in
-        # diffusers_load_kwargs even when config enrichment could not resolve
-        # their pipeline class. In that case the loaded class is authoritative.
         if pipeline_class_name is None:
             self._pipeline_utils = get_pipeline_utils(self._pipeline.__class__.__name__)
         self._pipeline_utils.apply_post_load_updates(self._pipeline, self.od_config)
@@ -157,14 +153,14 @@ class DiffusersAdapterPipeline(nn.Module, DiffusionPipelineProfilerMixin):
         # VAE slicing and tiling: try-catch because not all models have VAE
         if self.od_config.vae_use_slicing:
             try:
-                self._enable_vae_optimization("slicing")
+                self._pipeline_utils.enable_vae_optimization(self._pipeline, "slicing")
             except Exception as e:
                 logger.warning(
                     f"Failed to enable VAE slicing for diffusers pipeline {self._pipeline.__class__.__name__}: {e}"
                 )
         if self.od_config.vae_use_tiling:
             try:
-                self._enable_vae_optimization("tiling")
+                self._pipeline_utils.enable_vae_optimization(self._pipeline, "tiling")
             except Exception as e:
                 logger.warning(
                     f"Failed to enable VAE tiling for diffusers pipeline {self._pipeline.__class__.__name__}: {e}"
@@ -172,18 +168,6 @@ class DiffusersAdapterPipeline(nn.Module, DiffusionPipelineProfilerMixin):
 
         # Attention backend
         self._set_attention_backend()
-
-    def _enable_vae_optimization(self, optimization: str) -> None:
-        """Enable a VAE optimization through the pipeline or VAE component API."""
-        pipeline_method = getattr(self._pipeline, f"enable_vae_{optimization}", None)
-        if callable(pipeline_method):
-            pipeline_method()
-            return
-
-        vae_method = getattr(getattr(self._pipeline, "vae", None), f"enable_{optimization}", None)
-        if not callable(vae_method):
-            raise AttributeError(f"Neither the pipeline nor its VAE supports {optimization}")
-        vae_method()
 
     # ------------------------------------------------------------------
     # Step-wise execution — explicitly rejected
@@ -393,19 +377,8 @@ class DiffusersAdapterPipeline(nn.Module, DiffusionPipelineProfilerMixin):
                 )
 
         # Request-time sampling params
-        for key, value in sampling.extra_args.items():
-            if value is None:
-                continue
-            if self._accept_call_kwargs is None or key in self._accept_call_kwargs:
-                kwargs[key] = value
-            else:
-                logger.warning(
-                    f"Skipping unsupported diffusers pipeline __call__ argument `{key}` from extra_args. "
-                    f"Check out the documentation of {self._pipeline.__class__.__name__}."
-                )
-
         for key, value in sampling.__dict__.items():
-            if key == "extra_args" or value is None:
+            if value is None:
                 continue
             if self._accept_call_kwargs is None or key in self._accept_call_kwargs:
                 kwargs[key] = value
@@ -533,26 +506,13 @@ class DiffusersAdapterPipeline(nn.Module, DiffusionPipelineProfilerMixin):
         """
         from vllm_omni.diffusion.data import DiffusionOutput
 
+        output = self._pipeline_utils.normalize_output(self._pipeline, self.od_config, output)
+
         if hasattr(output, "images"):
             # Preserve diffusers image format (`output_type`)
             return DiffusionOutput(output=output.images)
 
         if hasattr(output, "frames"):
-            audio = getattr(output, "audio", None)
-            if audio is not None:
-                metadata: dict[str, Any] = {}
-                if (sample_rate := self._get_output_audio_sample_rate()) is not None:
-                    metadata["audio"] = {"sample_rate": sample_rate}
-                envelope: dict[str, Any] = {
-                    "payload": {
-                        "video": output.frames,
-                        "audio": audio,
-                    }
-                }
-                if metadata:
-                    envelope["metadata"] = metadata
-                return DiffusionOutput(output=envelope)
-
             # Preserve diffusers video format (`output_type`)
             return DiffusionOutput(output=output.frames)
 
@@ -560,24 +520,6 @@ class DiffusersAdapterPipeline(nn.Module, DiffusionPipelineProfilerMixin):
             return DiffusionOutput(output=output.audios)
 
         return DiffusionOutput(output=output)
-
-    def _get_output_audio_sample_rate(self) -> int | None:
-        vocoder = getattr(self._pipeline, "vocoder", None)
-        config = getattr(vocoder, "config", None)
-        if config is None:
-            return None
-
-        if hasattr(config, "get"):
-            value = config.get("output_sampling_rate")
-        else:
-            value = getattr(config, "output_sampling_rate", None)
-        if isinstance(value, bool):
-            return None
-        try:
-            sample_rate = int(value)
-        except (TypeError, ValueError):
-            return None
-        return sample_rate if sample_rate > 0 else None
 
     @staticmethod
     def _summarize_call_kwargs_value(value: Any) -> Any:

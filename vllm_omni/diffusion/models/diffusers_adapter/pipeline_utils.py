@@ -90,6 +90,9 @@ class BasePipelineUtils:
     def apply_post_load_updates(self, pipeline: DiffusionPipeline, od_config: OmniDiffusionConfig) -> None:
         pass
 
+    def enable_vae_optimization(self, pipeline: DiffusionPipeline, optimization: str) -> None:
+        getattr(pipeline, f"enable_vae_{optimization}")()
+
     def validate_runtime_sampling_params(self, sampling: OmniDiffusionSamplingParams) -> None:
         pass
 
@@ -99,6 +102,14 @@ class BasePipelineUtils:
         call_kwargs: dict[str, Any],
     ) -> None:
         pass
+
+    def normalize_output(
+        self,
+        pipeline: DiffusionPipeline,
+        od_config: OmniDiffusionConfig,
+        output: Any,
+    ) -> Any:
+        return output
 
 
 def validate_model_compatibility(od_config: OmniDiffusionConfig) -> None:
@@ -122,6 +133,13 @@ def validate_model_compatibility(od_config: OmniDiffusionConfig) -> None:
 
 class LTX2PipelineUtils(BasePipelineUtils):
     """Diffusers call policy for the official default LTX-2.5 checkpoint."""
+
+    def enable_vae_optimization(self, pipeline: DiffusionPipeline, optimization: str) -> None:
+        pipeline_method = getattr(pipeline, f"enable_vae_{optimization}", None)
+        if callable(pipeline_method):
+            pipeline_method()
+        else:
+            getattr(pipeline.vae, f"enable_{optimization}")()
 
     def update_call_kwargs(
         self,
@@ -148,6 +166,35 @@ class LTX2PipelineUtils(BasePipelineUtils):
         for key, value in _LTX25_DISTILLED_GUIDANCE_DEFAULTS.items():
             if call_kwargs.get(key) is None:
                 call_kwargs[key] = value
+
+    def normalize_output(
+        self,
+        pipeline: DiffusionPipeline,
+        od_config: OmniDiffusionConfig,
+        output: Any,
+    ) -> Any:
+        if not is_ltx25_diffusers_model(od_config):
+            return output
+
+        frames = getattr(output, "frames", None)
+        audio = getattr(output, "audio", None)
+        if frames is None or audio is None:
+            return output
+
+        envelope: dict[str, Any] = {"payload": {"video": frames, "audio": audio}}
+        config = getattr(getattr(pipeline, "vocoder", None), "config", None)
+        value = (
+            config.get("output_sampling_rate")
+            if hasattr(config, "get")
+            else getattr(config, "output_sampling_rate", None)
+        )
+        try:
+            sample_rate = None if isinstance(value, bool) else int(value)
+        except (TypeError, ValueError):
+            sample_rate = None
+        if sample_rate is not None and sample_rate > 0:
+            envelope["metadata"] = {"audio": {"sample_rate": sample_rate}}
+        return envelope
 
 
 class WanPipelineUtils(BasePipelineUtils):

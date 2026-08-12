@@ -17,7 +17,10 @@ from vllm_omni.diffusion.data import (
     OmniDiffusionConfig,
 )
 from vllm_omni.diffusion.models.diffusers_adapter import DiffusersAdapterPipeline
-from vllm_omni.diffusion.models.diffusers_adapter.pipeline_utils import LTX25_DISTILLED_SIGMAS
+from vllm_omni.diffusion.models.diffusers_adapter.pipeline_utils import (
+    LTX25_DISTILLED_SIGMAS,
+    get_pipeline_utils,
+)
 from vllm_omni.diffusion.request import OmniDiffusionRequest
 from vllm_omni.diffusion.worker.request_batch import DiffusionRequestBatch
 from vllm_omni.inputs.data import OmniDiffusionSamplingParams
@@ -401,11 +404,17 @@ class TestPipelineArgumentsHandling:
         assert isinstance(output, DiffusionOutput)
         assert output.output == raw_output
 
-    def test_adapter_preserves_video_and_singular_audio_output(self):
+    def test_ltx25_preserves_video_and_singular_audio_output(self, tmp_path):
         frames = torch.zeros(1, 2, 3, 4, 3)
         audio = torch.zeros(1, 48000)
-        adapter = DiffusersAdapterPipeline(od_config=_make_od_config())
+        (tmp_path / "model_index.json").write_text(
+            '{"_class_name":"LTX2Pipeline","duration_head":["diffusers","LTX2DurationHead"]}',
+            encoding="utf-8",
+        )
+        od_config = _make_od_config(model=str(tmp_path))
+        adapter = DiffusersAdapterPipeline(od_config=od_config)
         adapter._pipeline = SimpleNamespace(vocoder=SimpleNamespace(config=SimpleNamespace(output_sampling_rate=48000)))
+        adapter._pipeline_utils = get_pipeline_utils("LTX2Pipeline")
 
         output = adapter._wrap_output(SimpleNamespace(frames=frames, audio=audio))
 
@@ -428,7 +437,6 @@ class TestPipelineArgumentsHandling:
                 height=None,
                 width=None,
                 num_frames=None,
-                stg_scale=None,
                 num_images_per_prompt=None,
                 num_videos_per_prompt=None,
                 output_type=None,
@@ -450,7 +458,6 @@ class TestPipelineArgumentsHandling:
                 diffusers_call_kwargs={
                     "guidance_scale": 1.25,
                     "eta": 0.3,
-                    "stg_scale": 0.25,
                     "output_type": "np",
                 }
             )
@@ -471,12 +478,6 @@ class TestPipelineArgumentsHandling:
                 num_outputs_per_prompt=2,
                 seed=123,
                 output_type="pil",
-                extra_args={
-                    "num_inference_steps": 99,
-                    "stg_scale": 0.75,
-                    "unsupported_argument": True,
-                    "extra_args": {"must_not": "leak"},
-                },
             ),
         )
 
@@ -489,9 +490,6 @@ class TestPipelineArgumentsHandling:
         assert kwargs["height"] == 320
         assert kwargs["width"] == 640
         assert kwargs["num_frames"] == 8
-        assert kwargs["stg_scale"] == 0.75
-        assert "unsupported_argument" not in kwargs
-        assert "extra_args" not in kwargs
         assert kwargs["num_images_per_prompt"] == 2
         assert kwargs["num_videos_per_prompt"] == 2
         assert kwargs["output_type"] == "pil"

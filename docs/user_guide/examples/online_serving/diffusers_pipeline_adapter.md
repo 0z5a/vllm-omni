@@ -28,10 +28,7 @@ However, as we strive to ensure output similarity between vLLM-Omni's diffuser b
 - Qwen/Qwen-Image
 - Tongyi-MAI/Z-Image-Turbo
 - Wan2.2-I2V-A14B-Diffusers
-
-LTX-2.5 is also supported through a source-preview dependency path described
-below. The adapter behavior is unit tested, but the gated full checkpoint is
-not part of the regular CI matrix.
+- Lightricks/LTX-2.5-Diffusers (source-preview dependencies)
 
 If you find that a model not listed above also produces different outputs from running diffusers model directly.
 Please consider file an issue.
@@ -122,54 +119,33 @@ Some particular examples are below.
 
 #### LTX-2.5 (source preview)
 
-The repository linked from the LTX-2.5 release,
-[`Lightricks/LTX-2.5`](https://huggingface.co/Lightricks/LTX-2.5), contains
-component weights and does not have the `model_index.json` required by
-`DiffusionPipeline.from_pretrained()`. Use Lightricks' official converted
-repository, [`Lightricks/LTX-2.5-Diffusers`](https://huggingface.co/Lightricks/LTX-2.5-Diffusers),
-with this backend. Both repositories are gated; accept the model terms on
-Hugging Face and authenticate with a read token before starting the server.
-
-LTX-2.5 support landed after Diffusers 0.39.0 and is not in a stable Diffusers
-release yet. After installing vLLM-Omni, install the reviewed upstream commit
-and Gemma 4-capable Transformers version:
+Use the gated Diffusers checkpoint
+[`Lightricks/LTX-2.5-Diffusers`](https://huggingface.co/Lightricks/LTX-2.5-Diffusers);
+[`Lightricks/LTX-2.5`](https://huggingface.co/Lightricks/LTX-2.5) contains
+component weights and is not directly loadable by this backend. Accept the
+model terms, authenticate, and install the source-preview dependencies:
 
 ```bash
+hf auth login
 python -m pip install --upgrade 'transformers>=5.10.1' \
   'diffusers @ git+https://github.com/huggingface/diffusers.git@7564fb016dabda0c943416190fc92398c50b1b20'
-hf auth login
 ```
 
-Serve the default distilled text-to-video pipeline as follows. The model is
-large; CPU offload and VAE tiling reduce GPU memory pressure at the cost of
-latency and host memory.
-
 ```bash
-vllm serve "Lightricks/LTX-2.5-Diffusers" \
+vllm serve Lightricks/LTX-2.5-Diffusers \
   --omni \
-  --port 8091 \
   --diffusion-load-format diffusers \
   --dtype bfloat16 \
   --enable-cpu-offload \
-  --vae-use-tiling \
-  --default-sampling-params \
-    '{"0":{"height":512,"width":768,"num_frames":121,"fps":24,"frame_rate":24.0,"output_type":"np"}}'
+  --vae-use-tiling
 ```
 
-The converted repository selects the distilled transformer by default. When a
-request supplies neither `sigmas`, `timesteps`, nor `num_inference_steps`, the
-adapter uses the official eight-sigma distilled schedule and disables CFG,
-spatio-temporal guidance, and modality guidance. An explicit schedule or step
-count takes precedence; a step count without `sigmas` uses Diffusers' generic
-schedule and may reduce quality. The adapter preserves both `frames` and the
-pipeline's singular `audio` output and reads the audio sample rate from the
-loaded vocoder (48 kHz for this checkpoint).
-
-This path currently covers the default one-stage distilled T2V pipeline.
-Loading `transformer_full`, two-stage upsampling, image/video conditioning, and
-the diffusion video decoder require additional pipeline assembly and are not
-enabled by this example. Native vLLM-Omni acceleration features listed under
-[Limitations](#limitations) remain unavailable with the Diffusers backend.
+The converted repository loads the distilled transformer. When no `sigmas`,
+`timesteps`, or `num_inference_steps` is supplied, the adapter applies the
+official eight-sigma unguided schedule and returns synchronized 48 kHz audio.
+Support is limited to one-stage distilled T2V; `transformer_full`, two-stage
+upsampling, image/video conditioning, and the diffusion video decoder are not
+supported. The general Diffusers backend [limitations](#limitations) apply.
 
 #### Wan Series
 
