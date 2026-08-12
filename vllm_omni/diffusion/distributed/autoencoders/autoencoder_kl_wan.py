@@ -47,27 +47,6 @@ def select_auto_spatial_shard_split_dim(
     return max(candidates, key=lambda candidate: (candidate[0], candidate[1] == "width"))[1]
 
 
-def prepare_pipeline_wan_spatial_shard_decode(pipeline: torch.nn.Module) -> None:
-    """Install eligible Wan wrappers while weight allocations are still tagged."""
-    from vllm_omni.diffusion.offloader.module_collector import ModuleDiscovery
-
-    if not dist.is_initialized():
-        return
-    for vae in ModuleDiscovery.discover(pipeline).vaes:
-        if not isinstance(vae, DistributedAutoencoderKLWan):
-            continue
-        executor = vae.distributed_executor
-        mode = executor.parallel_mode
-        if mode not in {"auto", "spatial_shard_height", "spatial_shard_width"}:
-            continue
-        requested_size = int(executor.parallel_size)
-        world_size = dist.get_world_size(group=executor.group)
-        if requested_size <= 1 or requested_size != world_size:
-            continue
-        split_dim = "width" if mode == "spatial_shard_width" else "height"
-        wan_spatial_shard.install_wan_spatial_shard_decode(vae, executor.group, split_dim=split_dim)
-
-
 class OmniAutoencoderKLWan(AutoencoderKLWan):
     def _execution_context(self):
         try:
@@ -100,6 +79,19 @@ class DistributedAutoencoderKLWan(OmniAutoencoderKLWan, DistributedVaeMixin):
         model = super().from_pretrained(*args, **kwargs)
         model.init_distributed()
         return model
+
+    def set_parallel_size(self, parallel_size: int, mode: str = "tile") -> None:
+        super().set_parallel_size(parallel_size, mode=mode)
+        if mode not in {"auto", "spatial_shard_height", "spatial_shard_width"}:
+            return
+
+        executor = self.distributed_executor
+        world_size = dist.get_world_size(group=executor.group)
+        if parallel_size <= 1 or parallel_size != world_size:
+            return
+
+        split_dim = "width" if mode == "spatial_shard_width" else "height"
+        wan_spatial_shard.install_wan_spatial_shard_decode(self, executor.group, split_dim=split_dim)
 
     def tile_split(self, z: torch.Tensor) -> tuple[list[TileTask], GridSpec]:
         _, _, num_frames, height, width = z.shape

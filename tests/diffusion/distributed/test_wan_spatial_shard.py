@@ -11,7 +11,6 @@ from tests.helpers.mark import hardware_test
 from vllm_omni.diffusion.distributed.autoencoders import wan_spatial_shard
 from vllm_omni.diffusion.distributed.autoencoders.autoencoder_kl_wan import (
     DistributedAutoencoderKLWan,
-    prepare_pipeline_wan_spatial_shard_decode,
     select_auto_spatial_shard_split_dim,
 )
 from vllm_omni.platforms import current_omni_platform
@@ -352,7 +351,7 @@ def test_attention_wrapper_rejects_spatial_extent_change(monkeypatch: pytest.Mon
         lambda x, *, group, dim, dst=None: torch.cat([x, x], dim=dim),
     )
     module = ShrinkingWanAttentionBlock()
-    wan_spatial_shard._patch_attention_block(module, group=object(), split_dim="width")
+    wan_spatial_shard._patch_attention_block(module, group=object())
     x = torch.zeros((1, 1, 1, 1, 2), dtype=torch.float32)
     token = wan_spatial_shard._SPATIAL_SHARD_CONTEXT.set(
         wan_spatial_shard.SpatialShardContext(
@@ -490,23 +489,18 @@ def test_auto_spatial_shard_gate_requires_full_group(monkeypatch: pytest.MonkeyP
 
 @pytest.mark.core_model
 @pytest.mark.cpu
-def test_spatial_wrappers_are_prepared_only_for_a_full_group(monkeypatch: pytest.MonkeyPatch):
+def test_set_parallel_size_prepares_spatial_wrappers_only_for_a_full_group(monkeypatch: pytest.MonkeyPatch):
     vae = DistributedAutoencoderKLWan.__new__(DistributedAutoencoderKLWan)
-    object.__setattr__(
-        vae,
-        "distributed_executor",
-        SimpleNamespace(group=object(), parallel_size=2, parallel_mode="auto"),
-    )
+    executor = SimpleNamespace(group=object(), parallel_size=1, parallel_mode="tile")
+
+    def set_parallel_size(parallel_size: int, mode: str = "tile") -> None:
+        executor.parallel_size = parallel_size
+        executor.parallel_mode = mode
+
+    executor.set_parallel_size = set_parallel_size
+    object.__setattr__(vae, "distributed_executor", executor)
     installed = []
 
-    monkeypatch.setattr(
-        "vllm_omni.diffusion.offloader.module_collector.ModuleDiscovery.discover",
-        lambda pipeline: SimpleNamespace(vaes=[vae]),
-    )
-    monkeypatch.setattr(
-        "vllm_omni.diffusion.distributed.autoencoders.autoencoder_kl_wan.dist.is_initialized",
-        lambda: True,
-    )
     monkeypatch.setattr(
         "vllm_omni.diffusion.distributed.autoencoders.autoencoder_kl_wan.dist.get_world_size",
         lambda group=None: 4,
@@ -517,11 +511,10 @@ def test_spatial_wrappers_are_prepared_only_for_a_full_group(monkeypatch: pytest
         lambda candidate, group, split_dim: installed.append((candidate, group, split_dim)),
     )
 
-    prepare_pipeline_wan_spatial_shard_decode(torch.nn.Identity())
+    vae.set_parallel_size(2, mode="auto")
     assert installed == []
 
-    vae.distributed_executor.parallel_size = 4
-    prepare_pipeline_wan_spatial_shard_decode(torch.nn.Identity())
+    vae.set_parallel_size(4, mode="auto")
     assert installed == [(vae, vae.distributed_executor.group, "height")]
 
 
