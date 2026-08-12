@@ -1,4 +1,4 @@
-# VAE Parallelism Guide
+# VAE Parallel Guide
 
 
 ## Table of Content

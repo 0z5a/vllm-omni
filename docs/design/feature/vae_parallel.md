@@ -1,4 +1,4 @@
-# VAE Parallelism
+# VAE Parallel
 
 This document defines the VAE parallelism strategy contract and describes how to
 add a strategy to a diffusion model. Tile/patch parallelism is the portable
