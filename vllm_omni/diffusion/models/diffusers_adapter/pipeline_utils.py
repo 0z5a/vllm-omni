@@ -1,12 +1,66 @@
 # SPDX-License-Identifier: Apache-2.0
 # SPDX-FileCopyrightText: Copyright contributors to the vLLM project
 
+import json
+import logging
+from pathlib import Path
 from typing import Any
 
 from diffusers.pipelines.pipeline_utils import DiffusionPipeline
 
 from vllm_omni.diffusion.data import OmniDiffusionConfig
 from vllm_omni.inputs.data import OmniDiffusionSamplingParams
+
+logger = logging.getLogger(__name__)
+
+LTX25_ORIGINAL_MODEL_ID = "Lightricks/LTX-2.5"
+LTX25_DIFFUSERS_MODEL_ID = "Lightricks/LTX-2.5-Diffusers"
+LTX25_DIFFUSERS_COMMIT = "7564fb016dabda0c943416190fc92398c50b1b20"
+
+# Diffusers' public LTX-2.5 schedule intentionally excludes the scheduler's
+# terminal zero. FlowMatchEulerDiscreteScheduler appends that internally.
+LTX25_DISTILLED_SIGMAS = [1.0, 0.99375, 0.9875, 0.98125, 0.975, 0.909375, 0.725, 0.421875]
+
+_LTX25_DISTILLED_GUIDANCE_DEFAULTS: dict[str, float] = {
+    "guidance_scale": 1.0,
+    "audio_guidance_scale": 1.0,
+    "stg_scale": 0.0,
+    "audio_stg_scale": 0.0,
+    "modality_scale": 1.0,
+    "audio_modality_scale": 1.0,
+    "guidance_rescale": 0.0,
+    "audio_guidance_rescale": 0.0,
+}
+
+
+def is_ltx25_diffusers_model(od_config: OmniDiffusionConfig) -> bool:
+    """Return whether config targets the official converted LTX-2.5 repo."""
+    normalized_model = str(od_config.model).rstrip("/\\").replace("\\", "/").lower()
+    if normalized_model == LTX25_DIFFUSERS_MODEL_ID.lower():
+        return True
+
+    # A downloaded checkpoint may be served from any directory name. The
+    # duration-head component is the pipeline-level marker introduced for
+    # LTX-2.5; older LTX-2.0/2.3 indexes do not contain it.
+    model_path = Path(str(od_config.model)).expanduser()
+    subfolder = od_config.diffusers_load_kwargs.get("subfolder")
+    if subfolder is not None:
+        model_path /= str(subfolder)
+    try:
+        with (model_path / "model_index.json").open(encoding="utf-8") as model_index_file:
+            model_index = json.load(model_index_file)
+    except (OSError, TypeError, ValueError):
+        return False
+    if not isinstance(model_index, dict):
+        return False
+
+    duration_head = model_index.get("duration_head")
+    return (
+        model_index.get("_class_name") == "LTX2Pipeline"
+        and isinstance(duration_head, list)
+        and bool(duration_head)
+        and duration_head[0] is not None
+    )
 
 
 class BasePipelineUtils:
@@ -20,6 +74,43 @@ class BasePipelineUtils:
 
     def validate_runtime_sampling_params(self, sampling: OmniDiffusionSamplingParams) -> None:
         pass
+
+    def update_call_kwargs(
+        self,
+        od_config: OmniDiffusionConfig,
+        call_kwargs: dict[str, Any],
+    ) -> None:
+        pass
+
+
+class LTX2PipelineUtils(BasePipelineUtils):
+    """Diffusers call policy for the official default LTX-2.5 checkpoint."""
+
+    def update_call_kwargs(
+        self,
+        od_config: OmniDiffusionConfig,
+        call_kwargs: dict[str, Any],
+    ) -> None:
+        if not is_ltx25_diffusers_model(od_config):
+            return
+
+        has_sigmas = call_kwargs.get("sigmas") is not None
+        has_timesteps = call_kwargs.get("timesteps") is not None
+        has_step_count = call_kwargs.get("num_inference_steps") is not None
+        if not has_sigmas and not has_timesteps:
+            if has_step_count:
+                logger.warning(
+                    "LTX-2.5 distilled inference received num_inference_steps without sigmas. "
+                    "Diffusers will use a generic schedule; omit num_inference_steps to use the "
+                    "official distilled schedule."
+                )
+            else:
+                call_kwargs["sigmas"] = list(LTX25_DISTILLED_SIGMAS)
+                call_kwargs["num_inference_steps"] = len(LTX25_DISTILLED_SIGMAS)
+
+        for key, value in _LTX25_DISTILLED_GUIDANCE_DEFAULTS.items():
+            if call_kwargs.get(key) is None:
+                call_kwargs[key] = value
 
 
 class WanPipelineUtils(BasePipelineUtils):
@@ -49,6 +140,7 @@ class WanPipelineUtils(BasePipelineUtils):
 
 
 PIPELINE_UTILS_REGISTRY: dict[str, type[BasePipelineUtils]] = {
+    "LTX2Pipeline": LTX2PipelineUtils,
     "WanPipeline": WanPipelineUtils,
     "WanImageToVideoPipeline": WanPipelineUtils,
     "WanVACEPipeline": WanPipelineUtils,
