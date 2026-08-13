@@ -1,175 +1,140 @@
 # Prefill-Decode (PD) Disaggregation (experimental)
 
-!!! warning "Experimental"
-    PD disaggregation support is experimental and currently documented only for
-    Qwen3-Omni. Its configuration and behavior may change without notice.
+!!! warning "Experimental design reference"
+    PD disaggregation is only partially integrated on the current `main` branch.
+    The runtime contains PD detection and routing scaffolding, but there is no
+    supported deploy overlay or end-to-end validated launch recipe yet. Treat this
+    page as a description of the current design, not as production guidance.
 
-PD disaggregation splits the Qwen3-Omni thinker into separate prefill and decode
-stages so prompt processing and token generation can run on different workers.
+Prefill-decode disaggregation splits the Qwen3-Omni Thinker into two logical
+stages: a prefill worker that processes the prompt and produces KV cache, and a
+decode worker that imports that cache and generates tokens. The Talker and
+Code2Wav stages remain downstream; PD does not disaggregate the entire
+Qwen3-Omni pipeline.
 
-This is documented as a stage-config recipe instead of a bundled YAML because the
-deployment-specific values usually change per environment:
+## Current design
 
-- GPU placement
-- `tensor_parallel_size`
-- connector backend and connector ports
-- connector IPs or bootstrap addresses
+### Runtime topology
 
-Start from the [default Qwen3-Omni stage config](gh-file:vllm_omni/deploy/qwen3_omni_moe.yaml)
-and copy it to your own file, for example `qwen3_omni_pd.yaml`. Then apply the
-changes below.
-
-## Requirements
-
-- 3+ GPUs for a basic layout: prefill, decode, and talker+code2wav
-- A KV connector supported by vLLM, such as `MooncakeConnector`
-- Matching `tensor_parallel_size` on the prefill and decode thinker stages
-
-## 1. Split the thinker into prefill and decode stages
-
-Replace the original thinker stage with two stages:
-
-```yaml
-stage_args:
-  - stage_id: 0
-    stage_type: llm
-    is_prefill_only: true
-    runtime:
-      devices: "0"
-    engine_args:
-      max_num_seqs: 16
-      model_stage: thinker
-      model_arch: Qwen3OmniMoeForConditionalGeneration
-      worker_type: ar
-      scheduler_cls: vllm_omni.core.sched.omni_ar_scheduler.OmniARScheduler
-      gpu_memory_utilization: 0.9
-      enforce_eager: true
-      trust_remote_code: true
-      engine_output_type: latent
-      distributed_executor_backend: "mp"
-      enable_prefix_caching: false
-      max_num_batched_tokens: 32768
-      hf_config_name: thinker_config
-      tensor_parallel_size: 1
-      kv_transfer_config:
-        kv_connector: "MooncakeConnector"
-        kv_role: "kv_producer"
-        kv_rank: 0
-        kv_parallel_size: 2
-        kv_connector_extra_config:
-          mooncake_bootstrap_port: 25201
-    final_output: false
-    is_comprehension: true
-    default_sampling_params:
-      temperature: 0.4
-      top_p: 0.9
-      top_k: 1
-      max_tokens: 2048
-      seed: 42
-      detokenize: True
-      repetition_penalty: 1.05
-
-  - stage_id: 1
-    stage_type: llm
-    is_decode_only: true
-    runtime:
-      devices: "1"
-    engine_args:
-      max_num_seqs: 64
-      model_stage: thinker
-      model_arch: Qwen3OmniMoeForConditionalGeneration
-      worker_type: ar
-      scheduler_cls: vllm_omni.core.sched.omni_ar_scheduler.OmniARScheduler
-      gpu_memory_utilization: 0.9
-      enforce_eager: true
-      trust_remote_code: true
-      engine_output_type: latent
-      distributed_executor_backend: "mp"
-      enable_prefix_caching: false
-      max_num_batched_tokens: 32768
-      hf_config_name: thinker_config
-      tensor_parallel_size: 1
-      kv_transfer_config:
-        kv_connector: "MooncakeConnector"
-        kv_role: "kv_consumer"
-        kv_rank: 1
-        kv_parallel_size: 2
-        kv_connector_extra_config:
-          mooncake_bootstrap_port: 25202
-    engine_input_source: [0]
-    final_output: true
-    final_output_type: text
-    is_comprehension: true
-    default_sampling_params:
-      temperature: 0.4
-      top_p: 0.9
-      top_k: 1
-      max_tokens: 2048
-      seed: 42
-      detokenize: True
-      repetition_penalty: 1.05
+```mermaid
+flowchart LR
+    client["Client request"] --> orchestrator["Omni Orchestrator"]
+    orchestrator -->|"original prompt<br/>max_tokens = 1"| prefill["Thinker prefill<br/>KV producer"]
+    prefill -->|"KV blocks"| connector[("vLLM KV connector")]
+    prefill -->|"KV routing metadata"| orchestrator
+    orchestrator -->|"original prompt<br/>remote KV parameters"| decode["Thinker decode<br/>KV consumer"]
+    connector -->|"remote KV load"| decode
+    decode -->|"generated text"| client
 ```
 
-Notes:
+The orchestrator owns the request lifecycle, while the vLLM KV connector owns
+the bulk KV transfer. The original prompt is submitted to both Thinker stages:
+the decode worker still needs the request tokens and multimodal features to
+construct its request, while the imported KV cache prevents it from repeating
+the completed prefill computation.
 
-- `is_prefill_only: true` marks the thinker stage that only saves KV.
-- `is_decode_only: true` marks the thinker stage that resumes from remote KV.
-- `kv_transfer_config` is required on both stages.
-- The orchestrator forces the prefill stage to run with `max_tokens=1`, so the
-  prefill side only processes the prompt and exports KV.
+For the full Qwen3-Omni pipeline, splitting the Thinker adds one logical stage:
 
-## 2. Shift the downstream stages by one index
+| Stage | Role | Output or handoff |
+| --- | --- | --- |
+| 0 | Thinker prefill | Saves prompt KV and prompt-side multimodal output |
+| 1 | Thinker decode | Loads remote KV, generates text, and produces decode-side conditioning |
+| 2 | Talker | Converts combined Thinker conditioning into codec codes |
+| 3 | Code2Wav | Converts codec codes into audio |
 
-After inserting the extra thinker stage, renumber the remaining stages:
+Text remains a final output of the decode stage, and audio remains a final
+output of Code2Wav.
 
-```yaml
-  - stage_id: 2
-    runtime:
-      devices: "2"
-    engine_input_source: [1]
-    sync_process_input_func: vllm_omni.model_executor.stage_input_processors.qwen3_omni.thinker2talker_token_only
+### Request lifecycle
 
-  - stage_id: 3
-    runtime:
-      devices: "2"
-    engine_args:
-      max_num_seqs: 1
-    engine_input_source: [2]
-    sync_process_input_func: vllm_omni.model_executor.stage_input_processors.qwen3_omni.talker2code2wav_token_only
-```
+1. At startup, PD detection looks for one stage marked `is_prefill_only` and
+   one downstream stage marked `is_decode_only`. The decode stage must list the
+   prefill stage as an input source.
+2. The orchestrator clones the Thinker sampling parameters for prefill, forces
+   `max_tokens=1`, clears stop conditions, and sets producer-side
+   `kv_transfer_params`. This makes prefill finish by length after exporting KV.
+3. When prefill finishes, the orchestrator captures its KV routing metadata and
+   Qwen multimodal output under the original request ID.
+4. The orchestrator submits the original prompt to decode with consumer-side
+   `kv_transfer_params`. Those parameters identify the transfer, prefill engine,
+   bootstrap endpoint, and, when required by the connector, remote request.
+5. The decode engine imports the KV cache and continues generation. The normal
+   Omni stage path then carries Thinker conditioning through Talker and
+   Code2Wav.
 
-Compared with the default Qwen3-Omni config:
+### Control and data paths
 
-- the talker becomes stage `2` instead of stage `1`
-- the code2wav stage becomes stage `3` instead of stage `2`
-- the talker now reads from decode stage `1`
+PD uses two different connector layers. They solve different handoffs and are
+not interchangeable.
 
-## 3. Add runtime edges for the four-stage pipeline
+| Path | Payload | Owner |
+| --- | --- | --- |
+| PD control path | Request ID, original prompt, `transfer_id`, bootstrap address, engine ID, and connector-specific request metadata | Omni Orchestrator |
+| PD data path | Thinker attention KV blocks | vLLM KV connector |
+| Downstream model path | Thinker hidden states and embeddings, Talker codec codes, and audio tensors | vLLM-Omni stage connectors and processors |
 
-```yaml
-runtime:
-  enabled: true
-  edges:
-    - from: 0
-      to: 1
-    - from: 1
-      to: 2
-    - from: 2
-      to: 3
-```
+### Detection and validation
 
-## 4. Launch with your custom config
+The current runtime accepts one logical prefill/decode pair per pipeline. Each
+stage may use tensor parallelism, but both sides of the pair must satisfy these
+invariants:
 
-```bash
-vllm serve Qwen/Qwen3-Omni-30B-A3B-Instruct --omni --port 8091 \
-    --deploy-config /path/to/qwen3_omni_pd.yaml
-```
+- both stages define `kv_transfer_config`
+- prefill uses `kv_producer` or `kv_both`
+- decode uses `kv_consumer` or `kv_both`
+- both stages use the same KV connector
+- `kv_buffer_device` and `kv_buffer_size` agree when set on both stages
+- both stages use the same `tensor_parallel_size`
 
-## Operational Notes
+These checks happen before request processing so an inconsistent PD topology
+fails during engine initialization.
 
-- `MooncakeConnector` does not support heterogeneous TP sizes across the PD
-  pair. Keep prefill and decode at the same `tensor_parallel_size`.
-- If the thinker requires TP=2, both thinker stages must use TP=2 and be given
-  separate GPU sets, for example `"0,1"` for prefill and `"2,3"` for decode.
-- Choose connector ports and addresses that match your deployment. The values
-  shown above are examples only.
+## What is implemented today
+
+| Area | Current state |
+| --- | --- |
+| Pair detection and topology validation | Implemented in the shared PD helper |
+| Prefill sampling preparation | Implemented for sync and async entrypoints |
+| Prefill-to-decode routing | Implemented in the current Orchestrator |
+| Deploy-based configuration | Not yet migrated; the supported `stages:` deploy schema cannot currently expand Qwen3-Omni into the four-stage PD topology |
+| Qwen3 Thinker-to-Talker handoff | Bridge state and embedding-merge helpers exist, but the merge is not wired into the live stage processor |
+| Connector compatibility | Incomplete; the Orchestrator currently requires `remote_request_id`, while the pinned Mooncake connector completes prefill without returning that metadata |
+| Validation coverage | PD entrypoint tests and the PD deploy overlay in online end-to-end tests are temporarily disabled during migration |
+| Performance | No non-regression or throughput/latency result is established for the current path |
+
+Because these pieces are still converging, the previous legacy `stage_args` YAML
+and `vllm serve` command have been removed. The serve CLI now accepts the
+deploy-based `stages:` schema, so retaining the legacy recipe would imply a
+launch path that current `main` rejects.
+
+## Configuration contract under development
+
+The intended deploy integration starts from the
+[default Qwen3-Omni deploy config](gh-file:vllm_omni/deploy/qwen3_omni_moe.yaml)
+and expands its frozen three-stage pipeline into the four stages shown above.
+A complete integration must:
+
+- split the Thinker definition without duplicating the Talker or Code2Wav model
+  contracts
+- remap downstream stage IDs, input sources, and stage connectors
+- inject producer and consumer `kv_transfer_config` values into the two Thinker
+  stages
+- allocate separate device sets for prefill and decode
+- preserve both final outputs: decode text and Code2Wav audio
+- provide connector-specific routing metadata without hard-coding one connector
+  contract
+
+The required number of GPUs depends on tensor-parallel sizes and whether Talker
+and Code2Wav share a device. A basic TP=1 layout uses one device for prefill, one
+for decode, and one for the two downstream audio stages.
+
+## Implementation map
+
+- PD detection, validation, and sampling-parameter preparation:
+  [`PDDisaggregationMixin`](gh-file:vllm_omni/entrypoints/pd_utils.py)
+- startup detection and connector metadata:
+  [`AsyncOmniEngine`](gh-file:vllm_omni/engine/async_omni_engine.py)
+- request-scoped prefill-to-decode routing:
+  [`Orchestrator`](gh-file:vllm_omni/engine/orchestrator.py)
+- Qwen3 downstream conditioning helpers:
+  [Qwen3-Omni stage input processor](gh-file:vllm_omni/model_executor/stage_input_processors/qwen3_omni.py)
