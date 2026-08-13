@@ -6,4 +6,4 @@
 
 ## Security Disclosures
 
-Do not report suspected security vulnerabilities in public GitHub issues, pull requests, discussions, or Slack channels. To arrange a private report, send a direct message to one of the [lead maintainers](governance.md#lead-maintainers) in [vLLM Slack](https://slack.vllm.ai/). If you cannot send a direct message, post only a detail-free request in `sig-omni` asking a lead maintainer to contact you.
+Do not share vulnerability details in public GitHub issues, pull requests, discussions, or Slack channels. To arrange a private report, send a direct message to one of the [lead maintainers](governance.md#lead-maintainers) in [vLLM Slack](https://slack.vllm.ai/). If you cannot send a direct message, you may post a detail-free request in `sig-omni` asking a lead maintainer to contact you privately; do not include any vulnerability details in that request.
