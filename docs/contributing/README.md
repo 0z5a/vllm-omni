@@ -3,7 +3,7 @@
 Thank you for your interest in contributing to vLLM-Omni! This document provides guidelines and instructions for contributing.
 
 !!! note
-    We host weekly developer-facing online meetings to discuss milestones and updates **every Tuesday at 19:30 PDT**. Meeting link as well as the past meeting notes can be found [here](https://tinyurl.com/vllm-omni-meeting).
+    vLLM-Omni hosts developer-facing meetings for Chinese- and English-language audiences. For current schedules, access details, agendas, and past notes, use the maintained [Chinese-language meeting document](https://docs.google.com/document/d/1pdUBiS_7mdOUNDtdwy-9OUf7jsMWN324BIbps5olDME/edit?tab=t.0) and [English-language meeting document](https://docs.google.com/document/d/19AlD08T8uJ7wqfs8VtYCi0iGMTwlTYVVlAxFZ3S7OIg/edit?tab=t.0).
 
 ## Getting Started
 
@@ -122,7 +122,7 @@ Repository skills guide the agent, but they do not replace contributor judgment,
 If you encounter a bug or have a feature request, please search existing issues first to see if it has already been reported. If not, please file a new issue, providing as much relevant information as possible.
 
 !!! important
-    If you discover a security vulnerability, please report it by creating a GitHub issue with the `security` label.
+    Do not report suspected security vulnerabilities through a public issue, pull request, discussion, or Slack channel. Follow the [security disclosure instructions](../community/contact_us.md#security-disclosures) to arrange a private report.
 
 ## Pull Requests & Code Reviews
 
