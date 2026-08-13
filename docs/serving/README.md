@@ -1,9 +1,9 @@
 # API Server
 
 vLLM-Omni exposes OpenAI-compatible HTTP APIs plus vLLM-Omni extensions for
-image, audio, video, and realtime workloads. Use this page to choose an
-endpoint; follow the linked reference page for model-specific fields and
-response details.
+image, audio, video, realtime, and robot-policy workloads. Use this page to
+choose an endpoint; follow the linked reference page for model-specific fields,
+wire protocols, and response details.
 
 Each server instance hosts one model. An endpoint is usable only when the
 loaded model supports that task.
@@ -36,7 +36,7 @@ Use `http://localhost:8000/v1` as the `base_url` for an OpenAI SDK client. If
 the server was started with `--api-key`, include an `Authorization` header with
 `Bearer <api-key>` in requests.
 
-## Choose an Endpoint
+## Choose a Core HTTP Endpoint
 
 Prefer a task-specific endpoint when one matches your workload. Use Chat
 Completions for conversational or heterogeneous omni pipelines, rather than as
@@ -51,7 +51,6 @@ the default wrapper for every generation task.
 | Image editing | `POST /v1/images/edits` | Multipart form | Base64 JSON or SSE | [Image Edit](image_edit_api.md) |
 | Video generation (recommended) | `POST /v1/videos` | Multipart form | Asynchronous job JSON | [Videos](videos_api.md) |
 | Video generation (blocking) | `POST /v1/videos/sync` | Multipart form | Video bytes | [Videos](videos_api.md#synchronous-response) |
-| Live video understanding | `WS /v1/video/chat/stream` | WebSocket events | Streaming text/audio events | [Streaming Video Input](video_stream_api.md) |
 
 `POST /v1/videos/sync` is intended for tests and simple scripts. Use the
 asynchronous job API for production requests so clients can poll, download,
@@ -136,6 +135,26 @@ media inputs, generation controls, and output capabilities vary by model.
     curl -L "$VLLM_OMNI_BASE_URL/v1/videos/<video_id>/content" --output video.mp4
     ```
 
+## Choose a Streaming or Realtime Endpoint
+
+These WebSocket APIs have different event schemas and cannot be used
+interchangeably.
+
+| Workload | Endpoint | Interaction model | Details |
+|----------|----------|-------------------|---------|
+| Incremental text input for speech synthesis | `WS /v1/audio/speech/stream` | Send text events and receive audio | [Streaming Text to Speech](speech_api.md#streaming-text-input-websocket) |
+| Live video understanding | `WS /v1/video/chat/stream` | Send video frames and receive text/audio | [Streaming Video Input](video_stream_api.md) |
+| Turn-based realtime audio | `WS /v1/realtime` | Stream one audio input and receive transcript/audio events | [Realtime Audio](realtime_api.md) |
+| Continuous speech-to-speech interaction | `WS /v1/realtime?duplex=1` or `WS /v1/duplex` | Listen and speak concurrently with session control | [Full Duplex](full_duplex_api.md) |
+| Generated video chunks | `WS /v1/realtime/video` | Start a diffusion request and receive fragmented MP4 | [Streaming Video Output](streaming_video_output_api.md) |
+| Robot policy inference | `WS /v1/realtime/robot/openpi` | Send MessagePack observations and receive action arrays | [OpenPI Robot Policy](openpi_api.md) |
+
+All six routes are model- or configuration-dependent. In particular,
+`/v1/realtime` is not full duplex unless the client sets `duplex=1` and the
+deployment explicitly enables duplex sessions. Clients should also verify the
+duplex capability payload because the query-parameter form falls back to the
+ordinary realtime handler when duplex is unavailable.
+
 ## Related Endpoints
 
 | Purpose | Endpoints | Reference |
@@ -144,21 +163,16 @@ media inputs, generation controls, and output capabilities vary by model.
 | Batched conversations | `POST /v1/chat/completions/batch` | [Batch requests](chat_completions_api.md#batch-requests) |
 | Batched speech | `POST /v1/audio/speech/batch` | [Batch speech generation](speech_api.md#batch-speech-generation) |
 | TTS voice management | `GET/POST /v1/audio/voices`, `DELETE /v1/audio/voices/{name}` | [Voices](speech_api.md#voices-endpoint) |
-| Streaming text-to-speech | `WS /v1/audio/speech/stream` | [Streaming speech](speech_api.md#streaming-text-input-websocket) |
 | Video job lifecycle | `GET /v1/videos`, `GET/DELETE /v1/videos/{video_id}`, `GET /v1/videos/{video_id}/content` | [Video endpoints](videos_api.md#endpoints) |
 | Release and restore stage memory | `POST /v1/omni/sleep`, `POST /v1/omni/wakeup` | [Sleep Mode](../features/sleep_mode.md) |
 
-??? info "Specialized and experimental WebSocket endpoints"
+## Standalone Experimental Servers
 
-    These routes are enabled only for specific pipelines. Start with the
-    associated example instead of treating them as general-purpose APIs.
-
-    | Endpoint | Use case | Example |
-    |----------|----------|---------|
-    | `WS /v1/realtime` | OpenAI-style realtime audio interaction | [Qwen3-Omni realtime client](https://github.com/vllm-project/vllm-omni/tree/main/examples/online_serving/qwen3_omni) |
-    | `WS /v1/realtime/video` | Stream generated video chunks | [Streaming video generation](https://github.com/vllm-project/vllm-omni/tree/main/examples/online_serving/streaming_video_generation) |
-    | `WS /v1/duplex` or `WS /v1/realtime?duplex=1` | Experimental full-duplex speech interaction | [Full-duplex examples](https://github.com/vllm-project/vllm-omni/tree/main/examples/online_serving/minicpmo) |
-    | `WS /v1/realtime/robot/openpi` | OpenPI-compatible robot policy inference | [DreamZero](https://github.com/vllm-project/vllm-omni/tree/main/examples/online_serving/dreamzero) |
+PersonaPlex also provides a Moshi-compatible WebSocket server, while JoyVL
+provides a stateful interaction orchestrator in front of another model server.
+These are separate processes with their own routes; they are not additional
+paths on every `vllm serve --omni` instance. See [Standalone Experimental
+Servers](standalone_servers.md) before deploying either one.
 
 ## Compatibility Notes
 
