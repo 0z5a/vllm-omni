@@ -2,7 +2,7 @@
 
 - For bugs and feature requests, search or open a GitHub [issue](https://github.com/vllm-project/vllm-omni/issues).
 - For technical and usage questions, join the `sig-omni` channel in [vLLM Slack](https://slack.vllm.ai/) or use the [vLLM Forum](https://discuss.vllm.ai/).
-- For coordinating contributions and development, use `sig-omni`, the forum, or join a [community meeting](meetups.md).
+- For coordinating contributions and development, use `sig-omni`, the forum, or join a [community meeting](meetings.md).
 
 ## Security Disclosures
 

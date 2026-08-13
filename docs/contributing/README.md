@@ -3,7 +3,7 @@
 Thank you for your interest in contributing to vLLM-Omni! This document provides guidelines and instructions for contributing.
 
 !!! note
-    vLLM-Omni hosts developer-facing meetings for Chinese- and English-language audiences. For current schedules, access details, agendas, and past notes, use the maintained [Chinese-language meeting document](https://docs.google.com/document/d/1pdUBiS_7mdOUNDtdwy-9OUf7jsMWN324BIbps5olDME/edit?tab=t.0) and [English-language meeting document](https://docs.google.com/document/d/19AlD08T8uJ7wqfs8VtYCi0iGMTwlTYVVlAxFZ3S7OIg/edit?tab=t.0).
+    vLLM-Omni hosts developer-facing meetings for Chinese- and English-language audiences. See [Community Meetings](../community/meetings.md) for current schedules, access details, agendas, and past notes.
 
 ## Getting Started
 

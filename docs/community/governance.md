@@ -58,10 +58,6 @@ For path-based reviewer routing, consult [`.github/CODEOWNERS`](https://github.c
 
 `CODEOWNERS` is operational routing metadata, not a governance or approval policy. Being listed does not grant committer status or merge rights, and it does not mean every listed reviewer must approve a change. The maintainer roster above is authoritative for project roles and merge rights.
 
-## Meetings
-
-vLLM-Omni hosts developer-facing meetings for different audiences. For current schedules, access details, agendas, and past notes, use the maintained [Chinese-language meeting document](https://docs.google.com/document/d/1pdUBiS_7mdOUNDtdwy-9OUf7jsMWN324BIbps5olDME/edit?tab=t.0) and [English-language meeting document](https://docs.google.com/document/d/19AlD08T8uJ7wqfs8VtYCi0iGMTwlTYVVlAxFZ3S7OIg/edit?tab=t.0). See [Community Meetings](meetups.md) for an overview.
-
 ## Committer Nomination Process
 
 Every month, any active committer can nominate new committer(s) to the project. Up to **two new committers** will be admitted per month based on the quality and impact of their contributions.

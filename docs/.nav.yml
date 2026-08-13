@@ -164,7 +164,7 @@ nav:
 - Community:
   - Governance: community/governance.md
   - Contact Us: community/contact_us.md
-  - Community Meetings: community/meetups.md
+  - Community Meetings: community/meetings.md
   - Slack: https://slack.vllm.ai
   - Blog: https://blog.vllm.ai
   - Forum: https://discuss.vllm.ai
