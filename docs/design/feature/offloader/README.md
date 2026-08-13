@@ -15,7 +15,7 @@ The three strategies have separate user and design pages:
 `OffloadStrategy`. If callers set multiple flags, selection is deterministic:
 
 1. `DISTRIBUTED_LAYERWISE`;
-2. `LAYER_WISE`;
+2. `LAYERWISE`;
 3. `MODEL_LEVEL`; and
 4. `NONE`.
 
