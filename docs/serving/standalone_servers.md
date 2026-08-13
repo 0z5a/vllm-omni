@@ -21,7 +21,7 @@ Start it with:
 ```bash
 HF_TOKEN=... CUDA_VISIBLE_DEVICES=0 python -m \
   vllm_omni.experimental.fullduplex.personaplex.serving.server \
-  --port 8124
+  --port 8091
 ```
 
 | Route | Purpose |
@@ -68,14 +68,14 @@ Start the model backend and orchestrator separately:
 ```bash
 vllm serve jdopensource/JoyAI-VL-Interaction-Preview \
   --served-model-name JoyAI-VL-Interaction-Preview \
-  --port 8061 \
+  --port 8092 \
   --max-model-len 131072 \
   --enable-prefix-caching \
   --limit-mm-per-prompt '{"image":256,"video":1}'
 
 python -m vllm_omni.experimental.fullduplex.joyvl.serving.server \
-  --port 8070 \
-  --main-backend-url http://127.0.0.1:8061/v1 \
+  --port 8091 \
+  --main-backend-url http://127.0.0.1:8092/v1 \
   --main-model JoyAI-VL-Interaction-Preview
 ```
 
@@ -94,7 +94,7 @@ include an `interaction` block whose action is `silence`, `response`, or
 `delegate`.
 
 ```bash
-curl http://127.0.0.1:8070/v1/chat/completions \
+curl http://127.0.0.1:8091/v1/chat/completions \
   -H 'content-type: application/json' \
   -H 'x-session-id: demo' \
   -d '{

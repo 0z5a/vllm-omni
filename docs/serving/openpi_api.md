@@ -33,7 +33,7 @@ and closes.
 Start the bundled DreamZero deployment:
 
 ```bash
-vllm serve GEAR-Dreams/DreamZero-DROID --omni --port 8000 \
+vllm serve GEAR-Dreams/DreamZero-DROID --omni --port 8091 \
   --served-model-name dreamzero-droid \
   --deploy-config vllm_omni/deploy/dreamzero_tp1_cfg2.yaml \
   --enforce-eager --disable-log-stats
@@ -51,7 +51,7 @@ hf download YangshenDeng/vllm-omni-dreamzero-assets \
 
 python examples/online_serving/dreamzero/openpi_client.py \
   --host 127.0.0.1 \
-  --port 8000 \
+  --port 8091 \
   --video-dir outputs/dreamzero/assets
 ```
 

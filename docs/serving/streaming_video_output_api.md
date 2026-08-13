@@ -13,7 +13,7 @@ output:
 ```bash
 vllm serve BestWishYsh/Helios-Distilled --omni \
   --diffusion-streaming-output \
-  --port 8000
+  --port 8091
 ```
 
 Install the client dependency and run the provided client:
@@ -23,7 +23,7 @@ pip install websockets
 
 python examples/online_serving/streaming_video_generation/streaming_video_client.py \
   --host 127.0.0.1 \
-  --port 8000 \
+  --port 8091 \
   --model BestWishYsh/Helios-Distilled \
   --prompt "A serene lakeside sunrise with mist over the water" \
   --output output.mp4

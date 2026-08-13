@@ -55,14 +55,14 @@ Start the duplex deployment:
 vllm serve openbmb/MiniCPM-o-4_5 --omni \
   --deploy-config vllm_omni/deploy/minicpmo_4_5_duplex.yaml \
   --trust-remote-code \
-  --port 8099
+  --port 8091
 ```
 
 Stream a mono, PCM16, 16 kHz WAV file with the provided client:
 
 ```bash
 python examples/online_serving/minicpmo/realtime_duplex_demo.py \
-  --url 'ws://localhost:8099/v1/realtime?duplex=1' \
+  --url 'ws://localhost:8091/v1/realtime?duplex=1' \
   --model openbmb/MiniCPM-o-4_5 \
   --input-wav input_16k_mono.wav \
   --ref-audio reference_voice.wav \

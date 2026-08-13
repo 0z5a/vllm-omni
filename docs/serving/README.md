@@ -17,7 +17,7 @@ may also expose standard routes inherited from vLLM, such as
 Start a model with the shared serving command:
 
 ```bash
-vllm serve <model> --omni --port 8000
+vllm serve <model> --omni --port 8091
 ```
 
 Some models require additional flags or a deployment configuration. Use the
@@ -26,13 +26,13 @@ model-specific guide when one is provided.
 After the server starts, check its health and served model name:
 
 ```bash
-export VLLM_OMNI_BASE_URL=http://localhost:8000
+export VLLM_OMNI_BASE_URL=http://localhost:8091
 
 curl "$VLLM_OMNI_BASE_URL/health"
 curl "$VLLM_OMNI_BASE_URL/v1/models" | jq .
 ```
 
-Use `http://localhost:8000/v1` as the `base_url` for an OpenAI SDK client. If
+Use `http://localhost:8091/v1` as the `base_url` for an OpenAI SDK client. If
 the server was started with `--api-key`, include an `Authorization` header with
 `Bearer <api-key>` in requests.
 
