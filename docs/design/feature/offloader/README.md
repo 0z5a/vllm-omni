@@ -14,7 +14,7 @@ The three strategies have separate user and design pages:
 `OffloadConfig.from_od_config()` converts diffusion configuration into one
 `OffloadStrategy`. If callers set multiple flags, selection is deterministic:
 
-1. `DISTRIBUTED_LAYER_WISE`;
+1. `DISTRIBUTED_LAYERWISE`;
 2. `LAYER_WISE`;
 3. `MODEL_LEVEL`; and
 4. `NONE`.
