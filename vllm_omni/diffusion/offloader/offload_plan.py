@@ -60,15 +60,46 @@ def get_offload_plan(pipeline: nn.Module) -> OffloadPlan | None:
 def supports_mmap_loading(pipeline: nn.Module) -> bool:
     """Whether the pipeline supports mmap weight loading.
 
-    A pipeline supports mmap if any module defines ``_remap_ckpt_key``,
-    which maps checkpoint keys to model parameter names.  Models without
-    this method must use the regular ``load_weights()`` path.
+    A pipeline supports mmap when either:
+
+    * a module defines ``_remap_ckpt_key``, which maps checkpoint keys to
+      model parameter names; or
+    * the pipeline explicitly opts in with ``_supports_mmap_loading=True``
+      and declares ``weights_sources``.  In that case each source prefix is
+      used as the model namespace.
+
+    The explicit opt-in is important: many pipelines declare
+    ``weights_sources`` but still require arbitrary loader callbacks and must
+    stay on the regular ``load_weights()`` path.
 
     This check is shared between ``diffusers_loader.py`` (to decide whether
     to skip ``load_weights``) and ``DistributedLayerwiseOffloadBackend.enable()``
     (to decide whether to call ``_load_weights_via_mmap``), ensuring both
     paths use the same gate condition.
     """
-    return bool(getattr(pipeline, "_supports_mmap_loading", True)) and any(
-        callable(getattr(type(m), "_remap_ckpt_key", None)) for m in pipeline.modules()
-    )
+    declared_support = getattr(pipeline, "_supports_mmap_loading", None)
+    if declared_support is False:
+        return False
+
+    has_remap = any(callable(getattr(type(m), "_remap_ckpt_key", None)) for m in pipeline.modules())
+    if has_remap:
+        return True
+
+    return declared_support is True and bool(getattr(pipeline, "weights_sources", ()))
+
+
+def should_select_dlo_mmap(
+    *,
+    mmap_supported: bool,
+    dlo_use_allgather: bool,
+    has_online_quant: bool,
+    tensor_parallel_size: int,
+    use_hsdp: bool,
+) -> bool:
+    """Whether loader and backend should enter DLO's mmap path.
+
+    AllGather preserves its existing fail-closed topology validation inside
+    the mmap loader. The extra TP/HSDP gate applies to rank-local mmap only.
+    """
+    rank_local_compatible = tensor_parallel_size == 1 and not use_hsdp
+    return mmap_supported and not has_online_quant and (dlo_use_allgather or rank_local_compatible)

@@ -363,22 +363,39 @@ class DiffusersPipelineLoader:
             else:
                 model = self._init_from_load_format(load_format, target_device, custom_pipeline_name, is_hsdp=False)
 
-                # Skip load_weights only for DLO+AllGather when the model
-                # supports mmap loading and no online quantization is active.
-                # This condition MUST match the gate in
-                # DistributedLayerwiseOffloadBackend.enable() so that the
-                # loader skips ⟺ enable() uses mmap.
-                from vllm_omni.diffusion.offloader.offload_plan import supports_mmap_loading
+                # Skip load_weights when DLO can keep checkpoint tensors as
+                # mmap-backed host masters.  Storage selection is independent
+                # of whether DLO reconstructs weights with AllGather.  The
+                # no-AllGather path can use mmap only when the checkpoint is
+                # already the rank-local runtime layout (currently TP=1 and no
+                # HSDP); TP/HSDP still require the regular loader callbacks.
+                # The loader and backend share should_select_dlo_mmap() so
+                # skipping load_weights always selects mmap in enable().
+                from vllm_omni.diffusion.offloader.offload_plan import (
+                    should_select_dlo_mmap,
+                    supports_mmap_loading,
+                )
 
                 _dist_offload = getattr(self.od_config, "enable_distributed_layerwise_offload", False)
                 _use_ag = getattr(self.od_config, "dlo_use_allgather", True)
                 _has_online_quant = self._has_online_quant(model)
                 _supports_mmap = supports_mmap_loading(model)
+                _tp_size = int(getattr(self.parallel_config, "tensor_parallel_size", 1))
+                _use_hsdp = bool(getattr(self.parallel_config, "use_hsdp", False))
 
-                _skip_load = _dist_offload and _use_ag and _supports_mmap and not _has_online_quant
+                _skip_load = _dist_offload and should_select_dlo_mmap(
+                    mmap_supported=_supports_mmap,
+                    dlo_use_allgather=_use_ag,
+                    has_online_quant=_has_online_quant,
+                    tensor_parallel_size=_tp_size,
+                    use_hsdp=_use_hsdp,
+                )
 
                 if _skip_load:
-                    logger.info("DLO+AllGather active: skipping load_weights (will load via mmap in enable())")
+                    logger.info(
+                        "DLO mmap storage active (%s): skipping load_weights (will map checkpoint weights in enable())",
+                        "AllGather" if _use_ag else "rank-local",
+                    )
                 else:
                     if _dist_offload and _use_ag and _has_online_quant:
                         raise ValueError(

@@ -189,7 +189,10 @@ multi-device deployments. In the default mode, each rank stores only
 reconstructed at runtime via **AllGather** on a dedicated communication stream,
 overlapped with computation via a fixed double-buffer scheme. The
 `--dlo-no-use-allgather` mode instead streams standard-loader rank-local
-weights independently and does not shard weights across ranks.
+weights independently and does not shard weights across ranks. For explicitly
+mmap-compatible TP1 models, the same mode can retain node-shared file-backed
+DiT weights and use bounded per-worker host staging instead of a private full
+DiT copy.
 
 For the implementation design and compatibility matrix, see
 [Distributed Layerwise Offload](../../design/feature/distributed_layerwise_offload.md).
@@ -201,8 +204,9 @@ For the implementation design and compatibility matrix, see
   time, regardless of model size
 - **DP multi-concurrency**: N concurrent requests processed in parallel
   (AllGather only gathers weight shards, which are request-independent)
-- **mmap weight loading**: weights loaded as mmap views pointing to shared OS
-  page cache, eliminating O(dp_size × model_size) RSS during model creation
+- **mmap weight storage**: compatible checkpoints use views into the shared OS
+  page cache. AllGather copies persistent rank shards; rank-local mode keeps
+  the views and packs complete blocks through two bounded host staging slots
 - **Platform-agnostic**: works on NVIDIA GPU (CUDA/NCCL) and Ascend NPU
   (CANN/HCCL) via vLLM-Omni's platform abstraction
 
@@ -224,7 +228,7 @@ vllm serve /path/to/model --omni \
   --enable-distributed-layerwise-offload \
   --data-parallel-size 4
 
-# Without DLO AllGather (each rank streams standard-loader rank-local weights)
+# Without DLO AllGather (compatible TP1 models use node-shared mmap storage)
 vllm serve /path/to/model --omni \
   --enable-distributed-layerwise-offload \
   --data-parallel-size 4 \
@@ -258,20 +262,26 @@ m = Omni(
 
 ### How model weights are loaded (mmap path)
 
-When DLO + AllGather is active, the offloader:
+When DLO and an mmap-compatible model are active, the offloader:
 
 1. **Saves non-persistent buffers** (e.g. RoPE `inv_freq`, timestep `freqs`)
    from the normally-created transformer
 2. **Converts to meta device** via `to_empty(device="meta")`, releasing random
    initialization weights
 3. **Loads checkpoint weights as mmap views** via `safe_open().get_tensor()`,
-   which return views into the OS page cache (shared across all ranks, 0 RSS)
-4. **Calls `post_load_weights()`** to apply model-specific dtype conversions
-   (e.g. Cosmos3's `time_embedder` → FP32)
+   which return views into the OS page cache without eagerly copying the full
+   tensor into anonymous process memory
+4. **Applies declared per-parameter layout adapters while packing**, when the
+   checkpoint and TP1 runtime layouts differ (for example MiniMax-H3 grouped
+   QKV)
 5. **Restores non-persistent buffers** from saved copies
 
-This approach requires **zero model-specific code changes** — no pipeline or
-transformer modifications are needed.
+With AllGather, each rank copies only its persistent shard and then releases
+the source mappings. Without AllGather, mappings remain open and every worker
+owns two pinned staging slots sized to the largest streamed block. The latter
+shares file-backed pages, not process-local Python objects, and does not alter
+request routing or scheduling. Packing into the host slot is synchronous; the
+pinned H2D copy can overlap with computation.
 
 ### OffloadPlan (declarative topology metadata)
 
@@ -313,7 +323,7 @@ request while AllGather synchronizes only weight shards (request-independent).
   `--dlo-no-use-allgather` or disable online quantization.
 - Tensor Parallel > 1 is rejected in the DLO+AllGather mmap path because TP-aware
   weight-loader callbacks are bypassed. The no-AllGather path retains the
-  standard TP loader and is experimental.
+  standard TP loader instead of rank-local mmap and is experimental.
 - HSDP + AllGather is rejected because it would double-shard parameters. HSDP
   with no-AllGather is accepted at configuration level, but has limited
   end-to-end validation.
@@ -373,6 +383,7 @@ reasoner/generator components inside the model forward pass.
 | StableDiffusion3Pipeline | `stabilityai/stable-diffusion-3.5-medium` | `SD3Transformer2DModel` | - | ✓ | - | `"transformer_blocks"` |
 | Wan22I2VPipeline | `Wan-AI/Wan2.2-I2V-A14B-Diffusers` | `WanTransformer3DModel` | ✓ | ✓ | - | `"blocks"` |
 | Wan22Pipeline | `Wan-AI/Wan2.2-T2V-A14B-Diffusers` | `WanTransformer3DModel` | ✓ | ✓ | - | `"blocks"` |
+| MiniMaxH3Pipeline | `MiniMaxAI/MiniMax-H3` (`FL2VA`) | `MiniMaxH3DiTModel` | - | ✓ | ✓ | `"blocks"` |
 | SoulXSingerPipeline / SoulXSingerSVCPipeline | `Soul-AILab/SoulX-Singer` | `DiffLlama` (`cfm_decoder.model.diff_estimator`) | ✓ | ✓ | - | `"layers"` |
 | BagelPipeline | `ByteDance-Seed/BAGEL-7B-MoT` | `Qwen2MoTModel` | - | ✓ | - | `"layers"`, `"customized modules"` |
 | Cosmos3OmniDiffusersPipeline | `nvidia/Cosmos3-Nano`, `nvidia/Cosmos3-Super` | `Cosmos3VFMTransformer`, `Cosmos3LanguageModel` | ✓ | ✓ | ✓ | `"layers"`, `"gen_layers"` |
@@ -382,8 +393,9 @@ reasoner/generator components inside the model forward pass.
 - Layerwise Offloading requires DiT class to define `_layerwise_offload_blocks_attrs` pointing to transformer blocks
 - Distributed Layerwise Offloading reuses the layerwise block topology, but the
   model and parallelism combination still needs validation. AllGather mode
-  additionally requires a compatible checkpoint/mmap layout; no-AllGather mode
-  retains the standard loader's rank-local tensors. See the
+  additionally requires a compatible checkpoint/mmap layout. For explicitly
+  compatible TP1 models, no-AllGather uses node-shared mmap sources; other
+  layouts retain the standard loader's rank-local tensors. See the
   [DLO design](../../design/feature/distributed_layerwise_offload.md) and
   [Cosmos3 DistOffload recipe](https://github.com/vllm-project/vllm-omni/blob/main/recipes/cosmos3/Cosmos3-DistOffload.md)
   for usage examples.

@@ -191,6 +191,30 @@ def test_model_load_weights_transforms_before_calling_vllm_loader():
     ]
 
 
+def test_unquantized_qkv_declares_equivalent_mmap_transform(monkeypatch):
+    from vllm_omni.diffusion.models.minimax_h3 import minimax_h3_transformer as h3
+
+    monkeypatch.setattr(h3, "QKVParallelLinear", _FakeLinear)
+    monkeypatch.setattr(h3, "RowParallelLinear", _FakeLinear)
+    monkeypatch.setattr(h3, "Attention", _FakeAttention)
+
+    arch = h3.MiniMaxH3DiTArchConfig(
+        hidden_size=1,
+        num_attention_heads=2,
+        attention_head_dim=1,
+        rope_inv_freq_len=1,
+    )
+    attention = h3.MiniMaxH3Attention(
+        arch,
+        quant_config=None,
+        prefix="blocks.0.attn",
+    )
+    transform = attention.qkv_proj.weight.mmap_weight_transform
+    checkpoint_weight = torch.arange(6, dtype=torch.float32).reshape(6, 1)
+
+    assert transform(checkpoint_weight)[:, 0].tolist() == [0, 3, 1, 4, 2, 5]
+
+
 def test_pipeline_resolves_transformer_component_quant_config():
     from vllm_omni.diffusion.models.minimax_h3.pipeline_minimax_h3 import (
         _resolve_component_quant_config,

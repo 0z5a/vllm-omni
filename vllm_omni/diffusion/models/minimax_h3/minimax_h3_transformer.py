@@ -11,6 +11,7 @@ from __future__ import annotations
 import math
 from collections.abc import Iterable, Mapping
 from dataclasses import dataclass
+from functools import partial
 from typing import TYPE_CHECKING, Any
 
 import torch
@@ -350,6 +351,18 @@ class MiniMaxH3Attention(nn.Module):
             prefix=f"{prefix}.qkv_proj",
             return_bias=True,
         )
+        if quant_config is None:
+            # The checkpoint interleaves Q/K/V by query group, while vLLM's
+            # fused QKV linear consumes contiguous Q, then K, then V rows.  The
+            # regular loader performs this conversion before weight_loader().
+            # DLO mmap applies the same adapter while packing one bounded host
+            # staging block; the raw file-backed master remains node-shared.
+            self.qkv_proj.weight.mmap_weight_transform = partial(
+                _reorder_grouped_qkv_to_qkv,
+                num_query_groups=arch.num_attention_heads,
+                heads_per_group=1,
+                head_dim=arch.attention_head_dim,
+            )
         self.num_heads = self.qkv_proj.num_heads
         self.num_kv_heads = self.qkv_proj.num_kv_heads
         self.rot_dim = 6 * arch.rope_inv_freq_len

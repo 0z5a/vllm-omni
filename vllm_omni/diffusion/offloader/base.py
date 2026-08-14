@@ -32,6 +32,8 @@ class OffloadConfig:
     dlo_use_allgather: bool = True
     dlo_resident_layers: int = 0  # leading DiT layers kept on device
     model_path: str | None = None  # checkpoint path for mmap weight loading
+    # Appended to preserve the positional order of the pre-existing fields.
+    tensor_parallel_size: int = 1
 
     @classmethod
     def from_od_config(cls, od_config: OmniDiffusionConfig) -> "OffloadConfig":
@@ -58,6 +60,7 @@ class OffloadConfig:
 
         parallel_config = getattr(od_config, "parallel_config", None)
         use_hsdp = getattr(parallel_config, "use_hsdp", False) if parallel_config else False
+        tensor_parallel_size = int(getattr(parallel_config, "tensor_parallel_size", 1)) if parallel_config else 1
 
         # Derive dp_size from parallel_config — not user-configurable.
         # The offload adapts to whatever DP/SP is already configured.
@@ -116,7 +119,8 @@ class OffloadConfig:
             dp_size = 1
             logger.info(
                 "Distributed layerwise offload: dlo_use_allgather=False, "
-                "streaming standard-loader rank-local weights (no DP shard or AllGather)"
+                "streaming complete rank-local blocks (no DLO shard or AllGather); "
+                "the backend will select mmap or standard-loader host storage"
             )
 
         # HSDP already shards parameters into DTensors.  Running distributed
@@ -134,6 +138,7 @@ class OffloadConfig:
             strategy=strategy,
             pin_cpu_memory=pin_cpu_memory,
             use_hsdp=use_hsdp,
+            tensor_parallel_size=tensor_parallel_size,
             dp_size=dp_size,
             dlo_use_allgather=dlo_use_allgather,
             dlo_resident_layers=dlo_resident_layers,
