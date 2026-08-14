@@ -53,6 +53,10 @@ block's shard is copied to a device buffer and reconstructed with
 `all_gather_into_tensor` on a communication stream while the current block is
 executing.
 
+Multi-rank AllGather behavior is unchanged. When the effective DLO group size
+is one, the backend now uses rank-local mmap staging; this closes a previous
+loader/backend mismatch that could leave parameters on the `meta` device.
+
 ```text
 Compute:    [Block N]             [Block N+1]          [Block N+2]
 H2D:                      [shard N+1]           [shard N+2]

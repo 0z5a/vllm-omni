@@ -88,6 +88,11 @@ def supports_mmap_loading(pipeline: nn.Module) -> bool:
     return declared_support is True and bool(getattr(pipeline, "weights_sources", ()))
 
 
+def has_online_quantization(model: nn.Module) -> bool:
+    """Whether any module defers online-quantized weights on ``meta``."""
+    return any(getattr(getattr(module, "quant_method", None), "uses_meta_device", False) for module in model.modules())
+
+
 def should_select_dlo_mmap(
     *,
     mmap_supported: bool,

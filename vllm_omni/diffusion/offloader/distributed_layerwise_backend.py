@@ -36,6 +36,7 @@ from .module_collector import ModuleDiscovery
 from .offload_plan import (
     OffloadPlan,
     get_offload_plan,
+    has_online_quantization,
     should_select_dlo_mmap,
     supports_mmap_loading,
 )
@@ -1229,6 +1230,14 @@ class DistributedLayerwiseOffloadBackend(OffloadBackend):
                     dit_param_names.add(f"{dit_name}.{pname}")
             truly_missing = [n for n in remaining_meta if n in dit_param_names]
             if truly_missing:
+                if getattr(pipeline, "_supports_mmap_loading", None) is True:
+                    raise RuntimeError(
+                        "Explicit mmap loading left "
+                        f"{len(truly_missing)} DiT tensors on the meta device "
+                        f"(first 5: {truly_missing[:5]}). Check that every "
+                        "runtime tensor has a matching weights_sources prefix "
+                        "and checkpoint key."
+                    )
                 logger.warning(
                     "Mmap loading: %d params still on meta device after "
                     "loading (first 5: %s). These may be loaded later by "
@@ -1672,9 +1681,7 @@ class DistributedLayerwiseOffloadBackend(OffloadBackend):
         # decision stays aligned with whether load_weights() was skipped.
         # When selection is False, the loader has already loaded weights via
         # regular load_weights() + _process_weights_after_loading().
-        _has_online_quant = any(
-            getattr(getattr(module, "quant_method", None), "uses_meta_device", False) for module in pipeline.modules()
-        )
+        _has_online_quant = has_online_quantization(pipeline)
         if self.config.dlo_use_allgather and _has_online_quant:
             raise ValueError(
                 "Online quantization is incompatible with DLO+AllGather: "

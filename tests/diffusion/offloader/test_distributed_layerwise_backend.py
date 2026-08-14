@@ -33,6 +33,7 @@ from vllm_omni.diffusion.offloader.module_residency import PinnedModuleStager
 from vllm_omni.diffusion.offloader.offload_plan import (
     OffloadPlan,
     get_offload_plan,
+    has_online_quantization,
     should_select_dlo_mmap,
     supports_mmap_loading,
 )
@@ -909,6 +910,13 @@ class TestOffloadPlan:
 
         assert not supports_mmap_loading(Pipeline())
 
+    def test_online_quantization_detection(self):
+        model = nn.Sequential(nn.Linear(1, 1))
+        assert not has_online_quantization(model)
+
+        model[0].quant_method = SimpleNamespace(uses_meta_device=True)
+        assert has_online_quantization(model)
+
     @pytest.mark.parametrize(
         ("kwargs", "expected"),
         [
@@ -1014,6 +1022,55 @@ class TestMmapValidation:
                 str(checkpoint_file),
             )
         }
+
+    def test_explicit_mmap_opt_in_rejects_missing_model_tensors(self, tmp_path, patched_offload_runtime, monkeypatch):
+        monkeypatch.setattr(
+            "vllm.distributed.parallel_state.get_tensor_model_parallel_world_size",
+            lambda: 1,
+        )
+
+        source_root = tmp_path / "partition"
+        checkpoint_dir = source_root / "transformer"
+        checkpoint_dir.mkdir(parents=True)
+        save_file(
+            {"blocks.0.weight": torch.ones((2, 2), dtype=torch.float32)},
+            str(checkpoint_dir / "model.safetensors"),
+        )
+
+        class Transformer(nn.Module):
+            _layerwise_offload_blocks_attrs = ["blocks"]
+
+            def __init__(self):
+                super().__init__()
+                self.blocks = nn.ModuleList([nn.Linear(2, 2, bias=False), nn.Linear(2, 2, bias=False)])
+
+        class Pipeline(nn.Module):
+            _supports_mmap_loading = True
+
+            def __init__(self):
+                super().__init__()
+                self.transformer = Transformer()
+                self.weights_sources = [
+                    SimpleNamespace(
+                        model_or_path=str(source_root),
+                        subfolder="transformer",
+                        revision=None,
+                        prefix="transformer.",
+                    )
+                ]
+
+        pipeline = Pipeline()
+        backend = DistributedLayerwiseOffloadBackend(
+            OffloadConfig(
+                strategy=OffloadStrategy.DISTRIBUTED_LAYER_WISE,
+                pin_cpu_memory=False,
+            ),
+            torch.device("cpu"),
+        )
+        modules = SimpleNamespace(dits=[pipeline.transformer], dit_names=["transformer"])
+
+        with pytest.raises(RuntimeError, match="Explicit mmap loading left 1"):
+            backend._load_weights_via_mmap(pipeline, modules)
 
     def test_tp_rejected_when_tp_world_size_gt_1(self, tmp_path, patched_offload_runtime, monkeypatch):
         """DLO+AllGather should reject when TP world size > 1."""

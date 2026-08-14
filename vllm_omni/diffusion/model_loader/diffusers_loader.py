@@ -458,11 +458,11 @@ class DiffusersPipelineLoader:
         """Whether any layer uses an online-quant method that defers weight
         materialization onto the ``meta`` device (upstream vLLM
         ``uses_meta_device=True``, e.g. online FP8)."""
-        for module in model.modules():
-            quant_method = getattr(module, "quant_method", None)
-            if getattr(quant_method, "uses_meta_device", False):
-                return True
-        return False
+        from vllm_omni.diffusion.offloader.offload_plan import (
+            has_online_quantization,
+        )
+
+        return has_online_quantization(model)
 
     def _apply_skip_softmax_calibration(self, model: nn.Module) -> None:
         from vllm_omni.diffusion.attention.backends.trtllm_calibration import (
