@@ -532,9 +532,11 @@ class MiniMaxH3Pipeline(
         encoder_block_attrs={"text_encoder": ("vision.blocks", "text_model.layers")},
         on_demand_component_paths=frozenset({"text_encoder", "video_vae", "audio_vae"}),
     )
-    # TP1 DLO mmap applies the grouped-QKV adapter while packing each block.
-    # The fused MLP checkpoint is already gate-then-up, matching its TP1
-    # runtime layout. TP>1 and quantized layouts stay on the regular loader.
+    # Explicit mmap opt-in: weights_sources below provide exact pipeline
+    # prefixes, and TP1 DLO mmap applies the grouped-QKV adapter while packing
+    # each block. The fused MLP checkpoint is already gate-then-up, matching
+    # its TP1 runtime layout. TP>1 and quantized layouts stay on the regular
+    # loader. See the DLO design doc for the model opt-in contract.
     _supports_mmap_loading: ClassVar[bool] = True
     _PROFILER_TARGETS: ClassVar[list[str]] = [
         "_prepare_reference_videos",

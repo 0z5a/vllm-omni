@@ -153,6 +153,29 @@ must preserve dtype and element count so it can be applied while packing one
 staging block. MiniMax-H3 uses this mechanism for grouped QKV. Online
 quantization and TP/HSDP no-AllGather execution use the regular loader path.
 
+### Adding mmap support to another model
+
+A new pipeline should opt in only after its ordinary loader contract can be
+represented without materializing a private full-model copy:
+
+1. Populate `weights_sources` with safetensors component sources and prefixes
+   that place every DiT checkpoint key in the pipeline parameter namespace.
+2. If prefixed checkpoint keys already equal runtime parameter names, declare
+   `_supports_mmap_loading = True`. If names differ, provide
+   `_remap_ckpt_key` to map checkpoint names to runtime names (or return
+   `None` for intentionally ignored keys).
+3. If a parameter needs a TP1 layout conversion, attach a callable
+   `mmap_weight_transform` to that parameter during model construction. The
+   transform must preserve dtype and element count because it runs while one
+   bounded block is packed.
+4. Verify that mmap and the regular loader produce the same runtime tensors,
+   that every expected DiT tensor maps successfully, and that TP, HSDP, and
+   online-quantized configurations retain their standard-loader behavior.
+
+Setting `_supports_mmap_loading = True` alone is not sufficient: explicit
+opt-ins fail during initialization if any expected DiT tensor remains on the
+`meta` device after checkpoint mapping.
+
 ## Validation coverage
 
 Current source-level validation includes:

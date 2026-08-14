@@ -32,7 +32,9 @@ class OffloadConfig:
     dlo_use_allgather: bool = True
     dlo_resident_layers: int = 0  # leading DiT layers kept on device
     model_path: str | None = None  # checkpoint path for mmap weight loading
-    # Appended to preserve the positional order of the pre-existing fields.
+    # Rank-local mmap bypasses TP-aware loader callbacks, so the backend needs
+    # the configured TP size when selecting mmap versus standard-loader host
+    # storage. Appended to preserve the positional order of existing fields.
     tensor_parallel_size: int = 1
 
     @classmethod
