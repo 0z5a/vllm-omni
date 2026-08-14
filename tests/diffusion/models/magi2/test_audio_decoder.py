@@ -11,6 +11,8 @@ from vllm_omni.diffusion.models.magi2.audio_decoder import (
     convert_stable_audio_decoder_state_dict,
 )
 
+pytestmark = [pytest.mark.diffusion, pytest.mark.cpu, pytest.mark.core_model]
+
 
 @pytest.mark.parametrize(
     ("source", "target"),
