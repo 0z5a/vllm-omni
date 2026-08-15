@@ -39,7 +39,6 @@ class HostWeightPlan:
 
     backing_kind: str
     bindings: dict[str, TensorBinding]
-    runtime_layout_key: str
 
 
 @dataclass(frozen=True)
@@ -319,7 +318,6 @@ def build_checkpoint_mmap_plan(
         HostWeightPlan(
             backing_kind="checkpoint_mmap",
             bindings=bindings,
-            runtime_layout_key="checkpoint-mmap:tp=1:hsdp=0:online-quant=0",
         )
     )
 

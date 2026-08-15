@@ -279,7 +279,6 @@ def test_dlo_transfers_loader_plan_and_skips_ordinary_weight_loading(monkeypatch
     plan = HostWeightPlan(
         backing_kind="checkpoint_mmap",
         bindings={},
-        runtime_layout_key="test",
     )
     loaded_ordinary_weights = False
 

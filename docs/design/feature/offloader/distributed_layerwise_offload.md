@@ -192,6 +192,35 @@ Current source-level validation includes:
 - sharding, double-buffer, AllGather-size, and heterogeneous-block regression
   tests.
 
+### Host-memory measurement
+
+A two-worker MiniMax-H3 FL2VA measurement on one L20X node compared the
+ordinary-loader fallback with direct mmap. Both runs used
+DP=2, TP=1, no DLO AllGather, BF16 weights, two denoising steps, and a
+256x256 four-second request. The ordinary-loader workers were sampled after
+initialization. The mmap workers were sampled after one completed request, so
+the checkpoint working set had been faulted into the page cache; this is the
+more conservative point for mmap.
+
+The values below come from `/proc/<worker>/smaps_rollup` and include the whole
+worker, not only the DiT. The stable rank-to-rank difference comes from other
+pipeline components, so each worker should be compared with the same worker in
+the other storage mode.
+
+| Worker | Ordinary RSS | mmap RSS | Ordinary PSS | mmap PSS | PSS reduction |
+|---|---:|---:|---:|---:|---:|
+| DP worker 0 | 168.27 GiB | 132.76 GiB | 167.84 GiB | 101.43 GiB | 66.40 GiB |
+| DP worker 1 | 116.19 GiB | 79.97 GiB | 115.73 GiB | 48.64 GiB | 67.09 GiB |
+| **Two-worker total** | — | — | **283.56 GiB** | **150.08 GiB** | **133.48 GiB (47.1%)** |
+
+The direct-mmap workers each reported 62.45 GiB `Shared_Clean` but only
+31.20 GiB `Pss_File`, which is the proportional charge expected when the same
+resident checkpoint pages are mapped by two workers. `Private_Dirty` also fell
+from 167.53 to 70.24 GiB for worker 0 and from 115.40 to 17.44 GiB for worker
+1, a reduction of about 97–98 GiB per worker. RSS understates this benefit
+because it counts a shared physical page in every process that maps it; summed
+PSS is the appropriate node-memory comparison.
+
 The highest-value missing coverage is end-to-end numerical comparison against
 ordinary layerwise offload for DP+SP, TP+no-AllGather, and HSDP+SP+no-AllGather
 on the target CUDA/NCCL or CANN/HCCL hardware.

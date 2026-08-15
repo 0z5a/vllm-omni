@@ -719,7 +719,6 @@ class TestMmapWeightLoading:
                 )
                 for name in weights
             },
-            runtime_layout_key="test",
         )
 
         backend._load_weights_via_mmap(pipeline, modules, plan)
@@ -1446,7 +1445,6 @@ class TestConfigValidation:
         plan = HostWeightPlan(
             backing_kind="checkpoint_mmap",
             bindings={},
-            runtime_layout_key="test",
         )
         monkeypatch.setattr(
             offloader_module.current_omni_platform,
