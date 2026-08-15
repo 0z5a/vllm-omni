@@ -9,8 +9,8 @@ from pathlib import Path
 
 import pytest
 
-from vllm_omni.config.environment_variables import (
-    ENVIRONMENT_VARIABLES,
+from vllm_omni.config.environment_variable_inventory import (
+    ENVIRONMENT_VARIABLE_INVENTORY,
     EnvironmentVariableCategory,
     ModelEnvironmentVariableDisposition,
 )
@@ -161,7 +161,7 @@ def _environment_accesses(path: Path) -> set[str]:
 
 def test_inventory_matches_reviewed_snapshot_counts():
     """Make an inventory expansion an explicit review decision."""
-    category_counts = Counter(item.category for item in ENVIRONMENT_VARIABLES.values())
+    category_counts = Counter(item.category for item in ENVIRONMENT_VARIABLE_INVENTORY.values())
     assert category_counts == {
         EnvironmentVariableCategory.PUBLIC_OMNI: 22,
         EnvironmentVariableCategory.INHERITED_VLLM: 20,
@@ -173,7 +173,7 @@ def test_inventory_matches_reviewed_snapshot_counts():
 
     disposition_counts = Counter(
         item.model_disposition
-        for item in ENVIRONMENT_VARIABLES.values()
+        for item in ENVIRONMENT_VARIABLE_INVENTORY.values()
         if item.category is EnvironmentVariableCategory.MODEL_SPECIFIC
     )
     assert {disposition: disposition_counts[disposition] for disposition in ModelEnvironmentVariableDisposition} == {
@@ -185,12 +185,36 @@ def test_inventory_matches_reviewed_snapshot_counts():
     }
 
 
+def test_new_public_omni_names_use_project_prefix():
+    """Grandfather legacy names without allowing more prefix exceptions."""
+    legacy_public_names = {
+        "DIFFUSION_ATTENTION_BACKEND",
+        "DIFFUSION_CACHE_ADAPTER",
+        "DIFFUSION_CACHE_BACKEND",
+        "OMNI_DIFFUSION_PROMPT_EMBED_CACHE",
+        "OMNI_DIFFUSION_PROMPT_EMBED_CACHE_SIZE",
+        "OMNI_DIFFUSION_SESSION_STATE_MANAGER",
+        "OMNI_DIFFUSION_SESSION_STATE_MANAGER_MAX_SESSIONS",
+        "SPEAKER_MAX_UPLOADED",
+        "SPEAKER_SAMPLES_DIR",
+        "VLLM_VIDEO_ASYNC_CHUNK",
+        "VLLM_VIDEO_AUDIO_DELTA_MODE",
+    }
+    public_names = {
+        name
+        for name, item in ENVIRONMENT_VARIABLE_INVENTORY.items()
+        if item.category is EnvironmentVariableCategory.PUBLIC_OMNI
+    }
+
+    assert {name for name in public_names if not name.startswith("VLLM_OMNI_")} == legacy_public_names
+
+
 def test_statically_resolvable_environment_accesses_are_classified():
     discovered: set[str] = set()
     for path in _PACKAGE_ROOT.rglob("*.py"):
         discovered.update(_environment_accesses(path))
 
-    assert discovered - ENVIRONMENT_VARIABLES.keys() == set()
+    assert discovered - ENVIRONMENT_VARIABLE_INVENTORY.keys() == set()
 
 
 def test_environment_scanner_covers_indirection_aliases_and_membership():
@@ -218,19 +242,21 @@ def test_generated_server_storage_environment_names_are_classified():
         for field_name in FileBackend.model_fields
         if field_name != "type"
     }
-    assert generated_names <= ENVIRONMENT_VARIABLES.keys()
+    assert generated_names <= ENVIRONMENT_VARIABLE_INVENTORY.keys()
 
 
 def test_public_omni_variables_are_in_the_reference_page():
     reference = _REFERENCE_PAGE.read_text(encoding="utf-8")
     missing = {
-        name for name, item in ENVIRONMENT_VARIABLES.items() if item.is_public_omni and f"`{name}`" not in reference
+        name
+        for name, item in ENVIRONMENT_VARIABLE_INVENTORY.items()
+        if item.is_public_omni and f"`{name}`" not in reference
     }
     assert missing == set()
 
 
 def test_secret_values_are_marked_for_redaction():
-    assert {name for name, item in ENVIRONMENT_VARIABLES.items() if item.redact_value} == {
+    assert {name for name, item in ENVIRONMENT_VARIABLE_INVENTORY.items() if item.redact_value} == {
         "HF_TOKEN",
         "HUGGINGFACE_HUB_TOKEN",
         "OPENAI_API_KEY",
@@ -260,7 +286,7 @@ def test_collect_env_survives_inventory_import_error(monkeypatch, error_type):
     real_import = builtins.__import__
 
     def fail_inventory_import(name, *args, **kwargs):
-        if name == "vllm_omni.config.environment_variables":
+        if name == "vllm_omni.config.environment_variable_inventory":
             raise error_type("broken vllm-omni installation")
         return real_import(name, *args, **kwargs)
 

@@ -495,14 +495,14 @@ def is_xnnpack_available():
 
 def get_env_vars():
     try:
-        from vllm_omni.config.environment_variables import ENVIRONMENT_VARIABLES
+        from vllm_omni.config.environment_variable_inventory import ENVIRONMENT_VARIABLE_INVENTORY
     except Exception:
         # Keep environment collection usable when an incomplete/broken Omni
         # installation is the reason the user is running this diagnostic.
         # Importing an Omni submodule executes package initialization, which
         # may fail with RuntimeError, AssertionError, or OSError as well as
         # ImportError when vLLM or the accelerator stack is broken.
-        ENVIRONMENT_VARIABLES = {}
+        ENVIRONMENT_VARIABLE_INVENTORY = {}
 
     env_vars = ""
     secret_terms = ("secret", "token", "api", "access", "password")
@@ -518,7 +518,7 @@ def get_env_vars():
         "NVIDIA",
     )
     for k, v in sorted(os.environ.items()):
-        omni_classification = ENVIRONMENT_VARIABLES.get(k)
+        omni_classification = ENVIRONMENT_VARIABLE_INVENTORY.get(k)
         if (omni_classification is not None and omni_classification.redact_value) or any(
             term in k.lower() for term in secret_terms
         ):

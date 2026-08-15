@@ -15,6 +15,21 @@ vLLM-Omni release when behavior differs.
     supported: model-specific, benchmark, platform, and internal variables have
     separate ownership and lifecycle rules.
 
+## Naming and implementation boundary
+
+New public variables owned by vLLM-Omni must use the `VLLM_OMNI_` prefix.
+Existing public names with older prefixes remain supported for compatibility,
+but they do not establish naming precedent for new settings. Inherited vLLM
+and third-party names retain the prefix chosen by their owning project.
+
+The source [environment-variable inventory](gh-file:vllm_omni/config/environment_variable_inventory.py)
+records ownership, migration disposition, and redaction metadata. Unlike
+`vllm.envs`, it is not an executable value resolver: existing consumers still
+own parsing, defaults, precedence, and evaluation time. The public tables below
+describe those live consumer contracts. Stable model or stage behavior should
+move to typed configuration, and request-varying behavior should move to a
+request schema instead of adding another environment variable.
+
 ## Precedence and evaluation time
 
 There is no repository-wide rule that makes environment variables override (or
@@ -167,7 +182,7 @@ not listed as public usage options here because doing so would turn implementati
 escape hatches into an accidental compatibility contract.
 
 Every audited model-specific name has a migration disposition in the
-[environment-variable inventory](gh-file:vllm_omni/config/environment_variables.py):
+[environment-variable inventory](gh-file:vllm_omni/config/environment_variable_inventory.py):
 
 | Disposition | Count | Required outcome |
 |---|---:|---|

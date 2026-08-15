@@ -51,6 +51,8 @@ class EnvironmentVariableClassification:
         return self.category is EnvironmentVariableCategory.PUBLIC_OMNI
 
 
+# New entries must use the VLLM_OMNI_ prefix. The regression test explicitly
+# grandfathers the older public names below.
 _PUBLIC_OMNI = (
     "DIFFUSION_ATTENTION_BACKEND",
     "DIFFUSION_CACHE_ADAPTER",
@@ -279,5 +281,7 @@ def _build_inventory() -> Mapping[str, EnvironmentVariableClassification]:
     return MappingProxyType(dict(sorted(inventory.items())))
 
 
-# All reviewed environment-variable names, indexed by exact name.
-ENVIRONMENT_VARIABLES: Mapping[str, EnvironmentVariableClassification] = _build_inventory()
+# All reviewed environment-variable names, indexed by exact name. This is
+# classification metadata, not the executable value registry used by
+# ``vllm.envs``.
+ENVIRONMENT_VARIABLE_INVENTORY: Mapping[str, EnvironmentVariableClassification] = _build_inventory()
