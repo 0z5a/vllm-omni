@@ -404,7 +404,7 @@ class TestDistributedLayerwiseOffloadHook:
         source_storage = next_block.weight.untyped_storage().data_ptr()
 
         def transform(tensor):
-            return tensor.flip(0)
+            return tensor.t()
 
         hook = DistributedLayerwiseOffloadHook(
             next_block=next_block,
@@ -431,8 +431,9 @@ class TestDistributedLayerwiseOffloadHook:
 
         assert torch.equal(
             next_block.weight,
-            torch.tensor([[2.0, 3.0], [0.0, 1.0]]),
+            torch.tensor([[0.0, 2.0], [1.0, 3.0]]),
         )
+        assert next_block.weight.stride() == (1, 2)
         assert torch.equal(source, torch.arange(4, dtype=torch.float32).view(2, 2))
 
     def test_rank_local_mmap_staging_is_bounded_by_largest_block(self, patched_offload_runtime):

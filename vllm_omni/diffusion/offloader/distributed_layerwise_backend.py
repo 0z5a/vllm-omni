@@ -257,6 +257,19 @@ class DistributedLayerwiseOffloadHook(ModelHook):
             dtype = source.dtype
             offset = offsets.get(dtype, 0)
             transform = (tensor_transforms or {}).get(id(target))
+            runtime_source = transform(source) if callable(transform) else source
+            if runtime_source.dtype != dtype or runtime_source.shape != source.shape:
+                raise ValueError(
+                    "mmap weight transform changed tensor metadata for "
+                    f"{name!r}: expected dtype={dtype}, shape={tuple(source.shape)}, "
+                    f"got dtype={runtime_source.dtype}, shape={tuple(runtime_source.shape)}"
+                )
+            stride = runtime_source.stride()
+            storage_numel = (
+                0
+                if runtime_source.numel() == 0
+                else 1 + sum((size - 1) * axis_stride for size, axis_stride in zip(runtime_source.shape, stride))
+            )
 
             cpu_sources.setdefault(dtype, []).append(
                 {
@@ -269,11 +282,12 @@ class DistributedLayerwiseOffloadHook(ModelHook):
                 {
                     "name": name,
                     "offset": offset,
-                    "numel": source.numel(),
-                    "shape": source.shape,
+                    "numel": storage_numel,
+                    "shape": runtime_source.shape,
+                    "stride": stride,
                 }
             )
-            offsets[dtype] = offset + source.numel()
+            offsets[dtype] = offset + storage_numel
 
             # The detached source above keeps the mmap storage alive while the
             # module parameter/buffer is rebound to the rotating device slot.
@@ -446,15 +460,24 @@ class DistributedLayerwiseOffloadHook(ModelHook):
                 transform = source_info["transform"]
                 if callable(transform):
                     source = transform(source)
-                if source.dtype != dtype or source.numel() != meta["numel"]:
+                if source.dtype != dtype or source.shape != meta["shape"] or source.stride() != meta["stride"]:
                     raise ValueError(
                         "mmap weight transform changed tensor layout for "
                         f"{source_info['name']!r}: expected dtype={dtype}, "
-                        f"numel={meta['numel']}, got dtype={source.dtype}, "
-                        f"numel={source.numel()}"
+                        f"shape={tuple(meta['shape'])}, stride={meta['stride']}; "
+                        f"got dtype={source.dtype}, shape={tuple(source.shape)}, "
+                        f"stride={source.stride()}"
                     )
                 start = meta["offset"]
-                destination[start : start + meta["numel"]].copy_(source.reshape(-1))
+                physical_storage = destination[start : start + meta["numel"]]
+                if source.is_contiguous():
+                    physical_storage.copy_(source.flatten())
+                else:
+                    torch.as_strided(
+                        physical_storage,
+                        size=source.shape,
+                        stride=source.stride(),
+                    ).copy_(source)
             staged[dtype] = destination
         return staged
 
