@@ -6,9 +6,12 @@ For options within a vLLM Engine, please refer to the [vLLM 0.26 configuration g
 
 Currently, the main options are maintained by stage configs for each model.
 
+For process-level settings shared by the CLI, deploy YAML, workers, and model
+integrations, see [Environment Variables](./environment_variables.md).
+
 For a specific example, see the [Qwen2.5-Omni deploy config](gh-file:vllm_omni/deploy/qwen2_5_omni.yaml). The matching frozen pipeline topology lives at [vllm_omni/model_executor/models/qwen2_5_omni/pipeline.py](gh-file:vllm_omni/model_executor/models/qwen2_5_omni/pipeline.py).
 
-For introduction, please check [Introduction for stage config](./stage_configs.md)
+For introduction, please check [Introduction for stage config](./stage_configs.md).
 
 ## Memory Configuration
 

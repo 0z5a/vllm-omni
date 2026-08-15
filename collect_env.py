@@ -494,6 +494,8 @@ def is_xnnpack_available():
 
 
 def get_env_vars():
+    from vllm_omni.config.environment_variables import ENVIRONMENT_VARIABLES
+
     env_vars = ""
     secret_terms = ("secret", "token", "api", "access", "password")
     report_prefix = (
@@ -507,12 +509,17 @@ def get_env_vars():
         "MKL_",
         "NVIDIA",
     )
-    for k, v in os.environ.items():
-        if any(term in k.lower() for term in secret_terms):
+    for k, v in sorted(os.environ.items()):
+        omni_classification = ENVIRONMENT_VARIABLES.get(k)
+        if (omni_classification is not None and omni_classification.redact_value) or any(
+            term in k.lower() for term in secret_terms
+        ):
             continue
-        if k in environment_variables:
-            env_vars = env_vars + "{}={}".format(k, v) + "\n"
-        if k.startswith(report_prefix):
+        if (
+            k in environment_variables
+            or (omni_classification is not None and omni_classification.is_public_omni)
+            or k.startswith(report_prefix)
+        ):
             env_vars = env_vars + "{}={}".format(k, v) + "\n"
 
     return env_vars
