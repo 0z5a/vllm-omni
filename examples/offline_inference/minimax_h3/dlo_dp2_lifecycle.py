@@ -11,6 +11,13 @@ Examples:
     python examples/offline_inference/minimax_h3/dlo_dp2_lifecycle.py \
         --model /path/to/MiniMax-H3/FL2VA --mode dlo-dp2
 
+    # Rank-local mmap storage, with no DLO collective or DP wave scheduling.
+    VLLM_WORKER_MULTIPROC_METHOD=spawn \
+    VLLM_OMNI_VIDEO_SYNC_TIMEOUT=14400 \
+    CUDA_VISIBLE_DEVICES=0,1 \
+    python examples/offline_inference/minimax_h3/dlo_dp2_lifecycle.py \
+        --model /path/to/MiniMax-H3/FL2VA --mode dlo-dp2-no-allgather
+
     VLLM_WORKER_MULTIPROC_METHOD=spawn \
     VLLM_OMNI_VIDEO_SYNC_TIMEOUT=14400 \
     CUDA_VISIBLE_DEVICES=0,1 \
@@ -45,9 +52,9 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--model", required=True, help="Path to MiniMax-H3/FL2VA")
     parser.add_argument(
         "--mode",
-        choices=("dlo-dp2", "request"),
+        choices=("dlo-dp2", "dlo-dp2-no-allgather", "request"),
         required=True,
-        help="DLO AllGather DP2 or ordinary non-DLO TP2 request mode",
+        help="DLO DP2 (with or without AllGather) or ordinary non-DLO TP2 request mode",
     )
     parser.add_argument("--steps", type=int, default=2)
     parser.add_argument("--duration", type=float, default=5.0)
@@ -74,14 +81,14 @@ def engine_kwargs(args: argparse.Namespace) -> dict[str, Any]:
         "stage_init_timeout": args.init_timeout,
         "init_timeout": args.init_timeout,
     }
-    if args.mode == "dlo-dp2":
+    if args.mode in {"dlo-dp2", "dlo-dp2-no-allgather"}:
         common.update(
             tensor_parallel_size=1,
             data_parallel_size=2,
             text_encoder_tp_size=1,
             vae_patch_parallel_size=1,
             enable_distributed_layerwise_offload=True,
-            dlo_use_allgather=True,
+            dlo_use_allgather=args.mode == "dlo-dp2",
             dlo_resident_layers=0,
         )
     else:

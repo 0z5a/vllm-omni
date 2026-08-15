@@ -16,6 +16,10 @@ from vllm.config.load import LoadConfig
 from vllm_omni.diffusion.config import get_current_diffusion_config, get_current_diffusion_config_or_none
 from vllm_omni.diffusion.data import OmniDiffusionConfig
 from vllm_omni.diffusion.model_loader.diffusers_loader import DiffusersPipelineLoader
+from vllm_omni.diffusion.model_loader.host_weight_plan import (
+    HostWeightPlan,
+    HostWeightPlanResult,
+)
 from vllm_omni.diffusion.models.helios import HeliosPipeline
 from vllm_omni.diffusion.registry import initialize_model
 
@@ -256,6 +260,77 @@ def test_load_model_custom_pipeline_sets_current_diffusion_config(monkeypatch):
     assert model.captured_config is od_config
     assert model.seen_config_during_init is od_config
     assert get_current_diffusion_config_or_none() is None
+
+
+def test_dlo_transfers_loader_plan_and_skips_ordinary_weight_loading(monkeypatch):
+    import vllm_omni.diffusion.model_loader.diffusers_loader as loader_mod
+
+    od_config = SimpleNamespace(
+        dtype=torch.float32,
+        parallel_config=SimpleNamespace(use_hsdp=False, tensor_parallel_size=1),
+        quantization_config=None,
+        enable_distributed_layerwise_offload=True,
+        dlo_use_allgather=False,
+        model="unused",
+    )
+    loader = DiffusersPipelineLoader(LoadConfig(), od_config)
+    model = nn.Module()
+    model.transformer = nn.Linear(2, 2, bias=False)
+    plan = HostWeightPlan(
+        backing_kind="checkpoint_mmap",
+        bindings={},
+        runtime_layout_key="test",
+    )
+    loaded_ordinary_weights = False
+
+    def load_weights(_model):
+        nonlocal loaded_ordinary_weights
+        loaded_ordinary_weights = True
+
+    loader._init_from_load_format = lambda *_args, **_kwargs: model  # type: ignore[method-assign]
+    loader.load_weights = load_weights  # type: ignore[method-assign]
+    loader._apply_skip_softmax_calibration = lambda _model: None  # type: ignore[method-assign]
+    monkeypatch.setattr(
+        loader_mod,
+        "build_checkpoint_mmap_plan",
+        lambda *_args, **_kwargs: HostWeightPlanResult(plan),
+    )
+
+    assert loader.load_model(load_device="cpu") is model
+    assert not loaded_ordinary_weights
+    assert loader.take_host_weight_plan() is plan
+    assert loader.take_host_weight_plan() is None
+
+
+def test_dlo_plan_fallback_runs_ordinary_loader(monkeypatch):
+    import vllm_omni.diffusion.model_loader.diffusers_loader as loader_mod
+
+    od_config = SimpleNamespace(
+        dtype=torch.float32,
+        parallel_config=SimpleNamespace(use_hsdp=False, tensor_parallel_size=1),
+        quantization_config=None,
+        enable_distributed_layerwise_offload=True,
+        dlo_use_allgather=False,
+        model="unused",
+    )
+    loader = DiffusersPipelineLoader(LoadConfig(), od_config)
+    model = nn.Module()
+    model.transformer = nn.Linear(2, 2, bias=False)
+    calls: list[str] = []
+
+    loader._init_from_load_format = lambda *_args, **_kwargs: model  # type: ignore[method-assign]
+    loader.load_weights = lambda _model: calls.append("load")  # type: ignore[method-assign]
+    loader._process_weights_after_loading = lambda *_args: calls.append("process")  # type: ignore[method-assign]
+    loader._apply_skip_softmax_calibration = lambda _model: None  # type: ignore[method-assign]
+    monkeypatch.setattr(
+        loader_mod,
+        "build_checkpoint_mmap_plan",
+        lambda *_args, **_kwargs: HostWeightPlanResult(None, "not direct-compatible"),
+    )
+
+    assert loader.load_model(load_device="cpu") is model
+    assert calls == ["load", "process"]
+    assert loader.take_host_weight_plan() is None
 
 
 def test_hsdp_processes_quantized_weights_before_sharding(mocker):

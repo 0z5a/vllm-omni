@@ -4,7 +4,7 @@ This document describes distributed layerwise offload (DLO) for diffusion
 models. DLO keeps only a small number of DiT blocks on the accelerator and
 streams the remaining blocks from host memory. The distributed backend can
 either shard those host-side weights across an existing parallel group or keep
-the standard loader's rank-local weights and avoid an additional collective.
+complete rank-local block sources and avoid an additional collective.
 
 For user-facing commands, see the
 [distributed layerwise offloading guide](../../../user_guide/diffusion/offloader/distributed_layerwise_offload.md)
@@ -14,10 +14,15 @@ and the [Cosmos3 recipe](https://github.com/vllm-project/vllm-omni/blob/main/rec
 
 DLO is implemented for multi-device diffusion execution. The default
 AllGather path is the primary path for DP and SP deployments. The
-`--dlo-no-use-allgather` path is a rank-local compatibility mode: it is useful
-for standard-loader sharding, workstation bring-up, and systems where an
-additional DLO collective is undesirable, but it does not reduce host weight
-storage across ranks.
+`--dlo-no-use-allgather` path streams complete blocks independently and adds no
+DLO weight collective.
+
+Host storage is selected separately from the transfer protocol. The loader can
+produce a direct-checkpoint mmap plan for a proven-compatible runtime layout;
+otherwise it uses the ordinary loader. Consequently, no-AllGather replicas on
+the same node can share immutable checkpoint pages when direct mmap is
+selected, while the ordinary-loader fallback still keeps a private runtime
+copy per process.
 
 The compatibility matrix below describes the current implementation. The
 unit-level guards are covered, but not every parallelism combination has a
@@ -41,6 +46,28 @@ TP is deliberately not used as DLO's AllGather group. HSDP has its own
 parameter-sharding lifecycle and is not allowed to be sharded a second time by
 DLO's AllGather path.
 
+### The loader owns host-weight planning
+
+Before it decides whether ordinary weight materialization can be skipped, the
+diffusion loader builds one `HostWeightPlan`. A direct-checkpoint mmap plan is
+accepted only when preflight proves all of the following:
+
+- every required DiT parameter and persistent buffer has exactly one source;
+- runtime names, checkpoint keys, shapes, and dtypes match;
+- the runtime topology is TP1 without HSDP or online quantization; and
+- every custom loader operation is represented by a loader-owned checkpoint
+  adapter.
+
+The exact plan object is handed to DLO. The backend does not rescan checkpoint
+files, repeat the capability decision, or reconstruct names from its block
+topology. If preflight fails, the loader materializes weights normally and DLO
+consumes those runtime tensors.
+
+This boundary keeps checkpoint semantics out of DLO and avoids model-pipeline
+flags such as `_supports_mmap_loading` or parameter attributes for mmap-only
+transforms. Model-specific direct-layout knowledge, when required, lives in a
+checkpoint adapter beside the ordinary loader.
+
 ### AllGather path
 
 With the default `dlo_use_allgather=True`, each rank stores approximately
@@ -61,6 +88,15 @@ Buffers:    [current slot]       [prefetch slot]       [current slot]
 The backend uses two shared device buffers, so accelerator weight residency is
 bounded by the largest streamed blocks rather than the complete model.
 
+When direct checkpoint mmap is selected, the checkpoint mappings are only the
+source used to prepare each rank's persistent shard. They can be closed after
+shard preparation. Across the AllGather group, those private shards total
+approximately one runtime model copy.
+
+An effective DLO group size of one performs no collective, even when
+`dlo_use_allgather=True`; it follows the rank-local transfer path described
+below.
+
 When DP is greater than one, the engine can process one request per DP rank in
 the same denoising wave. Because AllGather is a collective, all participating
 requests must take the same execution path at every denoising step.
@@ -68,9 +104,20 @@ requests must take the same execution path at every denoising step.
 ### Rank-local path without DLO AllGather
 
 With `--dlo-no-use-allgather`, DLO forces its internal offload shard size to
-one. The regular model loader remains responsible for preparing each rank's
-weights, including TP-local tensors or HSDP-managed parameters. DLO then
-streams those rank-local tensors block by block using H2D copies only.
+one and streams complete blocks using H2D copies only. The host backing may be
+either a loader-approved checkpoint mapping or ordinary runtime tensors.
+
+For direct mmap, each process retains immutable safetensors views and uses two
+bounded pinned host staging slots. Processes on the same node that map the same
+files share physical checkpoint pages through the OS page cache. This removes
+the persistent private full-model copy per pure-DP process, but each process
+still packs and transfers every complete block. Sharing is node-local; each
+node has its own page cache.
+
+When direct mmap preflight fails, the regular model loader remains responsible
+for preparing each rank's weights, including TP-local tensors or HSDP-managed
+parameters. In that fallback, each pure-DP process keeps a private full runtime
+copy.
 
 This mode means:
 
@@ -80,21 +127,18 @@ This mode means:
   not shard weights across SP ranks.
 - TP/HSDP/SP collectives, if configured, are not disabled by this flag; only
   DLO's additional weight AllGather is disabled.
-- Pure DP deployments keep a full host-side model copy per rank, subject to
-  shared OS page-cache behavior.
+- Pure DP deployments share one checkpoint-backed copy per node when direct
+  mmap is selected; the ordinary-loader fallback keeps one private runtime
+  copy per rank.
 - The scheduler does not require a synchronized DP request wave for DLO.
-
-This path is intentionally not implemented by reusing the AllGather mmap
-loader. It relies on the standard loader so model-specific TP/HSDP transforms
-remain intact.
 
 ## Parallelism compatibility
 
 | Parallelism | DLO + AllGather | DLO without AllGather |
 |---|---|---|
-| **DP** | Supported primary path. DLO shards host weights across the DP group and can run DP multi-concurrency. | Supported rank-local path. DP replicas remain independent; no DLO weight sharding or cross-DP DLO collective. |
+| **DP** | Supported primary path. DLO shards host weights across the DP group and can run DP multi-concurrency. | Supported rank-local path. Compatible TP1 replicas can share checkpoint pages on each node; fallback runtime tensors remain private. |
 | **SP** | Supported in the implementation. With DP=1, DLO uses the SP group for host-weight sharding; SP still shards sequence/activation work. | SP remains active, but DLO keeps standard-loader rank-local weights and adds no SP weight collective. |
-| **TP > 1** | Unsupported in the DLO mmap path. TP-aware loader callbacks are bypassed, so the backend rejects this configuration when it enters that path. | Standard loading is retained and TP-local tensors can be streamed. This is the intended compatibility path, but it still needs broader model and hardware validation. |
+| **TP > 1** | Direct checkpoint mmap falls back before mutation. The ordinary loader preserves TP-local layouts before DLO applies any DP/SP host sharding. | Direct checkpoint mmap falls back to ordinary TP-aware loading; the resulting TP-local tensors are streamed without a DLO collective. Broader model and hardware validation is still needed. |
 | **HSDP** | Rejected. HSDP has already sharded parameters, so DLO AllGather would double-shard them. | Accepted by configuration. HSDP owns parameter sharding and its own gathers; DLO only stages rank-local parameters. End-to-end coverage is limited. |
 
 ### Combined dimensions
@@ -122,11 +166,15 @@ AllGather DP multi-concurrency requires:
 The no-AllGather path does not impose these DLO-specific synchronized-wave
 requirements.
 
-The mmap loader is used only by the supported DLO+AllGather path when the
-model has a compatible checkpoint layout. Online quantization is incompatible
-with that sharded mmap path; use `--dlo-no-use-allgather` or disable online
-quantization. Models that do not meet the mmap requirements use the regular
-loader path.
+Direct checkpoint mmap can back either transfer path. It is currently limited
+to proven TP1, non-HSDP, non-online-quantized layouts. Other layouts use the
+ordinary loader. Online quantization remains incompatible with DLO AllGather;
+use `--dlo-no-use-allgather` or disable online quantization.
+
+A normalized runtime mmap cache, built through the ordinary loader, is the
+proposed general mechanism for sharing transformed TP or quantized layouts.
+That cache and its publication/lifecycle protocol are intentionally outside
+this phase; see [RFC #6195](https://github.com/vllm-project/vllm-omni/issues/6195).
 
 ## Validation coverage
 
@@ -134,7 +182,11 @@ Current source-level validation includes:
 
 - HSDP + DLO + AllGather rejection;
 - HSDP + DLO without AllGather acceptance at configuration level;
-- TP rejection in the DLO+AllGather mmap path;
+- loader preflight fallback for TP, HSDP, online quantization, unknown custom
+  loaders, missing keys, and shape/dtype mismatches;
+- exact loader-to-backend plan transfer and ordinary-loader fallback;
+- rank-local mmap source retention, bounded two-slot staging, and adapter
+  transforms without parameter-side flags;
 - resident-layer requests requiring no-AllGather;
 - DP request-wave validation for denoising-step compatibility;
 - sharding, double-buffer, AllGather-size, and heterogeneous-block regression
@@ -150,7 +202,8 @@ on the target CUDA/NCCL or CANN/HCCL hardware.
   scaling path.
 - Use **SP + DLO AllGather** for long-sequence workloads when DP concurrency is
   not the goal.
-- Use **no-AllGather** to bring up TP or workstation PCIe configurations, with
-  the expectation of higher host-memory use and lower validation confidence.
+- Use **no-AllGather** when independent replica execution is required. TP1
+  direct-mmap deployments can share checkpoint pages per node; other layouts
+  retain the ordinary loader's private host memory behavior.
 - Prefer **HSDP alone** for production HSDP deployments until the combined
   HSDP + DLO no-AllGather path has broader end-to-end coverage.
