@@ -494,7 +494,12 @@ def is_xnnpack_available():
 
 
 def get_env_vars():
-    from vllm_omni.config.environment_variables import ENVIRONMENT_VARIABLES
+    try:
+        from vllm_omni.config.environment_variables import ENVIRONMENT_VARIABLES
+    except ImportError:
+        # Keep environment collection usable when an incomplete/broken Omni
+        # installation is the reason the user is running this diagnostic.
+        ENVIRONMENT_VARIABLES = {}
 
     env_vars = ""
     secret_terms = ("secret", "token", "api", "access", "password")

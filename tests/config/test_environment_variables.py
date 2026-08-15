@@ -3,6 +3,7 @@
 """Drift checks for the reviewed environment-variable inventory."""
 
 import ast
+import builtins
 from collections import Counter
 from pathlib import Path
 
@@ -120,3 +121,19 @@ def test_collect_env_reports_only_safe_public_omni_values(monkeypatch):
     assert "hf-secret" not in report
     assert "openai-secret" not in report
     assert "VLLM_OMNI_REPLICA_ID" not in report
+
+
+def test_collect_env_survives_inventory_import_error(monkeypatch):
+    from collect_env import get_env_vars
+
+    real_import = builtins.__import__
+
+    def fail_inventory_import(name, *args, **kwargs):
+        if name == "vllm_omni.config.environment_variables":
+            raise ImportError("broken vllm-omni installation")
+        return real_import(name, *args, **kwargs)
+
+    monkeypatch.setattr(builtins, "__import__", fail_inventory_import)
+    monkeypatch.setenv("CUDA_VISIBLE_DEVICES", "0")
+
+    assert "CUDA_VISIBLE_DEVICES=0" in get_env_vars().splitlines()
