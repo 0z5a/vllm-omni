@@ -22,37 +22,139 @@ _PACKAGE_ROOT = _REPO_ROOT / "vllm_omni"
 _REFERENCE_PAGE = _REPO_ROOT / "docs" / "configuration" / "environment_variables.md"
 
 
-def _literal_environment_accesses(path: Path) -> set[str]:
-    """Return uppercase literal names directly accessed through ``os``."""
+def _module_string_constants(tree: ast.Module) -> dict[str, str]:
+    constants: dict[str, str] = {}
+    for statement in tree.body:
+        targets: list[ast.expr] = []
+        value: ast.expr | None = None
+        if isinstance(statement, ast.Assign):
+            targets = statement.targets
+            value = statement.value
+        elif isinstance(statement, ast.AnnAssign):
+            targets = [statement.target]
+            value = statement.value
+        if isinstance(value, ast.Constant) and isinstance(value.value, str):
+            for target in targets:
+                if isinstance(target, ast.Name):
+                    constants[target.id] = value.value
+    return constants
+
+
+def _os_import_aliases(tree: ast.Module) -> tuple[set[str], set[str], set[str]]:
+    os_names: set[str] = set()
+    getenv_names: set[str] = set()
+    environ_names: set[str] = set()
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Import):
+            for imported in node.names:
+                if imported.name == "os":
+                    os_names.add(imported.asname or "os")
+        elif isinstance(node, ast.ImportFrom) and node.module == "os":
+            for imported in node.names:
+                if imported.name == "getenv":
+                    getenv_names.add(imported.asname or imported.name)
+                elif imported.name == "environ":
+                    environ_names.add(imported.asname or imported.name)
+    return os_names, getenv_names, environ_names
+
+
+def _is_environ(node: ast.expr, os_names: set[str], environ_names: set[str]) -> bool:
+    return (
+        isinstance(node, ast.Attribute)
+        and isinstance(node.value, ast.Name)
+        and node.value.id in os_names
+        and node.attr == "environ"
+    ) or (isinstance(node, ast.Name) and node.id in environ_names)
+
+
+def _environment_key_expressions(
+    node: ast.AST,
+    os_names: set[str],
+    getenv_names: set[str],
+    environ_names: set[str],
+) -> list[ast.expr]:
+    """Return key expressions used by one direct environment access."""
+    if isinstance(node, ast.Call) and node.args:
+        func = node.func
+        if (
+            isinstance(func, ast.Attribute)
+            and isinstance(func.value, ast.Name)
+            and func.value.id in os_names
+            and func.attr == "getenv"
+        ) or (isinstance(func, ast.Name) and func.id in getenv_names):
+            return [node.args[0]]
+        if (
+            isinstance(func, ast.Attribute)
+            and _is_environ(func.value, os_names, environ_names)
+            and func.attr in {"get", "pop", "setdefault"}
+        ):
+            return [node.args[0]]
+    elif isinstance(node, ast.Subscript) and _is_environ(node.value, os_names, environ_names):
+        return [node.slice]
+    elif isinstance(node, ast.Compare):
+        expressions: list[ast.expr] = []
+        left_values = [node.left, *node.comparators[:-1]]
+        for left, operator, right in zip(left_values, node.ops, node.comparators):
+            if isinstance(operator, (ast.In, ast.NotIn)) and _is_environ(right, os_names, environ_names):
+                expressions.append(left)
+        return expressions
+    return []
+
+
+def _resolve_environment_name(expression: ast.expr, constants: dict[str, str]) -> str | None:
+    value: str | None = None
+    if isinstance(expression, ast.Constant) and isinstance(expression.value, str):
+        value = expression.value
+    elif isinstance(expression, ast.Name):
+        value = constants.get(expression.id)
+    return value if value is not None and value.isupper() else None
+
+
+def _environment_wrapper_parameters(
+    tree: ast.Module,
+    os_names: set[str],
+    getenv_names: set[str],
+    environ_names: set[str],
+) -> dict[str, set[tuple[str, int | None]]]:
+    """Find local helpers that forward one parameter as an environment key."""
+    wrappers: dict[str, set[tuple[str, int | None]]] = {}
+    for function in (node for node in tree.body if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef))):
+        positional = [*function.args.posonlyargs, *function.args.args]
+        parameter_indexes = {parameter.arg: index for index, parameter in enumerate(positional)}
+        parameter_indexes.update({parameter.arg: None for parameter in function.args.kwonlyargs})
+        forwarded: set[tuple[str, int | None]] = set()
+        for node in ast.walk(function):
+            for expression in _environment_key_expressions(node, os_names, getenv_names, environ_names):
+                if isinstance(expression, ast.Name) and expression.id in parameter_indexes:
+                    forwarded.add((expression.id, parameter_indexes[expression.id]))
+        if forwarded:
+            wrappers[function.name] = forwarded
+    return wrappers
+
+
+def _environment_accesses(path: Path) -> set[str]:
+    """Return statically resolvable names accessed through ``os``."""
     tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
+    constants = _module_string_constants(tree)
+    os_names, getenv_names, environ_names = _os_import_aliases(tree)
+    wrappers = _environment_wrapper_parameters(tree, os_names, getenv_names, environ_names)
     names: set[str] = set()
 
     for node in ast.walk(tree):
-        candidate: ast.expr | None = None
-        if isinstance(node, ast.Call) and node.args:
-            func = node.func
-            if isinstance(func, ast.Attribute):
-                if isinstance(func.value, ast.Name) and func.value.id == "os" and func.attr == "getenv":
-                    candidate = node.args[0]
-                elif (
-                    isinstance(func.value, ast.Attribute)
-                    and isinstance(func.value.value, ast.Name)
-                    and func.value.value.id == "os"
-                    and func.value.attr == "environ"
-                    and func.attr in {"get", "pop", "setdefault"}
-                ):
-                    candidate = node.args[0]
-        elif (
-            isinstance(node, ast.Subscript)
-            and isinstance(node.value, ast.Attribute)
-            and isinstance(node.value.value, ast.Name)
-            and node.value.value.id == "os"
-            and node.value.attr == "environ"
-        ):
-            candidate = node.slice
+        for expression in _environment_key_expressions(node, os_names, getenv_names, environ_names):
+            if name := _resolve_environment_name(expression, constants):
+                names.add(name)
 
-        if isinstance(candidate, ast.Constant) and isinstance(candidate.value, str) and candidate.value.isupper():
-            names.add(candidate.value)
+        if isinstance(node, ast.Call) and isinstance(node.func, ast.Name):
+            for parameter_name, position in wrappers.get(node.func.id, set()):
+                expression = node.args[position] if position is not None and position < len(node.args) else None
+                if expression is None:
+                    expression = next(
+                        (keyword.value for keyword in node.keywords if keyword.arg == parameter_name),
+                        None,
+                    )
+                if expression is not None and (name := _resolve_environment_name(expression, constants)):
+                    names.add(name)
 
     return names
 
@@ -83,12 +185,40 @@ def test_inventory_matches_reviewed_snapshot_counts():
     }
 
 
-def test_direct_literal_environment_accesses_are_classified():
+def test_statically_resolvable_environment_accesses_are_classified():
     discovered: set[str] = set()
     for path in _PACKAGE_ROOT.rglob("*.py"):
-        discovered.update(_literal_environment_accesses(path))
+        discovered.update(_environment_accesses(path))
 
     assert discovered - ENVIRONMENT_VARIABLES.keys() == set()
+
+
+def test_environment_scanner_covers_indirection_aliases_and_membership():
+    expected_by_path = {
+        "metrics/definitions.py": {
+            "VLLM_OMNI_BENCH_AUDIO_CHANNELS",
+            "VLLM_OMNI_BENCH_AUDIO_SAMPLE_RATE",
+        },
+        "entrypoints/openai/video_stream_envs.py": {
+            "VLLM_VIDEO_ASYNC_CHUNK",
+            "VLLM_VIDEO_AUDIO_DELTA_MODE",
+        },
+        "model_executor/models/moss_tts/modeling_moss_tts_local_depth.py": {"MOSS_TTS_DEBUG_STOP"},
+        "distributed/ray_utils/utils.py": {"RAY_RAYLET_PID"},
+    }
+    for relative_path, expected in expected_by_path.items():
+        assert expected <= _environment_accesses(_PACKAGE_ROOT / relative_path)
+
+
+def test_generated_server_storage_environment_names_are_classified():
+    from vllm_omni.config.server_settings import FileBackend
+
+    generated_names = {
+        f"VLLM_OMNI_SERVER_STORAGE__{field_name.upper()}"
+        for field_name in FileBackend.model_fields
+        if field_name != "type"
+    }
+    assert generated_names <= ENVIRONMENT_VARIABLES.keys()
 
 
 def test_public_omni_variables_are_in_the_reference_page():
@@ -123,14 +253,15 @@ def test_collect_env_reports_only_safe_public_omni_values(monkeypatch):
     assert "VLLM_OMNI_REPLICA_ID" not in report
 
 
-def test_collect_env_survives_inventory_import_error(monkeypatch):
+@pytest.mark.parametrize("error_type", [ImportError, OSError, AssertionError, RuntimeError])
+def test_collect_env_survives_inventory_import_error(monkeypatch, error_type):
     from collect_env import get_env_vars
 
     real_import = builtins.__import__
 
     def fail_inventory_import(name, *args, **kwargs):
         if name == "vllm_omni.config.environment_variables":
-            raise ImportError("broken vllm-omni installation")
+            raise error_type("broken vllm-omni installation")
         return real_import(name, *args, **kwargs)
 
     monkeypatch.setattr(builtins, "__import__", fail_inventory_import)
