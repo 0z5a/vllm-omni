@@ -18,7 +18,7 @@ A unified script for text-to-video generation. Supports multiple models with mod
 
 MAGI-2 native Preview setup, four-GPU topology and DLO choices, request
 constraints, and eight-GPU validation status are documented in the
-[`MAGI-2 Preview recipe`](../../../recipes/SandAI/MAGI-2-preview.md).
+[`MAGI-2 Preview L20X recipe`](../../../recipes/SandAI/MAGI-2-preview-L20X.md).
 
 ## Local CLI Usage
 
