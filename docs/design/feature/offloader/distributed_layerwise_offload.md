@@ -63,6 +63,14 @@ files, repeat the capability decision, or reconstruct names from its block
 topology. If preflight fails, the loader materializes weights normally and DLO
 consumes those runtime tensors.
 
+The plan owns only dedicated DiT component sources. If a pipeline also exposes
+ordinary sources for a text encoder or another non-DiT component, the loader
+still consumes those sources and includes their loaded names in its strict
+coverage check. Only the source prefixes covered by the plan skip ordinary
+materialization. A source that mixes DiT and non-DiT weights fails closed to
+the complete ordinary-loader path because it cannot be skipped safely as a
+unit.
+
 This boundary keeps checkpoint semantics out of DLO and avoids model-pipeline
 flags such as `_supports_mmap_loading` or parameter attributes for mmap-only
 transforms. Model-specific direct-layout knowledge, when required, lives in a

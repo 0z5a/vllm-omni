@@ -6,7 +6,7 @@ import glob
 import os
 import re
 import time
-from collections.abc import Generator, Iterable
+from collections.abc import Generator, Iterable, Sequence
 from pathlib import Path
 from typing import cast
 
@@ -305,8 +305,10 @@ class DiffusersPipelineLoader:
     def get_all_weights(
         self,
         model: nn.Module,
+        sources: Sequence["ComponentSource"] | None = None,
     ) -> Generator[tuple[str, torch.Tensor], None, None]:
-        sources = self._get_weight_sources(model)
+        if sources is None:
+            sources = self._get_weight_sources(model)
         for source in sources:
             yield from self._get_weights_iterator(source, model=model)
 
@@ -440,12 +442,13 @@ class DiffusersPipelineLoader:
                 _dlo_group_size = _dp_size if _dp_size > 1 else _sp_size
 
                 plan_result = None
+                weight_sources = self._get_weight_sources(model)
                 if _dist_offload:
                     modules = ModuleDiscovery.discover(model)
                     plan_result = build_checkpoint_mmap_plan(
                         model,
                         dit_modules=tuple(zip(modules.dit_names, modules.dits)),
-                        sources=self._get_weight_sources(model),
+                        sources=weight_sources,
                         model_path=str(getattr(self.od_config, "model", "")) or None,
                         tensor_parallel_size=_tp_size,
                         use_hsdp=_use_hsdp,
@@ -457,10 +460,26 @@ class DiffusersPipelineLoader:
 
                 if _skip_load:
                     logger.info(
-                        "DLO host-weight plan active (%s, %s): skipping ordinary weight materialization",
+                        "DLO host-weight plan active (%s, %s): skipping ordinary materialization for %s",
                         "AllGather" if _use_ag and _dlo_group_size > 1 else "rank-local",
                         self.host_weight_plan.backing_kind,
+                        sorted(self.host_weight_plan.planned_source_prefixes) or "legacy DiT sources",
                     )
+                    ordinary_sources = tuple(
+                        source
+                        for source in weight_sources
+                        if source.prefix not in self.host_weight_plan.planned_source_prefixes
+                    )
+                    if ordinary_sources:
+                        logger.info(
+                            "Loading %d component weight source(s) outside the DLO host-weight plan",
+                            len(ordinary_sources),
+                        )
+                        self.load_weights(
+                            model,
+                            sources=ordinary_sources,
+                            planned_weights=self.host_weight_plan.bindings,
+                        )
                 else:
                     if _dist_offload and _use_ag and _has_online_quant:
                         raise ValueError(
@@ -630,12 +649,16 @@ class DiffusersPipelineLoader:
         model: nn.Module,
         *,
         stream_online_quant_to_cpu: bool = False,
+        sources: Sequence["ComponentSource"] | None = None,
+        planned_weights: Iterable[str] = (),
     ) -> None:
         weights_to_load = self._get_expected_parameter_names(model)
-        weights = self.get_all_weights(model)
+        weights = self.get_all_weights(model) if sources is None else self.get_all_weights(model, sources=sources)
         if stream_online_quant_to_cpu:
             weights = self._stream_online_quant_weights_to_cpu(model, weights)
         loaded_weights = model.load_weights(weights)
+        if loaded_weights is not None:
+            loaded_weights = set(loaded_weights).union(planned_weights)
 
         self.counter_after_loading_weights = time.perf_counter()
         logger.info_once(

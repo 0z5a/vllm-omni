@@ -39,6 +39,7 @@ class HostWeightPlan:
 
     backing_kind: str
     bindings: dict[str, TensorBinding]
+    planned_source_prefixes: frozenset[str] = frozenset()
 
 
 @dataclass(frozen=True)
@@ -225,6 +226,24 @@ def _collect_required_dit_tensors(
     return required
 
 
+def _planned_source_prefixes(
+    sources: Sequence[object],
+    dit_modules: Sequence[tuple[str, nn.Module]],
+) -> frozenset[str]:
+    """Identify component sources that the DiT-only plan owns completely."""
+    if not sources:
+        return frozenset()
+
+    expected = frozenset(f"{dit_name}." for dit_name, _ in dit_modules)
+    available = {getattr(source, "prefix", "") for source in sources}
+    missing = sorted(expected - available)
+    if missing:
+        raise _PlanIncompatibleError(
+            f"direct mmap requires a dedicated component weight source for each DiT; missing prefixes: {missing}"
+        )
+    return expected
+
+
 def _validate_source_metadata(
     required: dict[str, torch.Tensor],
     bindings: dict[str, TensorBinding],
@@ -280,8 +299,12 @@ def build_checkpoint_mmap_plan(
     adapter = get_direct_mmap_adapter(pipeline)
 
     try:
+        planned_source_prefixes = _planned_source_prefixes(sources, dit_modules)
+        planned_sources = tuple(
+            source for source in sources if getattr(source, "prefix", "") in planned_source_prefixes
+        )
         model_to_ckpt = _build_source_map(
-            sources=sources,
+            sources=planned_sources,
             model_path=model_path,
             remap_fn=remap_fn,
         )
@@ -318,6 +341,7 @@ def build_checkpoint_mmap_plan(
         HostWeightPlan(
             backing_kind="checkpoint_mmap",
             bindings=bindings,
+            planned_source_prefixes=planned_source_prefixes,
         )
     )
 

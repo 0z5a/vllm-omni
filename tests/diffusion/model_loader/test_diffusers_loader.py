@@ -19,6 +19,7 @@ from vllm_omni.diffusion.model_loader.diffusers_loader import DiffusersPipelineL
 from vllm_omni.diffusion.model_loader.host_weight_plan import (
     HostWeightPlan,
     HostWeightPlanResult,
+    TensorBinding,
 )
 from vllm_omni.diffusion.models.helios import HeliosPipeline
 from vllm_omni.diffusion.registry import initialize_model
@@ -299,6 +300,67 @@ def test_dlo_transfers_loader_plan_and_skips_ordinary_weight_loading(monkeypatch
     assert not loaded_ordinary_weights
     assert loader.take_host_weight_plan() is plan
     assert loader.take_host_weight_plan() is None
+
+
+def test_dlo_plan_loads_component_sources_outside_planned_dit(monkeypatch):
+    import vllm_omni.diffusion.model_loader.diffusers_loader as loader_mod
+
+    od_config = SimpleNamespace(
+        dtype=torch.float32,
+        parallel_config=SimpleNamespace(use_hsdp=False, tensor_parallel_size=1),
+        quantization_config=None,
+        enable_distributed_layerwise_offload=True,
+        dlo_use_allgather=False,
+        model="unused",
+    )
+    loader = DiffusersPipelineLoader(LoadConfig(), od_config)
+
+    class MixedSourceModel(nn.Module):
+        def __init__(self):
+            super().__init__()
+            self.transformer = nn.Linear(2, 2, bias=False)
+            self.text_encoder = nn.Linear(2, 2, bias=False)
+            self.weights_sources = (
+                DiffusersPipelineLoader.ComponentSource("unused", None, None, prefix="transformer."),
+                DiffusersPipelineLoader.ComponentSource("unused", None, None, prefix="text_encoder."),
+            )
+            self.loaded_weight_names: list[str] = []
+
+        def load_weights(self, weights):
+            self.loaded_weight_names = [name for name, _ in weights]
+            return set(self.loaded_weight_names)
+
+    model = MixedSourceModel()
+    plan = HostWeightPlan(
+        backing_kind="checkpoint_mmap",
+        bindings={
+            "transformer.weight": TensorBinding(
+                checkpoint_key="weight",
+                file_path="unused",
+            )
+        },
+        planned_source_prefixes=frozenset({"transformer."}),
+    )
+    requested_prefixes: list[str] = []
+
+    def get_weights(source, model=None):
+        del model
+        requested_prefixes.append(source.prefix)
+        yield source.prefix + "weight", torch.ones(2, 2)
+
+    loader._init_from_load_format = lambda *_args, **_kwargs: model  # type: ignore[method-assign]
+    loader._get_weights_iterator = get_weights  # type: ignore[method-assign]
+    loader._apply_skip_softmax_calibration = lambda _model: None  # type: ignore[method-assign]
+    monkeypatch.setattr(
+        loader_mod,
+        "build_checkpoint_mmap_plan",
+        lambda *_args, **_kwargs: HostWeightPlanResult(plan),
+    )
+
+    assert loader.load_model(load_device="cpu") is model
+    assert requested_prefixes == ["text_encoder."]
+    assert model.loaded_weight_names == ["text_encoder.weight"]
+    assert loader.take_host_weight_plan() is plan
 
 
 def test_dlo_plan_fallback_runs_ordinary_loader(monkeypatch):

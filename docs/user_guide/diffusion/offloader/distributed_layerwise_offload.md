@@ -72,6 +72,12 @@ coverage, shape, dtype, topology, or loader-callback compatibility cannot be
 proven, it runs the ordinary model loader instead. DLO consumes that result and
 does not make a second checkpoint-compatibility decision.
 
+The mmap plan skips only dedicated DiT weight sources. Other component sources,
+such as a text encoder loaded through the shared diffusion loader, continue to
+use their ordinary component loader. A checkpoint source that mixes DiT and
+non-DiT weights falls back completely rather than leaving an unplanned
+component uninitialized.
+
 With direct checkpoint mmap, the loader:
 
 1. saves non-persistent buffers such as RoPE frequencies;

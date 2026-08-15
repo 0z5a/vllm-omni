@@ -1094,6 +1094,32 @@ class TestMmapValidation:
             checkpoint_key="blocks.0.weight",
             file_path=str(checkpoint_file),
         )
+        assert result.plan.planned_source_prefixes == frozenset({"transformer."})
+
+    def test_non_dedicated_component_source_falls_back_before_discovery(self):
+        pipeline = nn.Module()
+        pipeline.transformer = nn.Linear(2, 2, bias=False)
+        sources = (
+            SimpleNamespace(
+                model_or_path="unused",
+                subfolder=None,
+                revision=None,
+                prefix="",
+            ),
+        )
+
+        result = build_checkpoint_mmap_plan(
+            pipeline,
+            dit_modules=(("transformer", pipeline.transformer),),
+            sources=sources,
+            model_path=None,
+            tensor_parallel_size=1,
+            use_hsdp=False,
+            online_quantization=False,
+        )
+
+        assert result.plan is None
+        assert "dedicated component weight source" in result.fallback_reason
 
     def test_preflight_falls_back_before_mutation_for_missing_model_tensors(self, tmp_path):
         source_root = tmp_path / "partition"
