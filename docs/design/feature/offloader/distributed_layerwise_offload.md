@@ -232,7 +232,8 @@ to proven TP1, non-HSDP, non-online-quantized layouts. Other layouts use the
 ordinary loader. Online quantization remains incompatible with DLO AllGather;
 use `--dlo-no-use-allgather` or disable online quantization. Runtime-cache v1
 is no-AllGather only and rejects all quantization configurations, HSDP/DTensor,
-CFG parallelism, PP, non-contiguous tensors, and tied/shared storage.
+expert parallelism, CFG parallelism, PP, non-contiguous tensors, and
+tied/shared storage.
 
 ## Validation coverage
 

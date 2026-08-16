@@ -194,7 +194,7 @@ must enter each collective.
 - Online quantization uses the ordinary loader with no-AllGather. It remains
   incompatible with DLO AllGather and runtime-cache v1. Runtime-cache v1 also
   rejects other quantized, non-contiguous, aliased/tied, device-only, HSDP,
-  CFG-parallel, and PP layouts.
+  expert-parallel, CFG-parallel, and PP layouts.
 - Resident leading layers require `--dlo-no-use-allgather` and a model
   `OffloadPlan` that declares eligible `resident_dit_paths`.
 - DP concurrency requires an explicit, identical inference-step count.
