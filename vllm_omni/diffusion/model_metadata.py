@@ -11,7 +11,6 @@ class DiffusionModelMetadata:
     supports_multimodal_inputs: bool = False
     max_multimodal_image_inputs: int | None = None
     supports_mixed_reference_inputs: bool = False
-    resize_reference_images_to_output: bool = True
     attention_mask_free: bool = False
 
 
@@ -56,9 +55,6 @@ _DIFFUSION_MODEL_METADATA: dict[str, DiffusionModelMetadata] = {
     "Magi2Pipeline": DiffusionModelMetadata(
         supports_multimodal_inputs=True,
         max_multimodal_image_inputs=1,
-        # MAGI-2 preserves the source aspect ratio and applies its own
-        # checkpoint-aligned resize/pad transform during image conditioning.
-        resize_reference_images_to_output=False,
     ),
     "WanPipeline": DiffusionModelMetadata(attention_mask_free=True),
     "WanImageToVideoPipeline": DiffusionModelMetadata(attention_mask_free=True),

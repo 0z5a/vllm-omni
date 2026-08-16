@@ -29,7 +29,10 @@ from vllm_omni.diffusion.models.magi2.sampler_magi2 import CFGConfig, Magi2Previ
 from vllm_omni.diffusion.registry import DiffusionModelRegistry
 from vllm_omni.diffusion.utils.hf_utils import is_diffusion_model
 from vllm_omni.errors import OmniClientError
-from vllm_omni.model_extras.registry import get_extra_body_params
+from vllm_omni.model_extras.registry import (
+    get_extra_body_params,
+    should_preserve_reference_image_size,
+)
 
 pytestmark = [pytest.mark.diffusion, pytest.mark.cpu, pytest.mark.core_model]
 
@@ -141,7 +144,10 @@ def test_official_id_detection_and_metadata():
     metadata = get_diffusion_model_metadata("Magi2Pipeline")
     assert metadata.supports_multimodal_inputs
     assert metadata.max_multimodal_image_inputs == 1
-    assert not metadata.resize_reference_images_to_output
+    assert should_preserve_reference_image_size(
+        "Magi2Pipeline",
+        model="sand-ai/MAGI-2-preview",
+    )
     assert {"seconds", "resolution"} <= get_extra_body_params("Magi2Pipeline")
 
 

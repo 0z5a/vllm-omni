@@ -625,6 +625,8 @@ def main():
     if video_defaults is not None:
         sampling_kwargs["fps"] = args.fps
         sampling_kwargs["frame_rate"] = args.frame_rate or args.fps
+    elif args.frame_rate is not None:
+        sampling_kwargs["frame_rate"] = args.frame_rate
     if args.guidance_scale_high is not None:
         sampling_kwargs["guidance_scale_2"] = args.guidance_scale_high
 

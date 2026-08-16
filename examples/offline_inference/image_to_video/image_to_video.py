@@ -57,7 +57,6 @@ import PIL.Image
 import torch
 
 from vllm_omni.diffusion.data import DiffusionParallelConfig, resolve_model_class_name
-from vllm_omni.diffusion.model_metadata import get_diffusion_model_metadata
 from vllm_omni.diffusion.utils.param_utils import apply_declared_extra_args
 from vllm_omni.entrypoints.omni import Omni
 from vllm_omni.inputs.data import OmniDiffusionSamplingParams
@@ -70,6 +69,7 @@ from vllm_omni.model_extras import (
     get_extra_body_params,
     get_model_class_name,
     get_video_generation_defaults,
+    should_preserve_reference_image_size,
 )
 from vllm_omni.outputs import OmniRequestOutput
 from vllm_omni.platforms import current_omni_platform
@@ -402,7 +402,6 @@ def main():
     resolved_model_class_name = model_class_name or resolve_model_class_name(args.model)
     model_class_name_lower = (resolved_model_class_name or "").lower()
     video_defaults = get_video_generation_defaults(resolved_model_class_name, args.extra_body)
-    resize_input_images = get_diffusion_model_metadata(resolved_model_class_name).resize_reference_images_to_output
     is_ltx2_distilled = "distilled" in model_class_name_lower or "distilled" in model_name
     is_ltx23 = "ltx23" in model_class_name_lower or "ltx-2.3" in model_name
     is_ltx2 = is_ltx2_distilled or is_ltx23 or "ltx2" in model_class_name_lower or "ltx-2" in model_name
@@ -496,8 +495,12 @@ def main():
 
     media_inputs: dict[str, Any] = {}
     if image is not None:
+        preserve_image_size = should_preserve_reference_image_size(
+            model_class_name,
+            model=args.model,
+        )
         media_inputs["image"] = (
-            image if not resize_input_images else image.resize((width, height), PIL.Image.Resampling.LANCZOS)
+            image if preserve_image_size else image.resize((width, height), PIL.Image.Resampling.LANCZOS)
         )
     if last_image is not None:
         media_inputs["last_image"] = last_image.resize((width, height), PIL.Image.Resampling.LANCZOS)

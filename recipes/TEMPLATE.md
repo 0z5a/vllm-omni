@@ -62,6 +62,9 @@ deployment profile; they are not software-environment properties.
 
 ## Command
 
+Serve commands use `vllm serve <model> --omni`. The `--omni` flag is what
+selects the Omni pipeline, so it is required and cannot be dropped.
+
 ```bash
 # Add the exact command(s) here
 ```

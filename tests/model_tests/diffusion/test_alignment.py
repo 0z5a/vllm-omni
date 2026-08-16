@@ -28,6 +28,8 @@ EXCLUDED_MODELS = [
     "WanPipeline",
     "WanVACEPipeline",
     "LTX2TwoStagePipeline",
+    "LTX2DistilledOneStagePipeline",
+    "LTX2DistilledTwoStagePipeline",
     "LTX2DistilledPipeline",
     "LTX2T2VDMD2Pipeline",
     "LTX2I2VDMD2Pipeline",
@@ -62,6 +64,9 @@ EXCLUDED_MODELS = [
     "HunyuanVideo15Pipeline",
     "HunyuanVideo15ImageToVideoPipeline",
     "LingBotVideoPipeline",
+    # Requires camera/action assets and persistent AR state; covered by its
+    # dedicated contract tests and real-checkpoint E2E smoke instead.
+    "LingBotWorldCausalDMDPipeline",
     "MagiHumanPipeline",
     # The 270+ GiB multimodal checkpoint needs 4/8-way native sequence/head
     # parallel execution; covered by focused native contract and GPU tests.
