@@ -195,6 +195,8 @@ Every audited model-specific name has a migration disposition in the
 The disposition is a migration target, not a statement that the existing
 environment switch is stable. Promote or request-scope work should land in
 model-owner-reviewed follow-up changes with validation and model-page updates.
+The family-sized migration packages and their ownership gate are tracked in
+[#6232](https://github.com/vllm-project/vllm-omni/issues/6232).
 
 ## Environment collection and troubleshooting
 

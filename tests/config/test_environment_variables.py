@@ -19,6 +19,7 @@ pytestmark = [pytest.mark.core_model, pytest.mark.cpu]
 
 _REPO_ROOT = Path(__file__).parents[2]
 _PACKAGE_ROOT = _REPO_ROOT / "vllm_omni"
+_INVENTORY_MODULE = _PACKAGE_ROOT / "config" / "environment_variable_inventory.py"
 _REFERENCE_PAGE = _REPO_ROOT / "docs" / "configuration" / "environment_variables.md"
 
 
@@ -215,6 +216,25 @@ def test_statically_resolvable_environment_accesses_are_classified():
         discovered.update(_environment_accesses(path))
 
     assert discovered - ENVIRONMENT_VARIABLE_INVENTORY.keys() == set()
+
+
+def test_model_and_benchmark_inventory_entries_are_still_referenced():
+    """Reject transitional rows after their implementation has disappeared."""
+    package_source = "\n".join(
+        path.read_text(encoding="utf-8") for path in _PACKAGE_ROOT.rglob("*.py") if path != _INVENTORY_MODULE
+    )
+    transitional_categories = {
+        EnvironmentVariableCategory.MODEL_SPECIFIC,
+        EnvironmentVariableCategory.BENCHMARK_TRANSITIONAL,
+    }
+
+    stale_names = {
+        name
+        for name, item in ENVIRONMENT_VARIABLE_INVENTORY.items()
+        if item.category in transitional_categories and name not in package_source
+    }
+
+    assert stale_names == set()
 
 
 def test_environment_scanner_covers_indirection_aliases_and_membership():
