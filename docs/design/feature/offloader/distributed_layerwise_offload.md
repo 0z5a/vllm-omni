@@ -24,6 +24,11 @@ the same node can share immutable checkpoint pages when direct mmap is
 selected, while the ordinary-loader fallback still keeps a private runtime
 copy per process.
 
+The Phase A shared-mmap support boundary is TP1. TP greater than one is an
+ordinary-loader compatibility path: DLO can consume the resulting TP-local
+tensors, but those configurations do not use checkpoint mmap and must not be
+used to claim shared-mmap host-memory savings.
+
 The compatibility matrix below describes the current implementation. The
 unit-level guards are covered, but not every parallelism combination has a
 full model-and-hardware end-to-end test.
@@ -146,7 +151,7 @@ This mode means:
 |---|---|---|
 | **DP** | Supported primary path. DLO shards host weights across the DP group and can run DP multi-concurrency. | Supported rank-local path. Compatible TP1 replicas can share checkpoint pages on each node; fallback runtime tensors remain private. |
 | **SP** | Supported in the implementation. With DP=1, DLO uses the SP group for host-weight sharding; SP still shards sequence/activation work. | SP remains active, but DLO keeps standard-loader rank-local weights and adds no SP weight collective. |
-| **TP > 1** | Direct checkpoint mmap falls back before mutation. The ordinary loader preserves TP-local layouts before DLO applies any DP/SP host sharding. | Direct checkpoint mmap falls back to ordinary TP-aware loading; the resulting TP-local tensors are streamed without a DLO collective. Broader model and hardware validation is still needed. |
+| **TP > 1** | Outside the Phase A shared-mmap support scope. The loader falls back before mutation, preserves TP-local layouts, and DLO may apply DP/SP host sharding to those ordinary runtime tensors. | Outside the Phase A shared-mmap support scope. The ordinary TP-aware loader produces rank-local tensors, which DLO streams without an additional weight collective; DP replicas retain private runtime storage. |
 | **HSDP** | Rejected. HSDP has already sharded parameters, so DLO AllGather would double-shard them. | Accepted by configuration. HSDP owns parameter sharding and its own gathers; DLO only stages rank-local parameters. End-to-end coverage is limited. |
 
 ### Combined dimensions
@@ -200,6 +205,31 @@ Current source-level validation includes:
 - sharding, double-buffer, AllGather-size, and heterogeneous-block regression
   tests.
 
+### B300 parallel-topology smoke matrix
+
+A four-GPU B300 smoke test covered MiniMax-H3 FL2VA with the same prompt, seed,
+CUDNN attention backend, 256x256 output, two denoising steps, and
+`dlo_resident_layers=0`. The TP2 rows used DiT DP2xTP2 with the text encoder and
+VAEs at TP1. They validate the ordinary-loader fallback only, not direct mmap
+or shared-mmap host-memory savings.
+
+| Configuration | Result | Warm E2E | Peak device memory | Host PSS |
+|---|---:|---:|---:|---:|
+| DP4xTP1 AllGather | Passed, 4 concurrent requests | 2.87 s / 4 requests | 13.84 GiB | 211.99 GiB |
+| DP4xTP1 no-AllGather | Passed, 1 request | 15.02 s | 13.23 GiB | 187.77 GiB |
+| DP2xTP2 AllGather | Passed, 2 concurrent requests | 4.16 s / 2 requests | 12.50 GiB | 211.97 GiB |
+| DP2xTP2 no-AllGather | Passed, 1 request | 3.51 s | 11.88 GiB | 314.01 GiB |
+
+Within each topology, the AllGather and no-AllGather video and audio outputs
+were byte-identical. All four runs completed without an `ERROR` or traceback
+and released their device allocations. For DP4xTP1, no-AllGather direct mmap
+reduced total PSS by 24.22 GiB (11.4%) and `Private_Dirty` from 211.33 to
+125.32 GiB (40.7%) relative to AllGather. For DP2xTP2, preflight selected the
+ordinary loader as designed; no-AllGather PSS was 314.01 GiB, about 48% above
+AllGather, because DP replicas did not share checkpoint-backed runtime
+weights. This is a functional and memory smoke test, not a production-quality
+performance or output-quality benchmark.
+
 ### Host-memory measurement
 
 A two-worker MiniMax-H3 FL2VA measurement on one L20X node compared the
@@ -229,9 +259,11 @@ from 167.53 to 70.24 GiB for worker 0 and from 115.40 to 17.44 GiB for worker
 because it counts a shared physical page in every process that maps it; summed
 PSS is the appropriate node-memory comparison.
 
-The highest-value missing coverage is end-to-end numerical comparison against
-ordinary layerwise offload for DP+SP, TP+no-AllGather, and HSDP+SP+no-AllGather
-on the target CUDA/NCCL or CANN/HCCL hardware.
+The highest-value missing coverage is broader end-to-end numerical and
+lifecycle comparison against ordinary layerwise offload for DP+SP,
+HSDP+SP+no-AllGather, and TP greater than one across additional models and
+target CUDA/NCCL or CANN/HCCL hardware. That broader TP coverage does not
+change the Phase A direct-mmap TP1 support boundary.
 
 ## Recommendations
 
@@ -241,6 +273,7 @@ on the target CUDA/NCCL or CANN/HCCL hardware.
   not the goal.
 - Use **no-AllGather** when independent replica execution is required. TP1
   direct-mmap deployments can share checkpoint pages per node; other layouts
-  retain the ordinary loader's private host memory behavior.
+  retain the ordinary loader's private host memory behavior and are outside
+  the Phase A shared-mmap support scope.
 - Prefer **HSDP alone** for production HSDP deployments until the combined
   HSDP + DLO no-AllGather path has broader end-to-end coverage.

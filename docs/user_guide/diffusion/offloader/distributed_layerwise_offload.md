@@ -72,6 +72,12 @@ coverage, shape, dtype, topology, or loader-callback compatibility cannot be
 proven, it runs the ordinary model loader instead. DLO consumes that result and
 does not make a second checkpoint-compatibility decision.
 
+The shared-mmap optimization in this phase is supported only with TP1. TP
+greater than one falls back before model mutation to ordinary TP-aware loading.
+DLO may still consume those TP-local tensors, but this is a compatibility path:
+it does not share checkpoint-backed runtime weights across DP replicas and
+provides no shared-mmap host-memory guarantee.
+
 The mmap plan skips only dedicated DiT weight sources. Other component sources,
 such as a text encoder loaded through the shared diffusion loader, continue to
 use their ordinary component loader. A checkpoint source that mixes DiT and
@@ -126,9 +132,10 @@ must enter each collective.
 
 ## Limitations
 
-- Direct checkpoint mmap currently requires TP1. TP greater than one falls
-  back before model mutation to the ordinary TP-aware loader; DLO can then
-  stream that runtime layout. Broader TP combinations remain experimental.
+- Direct checkpoint mmap currently requires TP1. TP greater than one is
+  outside the Phase A shared-mmap support scope and falls back before model
+  mutation to the ordinary TP-aware loader. DLO can stream that runtime layout,
+  but it provides no shared-mmap host-memory benefit or guarantee.
 - HSDP plus AllGather is rejected to avoid double sharding. HSDP without
   AllGather has limited end-to-end validation.
 - Online quantization uses the ordinary loader with no-AllGather. It remains
