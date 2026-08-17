@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: Apache-2.0
-# SPDX-FileCopyrightText: Copyright contributors to the vLLM project
+# SPDX-FileCopyrightText: Copyright contributors to the vLLM-Omni project
 # Copyright (c) Microsoft Corporation and Jiarui Fang
 # SPDX-License-Identifier: Apache-2.0
 # DeepSpeed Team & Jiarui Fang
@@ -113,11 +113,16 @@ class Attention(nn.Module):
         )
         parallel_config = getattr(config, "parallel_config", None)
         allgather_degree = getattr(parallel_config, "allgather_degree", 1)
-        # TODO: Move AllGather-KV compatibility into an AttentionBackend capability
-        # so validation does not depend on backend names.
-        if not skip_sequence_parallel and allgather_degree > 1 and attn_backend_cls.get_name() == "TRTLLM_ATTN":
+        # Registered duck-typed backends that predate this capability keep the
+        # compatible default used by AttentionBackend.
+        if (
+            not skip_sequence_parallel
+            and allgather_degree > 1
+            and not getattr(attn_backend_cls, "supports_allgather_kv", True)
+        ):
+            backend_name = attn_backend_cls.get_name()
             raise ValueError(
-                "TRTLLM_ATTN does not support AllGather-KV sequence parallelism. "
+                f"{backend_name} does not support AllGather-KV sequence parallelism. "
                 "Set --allgather-degree 1 or select another diffusion attention backend."
             )
         if spec is not None:
