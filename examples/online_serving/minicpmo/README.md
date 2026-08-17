@@ -47,7 +47,7 @@ scenario below for live barge-in validation on the target GPU.
 Default:
 
 ```bash
-vllm-omni serve openbmb/MiniCPM-o-4_5 \
+vllm serve openbmb/MiniCPM-o-4_5 \
     --omni \
     --deploy-config vllm_omni/deploy/minicpmo_4_5.yaml \
     --trust-remote-code \

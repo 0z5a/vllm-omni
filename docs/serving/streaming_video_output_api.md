@@ -19,7 +19,7 @@ vllm serve BestWishYsh/Helios-Distilled --omni \
 Install the client dependency and run the provided client:
 
 ```bash
-pip install websockets
+pip install av websockets
 
 python examples/online_serving/streaming_video_generation/streaming_video_client.py \
   --host 127.0.0.1 \
