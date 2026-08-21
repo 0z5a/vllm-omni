@@ -1417,6 +1417,19 @@ def build_diffusion_config(
     return od_config
 
 
+def resolve_diffusion_batch_size(od_config: Any, client_batch_size: int) -> int:
+    """Merge legacy client capacity with the per-stage scheduler capacity.
+
+    ``diffusion_batch_size`` predates deploy-YAML ``max_num_seqs`` and is still
+    used by programmatic ``AsyncOmni`` callers.  Server launches, however, rely
+    on the per-stage value.  Preserve either source when it requests more
+    capacity instead of replacing the stage configuration with the legacy
+    default of one.
+    """
+    configured_batch_size = int(getattr(od_config, "max_num_seqs", 1) or 1)
+    return max(1, int(client_batch_size), configured_batch_size)
+
+
 def initialize_diffusion_stage(
     stage_id: int,
     model: str,
@@ -1441,6 +1454,7 @@ def initialize_diffusion_stage(
     from vllm_omni.diffusion.stage_diffusion_client import create_diffusion_client
 
     od_config = build_diffusion_config(model, stage_cfg, metadata)
+    batch_size = resolve_diffusion_batch_size(od_config, batch_size)
     od_config.max_num_seqs = batch_size
     return create_diffusion_client(model, od_config, metadata, stage_init_timeout, batch_size, use_inline)
 

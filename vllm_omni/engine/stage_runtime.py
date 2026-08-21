@@ -670,7 +670,7 @@ class StageRuntime:
                 "[StageRuntime] Stage %s replica %s initialized (diffusion, batch_size=%d)",
                 plan.metadata.stage_id,
                 plan.replica_id,
-                self._diffusion_batch_size,
+                getattr(client, "batch_size", self._diffusion_batch_size),
             )
             return client
         except Exception:

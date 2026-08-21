@@ -126,6 +126,7 @@ class StageDiffusionClient(StageClientBase):
         batch_size: int,
     ) -> None:
         self._set_stage_metadata(metadata)
+        self.batch_size = batch_size
         self._proc_manager = proc_manager
         self._connect_transport(request_address, response_address)
 
@@ -144,7 +145,7 @@ class StageDiffusionClient(StageClientBase):
             self.stage_id,
             self.replica_id,
             self._proc_manager is not None,
-            batch_size,
+            self.batch_size,
         )
 
     def _set_stage_metadata(self, metadata: StageMetadata) -> None:

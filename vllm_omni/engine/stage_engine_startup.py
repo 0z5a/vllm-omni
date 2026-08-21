@@ -36,6 +36,7 @@ from vllm_omni.engine.stage_init_utils import (
     build_diffusion_config,
     initialize_diffusion_stage,
     release_device_locks,
+    resolve_diffusion_batch_size,
 )
 from vllm_omni.entrypoints.utils import inject_omni_kv_config
 from vllm_omni.platforms import current_omni_platform
@@ -1558,6 +1559,7 @@ def launch_diffusion_stage_replica(
     from vllm_omni.diffusion.stage_diffusion_client import StageDiffusionClient
 
     od_config = build_diffusion_config(model, stage_config, metadata)
+    batch_size = resolve_diffusion_batch_size(od_config, batch_size)
     od_config.max_num_seqs = batch_size
     parallel_config = getattr(od_config, "parallel_config", None)
     world_size = getattr(parallel_config, "world_size", 1)

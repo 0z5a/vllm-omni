@@ -399,11 +399,20 @@ def test_initialize_local_llm_replica_scopes_runtime_env(monkeypatch):
     assert os.environ[runtime_env_var] == "parent-value"
 
 
-def test_initialize_diffusion_stage_applies_client_batch_size_to_engine(monkeypatch):
+@pytest.mark.parametrize(
+    ("configured_batch_size", "client_batch_size", "effective_batch_size"),
+    [(1, 4, 4), (4, 1, 4)],
+)
+def test_initialize_diffusion_stage_merges_configured_and_client_batch_sizes(
+    monkeypatch,
+    configured_batch_size,
+    client_batch_size,
+    effective_batch_size,
+):
     import vllm_omni.diffusion.stage_diffusion_client as client_mod
     import vllm_omni.engine.stage_init_utils as init_mod
 
-    od_config = types.SimpleNamespace(max_num_seqs=1)
+    od_config = types.SimpleNamespace(max_num_seqs=configured_batch_size)
     captured: dict[str, object] = {}
     monkeypatch.setattr(init_mod, "build_diffusion_config", lambda *args: od_config)
 
@@ -427,27 +436,39 @@ def test_initialize_diffusion_stage_applies_client_batch_size_to_engine(monkeypa
         types.SimpleNamespace(),
         metadata,
         stage_init_timeout=12,
-        batch_size=4,
+        batch_size=client_batch_size,
         use_inline=True,
     )
 
-    assert od_config.max_num_seqs == 4
+    assert od_config.max_num_seqs == effective_batch_size
     assert captured == {
         "model": "dummy-model",
         "config": od_config,
         "metadata": metadata,
         "stage_init_timeout": 12,
-        "batch_size": 4,
+        "batch_size": effective_batch_size,
         "use_inline": True,
     }
 
 
-def test_launch_diffusion_stage_replica_applies_batch_size_to_config(monkeypatch):
+@pytest.mark.parametrize(
+    ("configured_batch_size", "client_batch_size", "effective_batch_size"),
+    [(1, 4, 4), (4, 1, 4)],
+)
+def test_launch_diffusion_stage_replica_merges_configured_and_client_batch_sizes(
+    monkeypatch,
+    configured_batch_size,
+    client_batch_size,
+    effective_batch_size,
+):
     import vllm_omni.diffusion.stage_diffusion_client as client_mod
     import vllm_omni.diffusion.stage_diffusion_proc as proc_mod
     import vllm_omni.engine.stage_engine_startup as startup_mod
 
-    od_config = types.SimpleNamespace(max_num_seqs=1, parallel_config=types.SimpleNamespace(world_size=1))
+    od_config = types.SimpleNamespace(
+        max_num_seqs=configured_batch_size,
+        parallel_config=types.SimpleNamespace(world_size=1),
+    )
     monkeypatch.setattr(startup_mod, "build_diffusion_config", lambda *args: od_config)
     monkeypatch.setattr(startup_mod, "acquire_device_locks", lambda *args: [])
     monkeypatch.setattr(
@@ -484,13 +505,13 @@ def test_launch_diffusion_stage_replica_applies_batch_size_to_config(monkeypatch
         stage_config=types.SimpleNamespace(),
         metadata=types.SimpleNamespace(stage_id=0),
         stage_init_timeout=12,
-        batch_size=4,
+        batch_size=client_batch_size,
         use_inline=False,
         omni_master_server=omni_master_server,
     )
 
     assert result is sentinel_client
-    assert od_config.max_num_seqs == 4
+    assert od_config.max_num_seqs == effective_batch_size
     assert resources.manager is proc_manager
 
 
