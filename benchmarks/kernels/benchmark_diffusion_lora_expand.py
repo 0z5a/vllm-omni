@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: Apache-2.0
+# SPDX-FileCopyrightText: Copyright contributors to the vLLM-Omni project
 """Benchmark diffusion LoRA expand-and-accumulate implementations.
 
 This compares the previous functional expand path with direct accumulation into
