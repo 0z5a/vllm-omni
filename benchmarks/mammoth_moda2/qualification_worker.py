@@ -18,6 +18,33 @@ from vllm_omni.platforms import current_omni_platform
 
 
 class QualificationWorkerExtension:
+    def qualification_runtime(self, dlo, fused):
+        pipeline = self.model_runner.pipeline
+        backend = self.model_runner.offload_backend
+        expected = len(pipeline.gen_transformer.layers)
+        assert all(
+            block.fused_norm is fused and block.norm1.fused_norm is fused for block in pipeline.gen_transformer.layers
+        )
+        groups = getattr(backend, "_all_hook_groups", [])
+        if dlo != "none":
+            from vllm_omni.diffusion.offloader.distributed_layerwise_backend import DistributedLayerwiseOffloadBackend
+
+            assert isinstance(backend, DistributedLayerwiseOffloadBackend) and backend.enabled
+            assert len(groups) == 1 and len(groups[0]) == expected
+            transport_size = self.od_config.parallel_config.ulysses_degree if dlo == "allgather" else 1
+            assert all(hook.dp_size == transport_size for hook in groups[0])
+        else:
+            assert not groups
+        return {
+            "rank": self.rank,
+            "dlo": dlo,
+            "fused_norm": fused,
+            "main_layers": expected,
+            "offload_backend": type(backend).__name__,
+            "offload_ring_layers": [len(group) for group in groups],
+            "transport_sizes": [[hook.dp_size for hook in group] for group in groups],
+        }
+
     def qualification_memory(self, reset=False):
         current_omni_platform.synchronize()
         if reset:
@@ -41,6 +68,18 @@ class QualificationWorkerExtension:
             dtypes[name] = dict(counts)
         (root / "model.json").write_text(json.dumps({"parameter_dtypes": dtypes}, indent=2))
         counter = {"calls": 0}
+        self.qualification_fused_calls = 0
+        self.qualification_original_fused = None
+        if any(block.fused_norm for block in transformer.layers):
+            from vllm_omni.diffusion.models.mammoth_moda2 import fused_norm_triton
+
+            self.qualification_original_fused = fused_norm_triton.launch_fused_norm
+
+            def observed_fused(*args, **kwargs):
+                self.qualification_fused_calls += 1
+                return self.qualification_original_fused(*args, **kwargs)
+
+            fused_norm_triton.launch_fused_norm = observed_fused
 
         def initial_inputs(module, args, kwargs):
             if counter["calls"] == 0:
@@ -79,4 +118,9 @@ class QualificationWorkerExtension:
         for handle in self.qualification_handles:
             handle.remove()
         self.qualification_handles = []
-        return {"rank": self.rank, "hooks": 0}
+        if self.qualification_original_fused is not None:
+            from vllm_omni.diffusion.models.mammoth_moda2 import fused_norm_triton
+
+            fused_norm_triton.launch_fused_norm = self.qualification_original_fused
+            self.qualification_original_fused = None
+        return {"rank": self.rank, "hooks": 0, "fused_kernel_calls": self.qualification_fused_calls}
