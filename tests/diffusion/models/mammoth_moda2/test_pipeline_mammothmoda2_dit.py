@@ -16,8 +16,12 @@ from vllm_omni.diffusion.models.mammoth_moda2.pipeline_mammothmoda2_dit import (
     _root_weight_source,
 )
 from vllm_omni.diffusion.request import OmniDiffusionRequest
+from vllm_omni.diffusion.stage_diffusion_client import StageDiffusionClient
 from vllm_omni.diffusion.worker.request_batch import DiffusionRequestBatch
 from vllm_omni.inputs.data import OmniDiffusionSamplingParams
+from vllm_omni.model_executor.stage_input_processors.mammoth_moda2 import ar2diffusion
+from vllm_omni.outputs import OmniRequestOutput
+from vllm_omni.outputs.mm_outputs import MultimodalCompletionOutput, MultimodalPayload
 
 pytestmark = [pytest.mark.core_model, pytest.mark.cpu]
 
@@ -140,6 +144,70 @@ def test_parse_request_uses_standard_sampling_fields() -> None:
     assert parsed.cfg_range == (0.2, 0.8)
     assert parsed.seed == 42
     assert parsed.answer_start_index == 2
+
+
+@pytest.mark.parametrize(
+    ("seed", "guidance", "steps", "extra_args", "expected"),
+    [
+        pytest.param(123, 4.5, 7, {"cfg_range": [0.2, 0.8]}, (4.5, 7, (0.2, 0.8)), id="standard"),
+        pytest.param(
+            9,
+            3.0,
+            5,
+            {"text_guidance_scale": 6.0, "num_inference_steps": 11, "cfg_range": [0.0, 0.5]},
+            (6.0, 11, (0.0, 0.5)),
+            id="model-specific-overrides",
+        ),
+        pytest.param(0, 0.0, 3, {"cfg_range": [0.0, 0.0]}, (0.0, 3, (0.0, 0.0)), id="explicit-zero-controls"),
+    ],
+)
+def test_ar2diffusion_request_batch_preserves_sampling_controls(
+    seed: int,
+    guidance: float,
+    steps: int,
+    extra_args: dict[str, float | int | list[float]],
+    expected: tuple[float, int, tuple[float, float]],
+) -> None:
+    """Keep AR conditioning and separately serialized DiT controls together.
+
+    Exercise the real adapter, client serializer, request normalization, batch,
+    and parser with CPU tensors; this does not run an AR model or DiT inference.
+    """
+    hidden_states = torch.arange(32, dtype=torch.float32).reshape(4, 8)
+    completion = MultimodalCompletionOutput(
+        index=0,
+        text="",
+        token_ids=[100, 101, 102],
+        cumulative_logprob=None,
+        logprobs=None,
+        finish_reason="stop",
+        multimodal_output=MultimodalPayload(tensors={"latent": hidden_states}),
+    )
+    # The AR output processor supplies this field; the last token has no state.
+    completion.cumulative_token_ids = [100, 101, 102]
+    source = OmniRequestOutput(request_id="req-bridge", prompt_token_ids=[10, 11], outputs=[completion])
+    diffusion_prompt = ar2diffusion(
+        [source], [{"prompt": "a cat", "mm_processor_kwargs": {"target_h": 32, "target_w": 48}}]
+    )
+    sampling = OmniDiffusionSamplingParams(
+        seed=seed, guidance_scale=guidance, num_inference_steps=steps, extra_args=extra_args
+    )
+    # The orchestrator passes stage params independently of the adapter prompt.
+    serialized = StageDiffusionClient._sampling_params_to_dict(sampling)
+    request = OmniDiffusionRequest(
+        request_id=source.request_id,
+        prompt=diffusion_prompt,
+        sampling_params=OmniDiffusionSamplingParams(**serialized),
+    )
+    parsed = _pipeline_shell()._parse_request(DiffusionRequestBatch(requests=[request]))
+
+    assert parsed.request_id == source.request_id
+    assert parsed.seed == seed
+    assert (parsed.text_guidance_scale, parsed.num_inference_steps, parsed.cfg_range) == expected
+    assert (parsed.height, parsed.width) == (32, 48)
+    assert parsed.full_token_ids == [10, 11, 100, 101]
+    assert parsed.answer_start_index == 2
+    torch.testing.assert_close(parsed.full_hidden_states, hidden_states, rtol=0, atol=0)
 
 
 def test_parse_request_prefers_legacy_sampling_overrides() -> None:
