@@ -110,25 +110,6 @@ def _validate_experimental_dlo_runtime(od_config: OmniDiffusionConfig, config: M
     return True
 
 
-def _validate_experimental_fused_norm(od_config: OmniDiffusionConfig, config: Mammothmoda2Config) -> bool:
-    enabled = od_config.extras.get("mammoth_fused_norm", False)
-    if type(enabled) is not bool:
-        raise ValueError("mammoth_fused_norm must be a bool")
-    if enabled:
-        if getattr(config.llm_config, "model_type", "") != "mammothmoda2_qwen2_5_vl":
-            raise ValueError("Experimental MammothModa2 fused norm is limited to Preview")
-        if (
-            not od_config.enforce_eager
-            or od_config.cache_backend != "none"
-            or od_config.quantization_config is not None
-            or od_config.lora_path
-        ):
-            raise ValueError(
-                "Experimental MammothModa2 fused norm requires eager execution without cache, quantization or LoRA"
-            )
-    return enabled
-
-
 def _validate_sequence_parallel_runtime(od_config: OmniDiffusionConfig, config: Mammothmoda2Config) -> None:
     experimental_dlo = _validate_experimental_dlo_runtime(od_config, config)
     if od_config.parallel_config.sequence_parallel_size == 1:
@@ -198,7 +179,6 @@ class MammothModa2DiTPipeline(nn.Module, SupportsComponentDiscovery):
         self.device = get_local_device()
         self.config = _build_mammoth_config(od_config)
         _validate_sequence_parallel_runtime(od_config, self.config)
-        fused_norm = _validate_experimental_fused_norm(od_config, self.config)
         self.weights_sources = [_root_weight_source(od_config)]
 
         # --- Build DiT / VAE modules (names must match checkpoint keys) ---
@@ -207,12 +187,6 @@ class MammothModa2DiTPipeline(nn.Module, SupportsComponentDiscovery):
 
         self.gen_vae = AutoencoderKL.from_config(self.config.gen_vae_config)
         self.gen_transformer = Transformer2DModel.from_config(self.config.gen_dit_config)
-        # Limit the experiment to the main repeated stack. Refiner and output
-        # norm behavior, checkpoint names and FFN projections stay unchanged.
-        for block in self.gen_transformer.layers:
-            block.fused_norm = fused_norm
-            if block.modulation:
-                block.norm1.fused_norm = fused_norm
 
         # llm_config is a Mammothmoda2Qwen2_5_VLConfig which has nested text_config
         llm_hidden_size = 0

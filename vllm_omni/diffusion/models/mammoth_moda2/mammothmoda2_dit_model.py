@@ -16,7 +16,6 @@ from vllm_omni.diffusion.attention.layer import Attention as OmniAttention
 from vllm_omni.diffusion.distributed.sp_plan import SequenceParallelInput, SequenceParallelOutput
 from vllm_omni.diffusion.forward_context import get_forward_context, is_forward_context_available
 
-from .fused_norm import rms_norm_gated_residual, rms_norm_modulation
 from .rope_real import RotaryPosEmbedReal, apply_real_rotary_emb
 
 
@@ -43,7 +42,6 @@ class LuminaRMSNormZero(nn.Module):
         )
 
         self.norm = Qwen2RMSNorm(embedding_dim, eps=norm_eps)
-        self.fused_norm = False
 
     def forward(
         self,
@@ -52,7 +50,7 @@ class LuminaRMSNormZero(nn.Module):
     ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
         emb = self.linear(self.silu(emb))
         scale_msa, gate_msa, scale_mlp, gate_mlp = emb.chunk(4, dim=1)
-        x = rms_norm_modulation(self.norm, x, scale_msa, enabled=self.fused_norm)
+        x = self.norm(x) * (1 + scale_msa[:, None])
         return x, gate_msa, scale_mlp, gate_mlp
 
 
@@ -376,7 +374,6 @@ class TransformerBlock(nn.Module):
         super().__init__()
         self.head_dim = dim // num_attention_heads
         self.modulation = modulation
-        self.fused_norm = False
 
         processor = AttnProcessor()
 
@@ -444,15 +441,9 @@ class TransformerBlock(nn.Module):
                 image_rotary_emb=image_rotary_emb,
                 query_attention_mask=query_attention_mask,
             )
-            hidden_states = rms_norm_gated_residual(
-                self.norm2, attn_output, gate_msa, hidden_states, enabled=self.fused_norm
-            )
-            mlp_output = self.feed_forward(
-                rms_norm_modulation(self.ffn_norm1, hidden_states, scale_mlp, enabled=self.fused_norm)
-            )
-            hidden_states = rms_norm_gated_residual(
-                self.ffn_norm2, mlp_output, gate_mlp, hidden_states, enabled=self.fused_norm
-            )
+            hidden_states = hidden_states + gate_msa.unsqueeze(1).tanh() * self.norm2(attn_output)
+            mlp_output = self.feed_forward(self.ffn_norm1(hidden_states) * (1 + scale_mlp.unsqueeze(1)))
+            hidden_states = hidden_states + gate_mlp.unsqueeze(1).tanh() * self.ffn_norm2(mlp_output)
         else:
             norm_hidden_states = self.norm1(hidden_states)
             attn_output = self.attn(

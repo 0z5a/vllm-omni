@@ -49,7 +49,7 @@ def _run(pipeline, config, request):
         return result
 
 
-def _worker(rank, port, output_dir, allgather, fused, dtype, real_geometry=False):
+def _worker(rank, port, output_dir, allgather, dtype, real_geometry=False):
     torch.set_num_threads(4)
     torch.backends.cuda.matmul.allow_tf32 = False
     device = torch.device("cuda", rank)
@@ -65,12 +65,8 @@ def _worker(rank, port, output_dir, allgather, fused, dtype, real_geometry=False
     try:
         init_distributed_environment(world_size=2, rank=rank, local_rank=rank, backend="nccl")
         initialize_model_parallel(sequence_parallel_size=2, ulysses_degree=2, backend="nccl")
-        baseline_config = replace(_config(2), dtype=dtype, extras={"mammoth_fused_norm": fused})
-        config = replace(
-            _dlo_config(2, allgather=allgather),
-            dtype=dtype,
-            extras={"mammoth_experimental_dlo": True, "mammoth_fused_norm": fused},
-        )
+        baseline_config = replace(_config(2), dtype=dtype)
+        config = replace(_dlo_config(2, allgather=allgather), dtype=dtype)
         if real_geometry:
             for selected in (baseline_config, config):
                 selected.tf_model_config.params["gen_dit_config"].update(
@@ -134,7 +130,6 @@ def _worker(rank, port, output_dir, allgather, fused, dtype, real_geometry=False
                     "gpu_uuid": str(torch.cuda.get_device_properties(rank).uuid),
                     "backend": dist.get_backend(),
                     "allgather": allgather,
-                    "fused_norm": fused,
                     "dtype": str(dtype),
                     "real_head_geometry": real_geometry,
                     "scope": "tiny native pipeline; no checkpoint/performance claim",
@@ -154,14 +149,11 @@ def _worker(rank, port, output_dir, allgather, fused, dtype, real_geometry=False
 
 @hardware_test(res={"cuda": "L4"}, num_cards=2)
 @pytest.mark.parametrize("allgather", [False, True], ids=["rank_local", "allgather"])
-@pytest.mark.parametrize("fused", [False, True], ids=["native_norm", "fused_norm"])
 @pytest.mark.parametrize("dtype", [torch.float32, torch.bfloat16], ids=["fp32", "bf16"])
-def test_mammothmoda2_two_rank_dlo(tmp_path, allgather, fused, dtype):
+def test_mammothmoda2_two_rank_dlo(tmp_path, allgather, dtype):
     if not torch.cuda.is_available() or torch.accelerator.device_count() < 2 or torch.version.hip is not None:
         pytest.skip("requires two distinct NVIDIA CUDA devices")
-    torch.multiprocessing.spawn(
-        _worker, args=(get_open_port(), str(tmp_path), allgather, fused, dtype), nprocs=2, join=True
-    )
+    torch.multiprocessing.spawn(_worker, args=(get_open_port(), str(tmp_path), allgather, dtype), nprocs=2, join=True)
     results = [json.loads((tmp_path / f"rank-{rank}.json").read_text()) for rank in range(2)]
     assert len({result["gpu_uuid"] for result in results}) == 2
     assert all(result["backend"] == "nccl" and len(result["cases"]) == 6 for result in results)
@@ -172,13 +164,13 @@ def test_mammothmoda2_dlo_real_geometry(tmp_path):
     """Released head geometry and large weight blocks, with an odd ring.
 
     Three main layers and a small image fixture keep this below full-checkpoint
-    qualification. AllGather and the fused norm path are both actually enabled.
+    qualification. AllGather is enabled with the original norm expressions.
     """
     if not torch.cuda.is_available() or torch.accelerator.device_count() < 2 or torch.version.hip is not None:
         pytest.skip("requires two distinct NVIDIA CUDA devices")
     torch.multiprocessing.spawn(
-        _worker, args=(get_open_port(), str(tmp_path), True, True, torch.bfloat16, True), nprocs=2, join=True
+        _worker, args=(get_open_port(), str(tmp_path), True, torch.bfloat16, True), nprocs=2, join=True
     )
     results = [json.loads((tmp_path / f"rank-{rank}.json").read_text()) for rank in range(2)]
     assert len({result["gpu_uuid"] for result in results}) == 2
-    assert all(result["real_head_geometry"] and result["allgather"] and result["fused_norm"] for result in results)
+    assert all(result["real_head_geometry"] and result["allgather"] for result in results)

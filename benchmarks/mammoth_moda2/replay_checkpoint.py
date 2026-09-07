@@ -43,7 +43,6 @@ def main():
     parser.add_argument("--seed", type=int, default=42)
     parser.add_argument("--guidance", type=float, default=4.0)
     parser.add_argument("--dlo", choices=["none", "rank-local", "allgather"], default="none")
-    parser.add_argument("--fused-norm", action="store_true")
     args = parser.parse_args()
     root = Path(args.output)
     root.mkdir(parents=True, exist_ok=False)
@@ -65,7 +64,7 @@ def main():
         worker_extension_cls="qualification_worker.QualificationWorkerExtension",
         enable_distributed_layerwise_offload=args.dlo != "none",
         dlo_use_allgather=args.dlo == "allgather",
-        extras={"mammoth_experimental_dlo": args.dlo != "none", "mammoth_fused_norm": args.fused_norm},
+        extras={"mammoth_experimental_dlo": args.dlo != "none"},
     )
     setup = {
         **vars(args),
@@ -80,9 +79,7 @@ def main():
     records = []
     try:
         runtime = [
-            engine.collective_rpc(
-                "qualification_runtime", args=(args.dlo, args.fused_norm), unique_reply_rank=rank, timeout=120
-            )
+            engine.collective_rpc("qualification_runtime", args=(args.dlo,), unique_reply_rank=rank, timeout=120)
             for rank in range(args.degree)
         ]
         (root / "runtime.json").write_text(json.dumps(runtime, indent=2))
@@ -155,8 +152,6 @@ def main():
                         timeout=120,
                     )
                     assert removed["hooks"] == 0
-                    if args.fused_norm:
-                        assert removed["fused_kernel_calls"] > 0
                     instrumentation.append(removed)
                 (root / "warmup-instrumentation.json").write_text(json.dumps(instrumentation, indent=2))
         measured = [record["elapsed_ms"] for record in records[1:]]
