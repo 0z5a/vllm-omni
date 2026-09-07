@@ -79,25 +79,22 @@ When comparing source revisions, put the selected checkout first in
 be imported. An old attention implementation inside the shared diffusion
 runtime is an attention-migration control, **not** a legacy-runtime baseline.
 
-## Experimental DLO and fused norm ablation
+## Experimental DLO transport ablation
 
-The stacked experimental branch adds two default-off, Preview-only switches.
-They are not general offload/cache/quantization support. Keep the same real
+The stacked experimental branch adds a default-off, Preview-only DLO opt-in.
+It is not general offload/cache/quantization support. Keep the same real
 conditioning, GPU UUIDs, topology, backend, dtype and sampling parameters for
 all configurations; use a new output directory for every run.
 
 | Replay flags | Native runtime under test |
 | --- | --- |
-| `--dlo none` | Resident reference, original norm expressions |
-| `--dlo none --fused-norm` | Resident, fused RMSNorm modulation/residual epilogues |
+| `--dlo none` | Resident reference |
 | `--dlo allgather` | Native distributed layerwise backend, AllGather transport |
-| `--dlo allgather --fused-norm` | Both experimental switches |
 | `--dlo rank-local` | The same distributed layerwise backend, rank-local transport |
-| `--dlo rank-local --fused-norm` | Rank-local DLO and fused norm together |
 
-For example, append `--dlo allgather --fused-norm` to the SP2 replay command.
-The harness sets `extras.mammoth_experimental_dlo` and
-`extras.mammoth_fused_norm` explicitly. DLO requires the legacy
+For example, append `--dlo allgather` to the SP2 replay command.
+The harness sets `extras.mammoth_experimental_dlo` explicitly.
+DLO requires the legacy
 `enable_distributed_layerwise_offload=true` selector, with `dlo_use_allgather`
 choosing its transport. Compact rank-local layerwise offload selects a
 different backend and is rejected by this experimental opt-in; do not label
@@ -109,22 +106,16 @@ resident. Dev, caching, graphs, quantization, LoRA, Host Weight Runtime and
 checkpoint mmap adaptation are not supported by this experiment. Do not
 extrapolate the two-rank qualification to larger or mixed parallel layouts.
 
-`runtime.json` asserts the actual backend, ring size, per-hook transport size
-and fusion flags on each rank. `warmup-instrumentation.json` counts real fused
-Triton launches during the observed warmup and confirms all observer hooks
-were removed before measurement. It rejects silently unused fusion switches.
+`runtime.json` asserts the actual backend, ring size and per-hook transport
+size on each rank. `warmup-instrumentation.json` confirms all observer hooks
+were removed before measurement.
 
-Compare pure DLO to the resident reference, and combined to fusion-only, to
-isolate offload correctness from fusion's floating-point differences. Also
-compare both fused configurations to resident and inspect all output/error
-metrics: fused reduction ordering is not bitwise equivalent, and diffusion
-can amplify small per-layer differences. A single image is not a broad
-quality qualification. Peak memory counters describe requests after engine
+Compare each DLO transport to the resident reference and inspect all saved
+output/intermediate error metrics. Norm expressions, FFN projections and
+checkpoint keys are unchanged by this DLO-only change; shared RMSNorm/FFN
+migration and new fusion kernels belong to separate work. A single image is
+not a broad quality qualification. Peak memory counters describe requests after engine
 initialization; they do not qualify startup memory or a smaller-GPU capacity.
-
-`benchmark_fused_norm.py --output /absolute/new/result.json` runs paired eager
-operator microbenchmarks at the released hidden width. Those timings include
-host dispatch and GPU execution, but do not measure a full model or DLO.
 
 ## Preview and Dev understanding
 

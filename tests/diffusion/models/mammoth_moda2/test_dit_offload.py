@@ -22,6 +22,13 @@ from vllm_omni.diffusion.offloader.offload_plan import get_offload_plan
 pytestmark = [pytest.mark.core_model, pytest.mark.cpu, pytest.mark.diffusion]
 
 
+def test_native_diffusion_extras_default_is_an_independent_dict():
+    first, second = _config(), _config()
+    assert first.extras == second.extras == {}
+    first.extras["mammoth_experimental_dlo"] = True
+    assert second.extras == {}
+
+
 def _dlo_config(degree=1, *, allgather=False, **kwargs):
     return replace(
         _config(degree),
@@ -30,6 +37,13 @@ def _dlo_config(degree=1, *, allgather=False, **kwargs):
         extras={"mammoth_experimental_dlo": True},
         **kwargs,
     )
+
+
+@pytest.mark.parametrize("value", ["true", 1, None])
+def test_dlo_flag_requires_boolean(monkeypatch, value):
+    config = replace(_dlo_config(), extras={"mammoth_experimental_dlo": value})
+    with pytest.raises(ValueError, match="mammoth_experimental_dlo must be a bool"):
+        _pipeline(config, monkeypatch)
 
 
 def test_dlo_plan_discovers_only_main_transformer_blocks(monkeypatch):
