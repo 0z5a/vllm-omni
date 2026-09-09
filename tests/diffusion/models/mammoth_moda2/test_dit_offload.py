@@ -8,6 +8,7 @@ import pytest
 import torch
 
 from tests.diffusion.models.mammoth_moda2.test_pipeline_sp import _config, _pipeline, _request
+from tests.diffusion.offloader.helpers import patch_offload_runtime
 from vllm_omni.diffusion.forward_context import set_forward_context
 from vllm_omni.diffusion.model_loader.host_weight_plan import _planned_source_prefixes
 from vllm_omni.diffusion.models.mammoth_moda2.pipeline_mammothmoda2_dit import (
@@ -16,8 +17,10 @@ from vllm_omni.diffusion.models.mammoth_moda2.pipeline_mammothmoda2_dit import (
 )
 from vllm_omni.diffusion.offloader.base import OffloadConfig
 from vllm_omni.diffusion.offloader.component_utils import iter_streamable_dits
-from vllm_omni.diffusion.offloader.module_collector import ModuleDiscovery
+from vllm_omni.diffusion.offloader.distributed_layerwise_backend import DistributedLayerwiseOffloadBackend
 from vllm_omni.diffusion.offloader.offload_plan import get_offload_plan
+from vllm_omni.diffusion.offloader.plan_resolver import resolve_offload_plan
+from vllm_omni.platforms import current_omni_platform
 
 pytestmark = [pytest.mark.core_model, pytest.mark.cpu, pytest.mark.diffusion]
 
@@ -55,17 +58,15 @@ def test_dlo_plan_discovers_only_main_transformer_blocks(monkeypatch):
     assert not plan.offload_submodules
     assert not plan.encoder_block_attrs
     assert not plan.resident_dit_paths
-    entries = list(
-        iter_streamable_dits(
-            ModuleDiscovery.discover(pipeline), OffloadConfig.from_od_config(config), pipeline.device, plan
-        )
-    )
+    resolved = resolve_offload_plan(pipeline, OffloadConfig.from_od_config(config))
+    entries = list(iter_streamable_dits(resolved, pipeline.device))
     assert len(entries) == 1
-    name, model, attrs, blocks = entries[0]
-    assert name == "gen_transformer"
+    component, stack = entries[0]
+    model, blocks = component.module, stack.streaming
+    assert component.path == "gen_transformer"
     assert model is pipeline.gen_transformer
-    assert attrs == ["layers"]
-    assert blocks == list(model.layers)
+    assert stack.attrs == ("layers",)
+    assert blocks == tuple(model.layers)
     assert not {id(block) for block in blocks}.intersection(id(block) for block in model.context_refiner)
 
 
@@ -146,3 +147,33 @@ def test_dlo_forward_preserves_runner_no_grad_for_storage_rebinding(monkeypatch,
         handle.remove()
     assert len(observed) == (4 if guidance == 1.0 else 8)
     assert all(state == (False, False) for state in observed)
+
+
+@pytest.mark.parametrize("guidance", [1.0, 4.0])
+def test_dlo_request_recovers_after_intermediate_layer_failure(monkeypatch, guidance):
+    config = _dlo_config()
+    config.tf_model_config.params["gen_dit_config"]["num_layers"] = 3
+    pipeline = _pipeline(config, monkeypatch)
+    patch_offload_runtime(monkeypatch, current_omni_platform, synchronize=True)
+    backend = DistributedLayerwiseOffloadBackend(
+        replace(OffloadConfig.from_od_config(config), pin_cpu_memory=False), torch.device("cpu")
+    )
+
+    def fail_layer(module, args):
+        raise RuntimeError("injected intermediate layer failure")
+
+    with torch.no_grad(), set_forward_context(omni_diffusion_config=config):
+        expected = pipeline(_request(3, guidance)).output.clone()
+        backend.enable(pipeline)
+        try:
+            torch.testing.assert_close(pipeline(_request(3, guidance)).output, expected, rtol=0, atol=0)
+            handle = pipeline.gen_transformer.layers[1].register_forward_pre_hook(fail_layer)
+            try:
+                with pytest.raises(RuntimeError, match="injected intermediate layer failure"):
+                    pipeline(_request(3, guidance))
+            finally:
+                handle.remove()
+            for _ in range(2):
+                torch.testing.assert_close(pipeline(_request(3, guidance)).output, expected, rtol=0, atol=0)
+        finally:
+            backend.disable()
