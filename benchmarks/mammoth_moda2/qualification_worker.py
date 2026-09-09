@@ -18,6 +18,24 @@ from vllm_omni.platforms import current_omni_platform
 
 
 class QualificationWorkerExtension:
+    def qualification_runtime_all_ranks(self, dlo):
+        """Return every worker's record through the control RPC's rank-zero reply."""
+        from vllm_omni.diffusion.distributed.parallel_state import get_world_group
+
+        group = get_world_group()
+        # Exchange errors as data so a failed local assertion cannot strand a
+        # healthy peer inside the reporting collective.
+        try:
+            local = {"runtime": self.qualification_runtime(dlo)}
+        except Exception as exc:
+            local = {"error": f"rank {self.rank}: {type(exc).__name__}: {exc}"}
+        records = [None] * group.world_size
+        torch.distributed.all_gather_object(records, local, group=group.cpu_group)
+        errors = [record["error"] for record in records if "error" in record]
+        if errors:
+            raise RuntimeError("; ".join(errors))
+        return [record["runtime"] for record in records]
+
     def qualification_runtime(self, dlo):
         pipeline = self.model_runner.pipeline
         backend = self.model_runner.offload_backend

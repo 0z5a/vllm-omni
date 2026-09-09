@@ -49,7 +49,7 @@ def _run(pipeline, config, request):
         return result
 
 
-def _worker(rank, port, output_dir, allgather, dtype, real_geometry=False):
+def _worker(rank, port, output_dir, allgather, dtype, real_geometry=False, recover_after_failure=False):
     torch.set_num_threads(4)
     torch.backends.cuda.matmul.allow_tf32 = False
     device = torch.device("cuda", rank)
@@ -67,6 +67,11 @@ def _worker(rank, port, output_dir, allgather, dtype, real_geometry=False):
         initialize_model_parallel(sequence_parallel_size=2, ulysses_degree=2, backend="nccl")
         baseline_config = replace(_config(2), dtype=dtype)
         config = replace(_dlo_config(2, allgather=allgather), dtype=dtype)
+        if recover_after_failure:
+            # An intermediate failure needs a tail that has not yet reloaded
+            # the first block; a two-block ring does not expose this state.
+            for selected in (baseline_config, config):
+                selected.tf_model_config.params["gen_dit_config"]["num_layers"] = 3
         if real_geometry:
             for selected in (baseline_config, config):
                 selected.tf_model_config.params["gen_dit_config"].update(
@@ -84,12 +89,13 @@ def _worker(rank, port, output_dir, allgather, dtype, real_geometry=False):
         master = {name: tensor.detach().cpu().clone() for name, tensor in candidate.state_dict().items()}
         backend = DistributedLayerwiseOffloadBackend(OffloadConfig.from_od_config(config), device)
         records = []
+        recovery_records = []
         with torch.no_grad(), sdpa_kernel(SDPBackend.MATH):
             for cycle in range(2):
                 backend.enable(candidate)
                 assert backend.enabled
                 assert len(backend._all_hook_groups) == 1
-                assert len(backend._all_hook_groups[0]) == (3 if real_geometry else 2)
+                assert len(backend._all_hook_groups[0]) == (3 if real_geometry or recover_after_failure else 2)
                 hooks = backend._all_hook_groups[0]
                 assert all(hook.dp_size == (2 if allgather else 1) for hook in hooks)
                 assert all(hook.gpu_buffers is hooks[0].gpu_buffers for hook in hooks)
@@ -107,7 +113,30 @@ def _worker(rank, port, output_dir, allgather, dtype, real_geometry=False):
                         else:
                             torch.testing.assert_close(actual, first, rtol=0, atol=0)
                     records.append({"cycle": cycle, "text_len": text_len, "guidance": guidance, "max_abs_error": 0.0})
-                if not allgather and cycle == 1:
+                if recover_after_failure and cycle == 1:
+                    # Both ranks fail at the same point, leaving a valid NCCL
+                    # group. Asymmetric collective failures are a different
+                    # process-recovery contract and are not retried here.
+                    def fail_intermediate(module, args):
+                        raise RuntimeError("injected intermediate Mammoth DLO failure")
+
+                    for guidance in (1.0, 4.0):
+                        request = _request(3, guidance, seed=42)
+                        expected = _run(baseline, baseline_config, request)
+                        handle = candidate.gen_transformer.layers[1].register_forward_pre_hook(fail_intermediate)
+                        try:
+                            with pytest.raises(RuntimeError, match="injected intermediate Mammoth DLO"):
+                                _run(candidate, config, request)
+                        finally:
+                            handle.remove()
+                        first_hook = next(hook for hook in hooks if hook._is_group_first)
+                        assert not first_hook.is_materialized
+                        for retry in range(2):
+                            assert backend.enabled and backend._all_hook_groups[0] is hooks
+                            actual = _run(candidate, config, _request(3, guidance, seed=42))
+                            torch.testing.assert_close(actual, expected, rtol=0, atol=0)
+                            recovery_records.append({"guidance": guidance, "retry": retry, "max_abs_error": 0.0})
+                elif not allgather and cycle == 1:
                     # Both ranks fail before the same block; this tests local
                     # storage cleanup, not asymmetric collective-failure recovery.
                     def fail(module, args):
@@ -135,6 +164,7 @@ def _worker(rank, port, output_dir, allgather, dtype, real_geometry=False):
                     "scope": "tiny native pipeline; no checkpoint/performance claim",
                     "restored_state_tensors": len(master),
                     "cases": records,
+                    "recovery_cases": recovery_records,
                 },
                 indent=2,
             )
@@ -150,13 +180,20 @@ def _worker(rank, port, output_dir, allgather, dtype, real_geometry=False):
 @hardware_test(res={"cuda": "L4"}, num_cards=2)
 @pytest.mark.parametrize("allgather", [False, True], ids=["rank_local", "allgather"])
 @pytest.mark.parametrize("dtype", [torch.float32, torch.bfloat16], ids=["fp32", "bf16"])
-def test_mammothmoda2_two_rank_dlo(tmp_path, allgather, dtype):
+@pytest.mark.parametrize("recover_after_failure", [False, True], ids=["lifecycle", "recovery"])
+def test_mammothmoda2_two_rank_dlo(tmp_path, allgather, dtype, recover_after_failure):
     if not torch.cuda.is_available() or torch.accelerator.device_count() < 2 or torch.version.hip is not None:
         pytest.skip("requires two distinct NVIDIA CUDA devices")
-    torch.multiprocessing.spawn(_worker, args=(get_open_port(), str(tmp_path), allgather, dtype), nprocs=2, join=True)
+    torch.multiprocessing.spawn(
+        _worker,
+        args=(get_open_port(), str(tmp_path), allgather, dtype, False, recover_after_failure),
+        nprocs=2,
+        join=True,
+    )
     results = [json.loads((tmp_path / f"rank-{rank}.json").read_text()) for rank in range(2)]
     assert len({result["gpu_uuid"] for result in results}) == 2
     assert all(result["backend"] == "nccl" and len(result["cases"]) == 6 for result in results)
+    assert all(len(result["recovery_cases"]) == (4 if recover_after_failure else 0) for result in results)
 
 
 @hardware_test(res={"cuda": "L4"}, num_cards=2)

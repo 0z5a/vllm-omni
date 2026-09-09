@@ -52,6 +52,7 @@ from vllm_omni.diffusion.offloader.offload_plan import (
     OffloadPlan,
     get_offload_plan,
 )
+from vllm_omni.diffusion.offloader.plan_resolver import resolve_offload_plan
 from vllm_omni.diffusion.offloader.startup import OffloadStartupState, attach_offload_startup_state
 from vllm_omni.host_weight_runtime import MappedHostRegion
 from vllm_omni.platforms import current_omni_platform
@@ -1491,6 +1492,51 @@ class TestCrossGroupSharedBuffer:
     entry, because another group may have overwritten the shared slot.
     """
 
+    @pytest.mark.parametrize(("num_blocks", "failed_block"), [(3, 1), (4, 2), (3, 2), (2, 0)])
+    def test_ring_recovers_after_block_failure(self, patched_offload_runtime, num_blocks, failed_block):
+        class Block(nn.Linear):
+            fail = False
+
+            def forward(self, value):
+                if self.fail:
+                    raise RuntimeError("injected block failure")
+                return super().forward(value)
+
+        pipeline = nn.Module()
+        pipeline.transformer = _SingleBlockModel(num_blocks=0)
+        blocks = nn.ModuleList([Block(2, 2, bias=False) for _ in range(num_blocks)])
+        pipeline.transformer.blocks = blocks
+        for index, block in enumerate(blocks):
+            block.weight.data.copy_(torch.eye(2) * (index + 1))
+
+        def request():
+            value = torch.tensor([[1.0, 2.0]])
+            for block in blocks:
+                value = block(value)
+            return value.clone()
+
+        backend = DistributedLayerwiseOffloadBackend(
+            OffloadConfig(
+                strategy=OffloadStrategy.DISTRIBUTED_LAYER_WISE,
+                pin_cpu_memory=False,
+                dlo_use_allgather=False,
+            ),
+            torch.device("cpu"),
+        )
+        with torch.no_grad():
+            expected = request()
+            backend.enable(pipeline)
+            try:
+                torch.testing.assert_close(request(), expected, rtol=0, atol=0)
+                blocks[failed_block].fail = True
+                with pytest.raises(RuntimeError, match="injected block failure"):
+                    request()
+                blocks[failed_block].fail = False
+                for _ in range(2):
+                    torch.testing.assert_close(request(), expected, rtol=0, atol=0)
+            finally:
+                backend.disable()
+
     def test_group_first_hook_forces_sync_prefetch(self, dist_group, patched_offload_runtime):
         """Verify _is_group_first=True forces sync-prefetch in pre_forward
         even when is_materialized returns True."""
@@ -2813,18 +2859,21 @@ class TestDistributedComponentSelection:
 
     def test_encoder_allgather_rejects_stub_rank_before_block_discovery(self):
         """Every rank must reject an unsafe encoder group, including stub ranks."""
-        backend = DistributedLayerwiseOffloadBackend(
-            OffloadConfig(
-                strategy=OffloadStrategy.DISTRIBUTED_LAYER_WISE,
-                pin_cpu_memory=False,
-                dp_size=2,
-                components=frozenset({"text_encoder"}),
-                dlo_transfers={"dit": "rank-local", "text_encoder": "allgather"},
-            ),
-            torch.device("cpu"),
+
+        class StubEncoderPipeline(nn.Module):
+            _offload_plan = OffloadPlan(encoder_block_attrs={"text_encoder": ("missing.blocks",)})
+
+            def __init__(self):
+                super().__init__()
+                self.text_encoder = nn.Module()
+
+        config = OffloadConfig(
+            strategy=OffloadStrategy.DISTRIBUTED_LAYER_WISE,
+            pin_cpu_memory=False,
+            dp_size=2,
+            components=frozenset({"text_encoder"}),
+            dlo_transfers={"dit": "rank-local", "text_encoder": "allgather"},
         )
-        backend.dp_group = object()
-        stub_plan = OffloadPlan(encoder_block_attrs={"text_encoder": ("missing.blocks",)})
 
         with pytest.raises(ValueError, match="not declared replicated"):
-            backend._try_layerwise_offload_encoder(nn.Module(), "text_encoder", stub_plan)
+            resolve_offload_plan(StubEncoderPipeline(), config)

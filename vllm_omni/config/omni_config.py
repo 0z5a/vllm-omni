@@ -63,6 +63,7 @@ _PIPELINE_DEPLOY_CLI_FIELDS = PIPELINE_WIDE_ENGINE_FIELDS
 _NON_STAGE_ENGINE_CLI_FIELDS = frozenset(
     {
         "async_chunk",
+        "disable_log_stats",
         "model",
         "omni",
         "output_modalities",
@@ -196,6 +197,7 @@ class _SchedulerEngineOverrides(TypedDict, total=False):
 
 
 class _RuntimeEngineOverrides(TypedDict, total=False):
+    additional_config: dict[str, Any]
     distributed_executor_backend: Any
     worker_cls: str
     devices: str
@@ -453,6 +455,9 @@ class OmniStageLoadConfig(_TrackExplicitConfigFields, VllmLoadConfig):
     tokenizer_mode: str = "auto"
     config_format: str | None = None
     skip_mm_profiling: bool | None = None
+    # vLLM owns the runtime offloader; these stage inputs configure weight placement.
+    cpu_offload_gb: float | None = Field(default=None, ge=0.0)
+    cpu_offload_params: set[str] | None = None
 
 
 @_enforce_keyword_only_init
@@ -524,6 +529,8 @@ class OmniStageConnectorConfig:
 class OmniStageRuntimeConfig:
     """Per-stage process placement and backend runtime behavior."""
 
+    # LLM backend extensions; diffusion owns these in its config projection.
+    additional_config: dict[str, Any] | None = None
     distributed_executor_backend: Any = None
     worker_cls: str | None = None
     devices: str | None = None
@@ -1056,7 +1063,11 @@ def _upstream_engine_field_map(
     }
 
 
-_LOAD_CONFIG_ENGINE_FIELD_MAP = _upstream_engine_field_map(VllmLoadConfig)
+_LOAD_CONFIG_ENGINE_FIELD_MAP = {
+    **_upstream_engine_field_map(VllmLoadConfig),
+    "cpu_offload_gb": "cpu_offload_gb",
+    "cpu_offload_params": "cpu_offload_params",
+}
 _CACHE_CONFIG_ENGINE_FIELD_MAP = _upstream_engine_field_map(
     VllmCacheConfig,
     aliases={"cache_dtype": "kv_cache_dtype"},
@@ -1271,10 +1282,12 @@ def _stage_engine_values(
         load_engine_fields = _LLM_LOAD_ENGINE_FIELDS
         cache_engine_fields = _LLM_CACHE_ENGINE_FIELDS
         scheduler_engine_fields = _LLM_SCHEDULER_ENGINE_FIELDS
+        runtime_engine_fields = _RUNTIME_ENGINE_FIELDS
     else:
         load_engine_fields = _LOAD_ENGINE_FIELDS
         cache_engine_fields = _CACHE_ENGINE_FIELDS
         scheduler_engine_fields = _SCHEDULER_ENGINE_FIELDS
+        runtime_engine_fields = _RUNTIME_ENGINE_FIELDS - {"additional_config"}
     return _StageEngineValues(
         quantization=cast(
             _QuantizationEngineOverrides,
@@ -1291,7 +1304,7 @@ def _stage_engine_values(
             _ConnectorEngineOverrides,
             _select_engine_overrides(engine, _CONNECTOR_ENGINE_FIELDS),
         ),
-        runtime=cast(_RuntimeEngineOverrides, _select_engine_overrides(engine, _RUNTIME_ENGINE_FIELDS)),
+        runtime=cast(_RuntimeEngineOverrides, _select_engine_overrides(engine, runtime_engine_fields)),
         parallel=cast(_ParallelEngineOverrides, _select_engine_overrides(engine, _PARALLEL_ENGINE_FIELDS)),
         diffusion=_DiffusionEngineOverrides.from_engine(engine),
         compilation_config=_copy_value(engine.get("compilation_config")),
