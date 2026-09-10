@@ -22,7 +22,6 @@ from pathlib import Path
 
 import pytest
 import torch
-from huggingface_hub import snapshot_download
 from PIL import Image
 from vllm.sampling_params import SamplingParams
 
@@ -31,6 +30,7 @@ from tests.helpers.runtime import OmniRunner
 from tests.helpers.stage_config import get_deploy_config_path
 from vllm_omni.inputs.data import OmniDiffusionSamplingParams
 from vllm_omni.outputs import OmniRequestOutput
+from vllm_omni.transformers_utils.repo_utils import hf_api
 
 pytestmark = pytest.mark.advanced_model
 
@@ -72,7 +72,7 @@ _PIXEL_SAMPLE_COORDS = [
 # Helpers
 # ---------------------------------------------------------------------------
 def _load_t2i_gen_config(repo_id: str) -> dict:
-    weights_dir = Path(snapshot_download(repo_id))
+    weights_dir = Path(hf_api().snapshot_download(repo_id))
     cfg_path = weights_dir / "t2i_generation_config.json"
     if not cfg_path.exists():
         pytest.skip(f"t2i_generation_config.json not found at {cfg_path}")
