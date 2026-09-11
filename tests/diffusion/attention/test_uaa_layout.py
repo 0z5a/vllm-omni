@@ -2,11 +2,13 @@
 # SPDX-FileCopyrightText: Copyright contributors to the vLLM-Omni project
 
 from datetime import timedelta
+from types import SimpleNamespace
 
 import pytest
 import torch
 import torch.distributed as dist
 import torch.nn.functional as F
+from torch._subclasses.fake_tensor import FakeTensorMode
 
 from tests.helpers.mark import hardware_test
 from vllm_omni.diffusion.attention.parallel import uaa_layout
@@ -14,6 +16,66 @@ from vllm_omni.diffusion.attention.parallel.uaa_layout import pad_pack_heads, un
 from vllm_omni.platforms import current_omni_platform
 
 pytestmark = [pytest.mark.core_model, pytest.mark.diffusion]
+
+
+@pytest.fixture
+def kernel_correctness(monkeypatch):
+    # Broader numerical tests must still execute the kernels on CI GPUs even
+    # when those shapes/devices are not enabled by production performance gates.
+    monkeypatch.setattr(uaa_layout, "_pack_has_measured_speedup", lambda *args: True)
+    monkeypatch.setattr(uaa_layout, "_unpack_has_measured_speedup", lambda *args: True)
+
+
+@pytest.mark.cpu
+@pytest.mark.parametrize("seq_len", [2048, 2136])
+@pytest.mark.parametrize("heads,padded_heads", [(21, 24), (7, 8)])
+@pytest.mark.parametrize("case", ["measured", "other_gpu", "fp32", "batch", "sequence", "strided", "compile"])
+def test_performance_dispatch(monkeypatch, seq_len, heads, padded_heads, case):
+    # CPU FakeTensors keep metadata operations independent of a CUDA build.
+    # Only availability and the device name are simulated; tensor layout ops
+    # and production selection logic execute unchanged.
+    monkeypatch.setattr(torch.Tensor, "is_cuda", property(lambda self: True))
+    calls = []
+
+    class Kernel:
+        def __getitem__(self, grid):
+            return lambda *args: calls.append(grid)
+
+    monkeypatch.setattr(uaa_layout, "HAS_TRITON", True)
+    monkeypatch.setattr(uaa_layout, "triton", SimpleNamespace(cdiv=lambda a, b: (a + b - 1) // b))
+    monkeypatch.setattr(uaa_layout.current_platform, "is_cuda", lambda: True)
+    monkeypatch.setattr(
+        uaa_layout.current_platform,
+        "get_device_name",
+        lambda index: "NVIDIA H100 80GB HBM3" if case == "other_gpu" else "NVIDIA A100-SXM4-40GB",
+    )
+    monkeypatch.setattr(torch.compiler, "is_compiling", lambda: case == "compile")
+    monkeypatch.setattr(uaa_layout, "_pad_pack_kernel", Kernel(), raising=False)
+    monkeypatch.setattr(uaa_layout, "_unpack_unpad_kernel", Kernel(), raising=False)
+    uaa_layout._is_benchmarked_device.cache_clear()
+    try:
+        with FakeTensorMode():
+            b = 2 if case == "batch" else 1
+            s = 17 if case == "sequence" else seq_len
+            dtype = torch.float32 if case == "fp32" else torch.bfloat16
+            width = 240 if case == "strided" else 120
+            x = torch.empty(b, s, heads, width, dtype=dtype, device="cpu")
+            if case == "strided":
+                x = x[..., ::2]
+            packed = pad_pack_heads(x, 2, padded_heads)
+            assert packed.shape == (2 * s, b, padded_heads // 2, 120)
+            assert packed.is_contiguous()
+            assert len(calls) == int(case == "measured")
+            # Unpack's input is independently laid out, as after all-to-all.
+            received = torch.empty(2 * s, b, padded_heads // 2, width, dtype=dtype, device="cpu")
+            if case == "strided":
+                received = received[..., ::2]
+            restored = unpack_unpad_heads(received, 2, s, heads)
+            assert restored.shape == (b, s, heads, 120)
+            assert restored.is_contiguous()
+            assert len(calls) == int(case == "measured") * (2 if heads == 21 else 1)
+    finally:
+        uaa_layout._is_benchmarked_device.cache_clear()
 
 
 def _reference_pack(x, u, padded_h):
@@ -77,7 +139,7 @@ def test_reference_empty_no_padding_and_grad(s, u):
 @pytest.mark.parametrize("s", [1, 3, 129])
 @pytest.mark.parametrize("h,padded_h", [(21, 24), (7, 8), (24, 24), (8, 8)])
 @pytest.mark.parametrize("layout", ["contiguous", "projection", "channel_slice"])
-def test_cuda_bits(dtype, b, s, h, padded_h, layout):
+def test_cuda_bits(dtype, b, s, h, padded_h, layout, kernel_correctness):
     d = 120
     bits = torch.int32 if dtype == torch.float32 else torch.int16
     shape = (b, s, h * (3 if layout == "projection" else 1), d * (2 if layout == "channel_slice" else 1))
@@ -92,7 +154,7 @@ def test_cuda_bits(dtype, b, s, h, padded_h, layout):
 
 
 @hardware_test(res={"cuda": "L4"})
-def test_cuda_graph_compile_and_grad():
+def test_cuda_graph_compile_and_grad(kernel_correctness):
     x = torch.randn(2, 7, 21, 120, device="cuda", dtype=torch.bfloat16)
     expected = _reference_pack(x, 2, 24)
     compiled = torch.compile(pad_pack_heads, fullgraph=True)
@@ -122,6 +184,9 @@ def _distributed_worker(rank, init_file):
         _ulysses_all_to_all_any_qkv,
     )
 
+    # Spawned workers do not inherit the parent pytest monkeypatch fixture.
+    uaa_layout._pack_has_measured_speedup = lambda *args: True
+    uaa_layout._unpack_has_measured_speedup = lambda *args: True
     current_omni_platform.set_device(rank)
     dist.init_process_group(
         "nccl", init_method=f"file://{init_file}", rank=rank, world_size=2, timeout=timedelta(seconds=90)
