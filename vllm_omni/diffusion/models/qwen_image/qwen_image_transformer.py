@@ -45,7 +45,11 @@ from vllm_omni.diffusion.distributed.sp_plan import (
 )
 from vllm_omni.diffusion.forward_context import get_forward_context
 from vllm_omni.diffusion.layers.adalayernorm import AdaLayerNorm
-from vllm_omni.diffusion.layers.gated_residual_adaln import try_fused_gated_residual_adaln
+from vllm_omni.diffusion.layers.gated_residual_adaln import (
+    try_fused_gated_residual,
+    try_fused_gated_residual_adaln,
+    try_fused_native_adaln,
+)
 from vllm_omni.diffusion.layers.rope import RotaryEmbedding
 
 logger = init_logger(__name__)
@@ -869,11 +873,20 @@ class QwenImageTransformerBlock(nn.Module):
 
         # Process image stream - norm1 + modulation
         img_scale1, img_shift1, img_gate1 = self._modulate(img_mod1, modulate_index)
-        img_modulated = self.img_norm1(hidden_states, img_scale1, img_shift1)
+        ordinary_t2i = modulate_index is None and not self.zero_cond_t
+        img_modulated = None
+        if ordinary_t2i:
+            img_modulated = try_fused_native_adaln(hidden_states, img_scale1, img_shift1, self.img_norm1.eps)
+        if img_modulated is None:
+            img_modulated = self.img_norm1(hidden_states, img_scale1, img_shift1)
 
         # Process text stream - norm1 + modulation
         txt_scale1, txt_shift1, txt_gate1 = self._modulate(txt_mod1)
-        txt_modulated = self.txt_norm1(encoder_hidden_states, txt_scale1, txt_shift1)
+        txt_modulated = None
+        if ordinary_t2i:
+            txt_modulated = try_fused_native_adaln(encoder_hidden_states, txt_scale1, txt_shift1, self.txt_norm1.eps)
+        if txt_modulated is None:
+            txt_modulated = self.txt_norm1(encoder_hidden_states, txt_scale1, txt_shift1)
 
         # Use QwenAttnProcessor2_0 for joint attention computation
         # This directly implements the DoubleStreamLayerMegatron logic:
@@ -897,7 +910,7 @@ class QwenImageTransformerBlock(nn.Module):
         # LayerNorm. Indexed Edit and other unsupported inputs keep the layers.
         img_scale2, img_shift2, img_gate2 = self._modulate(img_mod2, modulate_index)
         img_fused = None
-        if modulate_index is None and not self.zero_cond_t:
+        if ordinary_t2i:
             img_fused = try_fused_gated_residual_adaln(
                 hidden_states, img_attn_output, img_gate1, img_scale2, img_shift2, self.img_norm2.eps
             )
@@ -908,12 +921,13 @@ class QwenImageTransformerBlock(nn.Module):
             hidden_states, img_modulated2 = img_fused
 
         img_mlp_output = self.img_mlp(img_modulated2)
-        hidden_states = hidden_states + img_gate2 * img_mlp_output
+        img_final = try_fused_gated_residual(hidden_states, img_mlp_output, img_gate2) if ordinary_t2i else None
+        hidden_states = hidden_states + img_gate2 * img_mlp_output if img_final is None else img_final
 
         # Process text stream - norm2 + MLP
         txt_scale2, txt_shift2, txt_gate2 = self._modulate(txt_mod2)
         txt_fused = None
-        if modulate_index is None and not self.zero_cond_t:
+        if ordinary_t2i:
             txt_fused = try_fused_gated_residual_adaln(
                 encoder_hidden_states, txt_attn_output, txt_gate1, txt_scale2, txt_shift2, self.txt_norm2.eps
             )
@@ -924,7 +938,8 @@ class QwenImageTransformerBlock(nn.Module):
             encoder_hidden_states, txt_modulated2 = txt_fused
 
         txt_mlp_output = self.txt_mlp(txt_modulated2)
-        encoder_hidden_states = encoder_hidden_states + txt_gate2 * txt_mlp_output
+        txt_final = try_fused_gated_residual(encoder_hidden_states, txt_mlp_output, txt_gate2) if ordinary_t2i else None
+        encoder_hidden_states = encoder_hidden_states + txt_gate2 * txt_mlp_output if txt_final is None else txt_final
 
         # Clip to prevent overflow for fp16
         if encoder_hidden_states.dtype == torch.float16:
