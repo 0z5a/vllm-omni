@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: Apache-2.0
-# SPDX-FileCopyrightText: Copyright contributors to the vLLM project
+# SPDX-FileCopyrightText: Copyright contributors to the vLLM-Omni project
 
 from __future__ import annotations
 
@@ -45,6 +45,7 @@ from vllm_omni.diffusion.distributed.sp_plan import (
 )
 from vllm_omni.diffusion.forward_context import get_forward_context
 from vllm_omni.diffusion.layers.adalayernorm import AdaLayerNorm
+from vllm_omni.diffusion.layers.gated_residual_adaln import try_fused_gated_residual_adaln
 from vllm_omni.diffusion.layers.rope import RotaryEmbedding
 
 logger = init_logger(__name__)
@@ -892,20 +893,35 @@ class QwenImageTransformerBlock(nn.Module):
         # QwenAttnProcessor2_0 returns (img_output, txt_output) when encoder_hidden_states is provided
         img_attn_output, txt_attn_output = attn_output
 
-        # Apply attention gates and add residual (like in Megatron)
-        hidden_states = hidden_states + img_gate1 * img_attn_output
-        encoder_hidden_states = encoder_hidden_states + txt_gate1 * txt_attn_output
-
-        # Process image stream - norm2 + MLP
+        # Ordinary T2I can fuse the attention residual producer with norm2.
+        # Indexed Edit modulation and other unsupported inputs keep the layers.
         img_scale2, img_shift2, img_gate2 = self._modulate(img_mod2, modulate_index)
-        img_modulated2 = self.img_norm2(hidden_states, img_scale2, img_shift2)
+        img_fused = None
+        if modulate_index is None and not self.zero_cond_t:
+            img_fused = try_fused_gated_residual_adaln(
+                hidden_states, img_attn_output, img_gate1, img_scale2, img_shift2, self.img_norm2.eps
+            )
+        if img_fused is None:
+            hidden_states = hidden_states + img_gate1 * img_attn_output
+            img_modulated2 = self.img_norm2(hidden_states, img_scale2, img_shift2)
+        else:
+            hidden_states, img_modulated2 = img_fused
 
         img_mlp_output = self.img_mlp(img_modulated2)
         hidden_states = hidden_states + img_gate2 * img_mlp_output
 
         # Process text stream - norm2 + MLP
         txt_scale2, txt_shift2, txt_gate2 = self._modulate(txt_mod2)
-        txt_modulated2 = self.txt_norm2(encoder_hidden_states, txt_scale2, txt_shift2)
+        txt_fused = None
+        if modulate_index is None and not self.zero_cond_t:
+            txt_fused = try_fused_gated_residual_adaln(
+                encoder_hidden_states, txt_attn_output, txt_gate1, txt_scale2, txt_shift2, self.txt_norm2.eps
+            )
+        if txt_fused is None:
+            encoder_hidden_states = encoder_hidden_states + txt_gate1 * txt_attn_output
+            txt_modulated2 = self.txt_norm2(encoder_hidden_states, txt_scale2, txt_shift2)
+        else:
+            encoder_hidden_states, txt_modulated2 = txt_fused
 
         txt_mlp_output = self.txt_mlp(txt_modulated2)
         encoder_hidden_states = encoder_hidden_states + txt_gate2 * txt_mlp_output
