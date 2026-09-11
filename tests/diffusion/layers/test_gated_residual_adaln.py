@@ -11,8 +11,8 @@ from vllm_omni.diffusion.layers.gated_residual_adaln import try_fused_gated_resi
 pytestmark = [pytest.mark.core_model, pytest.mark.diffusion]
 
 
-def _inputs(b, s, d, dtype, device):
-    generator = torch.Generator(device=device).manual_seed(7382)
+def _inputs(b, s, d, dtype, device, seed=7382):
+    generator = torch.Generator(device=device).manual_seed(seed)
     residual = torch.randn(b, s, d, dtype=dtype, device=device, generator=generator)
     # Attention output and modulation both have realistic slice strides.
     branch = torch.randn(b, s, 2 * d, dtype=dtype, device=device, generator=generator)[..., :d]
@@ -34,9 +34,9 @@ def _checked_call(inputs: tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.
     r, y = result
     # Residual arithmetic has no reduction and preserves every rounding step.
     torch.testing.assert_close(r, expected[0], rtol=0, atol=0, equal_nan=True)
-    # BF16 allows one ULP near 1; the FP32 reduction uses a parallel sum.
-    atol, rtol = (0.03125, 0.016) if y.dtype == torch.bfloat16 else (2e-5, 2e-5)
-    torch.testing.assert_close(y, expected[1], atol=atol, rtol=rtol, equal_nan=True)
+    # A one-ULP BF16 difference can accumulate across Qwen denoising steps.
+    # Native LayerNorm and the pointwise rounding boundaries must match exactly.
+    torch.testing.assert_close(y, expected[1], atol=0, rtol=0, equal_nan=True)
     assert torch.equal(torch.isnan(y), torch.isnan(expected[1]))
     assert torch.equal(torch.isinf(y), torch.isinf(expected[1]))
     assert y.shape == r.shape == inputs[0].shape
@@ -62,6 +62,22 @@ def test_cpu_declines_without_mutation():
 @pytest.mark.parametrize("b,s,d", [(1, 1, 3072), (2, 3, 3072), (2, 129, 3072), (2, 5, 257), (1, 7, 8192)])
 def test_two_outputs_and_strided_modulation(dtype, b, s, d):
     _checked_call(_inputs(b, s, d, dtype, "cuda"))
+
+
+@hardware_test(res={"cuda": "L4"})
+@pytest.mark.parametrize("seed", [142, 143, 144])
+@pytest.mark.parametrize("seq_len", [12, 29, 4096])
+def test_qwen_layer_norm_rounding(seed, seq_len):
+    # Qwen T2I's image/text shapes. The former two-pass Triton reduction
+    # differed from native LayerNorm by one FP32 ULP, occasionally crossing a
+    # BF16 midpoint. Small tensors with a one-BF16-ULP tolerance missed it.
+    inputs = _inputs(1, seq_len, 3072, torch.bfloat16, "cuda", seed=seed)
+    _checked_call(inputs)
+    residual, branch, gate, scale, shift = inputs
+    # Also inspect the normalization boundary before scale/shift can hide it.
+    scale.zero_()
+    shift.zero_()
+    _checked_call((residual, branch, gate, scale, shift))
 
 
 @hardware_test(res={"cuda": "L4"})
@@ -119,11 +135,10 @@ def test_fallback_and_compile(dtype):
         return residual, normed * (1 + scale) + shift
 
     expected = torch.compile(caller, fullgraph=True)(*inputs)
-    # fullgraph compilation includes the functional fused Triton call.
+    # fullgraph traces both pointwise kernels and preserves native LayerNorm.
     reference = _reference(*inputs)
     torch.testing.assert_close(expected[0], reference[0], rtol=0, atol=0)
-    atol, rtol = (0.03125, 0.016) if dtype == torch.bfloat16 else (2e-5, 2e-5)
-    torch.testing.assert_close(expected[1], reference[1], rtol=rtol, atol=atol)
+    torch.testing.assert_close(expected[1], reference[1], rtol=0, atol=0)
     torch.testing.assert_close(expected, caller(*inputs), rtol=0, atol=0)
 
 
@@ -144,4 +159,4 @@ def test_cuda_graph_replays_new_inputs():
     assert result is not None
     expected = _reference(*inputs)
     torch.testing.assert_close(result[0], expected[0], rtol=0, atol=0)
-    torch.testing.assert_close(result[1], expected[1], rtol=0.016, atol=0.03125)
+    torch.testing.assert_close(result[1], expected[1], rtol=0, atol=0)
