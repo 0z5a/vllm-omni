@@ -8,6 +8,7 @@ runtime/CFG/scheduler/noise contract. No checkpoint, serving or speedup is teste
 """
 
 import json
+from contextlib import contextmanager
 from dataclasses import replace
 from datetime import timedelta
 from pathlib import Path
@@ -123,6 +124,31 @@ def _runtime_replay(rank, device, dtype):
     return records
 
 
+@contextmanager
+def _record_all_to_all():
+    """Record completed real collectives without replacing their computation."""
+    calls = []
+    all_to_all_single = dist.all_to_all_single
+
+    def record(output, input, *args, **kwargs):
+        result = all_to_all_single(output, input, *args, **kwargs)
+        calls.append(
+            {
+                "input_shape": list(input.shape),
+                "output_shape": list(output.shape),
+                "dtype": str(input.dtype),
+                "group_size": dist.get_world_size(kwargs.get("group")),
+                "input_split_sizes": kwargs.get("input_split_sizes"),
+                "output_split_sizes": kwargs.get("output_split_sizes"),
+            }
+        )
+        return result
+
+    with pytest.MonkeyPatch.context() as monkeypatch:
+        monkeypatch.setattr(dist, "all_to_all_single", record)
+        yield calls
+
+
 def _worker(rank, port, output_dir, dtype, backend):
     torch.set_num_threads(4)
     torch.backends.cuda.matmul.allow_tf32 = False
@@ -169,9 +195,13 @@ def _worker(rank, port, output_dir, dtype, backend):
                     mask = torch.ones(1, text_len, dtype=torch.bool, device=device)
                     timestep = torch.tensor([0.5], device=device, dtype=dtype)
                     args = (latent, timestep, text, rotary, mask)
-                    with set_forward_context(omni_diffusion_config=baseline_config):
+                    with (
+                        _record_all_to_all() as baseline_collectives,
+                        set_forward_context(omni_diffusion_config=baseline_config),
+                    ):
                         expected = baseline(*args)
                         repeated = baseline(*args)
+                    assert baseline_collectives == []
                     torch.testing.assert_close(repeated, expected, atol=0, rtol=0)
                     if reference is not None:
                         with set_forward_context(omni_diffusion_config=reference_config):
@@ -210,10 +240,20 @@ def _worker(rank, port, output_dir, dtype, backend):
                         for layer in (*model.context_refiner, *model.noise_refiner)
                     ]
                     try:
-                        actual = model(*args)
+                        with _record_all_to_all() as sp_collectives:
+                            actual = model(*args)
                     finally:
                         for handle in handles:
                             handle.remove()
+                    # Each main layer must exchange Q, K, V and the attention
+                    # output. In particular FP32 must not take local SDPA and
+                    # bypass the shared sequence-parallel collectives.
+                    assert len(sp_collectives) == 4 * len(model.layers)
+                    assert all(call["dtype"] == str(dtype) and call["group_size"] == 2 for call in sp_collectives)
+                    assert all(
+                        call["input_split_sizes"] == call["output_split_sizes"] == [local_seq, local_seq]
+                        for call in sp_collectives
+                    )
                     assert len(seen_main) == len(seen_attention) == 2
                     assert len(seen_refiners) == 2
                     assert ctx._sp_shard_depth == 0
@@ -260,6 +300,9 @@ def _worker(rank, port, output_dir, dtype, backend):
                             "local_seq_len": local_seq,
                             "original_seq_len": global_seq,
                             "sp_padding_size": global_seq % 2,
+                            "sp1_all_to_all_count": len(baseline_collectives),
+                            "sp2_all_to_all_count": len(sp_collectives),
+                            "sp2_all_to_all": sp_collectives,
                             "max_abs_error": error.max().item(),
                             "mean_abs_error": error.mean().item(),
                             "fp32_reference_errors": reference_errors,
@@ -296,4 +339,9 @@ def test_mammothmoda2_two_rank_ulysses(tmp_path, dtype, backend):
     assert {result["rank"] for result in results} == {0, 1}
     assert len({result["gpu_uuid"] for result in results}) == 2
     assert all(result["backend"] == "nccl" and len(result["cases"]) == 6 for result in results)
+    assert all(
+        case["sp1_all_to_all_count"] == 0 and case["sp2_all_to_all_count"] == 8
+        for result in results
+        for case in result["cases"]
+    )
     assert all(len(result["runtime_cases"]) == (6 if backend == "TORCH_SDPA" else 0) for result in results)
