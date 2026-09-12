@@ -108,6 +108,12 @@ def test_real_block_forward_sites_and_fallback(case):
         n for n in block.body if isinstance(n, ast.FunctionDef) and n.name in ("forward", "_modulate")
     ]
     namespace = {"torch": torch, "Any": Any}
+    namespace.update(
+        dict.fromkeys(
+            ("try_paired_native_adaln", "try_paired_gated_residual_adaln", "try_paired_gated_residual"),
+            lambda *args: None,
+        )
+    )
     exec(compile(ast.Module(body=methods, type_ignores=[]), str(path), "exec"), namespace)
     calls = []
 

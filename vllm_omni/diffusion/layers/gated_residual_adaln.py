@@ -84,8 +84,9 @@ if HAS_TRITON:
         block_size: tl.constexpr,
         cast_output: tl.constexpr,
         tiles_per_row: tl.constexpr = 1,
+        program_offset: tl.constexpr = 0,
     ):
-        pid = tl.program_id(0).to(tl.int64)
+        pid = tl.program_id(0).to(tl.int64) - program_offset
         row = pid // tiles_per_row
         batch, token = row // seq_len, row % seq_len
         d = (pid % tiles_per_row) * block_size + tl.arange(0, block_size)
@@ -116,8 +117,9 @@ if HAS_TRITON:
         shift_stride_b: tl.constexpr,
         block_size: tl.constexpr,
         tiles_per_row: tl.constexpr = 1,
+        program_offset: tl.constexpr = 0,
     ):
-        pid = tl.program_id(0).to(tl.int64)
+        pid = tl.program_id(0).to(tl.int64) - program_offset
         row = pid // tiles_per_row
         batch = row // seq_len
         d = (pid % tiles_per_row) * block_size + tl.arange(0, block_size)
