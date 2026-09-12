@@ -25,16 +25,19 @@ if HAS_TRITON:
         _gated_residual_cast_kernel,
     )
 
+    # Scalar launch arguments also support Dynamo's symbolic shape metadata.
     @triton.jit
-    def _cast_input_tile(x, out, offset: tl.constexpr, spec: tl.constexpr):
-        # Tuple unpacking lowers through tensor conversion in Triton 3.7.
-        # Keep every piece of launch metadata explicitly compile-time.
-        s: tl.constexpr = spec[0]
-        d: tl.constexpr = spec[1]
-        stride_b: tl.constexpr = spec[2]
-        stride_s: tl.constexpr = spec[3]
-        block: tl.constexpr = spec[4]
-        tiles: tl.constexpr = spec[5]
+    def _cast_input_tile(
+        x,
+        out,
+        offset: tl.constexpr,
+        s: tl.constexpr,
+        d: tl.constexpr,
+        stride_b: tl.constexpr,
+        stride_s: tl.constexpr,
+        block: tl.constexpr,
+        tiles: tl.constexpr,
+    ):
         pid = tl.program_id(0).to(tl.int64) - offset
         row = pid // tiles
         col = pid % tiles * block + tl.arange(0, block)
@@ -42,11 +45,29 @@ if HAS_TRITON:
         tl.store(out + row * d + col, value.to(tl.float32), col < d)
 
     @triton.jit
-    def _pair_cast_input_kernel(x0, x1, out0, out1, split: tl.constexpr, spec0: tl.constexpr, spec1: tl.constexpr):
+    def _pair_cast_input_kernel(
+        x0,
+        x1,
+        out0,
+        out1,
+        split: tl.constexpr,
+        s0: tl.constexpr,
+        d0: tl.constexpr,
+        stride_b0: tl.constexpr,
+        stride_s0: tl.constexpr,
+        block0: tl.constexpr,
+        tiles0: tl.constexpr,
+        s1: tl.constexpr,
+        d1: tl.constexpr,
+        stride_b1: tl.constexpr,
+        stride_s1: tl.constexpr,
+        block1: tl.constexpr,
+        tiles1: tl.constexpr,
+    ):
         if tl.program_id(0) < split:
-            _cast_input_tile(x0, out0, 0, spec0)
+            _cast_input_tile(x0, out0, 0, s0, d0, stride_b0, stride_s0, block0, tiles0)
         else:
-            _cast_input_tile(x1, out1, split, spec1)
+            _cast_input_tile(x1, out1, split, s1, d1, stride_b1, stride_s1, block1, tiles1)
 
     @triton.jit
     def _pair_residual_kernel(
@@ -61,8 +82,24 @@ if HAS_TRITON:
         out1,
         norm1,
         split: tl.constexpr,
-        spec0: tl.constexpr,
-        spec1: tl.constexpr,
+        s0: tl.constexpr,
+        d0: tl.constexpr,
+        x_stride_b0: tl.constexpr,
+        x_stride_s0: tl.constexpr,
+        branch_stride_b0: tl.constexpr,
+        branch_stride_s0: tl.constexpr,
+        gate_stride_b0: tl.constexpr,
+        block0: tl.constexpr,
+        tiles0: tl.constexpr,
+        s1: tl.constexpr,
+        d1: tl.constexpr,
+        x_stride_b1: tl.constexpr,
+        x_stride_s1: tl.constexpr,
+        branch_stride_b1: tl.constexpr,
+        branch_stride_s1: tl.constexpr,
+        gate_stride_b1: tl.constexpr,
+        block1: tl.constexpr,
+        tiles1: tl.constexpr,
         cast_output: tl.constexpr,
     ):
         if tl.program_id(0) < split:
@@ -72,16 +109,16 @@ if HAS_TRITON:
                 gate0,
                 out0,
                 norm0,
-                spec0[0],
-                spec0[1],
-                spec0[2],
-                spec0[3],
-                spec0[4],
-                spec0[5],
-                spec0[6],
-                spec0[7],
+                s0,
+                d0,
+                x_stride_b0,
+                x_stride_s0,
+                branch_stride_b0,
+                branch_stride_s0,
+                gate_stride_b0,
+                block0,
                 cast_output,
-                spec0[8],
+                tiles0,
                 0,
             )
         else:
@@ -91,16 +128,16 @@ if HAS_TRITON:
                 gate1,
                 out1,
                 norm1,
-                spec1[0],
-                spec1[1],
-                spec1[2],
-                spec1[3],
-                spec1[4],
-                spec1[5],
-                spec1[6],
-                spec1[7],
+                s1,
+                d1,
+                x_stride_b1,
+                x_stride_s1,
+                branch_stride_b1,
+                branch_stride_s1,
+                gate_stride_b1,
+                block1,
                 cast_output,
-                spec1[8],
+                tiles1,
                 split,
             )
 
@@ -115,16 +152,26 @@ if HAS_TRITON:
         shift1,
         out1,
         split: tl.constexpr,
-        spec0: tl.constexpr,
-        spec1: tl.constexpr,
+        s0: tl.constexpr,
+        d0: tl.constexpr,
+        scale_stride_b0: tl.constexpr,
+        shift_stride_b0: tl.constexpr,
+        block0: tl.constexpr,
+        tiles0: tl.constexpr,
+        s1: tl.constexpr,
+        d1: tl.constexpr,
+        scale_stride_b1: tl.constexpr,
+        shift_stride_b1: tl.constexpr,
+        block1: tl.constexpr,
+        tiles1: tl.constexpr,
     ):
         if tl.program_id(0) < split:
             _cast_modulate_kernel(
-                norm0, scale0, shift0, out0, spec0[0], spec0[1], spec0[2], spec0[3], spec0[4], spec0[5], 0
+                norm0, scale0, shift0, out0, s0, d0, scale_stride_b0, shift_stride_b0, block0, tiles0, 0
             )
         else:
             _cast_modulate_kernel(
-                norm1, scale1, shift1, out1, spec1[0], spec1[1], spec1[2], spec1[3], spec1[4], spec1[5], split
+                norm1, scale1, shift1, out1, s1, d1, scale_stride_b1, shift_stride_b1, block1, tiles1, split
             )
 
 
@@ -188,8 +235,8 @@ def _modulate_pair(normalized0, normalized1, x0, x1, scale0, shift0, scale1, shi
         shift1,
         out1,
         split,
-        _modulate_spec(x0, scale0, shift0),
-        _modulate_spec(x1, scale1, shift1),
+        *_modulate_spec(x0, scale0, shift0),
+        *_modulate_spec(x1, scale1, shift1),
         num_warps=4,
         enable_fp_fusion=False,
     )
@@ -221,8 +268,8 @@ def try_paired_native_adaln(
             norm0,
             norm1,
             split,
-            _cast_spec(x0),
-            _cast_spec(x1),
+            *_cast_spec(x0),
+            *_cast_spec(x1),
             num_warps=4,
         )
     norm0, norm1 = _native_norm_boundary(norm0, eps0), _native_norm_boundary(norm1, eps1)
@@ -257,8 +304,8 @@ def try_paired_gated_residual_adaln(
         out1,
         norm1,
         split,
-        _residual_spec(x0, branch0, gate0),
-        _residual_spec(x1, branch1, gate1),
+        *_residual_spec(x0, branch0, gate0),
+        *_residual_spec(x1, branch1, gate1),
         True,
         num_warps=4,
         enable_fp_fusion=False,
@@ -294,8 +341,8 @@ def try_paired_gated_residual(
         out1,
         None,
         split,
-        _residual_spec(x0, branch0, gate0),
-        _residual_spec(x1, branch1, gate1),
+        *_residual_spec(x0, branch0, gate0),
+        *_residual_spec(x1, branch1, gate1),
         False,
         num_warps=4,
         enable_fp_fusion=False,
