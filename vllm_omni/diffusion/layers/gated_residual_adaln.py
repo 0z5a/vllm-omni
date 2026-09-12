@@ -203,6 +203,7 @@ def try_fused_native_adaln(
         shift.stride(0),
         block,
         tiles,
+        program_offset=0,
         num_warps=warps,
         enable_fp_fusion=False,
     )
@@ -232,6 +233,7 @@ def try_fused_gated_residual(x: torch.Tensor, branch: torch.Tensor, gate: torch.
         block,
         False,
         tiles,
+        program_offset=0,
         num_warps=warps,
         enable_fp_fusion=False,
     )
@@ -309,6 +311,7 @@ def try_fused_gated_residual_adaln(
         block_size,
         residual.dtype != torch.float32,
         tiles,
+        program_offset=0,
         num_warps=num_warps,
         enable_fp_fusion=False,
     )
@@ -324,6 +327,7 @@ def try_fused_gated_residual_adaln(
         shift.stride(0),
         block_size,
         tiles,
+        program_offset=0,
         num_warps=num_warps,
         enable_fp_fusion=False,
     )
