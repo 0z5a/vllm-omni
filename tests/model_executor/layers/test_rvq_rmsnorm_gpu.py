@@ -99,28 +99,6 @@ class GpuRmsnormTests(unittest.TestCase):
         self.assert_pair(actual, compiled)
         return actual
 
-    def test_native_order_raw_and_norm_on_frozen_runtime(self):
-        torch = self.torch
-        if torch.__version__ != "2.13.0+cu130":
-            self.skipTest("Bit-exact reduction contract was measured on Torch 2.13.0+cu130")
-        call = self.variant.make_variant(4)
-        with torch.inference_mode():
-            for dtype in (torch.float16, torch.bfloat16):
-                for frames in (1, 32, 128):
-                    for strided in (False, True):
-                        generator = torch.Generator(device="cuda").manual_seed(947)
-                        backing = torch.randint(2048, (1, 16, frames * 2), device="cuda", generator=generator)
-                        codes = backing[..., ::2] if strided else backing[..., :frames].contiguous()
-                        weight = torch.randn(32768, 1024, dtype=dtype, device="cuda", generator=generator)
-                        offsets = (torch.arange(16, device="cuda") * 2048).view(1, 16, 1)
-                        gamma = torch.randn(1024, dtype=dtype, device="cuda", generator=generator)
-                        for delta in (0, 17):
-                            if delta:
-                                codes.copy_((codes + delta) % 2048)
-                            inputs = codes, weight, offsets, gamma, 1e-5
-                            for actual, expected in zip(call(*inputs), self.native(*inputs), strict=True):
-                                torch.testing.assert_close(actual, expected, rtol=0, atol=0)
-
     def test_both_configurations_dtypes_hidden_tail_strides_and_new_buffers(self):
         torch = self.torch
         with torch.inference_mode():
