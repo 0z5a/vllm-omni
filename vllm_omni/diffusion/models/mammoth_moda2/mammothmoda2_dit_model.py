@@ -324,22 +324,8 @@ class AttnProcessor:
         if attention_mask is not None:
             attention_mask = attention_mask.to(torch.bool)
 
-        # SP must keep its collectives, including FP32 inputs configured for
-        # SDPA. The local fallback is only safe without SP.
-        use_sp = not attn.omni_attn.skip_sequence_parallel and attn.omni_attn.parallel_strategy.enabled
-        if dtype in (torch.float16, torch.bfloat16) or not hidden_states.is_cuda or use_sp:
-            attn_metadata = AttentionMetadata(attn_mask=attention_mask) if attention_mask is not None else None
-            hidden_states = attn.omni_attn(query, key, value, attn_metadata)
-        else:
-            # FlashAttention supports only fp16/bf16 and raises on fp32 (which the
-            # previous SDPA arithmetic served); the CPU path already resolves to
-            # SDPA and handles fp32. Keep fp32 on CUDA on SDPA with native
-            # grouped-query attention (no KV-head replication).
-            q, k, v = query.transpose(1, 2), key.transpose(1, 2), value.transpose(1, 2)
-            attn_mask = attention_mask[:, None, None, :] if attention_mask is not None else None
-            hidden_states = F.scaled_dot_product_attention(
-                q, k, v, attn_mask=attn_mask, scale=attn.scale, enable_gqa=kv_heads < attn.heads
-            ).transpose(1, 2)
+        attn_metadata = AttentionMetadata(attn_mask=attention_mask) if attention_mask is not None else None
+        hidden_states = attn.omni_attn(query, key, value, attn_metadata)
 
         if query_attention_mask is None:
             query_attention_mask = attention_mask
@@ -404,6 +390,7 @@ class TransformerBlock(nn.Module):
             softmax_scale=self.attn.scale,
             num_kv_heads=num_kv_heads,
             skip_sequence_parallel=skip_sequence_parallel,
+            allow_fp32_fallback=True,
         )
 
         # Initialize feed-forward network
