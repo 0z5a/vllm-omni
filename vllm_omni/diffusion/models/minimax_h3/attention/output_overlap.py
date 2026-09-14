@@ -15,15 +15,15 @@ FLAG = "VLLM_OMNI_H3_O_PRODUCER_LOOKAHEAD"
 
 @lru_cache(None)
 def producer_stream(device):
-    return torch.cuda.Stream(device=device, priority=-1)
+    return torch.get_device_module().Stream(device=device, priority=-1)
 
 
 def prepare(active, fine, coarse, tiles, state):
-    from .minimax_h3_chunks import produce
+    from vllm_omni.diffusion.models.minimax_h3.ops.attention.chunks import produce
 
     if os.environ.get(FLAG) != "1" or "o_lookahead" in active:
         raise RuntimeError("This arm requires the fixed four-chunk O lookahead route")
-    assert torch.cuda.current_stream(fine.device) == active["comm"]
+    assert torch.get_device_module().current_stream(fine.device) == active["comm"]
     assert fine.dtype == coarse.dtype == torch.bfloat16
     assert tuple(fine.shape) == (1, 95936, 7, 128)
     assert tuple(coarse.shape) == (1, 1648, 7, 128)
@@ -49,12 +49,12 @@ def prepare(active, fine, coarse, tiles, state):
     stream.wait_stream(active["comm"])  # fine and the original coarse join precede this event.
     for tensor in (fine, coarse, tiles):
         tensor.record_stream(stream)
-    with torch.cuda.stream(stream):
+    with torch.get_device_module().stream(stream):
         for index, e in enumerate(entries):
             e["landing"].record_stream(stream)
             with torch.cuda.nvtx.range(f"h3.oproducer.lookahead.produce.{index}"):
                 produce(fine, coarse, tiles, e["landing"], index * count, count)
-            ready = torch.cuda.Event(enable_timing=False)
+            ready = torch.get_device_module().Event(enable_timing=False)
             ready.record(stream)
             e["ready"] = ready
     return ticket

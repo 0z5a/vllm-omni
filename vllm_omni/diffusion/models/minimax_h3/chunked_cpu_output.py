@@ -322,7 +322,7 @@ class MiniMaxH3ChunkedCpuMp4Output:
             resolve_chunked_cpu_mp4_slots() if queue_slots is None else resolve_chunked_cpu_mp4_slots(str(queue_slots))
         )
         self._video_codec_options = resolve_chunked_cpu_mp4_codec_options(video_codec_options)
-        self._copy_stream = torch.cuda.Stream(device=device)
+        self._copy_stream = torch.get_device_module().Stream(device=device)
         self._free: queue.Queue[_PinnedSlot] = queue.Queue(maxsize=self._queue_slots)
         self._work: queue.Queue[_D2HItem | None] = queue.Queue(maxsize=self._queue_slots)
         self._slot_frame_capacity = int(max_chunk_frames)
@@ -428,9 +428,9 @@ class MiniMaxH3ChunkedCpuMp4Output:
 
             # Record the producer before switching streams. The callback owns
             # ``decoded`` only until this method returns.
-            producer_ready = torch.cuda.Event()
-            producer_ready.record(torch.cuda.current_stream(device=decoded.device))
-            with torch.cuda.stream(self._copy_stream):
+            producer_ready = torch.get_device_module().Event()
+            producer_ready.record(torch.get_device_module().current_stream(device=decoded.device))
+            with torch.get_device_module().stream(self._copy_stream):
                 self._copy_stream.wait_event(producer_ready)
                 decoded.record_stream(self._copy_stream)
                 frames = processor.revert_tensor(decoded)
@@ -455,8 +455,8 @@ class MiniMaxH3ChunkedCpuMp4Output:
                     f"finalized VAE chunk exceeds advertised total: {first_frame}+{frame_count}>{total_frames}"
                 )
 
-            ready = torch.cuda.Event()
-            with torch.cuda.stream(self._copy_stream):
+            ready = torch.get_device_module().Event()
+            with torch.get_device_module().stream(self._copy_stream):
                 slot.tensor[:frame_count].copy_(rgb_u8, non_blocking=True)
                 frames.record_stream(self._copy_stream)
                 rgb_u8.record_stream(self._copy_stream)

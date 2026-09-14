@@ -282,7 +282,12 @@ def _minimax_h3_profiler_targets(*, audio_decode_overlap: bool) -> list[str]:
 def _minimax_h3_runtime_gpu_architecture(device: torch.device) -> str:
     if device.type != "cuda":
         return device.type
-    major, minor = torch.cuda.get_device_capability(device)
+    capability = current_omni_platform.get_device_capability(
+        device.index if device.index is not None else torch.accelerator.current_device_index()
+    )
+    if capability is None:
+        raise RuntimeError("The active platform did not report a GPU architecture")
+    major, minor = capability
     return f"sm{major}{minor}"
 
 
@@ -1326,7 +1331,7 @@ class MiniMaxH3Pipeline(
             raise RuntimeError("Full-VAE/audio overlap requires the resident CUDA SP8 chunked-MP4 route")
         self._audio_decode_stream = None
         if self._full_vae_audio_overlap_enabled and rank == 0:
-            self._audio_decode_stream = torch.cuda.Stream(device=self.device)
+            self._audio_decode_stream = torch.get_device_module().Stream(device=self.device)
         if self.load_text_encoder:
             text_encoder_tp_size = int(getattr(self.parallel_config, "text_encoder_tp_size", 1))
             if text_encoder_tp_size < 1:
@@ -2565,17 +2570,17 @@ class MiniMaxH3Pipeline(
         audio_latent: torch.Tensor,
     ) -> _MiniMaxH3AudioDecodeTicket:
         stream = self._audio_decode_stream
-        producer_stream = torch.cuda.current_stream(device=audio_latent.device)
+        producer_stream = torch.get_device_module().current_stream(device=audio_latent.device)
         profile_enabled = bool(getattr(self, "enable_diffusion_pipeline_profiler", False))
-        ready_event = torch.cuda.Event(enable_timing=False)
+        ready_event = torch.get_device_module().Event(enable_timing=False)
         # The completion event is both the consumer dependency and, when the
         # profiler is active, the elapsed-time endpoint. CUDA requires both
         # endpoints passed to elapsed_time() to be timing-enabled.
-        done_event = torch.cuda.Event(enable_timing=profile_enabled)
-        start_event = torch.cuda.Event(enable_timing=True) if profile_enabled else None
+        done_event = torch.get_device_module().Event(enable_timing=profile_enabled)
+        start_event = torch.get_device_module().Event(enable_timing=True) if profile_enabled else None
         ready_event.record(producer_stream)
         try:
-            with torch.cuda.stream(stream):
+            with torch.get_device_module().stream(stream):
                 stream.wait_event(ready_event)
                 if start_event is not None:
                     start_event.record(stream)
@@ -2606,7 +2611,7 @@ class MiniMaxH3Pipeline(
         self,
         ticket: _MiniMaxH3AudioDecodeTicket,
     ) -> torch.Tensor:
-        consumer_stream = torch.cuda.current_stream(device=ticket.audio.device)
+        consumer_stream = torch.get_device_module().current_stream(device=ticket.audio.device)
         consumer_stream.wait_event(ticket.done_event)
         ticket.audio.record_stream(consumer_stream)
         return ticket.audio

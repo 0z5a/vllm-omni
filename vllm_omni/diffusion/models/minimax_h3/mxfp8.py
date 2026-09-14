@@ -21,6 +21,7 @@ from vllm_omni.diffusion.layers.mxfp8 import (
     mxfp8_scaled_mm,
     silu_mxfp8_linear,
 )
+from vllm_omni.platforms import current_omni_platform
 
 ENV = "VLLM_OMNI_H3_DIT_MXFP8"
 SUFFIXES = ("attn.qkv_proj", "attn.out_proj", "mlp.fc1", "mlp.fc2")
@@ -77,7 +78,7 @@ def install_and_audit(model) -> None:
 
     if (
         len(model.blocks) != 50
-        or torch.cuda.get_device_capability() != (12, 0)
+        or current_omni_platform.get_device_capability(torch.accelerator.current_device_index()) != (12, 0)
         or get_tensor_model_parallel_world_size() != 1
         or get_sp_group().world_size != 8
     ):

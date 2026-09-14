@@ -17,7 +17,7 @@ _PREFIX = "VLLM_OMNI_H3_LOSSLESS_"
 
 
 def _active():
-    from vllm_omni.diffusion.attention.ops.minimax_h3_overlap import ACTIVE
+    from vllm_omni.diffusion.models.minimax_h3.attention.overlap import ACTIVE
 
     return ACTIVE.get()
 
@@ -49,25 +49,25 @@ def after_q(query: torch.Tensor, metadata: Any) -> None:
     # together after K exchange, leaving K transport to gate projection.
     if active.get("vsplit_ticket") is not None and not active.get("vsplit_k_ready", False):
         return
-    from vllm_omni.diffusion.attention.backends.fastvideo_vsa import (
+    from vllm_omni.diffusion.attention.ops.sage_quantization import quantize_sage_q_sm120
+    from vllm_omni.diffusion.models.minimax_h3.attention.backend import (
         _get_h3_layout,
         _get_h3_tile_metadata,
         _get_h3_tiled_source_rows,
         _pool_h3_tiles,
         h3_vsa_tile_pack,
     )
-    from vllm_omni.diffusion.attention.ops.sage_quantization import quantize_sage_q_sm120
 
     assert query.shape == (1, 95936, 7, 128) and query.dtype == torch.bfloat16
     assert query.is_cuda and not query.requires_grad
-    assert torch.cuda.current_stream(query.device) == active["comm"]
+    assert torch.get_device_module().current_stream(query.device) == active["comm"]
     assert "v3_q_ready" not in active, "Q preparation must run once per layer"
     layout = _get_h3_layout(metadata)
     assert layout == ((558, 1206), (107, 22, 40), 1764), layout
     prefix, shape, _ = layout
     side = active["side"]
     side.wait_stream(active["comm"])
-    with torch.cuda.stream(side), torch.cuda.nvtx.range("h3.lossless.v3.early_q"):
+    with torch.get_device_module().stream(side), torch.cuda.nvtx.range("h3.lossless.v3.early_q"):
         query.record_stream(side)
         _, sizes, _, _, _, _ = _get_h3_tile_metadata(prefix, shape, query.device)
         maps = _get_h3_tiled_source_rows(prefix, shape, 105472, query.device)
@@ -103,7 +103,7 @@ def quantized_q(query: torch.Tensor):
         and query.dtype == q.dtype
         and query.device == q.device
     ), "prepared Q identity changed before Sage quantization"
-    assert torch.cuda.current_stream(query.device) == active["comm"]
+    assert torch.get_device_module().current_stream(query.device) == active["comm"]
     # prepared() already enqueued the producer-stream join. Keep the tensors
     # in this invocation's state and protect their use on the consumer stream.
     q_int8, q_scale = ready["q_int8"], ready["q_scale"]
@@ -131,9 +131,9 @@ def coarse_ready(v_tiled: torch.Tensor, scores: torch.Tensor):
     assert v_tiled.shape == (1, 105472, 7, 128) and v_tiled.dtype == torch.bfloat16
     assert scores.shape == (1, 7, 1648, 1648) and scores.dtype == torch.float32
     assert v_tiled.device == scores.device
-    assert torch.cuda.current_stream(v_tiled.device) == active["comm"]
+    assert torch.get_device_module().current_stream(v_tiled.device) == active["comm"]
     assert "v3_coarse_ticket" not in active, "coarse preparation must run once per layer"
-    ready = torch.cuda.Event(enable_timing=False)
+    ready = torch.get_device_module().Event(enable_timing=False)
     ready.record(active["comm"])
     v_tiled.record_stream(active["side"])
     scores.record_stream(active["side"])
@@ -156,11 +156,11 @@ def coarse_scope(ticket):
     # The event was recorded before fine attention. Waiting on the current
     # comm stream here would also wait for fine and eliminate the overlap.
     side.wait_event(ticket.ready)
-    with torch.cuda.stream(side), torch.cuda.nvtx.range("h3.lossless.v3.coarse"):
+    with torch.get_device_module().stream(side), torch.cuda.nvtx.range("h3.lossless.v3.coarse"):
         try:
             yield
         finally:
-            done = torch.cuda.Event(enable_timing=False)
+            done = torch.get_device_module().Event(enable_timing=False)
             done.record(side)
             active["v3_coarse_done"] = done
 
@@ -173,6 +173,6 @@ def join_coarse(compressed: torch.Tensor) -> None:
     if ticket is None:
         return
     assert ticket.used and "v3_coarse_done" in active
-    assert torch.cuda.current_stream(compressed.device) == active["comm"]
+    assert torch.get_device_module().current_stream(compressed.device) == active["comm"]
     active["comm"].wait_event(active["v3_coarse_done"])
     compressed.record_stream(active["comm"])

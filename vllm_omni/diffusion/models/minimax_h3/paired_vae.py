@@ -65,7 +65,7 @@ def assemble_spatial(model, tiles, y_overlap, x_overlap):
 
 def decode_pairs(model, latent, group, callback, *, temporal_cat_dtype=None, gather_stream=None):
     """Group wrapper requires world_size/rank_in_group/ranks/device_group/all_reduce."""
-    from vllm_omni.diffusion.models.minimax_h3.temporal_chunk_parallel import (
+    from vllm_omni.diffusion.models.minimax_h3.vae_collectives import (
         _agree_on_failure,
         _gather_stack_to_rank_zero,
         _LeaderAssembler,
@@ -126,11 +126,13 @@ def decode_pairs(model, latent, group, callback, *, temporal_cat_dtype=None, gat
                 # assembler preserves callback order and the five-frame tail.
                 stream = assembler._stream
                 stream.wait_stream(
-                    gather_stream if gather_stream is not None else torch.cuda.current_stream(latent.device)
+                    gather_stream
+                    if gather_stream is not None
+                    else torch.get_device_module().current_stream(latent.device)
                 )
                 gathered.record_stream(stream)
                 try:
-                    with torch.cuda.stream(stream):
+                    with torch.get_device_module().stream(stream):
                         for window in range(round_id * 2, min(round_id * 2 + 2, 21)):
                             parts = [None] * 28
                             for owner, owner_jobs in enumerate(round_jobs):

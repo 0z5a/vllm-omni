@@ -34,21 +34,6 @@ from vllm_omni.diffusion.attention.backends.abstract import (
     VideoTokenLayout,
 )
 from vllm_omni.diffusion.attention.layer import Attention
-from vllm_omni.diffusion.attention.ops.minimax_h3_modulation import (
-    indexed_gate,
-    indexed_gate_rms_norm_scale_shift,
-    indexed_scale_shift_,
-    rms_norm_indexed_scale_shift,
-)
-from vllm_omni.diffusion.attention.ops.minimax_h3_vsa_gate_compute_overlap import (
-    H3_VSA_GATE_COMPUTE_OVERLAP_ACTIVE_KEY,
-    H3_VSA_GATE_COMPUTE_OVERLAP_TICKET_KEY,
-    h3_vsa_gate_compute_overlap_enabled,
-)
-from vllm_omni.diffusion.attention.ops.minimax_h3_vsa_layout import (
-    H3_VSA_ATTENTION_ACTIVE_KEY,
-    H3_VSA_FP8_QKV_SCALES_KEY,
-)
 from vllm_omni.diffusion.cache.cachedit import CacheDiTAdapterConfig
 from vllm_omni.diffusion.distributed.sp_plan import (
     SequenceParallelInput,
@@ -59,9 +44,18 @@ from vllm_omni.diffusion.layers.fused_qk_norm_rope import (
     fused_qk_norm_rope,
     fused_qk_norm_rope_out,
 )
+from vllm_omni.diffusion.layers.indexed_modulation import (
+    indexed_gate,
+    indexed_gate_rms_norm_scale_shift,
+    indexed_scale_shift_,
+    rms_norm_indexed_scale_shift,
+)
 from vllm_omni.diffusion.layers.norm import RMSNorm
 from vllm_omni.diffusion.layers.rope import RotaryEmbedding
 from vllm_omni.diffusion.models.host_weight_contract import FinalLayoutModelContract
+from vllm_omni.diffusion.models.minimax_h3.ops.attention.layout import (
+    H3_VSA_ATTENTION_ACTIVE_KEY,
+)
 from vllm_omni.platforms import current_omni_platform
 
 if TYPE_CHECKING:
@@ -72,18 +66,6 @@ if TYPE_CHECKING:
     from vllm_omni.diffusion.data import OmniDiffusionConfig
 
 logger = init_logger(__name__)
-
-_QCHUNK_PIPELINE_ENV = "VLLM_OMNI_MINIMAX_H3_QCHUNK_PIPELINE"
-
-
-def _configured_qchunk_count() -> int:
-    """Return the strictly opt-in, qualified H3 query-chunk count."""
-    value = os.getenv(_QCHUNK_PIPELINE_ENV, "0").strip().lower()
-    if value in ("0", "false", "off"):
-        return 0
-    if value in ("2", "true", "on"):
-        return 2
-    raise ValueError(f"{_QCHUNK_PIPELINE_ENV} must be disabled or exactly 2, got {value!r}")
 
 
 def _validate_adaln_cache_quant_config(
@@ -483,12 +465,15 @@ class MiniMaxH3Attention(nn.Module):
             "blocks."
         )
         self._h3_lossless_gate = self._h3_ulysses_overlap and os.getenv("VLLM_OMNI_H3_LOSSLESS_GATE", "0") == "1"
-        from vllm_omni.diffusion.attention.ops.minimax_h3_qkv_overlap import configured_mode
+        from vllm_omni.diffusion.models.minimax_h3.attention.qkv_overlap import configured_mode
 
         self._h3_vsplit_mode = configured_mode(prefix)
         self._h3_vsplit_layer_index = int(prefix.split(".")[1]) if self._h3_vsplit_mode != "off" else -1
         self._gate_quant_config = quant_config
         self._gate_prefix = f"{prefix}.to_gate_compress"
+        from .attention.backend import MiniMaxH3VSABackend
+        from .attention.parallel import configure_parallel_attention
+
         self.attention = Attention(
             num_heads=self.num_heads,
             num_kv_heads=self.num_kv_heads,
@@ -501,29 +486,17 @@ class MiniMaxH3Attention(nn.Module):
             role_category=role_category,
             skip_sequence_parallel=skip_sequence_parallel,
             prefix=prefix,
+            backend_overrides={"FASTVIDEO_VSA": MiniMaxH3VSABackend},
         )
+        configure_parallel_attention(self.attention)
         # Static and strictly opt-in: only FlashInfer PCIe Ulysses advertises
         # registered producer output. Keeping this as a plain bool lets the
         # compiled forward specialize without inspecting process-group state.
         self._use_qk_input_landing = self.attention.supports_qk_input_landing
-        # This is a separate, stricter contract from BF16 Q/K producer-direct.
-        # Scales arrive from an identity-bound calibration sidecar after model
-        # construction; an enabled route with no scales fails at inference.
-        # Independent experiment: default-off and restricted to the exact
-        # two-chunk contract validated on H3 SP8. Unsupported runtime layouts
-        # execute the ordinary path through Attention's explicit fallback.
-        self._qchunk_count = _configured_qchunk_count()
-        # Keep the switch static for regional torch.compile.  The actual CUDA
-        # stream/event objects are created only inside _run_packed_attention's
-        # eager island and never become Dynamo graph inputs or outputs.
-        self._use_vsa_gate_compute_overlap = h3_vsa_gate_compute_overlap_enabled()
 
     def _project_attention_chunk(self, out: torch.Tensor) -> torch.Tensor:
         """Apply the unchanged H3 output projection to one gathered chunk."""
-        # ``out_proj`` consumes this TP rank's head shard.  TP1 (the qualified
-        # q-chunk geometry) makes this equal to ``total_num_heads``, but using
-        # the local width keeps every explicit fallback structurally identical
-        # to the ordinary attention path on other layouts.
+        # Project this TP rank's head shard using the model's existing linear.
         out = out.reshape(-1, self.num_heads * self.head_dim)
         out, _ = self.out_proj(out)
         return out
@@ -575,7 +548,6 @@ class MiniMaxH3Attention(nn.Module):
         video_layout: VideoTokenLayout | None = None,
         vsa_prefix_segments: tuple[int, ...] = (),
         gate_compress: torch.Tensor | None = None,
-        gate_input: torch.Tensor | None = None,
         lossless_gate_input: torch.Tensor | None = None,
         qk_norm_rope: tuple[
             torch.Tensor,
@@ -584,7 +556,6 @@ class MiniMaxH3Attention(nn.Module):
             float,
         ]
         | None = None,
-        qk_observer_boundary_is_post_rope: bool = False,
         vsplit_input: tuple[torch.Tensor, torch.Tensor, torch.Tensor] | None = None,
     ) -> torch.Tensor:
         """Run packed attention as a small eager island.
@@ -603,84 +574,24 @@ class MiniMaxH3Attention(nn.Module):
             and video_layout is not None
             and any(span.role == "target" for span in video_layout.video_spans)
         )
-        vsplit_audit = None
         if self._h3_vsplit_mode != "off":
             if (
                 vsplit_input is None
                 or not h3_vsa_attention_active
                 or (not self._h3_ulysses_overlap)
-                or self._qchunk_count
                 or (not self._use_qk_input_landing)
                 or (qk_norm_rope is None)
-                or (gate_input is not None)
                 or (lossless_gate_input is None)
                 or (gate_compress is not None)
                 or (num_requests != 1)
             ):
                 raise RuntimeError("H3 VSPLIT requires the exact BF16 v3 producer-direct inference path")
-            if self._h3_vsplit_mode == "audit":
-                from vllm_omni.diffusion.attention.ops.minimax_h3_qkv_overlap import begin_audit
-
-                vsplit_audit = begin_audit(self.qkv_proj, vsplit_input, q, k, v, self._h3_vsplit_layer_index)
         gate_batched = gate_compress.unsqueeze(0) if gate_compress is not None else None
-        gate_overlap_ticket = None
-        if gate_input is not None:
-            if not getattr(self, "_use_vsa_gate_compute_overlap", False):
-                raise RuntimeError("MiniMax-H3 VSA gate-compute overlap input reached while its static gate is off")
-            if gate_compress is not None:
-                raise RuntimeError(
-                    "MiniMax-H3 VSA gate-compute overlap received both a gate input and materialized gate"
-                )
-            if self.to_gate_compress is None:
-                raise RuntimeError("MiniMax-H3 VSA gate-compute overlap requires the learned gate projection")
-            raise RuntimeError("MiniMax-H3 VSA gate-compute overlap requires E4M3 QKV transport")
-            if qk_norm_rope is None:
-                raise RuntimeError("MiniMax-H3 VSA gate-compute overlap requires deferred Q/K norm and RoPE")
-            if not h3_vsa_attention_active:
-                raise RuntimeError("MiniMax-H3 VSA gate-compute overlap requires target-video FASTVIDEO_VSA")
-            if getattr(self, "_qchunk_count", 0):
-                raise RuntimeError("MiniMax-H3 VSA gate-compute overlap is incompatible with query chunking")
-            if num_requests != 1:
-                raise RuntimeError("MiniMax-H3 VSA gate-compute overlap is qualified only for one packed request")
-            if self.num_heads != self.total_num_heads or self.num_kv_heads != self.total_num_heads:
-                raise RuntimeError("MiniMax-H3 VSA gate-compute overlap is qualified only for TP1")
-            if gate_input.ndim != 2 or gate_input.shape != (q.shape[0], self._gate_hidden_size):
-                raise ValueError(
-                    "MiniMax-H3 VSA gate-compute overlap input must be the local [T,H] attention input, "
-                    f"got {tuple(gate_input.shape)}"
-                )
-            if gate_input.device != q.device:
-                raise ValueError("MiniMax-H3 VSA gate-compute overlap input must share the Q/K/V device")
-            if gate_input.dtype != _BF16_DTYPE:
-                raise TypeError("MiniMax-H3 VSA gate-compute overlap requires a BF16 attention input")
-            if gate_input.requires_grad:
-                raise RuntimeError("MiniMax-H3 VSA gate-compute overlap is inference-only")
-            if not gate_input.is_contiguous():
-                raise ValueError("MiniMax-H3 VSA gate-compute overlap requires a contiguous attention input")
-
-            from vllm_omni.diffusion.attention.ops.minimax_h3_vsa_deferred_gate import (
-                h3_vsa_deferred_gate_sp_enabled,
-            )
-            from vllm_omni.diffusion.attention.ops.minimax_h3_vsa_layout import (
-                h3_vsa_fused_gate_untile_enabled,
-            )
-            from vllm_omni.diffusion.attention.ops.minimax_h3_vsa_o_bundle import (
-                h3_vsa_o_bundle_enabled,
-            )
-
-            if not h3_vsa_o_bundle_enabled():
-                raise RuntimeError("MiniMax-H3 VSA gate-compute overlap requires reverse-O bundling")
-            if h3_vsa_deferred_gate_sp_enabled():
-                raise RuntimeError("MiniMax-H3 VSA gate-compute overlap is incompatible with deferred-gate SP")
-            if h3_vsa_fused_gate_untile_enabled():
-                raise RuntimeError("MiniMax-H3 VSA gate-compute overlap is incompatible with fused gate untile")
-        fp8_qkv_scales: tuple[float, float, float] | None = None
         if qk_norm_rope is not None:
             q_weight, k_weight, rope_table, eps = qk_norm_rope
             landings = self.attention.prepare_qk_input_landings(
                 q.unsqueeze(0),
                 k.unsqueeze(0),
-                q_chunk_major_chunks=getattr(self, "_qchunk_count", 0),
             )
             if landings is None:
                 if self._h3_vsplit_mode != "off":
@@ -707,12 +618,6 @@ class MiniMaxH3Attention(nn.Module):
                     q_out=q_landing.squeeze(0),
                     k_out=k_landing.squeeze(0),
                 )
-
-        if vsplit_audit is not None:
-            from vllm_omni.diffusion.attention.ops.minimax_h3_qkv_overlap import finish_audit
-
-            finish_audit(vsplit_audit, q, k, qk_norm_rope)
-            del vsplit_audit
 
         # max_seqlen is already the longest packed document length. Do not read
         # the CUDA cu_seqlens scalars here: this function runs once per layer
@@ -788,16 +693,7 @@ class MiniMaxH3Attention(nn.Module):
                 # same local BSHD layout as Q here and follows Q/K/V through
                 # the Ulysses sequence-to-head exchange.
                 **({H3_VSA_ATTENTION_ACTIVE_KEY: True} if h3_vsa_attention_active else {}),
-                **({H3_VSA_FP8_QKV_SCALES_KEY: fp8_qkv_scales} if fp8_qkv_scales is not None else {}),
                 **({"gate_compress": gate_batched} if gate_batched is not None else {}),
-                **(
-                    {
-                        H3_VSA_GATE_COMPUTE_OVERLAP_ACTIVE_KEY: True,
-                        H3_VSA_GATE_COMPUTE_OVERLAP_TICKET_KEY: gate_overlap_ticket,
-                    }
-                    if gate_overlap_ticket is not None
-                    else {}
-                ),
                 **(
                     {"vsa_h3_prefix_segments": vsa_prefix_segments}
                     if (gate_batched is not None or lossless_gate_input is not None)
@@ -811,19 +707,10 @@ class MiniMaxH3Attention(nn.Module):
         q_batched = q.unsqueeze(0)
         k_batched = k.unsqueeze(0)
         v_batched = v.unsqueeze(0)
-        if getattr(self, "_qchunk_count", 0):
-            return self.attention.forward_h3_qchunk_projected(
-                q_batched,
-                k_batched,
-                v_batched,
-                metadata,
-                chunks=self._qchunk_count,
-                output_projector=self._project_attention_chunk,
-            )
         if self._h3_ulysses_overlap:
-            if not h3_vsa_attention_active or self._qchunk_count or fp8_qkv_scales is not None:
+            if not h3_vsa_attention_active:
                 raise RuntimeError("H3 overlap requires main-block BF16-wire VSA without query chunking")
-            from vllm_omni.diffusion.attention.ops.minimax_h3_overlap import run
+            from vllm_omni.diffusion.models.minimax_h3.attention.overlap import run
 
             return run(
                 self.attention,
@@ -882,13 +769,10 @@ class MiniMaxH3Attention(nn.Module):
         k = k.view(total, self.num_kv_heads, self.head_dim)
         v = v.view(total, self.num_kv_heads, self.head_dim)
         gate_compress = None
-        gate_input = None
         lossless_gate_input = None
         if self.to_gate_compress is not None:
             if self._h3_lossless_gate:
                 lossless_gate_input = x
-            elif getattr(self, "_use_vsa_gate_compute_overlap", False):
-                gate_input = x
             else:
                 gate_result = self.to_gate_compress(x)
                 gate_compress = gate_result[0] if isinstance(gate_result, tuple) else gate_result
@@ -917,15 +801,6 @@ class MiniMaxH3Attention(nn.Module):
             )
             qk_norm_rope = None
 
-        # The gate is projected from the same local rows as Q. Pure Ulysses
-        # reshards it alongside Q/K/V in UlyssesParallelAttention so each VSA
-        # rank receives the full sequence for its local head shard.
-        gate_compress = None
-        if self.to_gate_compress is not None:
-            gate_result = self.to_gate_compress(x)
-            gate_compress = gate_result[0] if isinstance(gate_result, tuple) else gate_result
-            gate_compress = gate_compress.view(total, self.num_heads, self.head_dim)
-
         # Each request contributes a document for its rows plus one for any
         # nonempty alignment padding. Local/Ulysses backends unpad it, while
         # Ring keeps aligned rows for fixed-size P2P buffers.
@@ -943,13 +818,11 @@ class MiniMaxH3Attention(nn.Module):
             video_layout=video_layout,
             vsa_prefix_segments=vsa_prefix_segments,
             gate_compress=gate_compress,
-            gate_input=gate_input,
             lossless_gate_input=lossless_gate_input,
             qk_norm_rope=qk_norm_rope,
-            qk_observer_boundary_is_post_rope=rope_table is not None,
             vsplit_input=(quantized_x, activation_scale, qk) if self._h3_vsplit_mode == "split" else None,
         )
-        if self._qchunk_count or self._h3_ulysses_overlap:
+        if self._h3_ulysses_overlap:
             return out
         out = out.reshape(total, self.num_heads * self.head_dim)
         out, _ = self.out_proj(out)

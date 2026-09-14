@@ -1,9 +1,9 @@
 # SPDX-License-Identifier: Apache-2.0
 # SPDX-FileCopyrightText: Copyright contributors to the vLLM-Omni project
-"""Default-off, fixed-geometry QK + V-first transport overlap experiment.
+"""QK/V producer scheduling for the supported H3 overlap geometry.
 
 Only tensor arguments cross the regional-compile boundary. Tickets, streams,
-events and audit bookkeeping live entirely in the existing eager attention
+events and producer state live entirely in the existing eager attention
 island. The V placeholder aliases raw Q and must never be read as V: the
 strictly guarded Ulysses path replaces it before its first V data access.
 """
@@ -77,7 +77,7 @@ def validate_projection(projection, prepared) -> None:
 
 @lru_cache(None)
 def _v_stream(device_index: int):
-    return torch.cuda.Stream(device=device_index)
+    return torch.get_device_module().Stream(device=device_index)
 
 
 @dataclass
@@ -103,7 +103,7 @@ def begin(active, attention, projection, prepared, placeholder, layer_index: int
     validate_route(attention, metadata)
     if not 0 <= layer_index < 50 or tuple(placeholder.shape) != (1, ROWS, 56, 128):
         raise RuntimeError("H3 VSPLIT placeholder geometry changed")
-    ready = torch.cuda.Event(enable_timing=False)
+    ready = torch.get_device_module().Event(enable_timing=False)
     ready.record(active["comm"])
     stream = _v_stream(x.device.index)
     for tensor in (x, x_scale, qk, projection.weight, projection.mxfp8_weight_scale):
@@ -115,11 +115,11 @@ def begin(active, attention, projection, prepared, placeholder, layer_index: int
     # concurrently. Gate/early-Q/QK preparation are queued on the side stream.
     stream.wait_event(ready)
     ticket.launched = True  # Exception cleanup joins partial submissions.
-    with torch.cuda.stream(stream):
+    with torch.get_device_module().stream(stream):
         from vllm_omni.diffusion.models.minimax_h3.mxfp8 import project_split_v
 
         ticket.result = project_split_v(projection, x, x_scale, qk).view(1, ROWS, 56, 128)
-        ticket.done = torch.cuda.Event(enable_timing=False)
+        ticket.done = torch.get_device_module().Event(enable_timing=False)
         ticket.done.record(stream)
     key = (dist.get_rank(), layer_index)
     if key not in _ACTIVE_LOGGED:
@@ -157,15 +157,6 @@ def validate_route(attention, metadata) -> None:
         or strategy._scatter_idx != 2
         or strategy._gather_idx != 1
         or not strategy._qk_input_landing_enabled
-        or any(
-            getattr(strategy, flag)
-            for flag in (
-                "_qkv_single_phase_enabled",
-                "_qchunk2_direct_enabled",
-                "_qchunk2_qkv_fused_enabled",
-                "_qkv_e4m3_input_landing_enabled",
-            )
-        )
         or attention.use_ring
         or attention._active_paged_kv_adapter() is not None
         or any(getattr(metadata, name, None) is not None for name in ("joint_query", "joint_key", "joint_value"))
@@ -174,7 +165,7 @@ def validate_route(attention, metadata) -> None:
 
 
 def after_q() -> None:
-    from vllm_omni.diffusion.attention.ops.minimax_h3_overlap import ACTIVE
+    from vllm_omni.diffusion.models.minimax_h3.attention.overlap import ACTIVE
 
     active = ACTIVE.get()
     ticket = None if active is None else active.get("vsplit_ticket")
@@ -187,7 +178,8 @@ def after_q() -> None:
 
 def before_v(active, query, key, placeholder, metadata, group):
     """Schedule K-dependent work before joining the independent V producer."""
-    from vllm_omni.diffusion.attention.backends.fastvideo_vsa import (
+    from vllm_omni.diffusion.distributed.flashinfer_ulysses import _state_for
+    from vllm_omni.diffusion.models.minimax_h3.attention.backend import (
         _build_h3_ordered_q2k_indices,
         _get_h3_layout,
         _get_h3_tile_metadata,
@@ -195,8 +187,7 @@ def before_v(active, query, key, placeholder, metadata, group):
         _pool_h3_tiles,
         h3_vsa_tile_pack,
     )
-    from vllm_omni.diffusion.attention.ops.minimax_h3_attention_schedule import prepared_q
-    from vllm_omni.diffusion.distributed.flashinfer_ulysses import _state_for
+    from vllm_omni.diffusion.models.minimax_h3.attention.schedule import prepared_q
 
     ticket = active["vsplit_ticket"]
     if (
@@ -215,12 +206,12 @@ def before_v(active, query, key, placeholder, metadata, group):
     if active.get("vsplit_k_ready", False) or "v3_q_ready" in active:
         raise RuntimeError("Deferred Q preparation must be submitted once after K")
     active["vsplit_k_ready"] = True
-    from vllm_omni.diffusion.attention.ops.minimax_h3_attention_schedule import after_q
+    from vllm_omni.diffusion.models.minimax_h3.attention.schedule import after_q
 
     after_q(query, metadata)
     with torch.cuda.nvtx.range("h3.vsplit.qk_ready"):
         active["side"].wait_stream(active["comm"])
-    with torch.cuda.stream(active["side"]), torch.cuda.nvtx.range("h3.overlap.qk_prepare"):
+    with torch.get_device_module().stream(active["side"]), torch.cuda.nvtx.range("h3.overlap.qk_prepare"):
         _, sizes, _, _, prefix_blocks, video_blocks = _get_h3_tile_metadata(prefix, shape, query.device)
         maps = _get_h3_tiled_source_rows(prefix, shape, 105472, query.device)
         q_ready = prepared_q()

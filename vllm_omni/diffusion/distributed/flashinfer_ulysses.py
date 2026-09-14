@@ -6,11 +6,11 @@ This adapter intentionally sits behind the existing ``--ulysses-a2a-permute``
 switch plus ``VLLM_OMNI_ULYSSES_A2A_BACKEND=flashinfer-pcie``.  The default
 continues to be vLLM-Omni's symmetric-memory kernel.
 
-H3 Q/K producer-direct landing is a second, independent opt-in through
+Q/K producer-direct landing is a second, independent opt-in through
 ``VLLM_OMNI_FLASHINFER_ULYSSES_QK_PRODUCER_DIRECT=1``. This keeps the existing
 FlashInfer adapter path unchanged for isolated A/B measurements.
 
-H3 VSA may independently write its fused tile-to-aligned output into the
+Attention kernels may independently write its fused tile-to-aligned output into the
 registered reverse-Ulysses source buffer through
 ``VLLM_OMNI_FLASHINFER_ULYSSES_O_PRODUCER_DIRECT=1``. The communicator still
 performs the identical gather-heads exchange; only its source staging copy is
@@ -18,8 +18,7 @@ removed.
 
 FlashInfer's PCIe communicator owns registered output and RDMA landing buffers.
 One communicator is shared by all attention layers in a process-group. Separate
-registered slots keep Q/K/V, the inverse-attention result, and the experimental
-Q chunk-major destination live at the same time. Non-contiguous projection views
+registered slots keep Q/K/V and the inverse-attention result live at the same time. Non-contiguous projection views
 are copied directly into the registered landing buffer, avoiding an intermediate
 ``contiguous()`` allocation and the transport's otherwise-required second device
 copy.
@@ -44,15 +43,8 @@ _MAX_BYTES_ENV = "VLLM_OMNI_FLASHINFER_ULYSSES_MAX_BYTES"
 _REQUIRE_RDMA_ENV = "VLLM_OMNI_FLASHINFER_ULYSSES_REQUIRE_RDMA"
 _QK_PRODUCER_DIRECT_ENV = "VLLM_OMNI_FLASHINFER_ULYSSES_QK_PRODUCER_DIRECT"
 _O_PRODUCER_DIRECT_ENV = "VLLM_OMNI_FLASHINFER_ULYSSES_O_PRODUCER_DIRECT"
-_QKV_E4M3_TRANSPORT_ENV = "VLLM_OMNI_FLASHINFER_ULYSSES_QKV_E4M3_TRANSPORT"
-_QKV_SINGLE_PHASE_ENV = "VLLM_OMNI_FLASHINFER_ULYSSES_QKV_SINGLE_PHASE"
-_QCHUNK2_DIRECT_ENV = "VLLM_OMNI_FLASHINFER_ULYSSES_QCHUNK2_DIRECT"
-_QCHUNK2_QKV_FUSED_ENV = "VLLM_OMNI_FLASHINFER_ULYSSES_QCHUNK2_QKV_FUSED"
 _RELEASE_AFTER_DENOISE_ENV = "VLLM_OMNI_FLASHINFER_ULYSSES_RELEASE_AFTER_DENOISE"
-_QCHUNK_PIPELINE_ENV = "VLLM_OMNI_MINIMAX_H3_QCHUNK_PIPELINE"
 _EXPECTED_BACKEND = "flashinfer-pcie"
-_QCHUNK2_OP = "scatter_heads_qchunk2"
-_QCHUNK2_INPUT_SHAPE = (1, 11936, 56, 128)
 
 _LOCK = threading.RLock()
 
@@ -88,7 +80,7 @@ def is_flashinfer_pcie_enabled() -> bool:
 
 
 def is_qk_producer_direct_enabled() -> bool:
-    """Return whether H3 may produce Q/K into registered source storage."""
+    """Return whether a producer may write Q/K into registered source storage."""
     value = os.getenv(_QK_PRODUCER_DIRECT_ENV, "0").strip().lower()
     if value not in ("0", "1", "false", "true"):
         raise ValueError(f"{_QK_PRODUCER_DIRECT_ENV} must be 0/1/false/true, got {value!r}")
@@ -96,53 +88,11 @@ def is_qk_producer_direct_enabled() -> bool:
 
 
 def is_o_producer_direct_enabled() -> bool:
-    """Return whether H3 VSA may target the registered reverse-O source."""
+    """Return whether Attention kernels may target the registered reverse-O source."""
     value = os.getenv(_O_PRODUCER_DIRECT_ENV, "0").strip().lower()
     if value not in ("0", "1", "false", "true"):
         raise ValueError(f"{_O_PRODUCER_DIRECT_ENV} must be 0/1/false/true, got {value!r}")
     return is_flashinfer_pcie_enabled() and value in ("1", "true")
-
-
-def is_qkv_e4m3_transport_enabled() -> bool:
-    """Validate and return the default-off H3 QKV wire-quantization path."""
-    value = os.getenv(_QKV_E4M3_TRANSPORT_ENV, "0").strip().lower()
-    if value not in ("0", "1", "false", "true"):
-        raise ValueError(f"{_QKV_E4M3_TRANSPORT_ENV} must be 0/1/false/true, got {value!r}")
-    if value in ("0", "false"):
-        return False
-    if not is_flashinfer_pcie_enabled():
-        raise ValueError(f"{_QKV_E4M3_TRANSPORT_ENV}=1 requires {_BACKEND_ENV}=flashinfer-pcie")
-    if not is_qk_producer_direct_enabled():
-        raise ValueError(f"{_QKV_E4M3_TRANSPORT_ENV}=1 requires {_QK_PRODUCER_DIRECT_ENV}=1")
-    if not is_o_producer_direct_enabled():
-        raise ValueError(f"{_QKV_E4M3_TRANSPORT_ENV}=1 requires {_O_PRODUCER_DIRECT_ENV}=1")
-    if not _require_rdma():
-        raise ValueError(f"{_QKV_E4M3_TRANSPORT_ENV}=1 requires {_REQUIRE_RDMA_ENV}=1")
-    if not os.getenv(_MAX_BYTES_ENV, "").strip():
-        raise ValueError(
-            f"{_QKV_E4M3_TRANSPORT_ENV}=1 requires an explicit {_MAX_BYTES_ENV} sized for the BF16 reverse-O operand"
-        )
-    qchunk = os.getenv(_QCHUNK_PIPELINE_ENV, "0").strip().lower()
-    if qchunk not in ("0", "false", "off"):
-        raise ValueError(f"{_QKV_E4M3_TRANSPORT_ENV}=1 requires {_QCHUNK_PIPELINE_ENV}=0")
-    return True
-
-
-def is_qkv_single_phase_enabled() -> bool:
-    """Validate the standard-layout single-protocol Q/K/V experiment."""
-    value = os.getenv(_QKV_SINGLE_PHASE_ENV, "0").strip().lower()
-    if value not in ("0", "1", "false", "true"):
-        raise ValueError(f"{_QKV_SINGLE_PHASE_ENV} must be 0/1/false/true, got {value!r}")
-    if value in ("0", "false"):
-        return False
-    if not is_flashinfer_pcie_enabled():
-        raise ValueError(f"{_QKV_SINGLE_PHASE_ENV}=1 requires {_BACKEND_ENV}=flashinfer-pcie")
-    if not _require_rdma():
-        raise ValueError(f"{_QKV_SINGLE_PHASE_ENV}=1 requires {_REQUIRE_RDMA_ENV}=1")
-    qchunk = os.getenv(_QCHUNK_PIPELINE_ENV, "0").strip().lower()
-    if qchunk not in ("0", "false", "off"):
-        raise ValueError(f"{_QKV_SINGLE_PHASE_ENV}=1 requires {_QCHUNK_PIPELINE_ENV}=0")
-    return True
 
 
 def release_after_denoise_enabled() -> bool:
@@ -155,88 +105,6 @@ def release_after_denoise_enabled() -> bool:
     if value not in ("0", "1", "false", "true"):
         raise ValueError(f"{_RELEASE_AFTER_DENOISE_ENV} must be 0/1/false/true, got {value!r}")
     return is_flashinfer_pcie_enabled() and value in ("1", "true")
-
-
-def is_qchunk2_direct_enabled() -> bool:
-    """Validate and return the default-off H3 qchunk2 destination experiment."""
-    value = os.getenv(_QCHUNK2_DIRECT_ENV, "0").strip().lower()
-    if value not in ("0", "1", "false", "true"):
-        raise ValueError(f"{_QCHUNK2_DIRECT_ENV} must be 0/1/false/true, got {value!r}")
-    if value in ("0", "false"):
-        return False
-    if not is_flashinfer_pcie_enabled():
-        raise ValueError(f"{_QCHUNK2_DIRECT_ENV}=1 requires {_BACKEND_ENV}=flashinfer-pcie")
-    if not is_qk_producer_direct_enabled():
-        raise ValueError(f"{_QCHUNK2_DIRECT_ENV}=1 requires {_QK_PRODUCER_DIRECT_ENV}=1")
-    if not _require_rdma():
-        raise ValueError(f"{_QCHUNK2_DIRECT_ENV}=1 requires {_REQUIRE_RDMA_ENV}=1")
-    qchunk = os.getenv(_QCHUNK_PIPELINE_ENV, "0").strip().lower()
-    if qchunk not in ("2", "true", "on"):
-        raise ValueError(f"{_QCHUNK2_DIRECT_ENV}=1 requires {_QCHUNK_PIPELINE_ENV}=2")
-    return True
-
-
-def is_qchunk2_qkv_fused_enabled() -> bool:
-    """Return whether Qchunk2/K/V may share one experimental RDMA phase."""
-    value = os.getenv(_QCHUNK2_QKV_FUSED_ENV, "0").strip().lower()
-    if value not in ("0", "1", "false", "true"):
-        raise ValueError(f"{_QCHUNK2_QKV_FUSED_ENV} must be 0/1/false/true, got {value!r}")
-    if value in ("0", "false"):
-        return False
-    if not is_qchunk2_direct_enabled():
-        raise ValueError(
-            f"{_QCHUNK2_QKV_FUSED_ENV}=1 requires {_QCHUNK2_DIRECT_ENV}=1 and its complete qualified stack"
-        )
-    return True
-
-
-def qchunk2_direct_fallback_reason(
-    query: torch.Tensor,
-    *,
-    world_size: int,
-    chunks: int,
-) -> str | None:
-    """Return why Q cannot use the qualified qchunk2 native destination."""
-    if not is_qchunk2_direct_enabled():
-        return "the qchunk2 producer-direct experiment is disabled"
-    if chunks != 2:
-        return f"qualified chunk count is 2, got {chunks}"
-    if world_size != 8:
-        return f"qualified SP world is 8, got {world_size}"
-    if query.ndim != 4 or tuple(query.shape) != _QCHUNK2_INPUT_SHAPE:
-        return f"qualified input shape is {_QCHUNK2_INPUT_SHAPE}, got {tuple(query.shape)}"
-    if query.dtype != torch.bfloat16:
-        return f"qualified dtype is BF16, got {query.dtype}"
-    if query.device.type != "cuda":
-        return f"qualified device is CUDA, got {query.device}"
-    return None
-
-
-def qchunk2_qkv_fused_fallback_reason(
-    query: torch.Tensor,
-    key: torch.Tensor,
-    value: torch.Tensor,
-    *,
-    world_size: int,
-    chunks: int,
-) -> str | None:
-    """Return why the three scatters cannot share the qualified RDMA phase."""
-    if not is_qchunk2_qkv_fused_enabled():
-        return "the fused qchunk2/K/V experiment is disabled"
-    reason = qchunk2_direct_fallback_reason(
-        query,
-        world_size=world_size,
-        chunks=chunks,
-    )
-    if reason is not None:
-        return reason
-    if query.shape != key.shape or query.shape != value.shape:
-        return f"qualified Q/K/V shapes must match, got {tuple(query.shape)}, {tuple(key.shape)}, {tuple(value.shape)}"
-    if query.dtype != key.dtype or query.dtype != value.dtype:
-        return f"qualified Q/K/V dtypes must match, got {query.dtype}, {key.dtype}, {value.dtype}"
-    if query.device != key.device or query.device != value.device:
-        return f"qualified Q/K/V devices must match, got {query.device}, {key.device}, {value.device}"
-    return None
 
 
 def _require_rdma() -> bool:
@@ -261,12 +129,6 @@ def ensure_flashinfer_pcie_available() -> None:
     if missing:
         raise RuntimeError("flashinfer-pcie JIT dependencies are missing: " + ", ".join(missing))
     methods = ["allocate_output", "input_buffer", "scatter_heads", "gather_heads", "close"]
-    if is_qchunk2_direct_enabled():
-        methods.append("scatter_heads_qchunk2_experimental")
-    if is_qchunk2_qkv_fused_enabled():
-        methods.append("scatter_heads_qchunk2_kv_experimental")
-    if is_qkv_single_phase_enabled():
-        methods.append("scatter_heads_qkv_experimental")
     for method in methods:
         if not hasattr(UlyssesCommunicator, method):
             raise RuntimeError(f"FlashInfer UlyssesCommunicator lacks required method {method!r}")
@@ -327,24 +189,10 @@ class _PcieState:
         repr=False,
         compare=False,
     )
-    qchunk2_direct_calls: int = 0
-    qchunk2_fallback_calls: int = 0
-    qchunk2_full_permute_calls: int = 0
-    qchunk2_direct_logged: bool = False
-    qchunk2_qkv_fused_calls: int = 0
-    qchunk2_qkv_fallback_calls: int = 0
-    qchunk2_qkv_fused_logged: bool = False
-    qkv_single_phase_calls: int = 0
-    qkv_single_phase_logged: bool = False
-    qchunk2_lock: threading.Lock = field(
-        default_factory=threading.Lock,
-        repr=False,
-        compare=False,
-    )
     # One registered allocation per logical Q/K/V/O slot.  FlashInfer sizes
     # each allocation (and its RDMA landing buffer) at ``capacity_bytes`` even
     # though allocate_output returns a view for the first call's geometry.
-    # Reuse that storage for smaller/later H3 geometries instead of registering
+    # Reuse that storage for smaller/later geometries instead of registering
     # another capacity-sized pair for every token-refiner/main-DiT shape.
     outputs: dict[tuple[str, str, torch.dtype], torch.Tensor] = field(default_factory=dict)
     input_landing_identities: dict[tuple[str, str, torch.dtype], _TensorIdentity] = field(
@@ -430,7 +278,7 @@ class _PcieState:
             prototype = x if x.is_contiguous() else torch.empty(x.shape, dtype=x.dtype, device=x.device)
             # PR #4876 permits a per-call element type on the PCIe backend.
             # Always state it explicitly: the communicator default is fixed by
-            # the first collective, while H3's experimental forward path may
+            # the first collective, while callers may
             # use E4M3 Q/K/V and retain BF16 for the reverse-O exchange.
             out = self.communicator.allocate_output(
                 prototype,
@@ -441,7 +289,7 @@ class _PcieState:
             return out
 
         batch, seq, heads, head_dim = x.shape
-        if op in ("scatter_heads", _QCHUNK2_OP):
+        if op == "scatter_heads":
             shape = (batch, seq * self.world_size, heads // self.world_size, head_dim)
         elif op == "gather_heads":
             shape = (batch, seq // self.world_size, heads * self.world_size, head_dim)
@@ -472,7 +320,7 @@ class _PcieState:
         provides a safe untyped backing store for a reverse-O *prototype*
         view. The view may intentionally use a different dtype (FP8 QKV ->
         BF16 O); this avoids allocating a transient full-size CUDA tensor
-        solely to register the H3 VSA O or O-bundle slot.
+        solely to register the Attention kernels O or O-bundle slot.
         """
         if len(shape) != 4 or any(int(dim) <= 0 for dim in shape):
             raise ValueError(f"registered shape prototype requires positive 4-D shape, got {shape}")
@@ -548,209 +396,6 @@ class _PcieState:
             self.mark_producer_direct_exchange(source, slot=slot)
         return result
 
-    def scatter_qkv(
-        self,
-        query: torch.Tensor,
-        key: torch.Tensor,
-        value: torch.Tensor,
-    ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
-        """Run three standard-layout scatters in one native protocol phase."""
-        assert self.communicator is not None
-        tensors = (query, key, value)
-        slots = ("q", "k", "v")
-        outputs = tuple(
-            self.output(tensor, op="scatter_heads", slot=slot) for tensor, slot in zip(tensors, slots, strict=True)
-        )
-
-        sources: list[torch.Tensor] = []
-        for tensor, out, slot in zip(tensors, outputs, slots, strict=True):
-            if tensor.is_contiguous():
-                source = tensor
-            else:
-                assert self.communicator is not None
-                source = self.communicator.input_buffer(out, tensor.shape)
-                source.copy_(tensor)
-                self.input_landing_identities[(slot, "scatter_heads", tensor.dtype)] = _tensor_identity(source)
-            sources.append(source)
-
-        producer_direct = tuple(
-            self.producer_direct_expected.get(slot) == _tensor_identity(source)
-            and self.input_landing_identities.get((slot, "scatter_heads", source.dtype)) == _tensor_identity(source)
-            for source, slot in zip(sources, slots, strict=True)
-        )
-        result = self.communicator.scatter_heads_qkv_experimental(
-            *sources,
-            *outputs,
-        )
-        for source, slot, direct in zip(sources, slots, producer_direct, strict=True):
-            if direct:
-                self.mark_producer_direct_exchange(source, slot=slot)
-
-        self.qkv_single_phase_calls += 1
-        if not self.qkv_single_phase_logged:
-            logger.info(
-                "FlashInfer PCIe Ulysses standard-layout Q/K/V single phase active: "
-                "rank=%d group=%s shape=%s dtype=%s protocol_phases=1 "
-                "writes_per_remote_peer=3 recv_depth=3 producer_direct=%s transport=%s",
-                dist.get_rank(self.group),
-                _group_name(self.group),
-                tuple(query.shape),
-                query.dtype,
-                producer_direct,
-                self.communicator.transport,
-            )
-            self.qkv_single_phase_logged = True
-        return result
-
-    def scatter_qchunk2(self, x: torch.Tensor) -> torch.Tensor:
-        """Run the qualified native Q scatter and account for its use."""
-        assert self.communicator is not None
-        out = self.output(x, op=_QCHUNK2_OP, slot="q_chunk2")
-        source = x
-        if not x.is_contiguous():
-            source = self.communicator.input_buffer(out, x.shape)
-            source.copy_(x)
-        source_identity = _tensor_identity(source)
-        producer_direct = (
-            self.producer_direct_expected.get("q") == source_identity
-            and self.input_landing_identities.get(("q_chunk2", _QCHUNK2_OP, source.dtype)) == source_identity
-        )
-        result = self.communicator.scatter_heads_qchunk2_experimental(source, out)
-        if producer_direct:
-            self.mark_producer_direct_exchange(source, slot="q")
-        with self.qchunk2_lock:
-            self.qchunk2_direct_calls += 1
-            if not self.qchunk2_direct_logged:
-                logger.info(
-                    "FlashInfer PCIe Ulysses Q chunk-major destination active: "
-                    "rank=%d group=%s chunks=2 input=%s output=%s "
-                    "producer_direct=%d transport=%s",
-                    dist.get_rank(self.group),
-                    _group_name(self.group),
-                    tuple(source.shape),
-                    tuple(result.shape),
-                    int(producer_direct),
-                    self.communicator.transport,
-                )
-                self.qchunk2_direct_logged = True
-        return result
-
-    def scatter_qchunk2_qkv(
-        self,
-        query: torch.Tensor,
-        key: torch.Tensor,
-        value: torch.Tensor,
-    ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
-        """Run Q mode-3 plus K/V mode-0 scatters in one native phase."""
-        assert self.communicator is not None
-        q_out = self.output(query, op=_QCHUNK2_OP, slot="q_chunk2")
-        k_out = self.output(key, op="scatter_heads", slot="k")
-        v_out = self.output(value, op="scatter_heads", slot="v")
-
-        def source_for(
-            tensor: torch.Tensor,
-            out: torch.Tensor,
-            *,
-            slot: str,
-            op: str,
-        ) -> torch.Tensor:
-            if tensor.is_contiguous():
-                return tensor
-            assert self.communicator is not None
-            source = self.communicator.input_buffer(out, tensor.shape)
-            source.copy_(tensor)
-            self.input_landing_identities[(slot, op, tensor.dtype)] = _tensor_identity(source)
-            return source
-
-        q_source = source_for(
-            query,
-            q_out,
-            slot="q_chunk2",
-            op=_QCHUNK2_OP,
-        )
-        k_source = source_for(key, k_out, slot="k", op="scatter_heads")
-        v_source = source_for(value, v_out, slot="v", op="scatter_heads")
-        q_identity = _tensor_identity(q_source)
-        k_identity = _tensor_identity(k_source)
-        q_producer_direct = (
-            self.producer_direct_expected.get("q") == q_identity
-            and self.input_landing_identities.get(("q_chunk2", _QCHUNK2_OP, q_source.dtype)) == q_identity
-        )
-        k_producer_direct = (
-            self.producer_direct_expected.get("k") == k_identity
-            and self.input_landing_identities.get(("k", "scatter_heads", k_source.dtype)) == k_identity
-        )
-
-        result = self.communicator.scatter_heads_qchunk2_kv_experimental(
-            q_source,
-            k_source,
-            v_source,
-            q_out,
-            k_out,
-            v_out,
-        )
-        if q_producer_direct:
-            self.mark_producer_direct_exchange(q_source, slot="q")
-        if k_producer_direct:
-            self.mark_producer_direct_exchange(k_source, slot="k")
-
-        with self.qchunk2_lock:
-            self.qchunk2_direct_calls += 1
-            self.qchunk2_qkv_fused_calls += 1
-            if not self.qchunk2_direct_logged:
-                logger.info(
-                    "FlashInfer PCIe Ulysses Q chunk-major destination active: "
-                    "rank=%d group=%s chunks=2 input=%s output=%s "
-                    "producer_direct=%d transport=%s",
-                    dist.get_rank(self.group),
-                    _group_name(self.group),
-                    tuple(q_source.shape),
-                    tuple(result[0].shape),
-                    int(q_producer_direct),
-                    self.communicator.transport,
-                )
-                self.qchunk2_direct_logged = True
-            if not self.qchunk2_qkv_fused_logged:
-                logger.info(
-                    "FlashInfer PCIe Ulysses fused Qchunk2/K/V phase active: "
-                    "rank=%d group=%s input=%s q_output=%s "
-                    "q_producer_direct=%d k_producer_direct=%d "
-                    "protocol_phases=1 q_writes=2 k_writes=1 v_writes=1 "
-                    "writes_per_remote_peer=4 recv_depth=4 transport=%s",
-                    dist.get_rank(self.group),
-                    _group_name(self.group),
-                    tuple(q_source.shape),
-                    tuple(result[0].shape),
-                    int(q_producer_direct),
-                    int(k_producer_direct),
-                    self.communicator.transport,
-                )
-                self.qchunk2_qkv_fused_logged = True
-        return result
-
-    def note_qchunk2_fallback(self, reason: str) -> None:
-        """Count one successful standard Q scatter selected by the experiment."""
-        with self.qchunk2_lock:
-            self.qchunk2_fallback_calls += 1
-        logger.warning_once(
-            "FlashInfer PCIe Ulysses Q chunk-major destination fell back: %s",
-            reason,
-        )
-
-    def note_qchunk2_full_permute(self) -> None:
-        """Count the full-Q origin-major to chunk-major materialization."""
-        with self.qchunk2_lock:
-            self.qchunk2_full_permute_calls += 1
-
-    def note_qchunk2_qkv_fallback(self, reason: str) -> None:
-        """Count one fused-phase rejection that used the old three-call path."""
-        with self.qchunk2_lock:
-            self.qchunk2_qkv_fallback_calls += 1
-        logger.warning_once(
-            "FlashInfer PCIe Ulysses fused Qchunk2/K/V phase fell back: %s",
-            reason,
-        )
-
     def input_landing(
         self,
         x: torch.Tensor,
@@ -809,26 +454,6 @@ class _PcieState:
             self.producer_direct_expected = {
                 "q": _tensor_identity(q_landing),
                 "k": _tensor_identity(k_landing),
-            }
-            self.producer_direct_exchanged.clear()
-
-    def arm_qkv_producer_direct(
-        self,
-        q_landing: torch.Tensor,
-        k_landing: torch.Tensor,
-        v_landing: torch.Tensor,
-    ) -> None:
-        """Atomically bind one E4M3 Q/K/V producer generation."""
-        if self.producer_direct_logged:
-            return
-        with self.producer_direct_lock:
-            if self.producer_direct_logged:
-                return
-            self.producer_direct_generation += 1
-            self.producer_direct_expected = {
-                "q": _tensor_identity(q_landing),
-                "k": _tensor_identity(k_landing),
-                "v": _tensor_identity(v_landing),
             }
             self.producer_direct_exchanged.clear()
 
@@ -903,27 +528,6 @@ class _PcieState:
 
     def close(self) -> None:
         communicator = self.communicator
-        with self.qchunk2_lock:
-            direct = self.qchunk2_direct_calls
-            fallback = self.qchunk2_fallback_calls
-            full_permute = self.qchunk2_full_permute_calls
-            fused_qkv = self.qchunk2_qkv_fused_calls
-            fused_qkv_fallback = self.qchunk2_qkv_fallback_calls
-        if direct or fallback or full_permute or fused_qkv or fused_qkv_fallback:
-            logger.info(
-                "FlashInfer PCIe Ulysses Q chunk-major summary: rank=%d "
-                "group=%s q_scatter_calls=%d direct_calls=%d "
-                "fallback_calls=%d full_q_permute_calls=%d "
-                "fused_qkv_calls=%d fused_qkv_fallback_calls=%d",
-                dist.get_rank(self.group),
-                _group_name(self.group),
-                direct + fallback,
-                direct,
-                fallback,
-                full_permute,
-                fused_qkv,
-                fused_qkv_fallback,
-            )
         if communicator is not None:
             # FlashInfer keeps a failed collective close in CLOSING and
             # requires every rank to retry that same communicator.  Retain the
@@ -940,16 +544,6 @@ class _PcieState:
         with self.o_producer_direct_lock:
             self.o_producer_direct_logged = False
             self.o_producer_direct_expected = None
-        with self.qchunk2_lock:
-            self.qchunk2_direct_calls = 0
-            self.qchunk2_fallback_calls = 0
-            self.qchunk2_full_permute_calls = 0
-            self.qchunk2_direct_logged = False
-            self.qchunk2_qkv_fused_calls = 0
-            self.qchunk2_qkv_fallback_calls = 0
-            self.qchunk2_qkv_fused_logged = False
-        self.qkv_single_phase_calls = 0
-        self.qkv_single_phase_logged = False
 
     def _collective_sum(self, value: int) -> int:
         """Return a group-wide lifecycle vote on the existing CUDA group."""
@@ -958,7 +552,7 @@ class _PcieState:
         return int(vote.item())
 
     def release_after_denoise(self) -> bool:
-        """Collectively release registered windows before H3 VAE decode.
+        """Collectively release registered windows between execution stages.
 
         The state object remains cached, so the next strict-Ulysses operation
         lazily re-enters :meth:`initialize`. Every rank votes before draining
@@ -1116,8 +710,6 @@ def flashinfer_ulysses_qk_input_landings(
     k: torch.Tensor,
     group: dist.ProcessGroup,
     world_size: int,
-    *,
-    q_chunk_major_chunks: int = 0,
 ) -> tuple[torch.Tensor, torch.Tensor] | None:
     """Acquire Q/K registered source buffers from an eager graph island.
 
@@ -1160,15 +752,6 @@ def flashinfer_ulysses_qk_input_landings(
         return None
     q_op = "scatter_heads"
     q_slot = "q"
-    if q_chunk_major_chunks and is_qchunk2_direct_enabled():
-        reason = qchunk2_direct_fallback_reason(
-            q,
-            world_size=world_size,
-            chunks=q_chunk_major_chunks,
-        )
-        if reason is None:
-            q_op = _QCHUNK2_OP
-            q_slot = "q_chunk2"
     landings = (
         state.input_landing(q, slot=q_slot, op=q_op),
         state.input_landing(k, slot="k"),
@@ -1205,64 +788,6 @@ def _typed_contiguous_shape_prototype(
         shape,
         tuple(strides),
     )
-
-
-def flashinfer_ulysses_qkv_e4m3_input_landings(
-    q: torch.Tensor,
-    k: torch.Tensor,
-    v: torch.Tensor,
-    group: dist.ProcessGroup,
-    world_size: int,
-) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
-    """Acquire registered E4M3 sources for BF16 H3 Q/K/V producers."""
-    if not is_qkv_e4m3_transport_enabled():
-        raise RuntimeError("E4M3 QKV input landings were requested while disabled")
-    if torch.compiler.is_compiling():
-        raise RuntimeError("FlashInfer input landing buffers must be acquired outside torch.compile")
-    if q.ndim != 4 or k.ndim != 4 or v.ndim != 4:
-        raise ValueError("E4M3 QKV producer prototypes must be [batch, sequence, heads, head_dim]")
-    if q.shape != k.shape or q.shape != v.shape:
-        raise ValueError(f"E4M3 QKV producer prototypes require equal shapes, got {q.shape}, {k.shape}, and {v.shape}")
-    if any(tensor.dtype != torch.bfloat16 for tensor in (q, k, v)):
-        raise TypeError("E4M3 QKV producer prototypes must all be BF16")
-    if k.device != q.device or v.device != q.device or q.device.type != "cuda":
-        raise ValueError("E4M3 QKV producer prototypes must share one CUDA device")
-    if any(tensor.requires_grad for tensor in (q, k, v)):
-        raise ValueError("E4M3 QKV producer-direct transport is inference-only")
-    with torch.get_device_module().device(q.device):
-        if torch.cuda.is_current_stream_capturing():
-            raise RuntimeError("FlashInfer PCIe/RDMA E4M3 input landing does not support CUDA graph capture")
-
-    state = _state_for(q, group, world_size)
-    fp8_nbytes = q.numel() * torch.float8_e4m3fn.itemsize
-    if fp8_nbytes > state.capacity_bytes:
-        raise RuntimeError(
-            "required FlashInfer all-RDMA Ulysses E4M3 QKV exceeds configured "
-            f"capacity: operand={fp8_nbytes}, capacity={state.capacity_bytes}"
-        )
-    if not state.initialize(torch.float8_e4m3fn):
-        raise RuntimeError("required E4M3 QKV communicator initialization declined")
-    communicator = state.communicator
-    assert communicator is not None
-    if communicator.transport not in ("hybrid", "rdma"):
-        raise RuntimeError(
-            f"E4M3 QKV producer-direct requires a registered RDMA landing, got transport={communicator.transport!r}"
-        )
-
-    prototypes = tuple(
-        _typed_contiguous_shape_prototype(
-            tensor,
-            dtype=torch.float8_e4m3fn,
-        )
-        for tensor in (q, k, v)
-    )
-    landings = (
-        state.input_landing(prototypes[0], slot="q"),
-        state.input_landing(prototypes[1], slot="k"),
-        state.input_landing(prototypes[2], slot="v"),
-    )
-    state.arm_qkv_producer_direct(*landings)
-    return landings
 
 
 def flashinfer_ulysses_o_input_landing(
@@ -1383,142 +908,6 @@ def flashinfer_ulysses_o_input_landing(
     return landing
 
 
-def _qchunk2_scatter_impl(
-    x: torch.Tensor,
-    group_name: str,
-    world_size: int,
-    chunks: int,
-    use_sync: bool,
-) -> torch.Tensor:
-    """Select native qchunk2 layout or retain the standard scatter exactly."""
-    group = _resolve_process_group(group_name)
-    state = _state_for(x, group, world_size)
-    reason = qchunk2_direct_fallback_reason(
-        x,
-        world_size=world_size,
-        chunks=chunks,
-    )
-    if reason is not None:
-        result = _scatter_impl(x, group_name, world_size, "q", use_sync)
-        state.note_qchunk2_fallback(reason)
-        return result
-    if x.nbytes > state.capacity_bytes:
-        raise RuntimeError(
-            "required FlashInfer qchunk2 RDMA operand exceeds configured "
-            f"capacity: operand={x.nbytes}, capacity={state.capacity_bytes}"
-        )
-    if not state.initialize(x.dtype):
-        raise RuntimeError("required FlashInfer qchunk2 RDMA initialization declined")
-    communicator = state.communicator
-    assert communicator is not None
-    if communicator.transport != "rdma":
-        raise RuntimeError(
-            f"FlashInfer qchunk2 destination requires the all-RDMA route, got {communicator.transport!r}"
-        )
-    return state.scatter_qchunk2(x)
-
-
-def _qchunk2_qkv_scatter_impl(
-    query: torch.Tensor,
-    key: torch.Tensor,
-    value: torch.Tensor,
-    group_name: str,
-    world_size: int,
-    chunks: int,
-    use_sync: bool,
-) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
-    """Use one native phase or reversibly retain the old three-call path."""
-    group = _resolve_process_group(group_name)
-    state = _state_for(query, group, world_size)
-    reason = qchunk2_qkv_fused_fallback_reason(
-        query,
-        key,
-        value,
-        world_size=world_size,
-        chunks=chunks,
-    )
-    if reason is not None:
-        result = (
-            _qchunk2_scatter_impl(
-                query,
-                group_name,
-                world_size,
-                chunks,
-                use_sync,
-            ),
-            _scatter_impl(key, group_name, world_size, "k", use_sync),
-            _scatter_impl(value, group_name, world_size, "v", use_sync),
-        )
-        state.note_qchunk2_qkv_fallback(reason)
-        return result
-
-    for name, tensor in (("Q", query), ("K", key), ("V", value)):
-        if tensor.nbytes > state.capacity_bytes:
-            raise RuntimeError(
-                "required fused FlashInfer qchunk2/K/V RDMA operand exceeds "
-                f"configured capacity for {name}: operand={tensor.nbytes}, "
-                f"capacity={state.capacity_bytes}"
-            )
-    if not state.initialize(query.dtype):
-        raise RuntimeError("required fused FlashInfer qchunk2/K/V RDMA initialization declined")
-    communicator = state.communicator
-    assert communicator is not None
-    if communicator.transport != "rdma":
-        raise RuntimeError(f"fused FlashInfer qchunk2/K/V requires the all-RDMA route, got {communicator.transport!r}")
-    return state.scatter_qchunk2_qkv(query, key, value)
-
-
-def _qkv_single_phase_scatter_impl(
-    query: torch.Tensor,
-    key: torch.Tensor,
-    value: torch.Tensor,
-    group_name: str,
-    world_size: int,
-    use_sync: bool,
-) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
-    """Execute the opt-in standard-layout Q/K/V single RDMA phase."""
-    del use_sync  # Native PCIe completion semantics match the existing path.
-    if not is_qkv_single_phase_enabled():
-        raise RuntimeError("standard-layout Q/K/V single phase was called while disabled")
-    tensors = (query, key, value)
-    if not all(tensor.shape == query.shape for tensor in tensors[1:]):
-        raise ValueError("single-phase Q, K and V must have identical shapes")
-    if not all(tensor.dtype == query.dtype for tensor in tensors[1:]):
-        raise TypeError("single-phase Q, K and V must have one dtype")
-    if not all(tensor.device == query.device for tensor in tensors[1:]):
-        raise ValueError("single-phase Q, K and V must share one device")
-
-    group = _resolve_process_group(group_name)
-    state = _state_for(query, group, world_size)
-    for name, tensor in zip(("Q", "K", "V"), tensors, strict=True):
-        if tensor.nbytes > state.capacity_bytes:
-            raise RuntimeError(
-                "required single-phase FlashInfer RDMA operand exceeds "
-                f"configured capacity for {name}: operand={tensor.nbytes}, "
-                f"capacity={state.capacity_bytes}"
-            )
-    if not state.initialize(query.dtype):
-        raise RuntimeError("required single-phase FlashInfer RDMA initialization declined")
-    communicator = state.communicator
-    assert communicator is not None
-    if communicator.transport != "rdma":
-        raise RuntimeError(
-            f"standard-layout Q/K/V single phase requires the all-RDMA route, got {communicator.transport!r}"
-        )
-    return state.scatter_qkv(query, key, value)
-
-
-def record_qchunk2_full_permute(
-    x: torch.Tensor,
-    group_name: str,
-    world_size: int,
-) -> None:
-    """Record an actual full-Q permutation in the default-preserving fallback."""
-    group = _resolve_process_group(group_name)
-    state = _state_for(x, group, world_size)
-    state.note_qchunk2_full_permute()
-
-
 def _gather_impl(
     x: torch.Tensor,
     group_name: str,
@@ -1575,127 +964,6 @@ def _(
 
 
 @torch.library.custom_op(
-    "vllm_omni_flashinfer_ulysses::scatter_heads_qkv_single_phase",
-    mutates_args=(),
-    device_types="cuda",
-)
-def flashinfer_ulysses_qkv_single_phase_fwd(
-    query: torch.Tensor,
-    key: torch.Tensor,
-    value: torch.Tensor,
-    group_name: str,
-    world_size: int,
-    use_sync: bool,
-) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
-    """Opaque standard-layout Q/K/V single-protocol collective."""
-    return _qkv_single_phase_scatter_impl(
-        query,
-        key,
-        value,
-        group_name,
-        world_size,
-        use_sync,
-    )
-
-
-@flashinfer_ulysses_qkv_single_phase_fwd.register_fake
-def _(
-    query: torch.Tensor,
-    key: torch.Tensor,
-    value: torch.Tensor,
-    group_name: str,
-    world_size: int,
-    use_sync: bool,
-) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
-    batch, local_seq, heads, head_dim = query.shape
-    shape = (batch, local_seq * world_size, heads // world_size, head_dim)
-    return (
-        query.new_empty(shape),
-        key.new_empty(shape),
-        value.new_empty(shape),
-    )
-
-
-@torch.library.custom_op(
-    "vllm_omni_flashinfer_ulysses::scatter_heads_qchunk2",
-    mutates_args=(),
-    device_types="cuda",
-)
-def flashinfer_ulysses_qchunk2_fwd(
-    x: torch.Tensor,
-    group_name: str,
-    world_size: int,
-    chunks: int,
-    use_sync: bool,
-) -> torch.Tensor:
-    """Opaque node for native qchunk2 destination or the standard fallback."""
-    return _qchunk2_scatter_impl(
-        x,
-        group_name,
-        world_size,
-        chunks,
-        use_sync,
-    )
-
-
-@flashinfer_ulysses_qchunk2_fwd.register_fake
-def _(
-    x: torch.Tensor,
-    group_name: str,
-    world_size: int,
-    chunks: int,
-    use_sync: bool,
-) -> torch.Tensor:
-    batch, local_seq, heads, head_dim = x.shape
-    return x.new_empty(batch, local_seq * world_size, heads // world_size, head_dim)
-
-
-@torch.library.custom_op(
-    "vllm_omni_flashinfer_ulysses::scatter_heads_qchunk2_qkv",
-    mutates_args=(),
-    device_types="cuda",
-)
-def flashinfer_ulysses_qchunk2_qkv_fwd(
-    query: torch.Tensor,
-    key: torch.Tensor,
-    value: torch.Tensor,
-    group_name: str,
-    world_size: int,
-    chunks: int,
-    use_sync: bool,
-) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
-    """Opaque fused protocol phase with an exact three-call fallback."""
-    return _qchunk2_qkv_scatter_impl(
-        query,
-        key,
-        value,
-        group_name,
-        world_size,
-        chunks,
-        use_sync,
-    )
-
-
-@flashinfer_ulysses_qchunk2_qkv_fwd.register_fake
-def _(
-    query: torch.Tensor,
-    key: torch.Tensor,
-    value: torch.Tensor,
-    group_name: str,
-    world_size: int,
-    chunks: int,
-    use_sync: bool,
-) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
-    batch, local_seq, heads, head_dim = query.shape
-    shape = (batch, local_seq * world_size, heads // world_size, head_dim)
-    return (
-        query.new_empty(shape),
-        key.new_empty(shape),
-        value.new_empty(shape),
-    )
-
-
-@torch.library.custom_op(
     "vllm_omni_flashinfer_ulysses::gather_heads",
     mutates_args=(),
     device_types="cuda",
@@ -1749,7 +1017,7 @@ def clear_flashinfer_ulysses_communicators() -> None:
 def release_flashinfer_ulysses_after_denoise() -> bool:
     """Release every process-local FlashInfer Ulysses state, if opted in.
 
-    MiniMax H3 calls this on every rank at the request/step boundary. Keeping
+    Call this on every rank at the request/step boundary. Keeping
     the states in ``_STATES`` preserves their process-group and capacity
     contracts while allowing the communicator itself to be initialized lazily
     by the next request.
@@ -1779,21 +1047,10 @@ __all__ = [
     "flashinfer_ulysses_o_input_landing",
     "flashinfer_ulysses_o_rev",
     "flashinfer_ulysses_qk_input_landings",
-    "flashinfer_ulysses_qkv_e4m3_input_landings",
-    "flashinfer_ulysses_qchunk2_fwd",
-    "flashinfer_ulysses_qchunk2_qkv_fwd",
     "flashinfer_ulysses_qkv_fwd",
-    "flashinfer_ulysses_qkv_single_phase_fwd",
     "is_flashinfer_pcie_enabled",
     "is_o_producer_direct_enabled",
     "is_qk_producer_direct_enabled",
-    "is_qkv_e4m3_transport_enabled",
-    "is_qkv_single_phase_enabled",
-    "is_qchunk2_direct_enabled",
-    "is_qchunk2_qkv_fused_enabled",
     "release_after_denoise_enabled",
     "release_flashinfer_ulysses_after_denoise",
-    "qchunk2_direct_fallback_reason",
-    "qchunk2_qkv_fused_fallback_reason",
-    "record_qchunk2_full_permute",
 ]
