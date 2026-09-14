@@ -20,6 +20,46 @@ dtypes, sequence-parallel execution, or kernel failures fall back to
 sequence-parallel context is one of those fallbacks; the H3 route supports pure
 Ulysses and rejects ring or all-gather sequence parallelism at startup.
 
+## SM120: FlashInfer compute with VSA
+
+Keep `FASTVIDEO_VSA` as the attention backend when following the accelerated
+H3 recipe. VSA selects sparse blocks; FlashInfer supplies the attention kernel.
+Selecting `FLASHINFER_ATTN`, `SAGE_ATTN` or `SAGE_ATTN_3` instead does not
+reproduce that configuration.
+
+| Configuration | Computation | Numerical behavior |
+| --- | --- | --- |
+| Standard H3 VSA | FastVideo block-sparse kernel | FP16/BF16 attention |
+| H3 VSA with FlashInfer BF16 | FlashInfer block-sparse kernel | BF16 attention; validate output when switching providers |
+| Accelerated H3 VSA on SM120 | FlashInfer/CAKE Sage block-sparse kernel | INT8 Q/K, FP8 V, BF16 output; not bitwise equivalent to BF16 attention |
+
+The accelerated configuration currently belongs to the
+[H3 draft integration](https://github.com/vllm-project/vllm-omni/pull/7519).
+The [ownership refactor](https://github.com/vllm-project/vllm-omni/pull/7535)
+alone does not add FlashInfer/Sage support. FastH3 supports T2VA only, loading
+the original model's FL2VA weight partition.
+
+### Installation status
+
+A single qualified installation entrypoint for this accelerated configuration
+is not yet available. The current draft still requires `fastvideo-kernel`
+because of its backend availability check, as well as a compatible FlashInfer
+build for the selected compute provider. The final recipe must supply one
+validated dependency set; an arbitrary latest FlashInfer wheel or a successful
+import does not establish compatibility or the reported performance.
+
+The Sage path relies on the descriptor-lifetime fix in
+[FlashInfer #5127](https://github.com/flashinfer-ai/flashinfer/pull/5127), merged
+September 12, 2026. The exact released package or pinned build containing the
+required behavior still needs qualification with this integration.
+
+The current SM120 Sage path requires head dimension 128 and a compatible
+64-row sparse layout. Other models and layouts need their own correctness and
+quality checks. Choosing a FlashInfer attention kernel does not enable RDMA;
+communication setup is a separate choice. The current public draft has no new
+full E2E qualification, and historical H3 timings are not a cross-model or
+cross-machine speed guarantee.
+
 ## Enable the backend
 
 For online serving, select the backend with the existing attention backend
@@ -27,7 +67,7 @@ flag. Use `--fastvideo-vsa-topk` to set the number of key/value blocks retained
 for every query block:
 
 ```bash
-vllm-omni serve <model> \
+vllm serve <model> --omni \
   --diffusion-attention-backend FASTVIDEO_VSA \
   --fastvideo-vsa-topk 64
 ```
@@ -37,14 +77,14 @@ default `topk=64`:
 
 ```bash
 export DIFFUSION_ATTENTION_BACKEND=FASTVIDEO_VSA
-vllm-omni serve <model>
+vllm serve <model> --omni
 ```
 
 To tune top-k, pass the CLI backend and top-k flags together as shown above,
 or use the equivalent structured configuration:
 
 ```bash
-vllm-omni serve <model> \
+vllm serve <model> --omni \
   --diffusion-attention-config \
   '{"default":{"backend":"FASTVIDEO_VSA","fastvideo_vsa_topk":64}}'
 ```
@@ -74,6 +114,10 @@ stages:
 ```
 
 ## Choose top-k
+
+The limits below describe the Wan route. H3 retains dense prefix attention and
+checkpoint compensation, and its top-k selects video blocks; use the H3 recipe
+for that route rather than assuming the Wan all-block fallback rules apply.
 
 At runtime the backend logs the sequence shape and derived block count:
 
