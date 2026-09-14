@@ -928,7 +928,6 @@ class MiniMaxH3Pipeline(
     _vae_modules: ClassVar[list[str]] = ["video_vae", "audio_vae"]
     _offload_plan: ClassVar[OffloadPlan] = OffloadPlan(
         offload_submodules={"token_refiner": "blocks"},
-        resident_offload_submodules=frozenset({"token_refiner"}),
         resident_dit_paths=frozenset({"transformer"}),
         encoder_component_types={"text_encoder": TEXT_ENCODER_COMPONENT},
         encoder_block_attrs={"text_encoder": ("vision.blocks", "text_model.layers")},
@@ -1461,9 +1460,9 @@ class MiniMaxH3Pipeline(
             loaded = component.load_weights(stream)
             if prefix == "transformer.":
                 transformer_loaded = set(loaded)
-                from .mxfp8 import requested_mode
+                from .quantization import dit_mxfp8_mode
 
-                if requested_mode() is not None:
+                if dit_mxfp8_mode() is not None:
                     if self._fasth3 is None:
                         raise ValueError("H3 MXFP8 requires the complete FastH3 student")
                     required_patches = set(self._fasth3._patches) - self._fasth3._sidecar_satisfied

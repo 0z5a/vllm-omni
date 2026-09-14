@@ -14,7 +14,7 @@ from vllm_omni.diffusion.attention.backends.abstract import (
     VideoTokenLayout,
     VideoTokenSpan,
 )
-from vllm_omni.diffusion.models.minimax_h3.attention.backend import (
+from vllm_omni.diffusion.models.minimax_h3.attention.vsa import (
     MiniMaxH3VSAImpl,
     _build_h3_block_map,
     _get_h3_tile_metadata,

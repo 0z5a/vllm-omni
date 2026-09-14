@@ -9,6 +9,7 @@
 
 from collections.abc import Mapping
 from dataclasses import replace
+from typing import cast
 
 import torch
 import torch.nn as nn
@@ -84,9 +85,10 @@ class Attention(nn.Module):
         custom_attention: nn.Module | None = None,
         # Preserve dense FP32 inference for models opting into CUDA auto fallback.
         allow_fp32_fallback: bool = False,
-        # Model-owned specializations of a selected backend. The platform
-        # still resolves and validates the underlying execution backend.
-        backend_overrides: Mapping[str, type[AttentionBackend]] | None = None,
+        # Model-owned implementation subclasses, keyed by backend name.
+        # Keep the platform-selected backend and its capabilities unchanged.
+        # Each override must preserve the selected implementation's contract.
+        impl_overrides: Mapping[str, type[AttentionImpl]] | None = None,
     ):
         super().__init__()
 
@@ -185,10 +187,18 @@ class Attention(nn.Module):
                 self.backend_pref = attn_backend_cls.get_name()
                 logger.debug("Attention(role=%s) → platform default (%s)", role, self.backend_pref)
 
-            if backend_overrides is not None:
-                attn_backend_cls = backend_overrides.get(attn_backend_cls.get_name(), attn_backend_cls)
             self.attn_backend: type[AttentionBackend] | None = attn_backend_cls
             self.attn_impl_cls = self.attn_backend.get_impl_cls()
+            if impl_overrides is not None:
+                override = impl_overrides.get(attn_backend_cls.get_name())
+                if override is not None:
+                    if not issubclass(override, self.attn_impl_cls):
+                        raise TypeError(
+                            f"Attention implementation override {override.__qualname__} must subclass "
+                            f"the selected implementation {self.attn_impl_cls.__qualname__} "
+                            f"for backend {attn_backend_cls.__qualname__}"
+                        )
+                    self.attn_impl_cls = override
             self.attention = self.attn_impl_cls(
                 num_heads=num_heads,
                 head_size=head_size,
@@ -527,10 +537,8 @@ class Attention(nn.Module):
 
     def _run_local_attention(self, query, key, value, attn_metadata):
         if self._has_custom_attention:
-            assert callable(self.attention)
-            return self.attention(query, key, value, attn_metadata)
+            return cast(nn.Module, self.attention)(query, key, value, attn_metadata)
 
-        assert self.attn_backend is not None and self.sdpa_fallback is not None
         self._assert_metadata_compatible(attn_metadata)
 
         if (
@@ -539,7 +547,7 @@ class Attention(nn.Module):
             and query.dtype == torch.float32
             and query.ndim == 4
             and not self.backend_explicit
-            and self.attn_backend.get_name() == "FLASH_ATTN"
+            and cast(type[AttentionBackend], self.attn_backend).get_name() == "FLASH_ATTN"
             and (
                 attn_metadata is None
                 or (
@@ -552,7 +560,7 @@ class Attention(nn.Module):
             )
         ):
             logger.warning_once("Using SDPA for this layer's FP32 input with automatic CUDA FlashAttention selection.")
-            return self.sdpa_fallback.forward(query, key, value, attn_metadata)
+            return cast(AttentionImpl, self.sdpa_fallback).forward(query, key, value, attn_metadata)
 
         in_kv_memory_profile = is_forward_context_available() and get_forward_context().in_diffusion_kv_memory_profile
         # The startup KV-capacity profile needs tensor shapes, not a paged
@@ -564,14 +572,14 @@ class Attention(nn.Module):
             self._scheduler_paged_kv
             and self.paged_kv_cache_role is not None
             and in_kv_memory_profile
-            and self.attn_backend.get_name() == "FLASH_ATTN"
+            and cast(type[AttentionBackend], self.attn_backend).get_name() == "FLASH_ATTN"
             and not current_omni_platform.supports_diffusion_dense_flash_attention()
         ):
             logger.warning_once(
                 "The startup KV memory profile is using SDPA because dense FLASH_ATTN is unavailable. "
                 "Formal paged requests still use the platform-native paged attention backend."
             )
-            return self.sdpa_fallback.forward(query, key, value, attn_metadata)
+            return cast(AttentionImpl, self.sdpa_fallback).forward(query, key, value, attn_metadata)
 
         return self.attention.forward(query, key, value, attn_metadata)
 
