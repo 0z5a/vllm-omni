@@ -28,12 +28,20 @@ window. Standard serving remains available for other request geometries.
 
 ## Prepare the model
 
-Download the original H3 FL2VA checkpoint and the FastH3 VSA/Data-Free adapter
-following the base recipe. Set `MODEL_DIR` to the local H3 repository root and
-`FASTH3_LORA` to the adapter file. Build the exact, adapter-bound AdaLN cache:
+This FastH3 adapter supports **T2VA only**. It loads the original H3 `FL2VA`
+weight partition; the partition name does not enable first/last-frame tasks
+with this adapter. In the server command, `--task-type fl2va` selects those
+weights. Requests must set `extra_params.task` to `t2va` and
+`num_inference_steps` to `4`.
+
+Follow the base recipe to download H3 and the FastH3 adapter. Select
+`vsa-datafree/adapter_model.safetensors`; the base recipe's `dense-datafree`
+example is a different adapter. Set `MODEL_DIR` to the local H3 repository
+root and `FASTH3_LORA` to the VSA/Data-Free adapter file. Build the exact,
+adapter-bound AdaLN cache:
 
 ```bash
-export ADALN_CACHE="$PWD/minimax-h3-ultra-adaln.safetensors"
+export ADALN_CACHE="$PWD/minimax-h3-t2va-adaln.safetensors"
 python tools/minimax_h3/build_adaln_cache.py \
   --transformer-path "${MODEL_DIR}/FL2VA/transformer" \
   --output "${ADALN_CACHE}" \
@@ -43,6 +51,7 @@ python tools/minimax_h3/build_adaln_cache.py \
   --base-schedule 0.999 0.749 0.5 0.25 0.0
 ```
 
+The cache filename is arbitrary; it does not select an optimization mode.
 The sidecar is bound to the adapter fingerprint, task, sigma schedule, and
 modality shifts. Startup checks that identity before omitting the cached
 AdaLN projections. MXFP8 conversion follows student fusion; it does not
@@ -50,9 +59,13 @@ quantize the teacher and then apply a student delta.
 
 ## Configure serving
 
-`VLLM_OMNI_H3_ULTRA=1` selects the complete model schedule. Conflicting explicit
-settings are rejected before the preset modifies the environment. Backend
-selection, parallelism, and the cache use the existing Omni interfaces:
+The current draft integration still requires `VLLM_OMNI_H3_ULTRA=1` to select
+the complete schedule. The split PRs will replace this preset with automatic
+selection of validated exact optimizations and explicit backend, precision,
+and transport settings. Until that implementation lands, omitting the switch
+does not run the same accelerated configuration. Conflicting explicit settings
+are rejected. Backend selection, parallelism, and the cache use the existing
+Omni interfaces:
 
 ```bash
 export VLLM_OMNI_H3_ULTRA=1
