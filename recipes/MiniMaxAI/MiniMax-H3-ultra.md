@@ -11,20 +11,44 @@ attention/output and video/audio decoding.
 - MXFP8 requires CUDA Blackwell hardware and PyTorch exposing
   `torch.nn.functional.scaled_mm`, `ScalingType.BlockWise1x32`, and
   `SwizzleType.SWIZZLE_32_4_4`.
-- Sage requires FlashInfer's SM120 block-sparse Sage provider.
+- Sage requires FlashInfer's SM120 block-sparse Sage provider with the
+  by-value descriptor behavior from
+  [FlashInfer #5127](https://github.com/flashinfer-ai/flashinfer/pull/5127).
+  The reproducible software version remains to be pinned and qualified.
+- The current `FASTVIDEO_VSA` selector also requires `fastvideo-kernel`, even
+  for the FlashInfer compute path.
 - The optional RDMA adapter requires `flashinfer.comm.UlyssesCommunicator`
   with the PCIe backend and registered input/output buffers, supplied by
   [FlashInfer #4876](https://github.com/flashinfer-ai/flashinfer/pull/4876).
   This dependency is not yet available in a released FlashInfer wheel.
 - VAE quantization uses `comfy-kitchen==0.2.33`. MP4 output uses PyAV/libx264.
 
-These dependencies are loaded only when the corresponding path is enabled.
+The optional compute providers are imported on their execution paths; the
+selector still checks `fastvideo-kernel` availability before provider selection.
 The complete preset currently requires TP1, Ulysses8, ring1, eight SM120 GPUs,
 the VSA/Data-Free adapter, four denoiser evaluations, and top-k 162. Its
 communication schedule requires 11,992 local rows, prefix segments `(558, 1206)`,
 and a target token grid of `(107, 22, 40)`. It rejects other layouts.
 The paired VAE schedule covers 21 temporal windows and 28 spatial tiles per
 window. Standard serving remains available for other request geometries.
+
+## Attention provider on SM120
+
+Keep `FASTVIDEO_VSA` in `--diffusion-attention-config`: it selects the VSA
+routing contract. This draft's complete preset chooses **FlashInfer/CAKE Sage**
+for the fine attention kernel, with INT8 Q/K, FP8 V and BF16 output. It does not
+use the default FastVideo BF16 kernel for that computation. Changing the public
+backend to `FLASHINFER_ATTN`, `SAGE_ATTN` or `SAGE_ATTN_3` does not reproduce this
+configuration.
+
+The preset selects this compute path automatically. The FlashInfer BF16
+provider is a separate numerical configuration. Neither provider choice implies
+FlashInfer Ulysses/RDMA is enabled. Users should not need to set per-kernel
+implementation flags to reproduce the final recipe.
+
+The current public integration has not completed full E2E qualification with a
+clean, pinned dependency installation. Historical sub-15-second results do not
+qualify this PR revision or a different model, layout, provider or NIC topology.
 
 ## Prepare the model
 
