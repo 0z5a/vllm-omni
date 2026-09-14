@@ -7,16 +7,19 @@
 # https://github.com/feifeibear/long-context-attention/blob/main/yunchang/attention/layer.py
 
 
+import threading
+from collections.abc import Callable
 from dataclasses import replace
 
 import torch
+import torch.distributed as dist
 import torch.nn as nn
 from vllm.config import VllmConfig, set_current_vllm_config
 from vllm.logger import init_logger
 from vllm.model_executor.models.utils import extract_layer_index
 from vllm.v1.kv_cache_interface import FullAttentionSpec, KVCacheSpec
 
-from vllm_omni.diffusion.attention.backends.abstract import AttentionMetadata
+from vllm_omni.diffusion.attention.backends.abstract import AttentionBackend, AttentionImpl, AttentionMetadata
 from vllm_omni.diffusion.attention.backends.sdpa import SDPABackend
 from vllm_omni.diffusion.attention.parallel import build_parallel_attention_strategy
 from vllm_omni.diffusion.attention.parallel.base import NoParallelAttention
@@ -34,6 +37,93 @@ from vllm_omni.diffusion.forward_context import (
 from vllm_omni.platforms import current_omni_platform
 
 logger = init_logger(__name__)
+
+_H3_QCHUNK_STREAMS: dict[int, torch.cuda.Stream] = {}
+_H3_QCHUNK_STREAM_LOCK = threading.Lock()
+
+
+def _h3_qchunk_compute_stream(device: torch.device) -> torch.cuda.Stream:
+    """Share one attention stream per device across all 50 H3 blocks."""
+    index = device.index
+    if index is None:
+        index = torch.accelerator.current_device_index()
+    with _H3_QCHUNK_STREAM_LOCK:
+        stream = _H3_QCHUNK_STREAMS.get(index)
+        if stream is None:
+            stream = torch.cuda.Stream(device=device)
+            _H3_QCHUNK_STREAMS[index] = stream
+        return stream
+
+
+def _h3_query_chunk_major(
+    query: torch.Tensor,
+    *,
+    world_size: int,
+    chunks: int,
+) -> torch.Tensor:
+    """Group the same local-sequence chunk from every SP origin.
+
+    Strict Ulysses Q arrives as ``[origin, local_sequence, local_heads, D]``
+    flattened into its sequence dimension.  An inverse Ulysses exchange can
+    consume an attention result one query chunk at a time only when that chunk
+    contains the corresponding rows from *all* origins.  This permutation
+    creates exactly that layout; a later native transport optimization can
+    write it directly as the Q-scatter destination layout.
+    """
+    if query.ndim != 4:
+        raise ValueError(f"H3 query must be [B,S,H,D], got {tuple(query.shape)}")
+    if world_size <= 1 or chunks <= 1:
+        raise ValueError("H3 query chunking requires world_size and chunks > 1")
+    batch, global_seq, local_heads, head_dim = query.shape
+    if global_seq % world_size:
+        raise ValueError(f"global sequence {global_seq} is not divisible by SP world {world_size}")
+    local_seq = global_seq // world_size
+    if local_seq % chunks:
+        raise ValueError(f"local sequence {local_seq} is not divisible by chunk count {chunks}")
+    chunk_seq = local_seq // chunks
+    return (
+        query.view(
+            batch,
+            world_size,
+            chunks,
+            chunk_seq,
+            local_heads,
+            head_dim,
+        )
+        .permute(0, 2, 1, 3, 4, 5)
+        .contiguous()
+        .view(batch, global_seq, local_heads, head_dim)
+    )
+
+
+def _h3_query_origin_major(
+    query: torch.Tensor,
+    *,
+    world_size: int,
+    chunks: int,
+) -> torch.Tensor:
+    """Undo :func:`_h3_query_chunk_major` for a monolithic fallback."""
+    if query.ndim != 4:
+        raise ValueError(f"H3 query must be [B,S,H,D], got {tuple(query.shape)}")
+    if world_size <= 1 or chunks <= 1:
+        raise ValueError("H3 query unchunking requires world_size and chunks > 1")
+    batch, global_seq, local_heads, head_dim = query.shape
+    if global_seq % (world_size * chunks):
+        raise ValueError(f"global sequence {global_seq} does not divide SP{world_size} x {chunks} chunks")
+    chunk_seq = global_seq // (world_size * chunks)
+    return (
+        query.view(
+            batch,
+            chunks,
+            world_size,
+            chunk_seq,
+            local_heads,
+            head_dim,
+        )
+        .permute(0, 2, 1, 3, 4, 5)
+        .contiguous()
+        .view(batch, global_seq, local_heads, head_dim)
+    )
 
 
 def _try_extract_layer_index(prefix: str) -> int | None:
@@ -181,7 +271,7 @@ class Attention(nn.Module):
                 self.backend_pref = attn_backend_cls.get_name()
                 logger.debug("Attention(role=%s) → platform default (%s)", role, self.backend_pref)
 
-            self.attn_backend = attn_backend_cls
+            self.attn_backend: type[AttentionBackend] | None = attn_backend_cls
             self.attn_impl_cls = self.attn_backend.get_impl_cls()
             self.attention = self.attn_impl_cls(
                 num_heads=num_heads,
@@ -197,7 +287,7 @@ class Attention(nn.Module):
             )
             # Compatibility kernels run inside shared dispatch, between the
             # parallel strategy's input preparation and output restoration.
-            self.sdpa_fallback = SDPABackend.get_impl_cls()(
+            self.sdpa_fallback: AttentionImpl | None = SDPABackend.get_impl_cls()(
                 num_heads=num_heads,
                 head_size=head_size,
                 softmax_scale=softmax_scale,
@@ -296,6 +386,59 @@ class Attention(nn.Module):
                 return self._no_parallel_strategy
         return self.parallel_strategy
 
+    @property
+    def supports_qk_input_landing(self) -> bool:
+        """Expose the static producer-direct capability to model layers."""
+        if self.skip_sequence_parallel:
+            return False
+        return bool(getattr(self.parallel_strategy, "supports_qk_input_landing", False))
+
+    @property
+    def supports_qkv_e4m3_input_landing(self) -> bool:
+        """Expose the opt-in E4M3 QKV producer-direct capability."""
+        if self.skip_sequence_parallel:
+            return False
+        return bool(
+            getattr(
+                self.parallel_strategy,
+                "supports_qkv_e4m3_input_landing",
+                False,
+            )
+        )
+
+    @torch.compiler.disable
+    def prepare_qk_input_landings(
+        self,
+        query: torch.Tensor,
+        key: torch.Tensor,
+        *,
+        q_chunk_major_chunks: int = 0,
+    ) -> tuple[torch.Tensor, torch.Tensor] | None:
+        """Acquire Q/K landing buffers only from the existing eager island."""
+        strategy = self._get_active_parallel_strategy()
+        prepare = getattr(strategy, "prepare_qk_input_landings", None)
+        if prepare is None:
+            return None
+        return prepare(
+            query,
+            key,
+            q_chunk_major_chunks=q_chunk_major_chunks,
+        )
+
+    @torch.compiler.disable
+    def prepare_qkv_e4m3_input_landings(
+        self,
+        query: torch.Tensor,
+        key: torch.Tensor,
+        value: torch.Tensor,
+    ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor] | None:
+        """Acquire registered E4M3 sources from the existing eager island."""
+        strategy = self._get_active_parallel_strategy()
+        prepare = getattr(strategy, "prepare_qkv_e4m3_input_landings", None)
+        if prepare is None:
+            return None
+        return prepare(query, key, value)
+
     def _init_kv_cache_quantization(self, config) -> None:
         if config is None or self._has_custom_attention:
             return
@@ -305,6 +448,7 @@ class Attention(nn.Module):
         parallel_config = getattr(config, "parallel_config", None)
         ring_degree = getattr(parallel_config, "ring_degree", 1)
         if dtype:
+            assert self.attn_backend is not None
             if ring_degree > 1:
                 raise ValueError(
                     "KV quantization is not compatible with ring attention "
@@ -400,6 +544,7 @@ class Attention(nn.Module):
             )
         use_paged_attention = paged_adapter is not None and self.paged_kv_cache_role is not None
         if use_paged_attention and not getattr(self.attn_backend, "supports_paged_kv", False):
+            assert self.attn_backend is not None
             raise NotImplementedError(
                 f"Diffusion paged KV requires an Omni backend with paged support; "
                 f"selected {self.attn_backend.get_name()}"
@@ -481,6 +626,201 @@ class Attention(nn.Module):
 
         return out
 
+    @torch.compiler.disable
+    def forward_h3_qchunk_projected(
+        self,
+        query: torch.Tensor,
+        key: torch.Tensor,
+        value: torch.Tensor,
+        attn_metadata: AttentionMetadata,
+        *,
+        chunks: int,
+        output_projector: Callable[[torch.Tensor], torch.Tensor],
+    ) -> torch.Tensor:
+        """Pipeline cuDNN query chunks with inverse Ulysses and projection.
+
+        This is a deliberately narrow MiniMax-H3 fast path.  Its fallback
+        executes the ordinary attention graph and then calls the identical
+        output projector, so enabling the experiment never silently changes
+        unsupported backends, SP modes, masks, batches, or dtypes.
+
+        The FlashInfer RDMA communicator is bound to the caller stream by the
+        Q/K/V collectives.  Attention chunks run on a private compute stream;
+        the caller stream waits only for the next completed chunk, performs
+        its O gather, and immediately projects it while later query attention
+        remains queued.  Each projected chunk owns its output, avoiding reuse
+        hazards from FlashInfer's single registered O slot.
+        """
+
+        def project_fallback() -> torch.Tensor:
+            return output_projector(self._forward_impl(query, key, value, attn_metadata))
+
+        strategy = self._get_active_parallel_strategy()
+        static_reason = None
+        if query.device.type != "cuda":
+            static_reason = "CUDA tensors are required"
+        elif chunks != 2:
+            static_reason = "only the qualified two-chunk contract is supported"
+        elif self.attn_backend is None:
+            static_reason = "custom attention owns its communication"
+        elif self.attn_backend.get_name() != "CUDNN_ATTN":
+            static_reason = f"backend is {self.attn_backend.get_name()}, not CUDNN_ATTN"
+        elif self.use_ring:
+            static_reason = "Ring attention is active"
+        elif strategy is self._no_parallel_strategy or strategy.name != "ulysses":
+            static_reason = f"parallel strategy is {strategy.name}, not Ulysses"
+        elif self._active_paged_kv_adapter() is not None:
+            static_reason = "paged KV is active"
+        elif get_ulysses_mode(default="strict") != "strict":
+            static_reason = "Ulysses mode is not strict"
+        if static_reason is not None:
+            logger.warning_once(
+                "MiniMax H3 two-chunk attention pipeline fell back: %s",
+                static_reason,
+            )
+            return project_fallback()
+
+        # Q/K/V communication remains exactly the production strict-Ulysses
+        # path.  Only after it succeeds do we inspect its concrete context and
+        # decide whether the chunk pipeline contract is satisfied.
+        query_sp, key_sp, value_sp, metadata_sp, ctx = strategy.pre_attention(
+            query,
+            key,
+            value,
+            attn_metadata,
+            q_chunk_major_chunks=chunks,
+        )
+        metadata_sp = self._with_kv_cache_dtype(metadata_sp)
+
+        def project_after_pre_attention() -> torch.Tensor:
+            query_fallback = query_sp
+            direct_chunks = int(getattr(ctx, "q_chunk_major_chunks", 0))
+            if direct_chunks:
+                query_fallback = _h3_query_origin_major(
+                    query_sp,
+                    world_size=world_size,
+                    chunks=direct_chunks,
+                )
+                if bool(getattr(ctx, "qchunk2_direct_experiment", False)):
+                    from vllm_omni.diffusion.distributed.flashinfer_ulysses import (
+                        record_qchunk2_full_permute,
+                    )
+
+                    record_qchunk2_full_permute(
+                        query_fallback,
+                        ctx.ulysses_pg.group_name,
+                        world_size,
+                    )
+            out = self._run_local_attention(
+                query_fallback,
+                key_sp,
+                value_sp,
+                metadata_sp,
+            )
+            return output_projector(strategy.post_attention(out, ctx))
+
+        group = getattr(ctx, "ulysses_pg", None)
+        world_size = dist.get_world_size(group) if group is not None else 0
+        dynamic_reason = None
+        if getattr(ctx, "strict_a2a_backend", "") != "flashinfer-pcie":
+            dynamic_reason = "strict Ulysses did not select flashinfer-pcie"
+        elif bool(getattr(ctx, "use_uaa", False)):
+            dynamic_reason = "advanced UAA context is active"
+        elif int(getattr(ctx, "joint_len", 0)) != 0:
+            dynamic_reason = "joint attention rows are active"
+        elif world_size != 8:
+            dynamic_reason = f"qualified SP world is 8, got {world_size}"
+        elif metadata_sp is None or metadata_sp.attn_mask is not None:
+            dynamic_reason = "mask-free cuDNN metadata is required"
+        elif query_sp.dtype != torch.bfloat16:
+            dynamic_reason = f"qualified dtype is BF16, got {query_sp.dtype}"
+        elif query_sp.shape != key_sp.shape or query_sp.shape != value_sp.shape:
+            dynamic_reason = "Q/K/V shapes differ"
+        elif query_sp.ndim != 4 or query_sp.shape[0] != 1:
+            dynamic_reason = f"qualified batch shape is [1,S,H,D], got {tuple(query_sp.shape)}"
+        elif query_sp.shape[2:] != (7, 128):
+            dynamic_reason = f"qualified local head geometry is [7,128], got {tuple(query_sp.shape[2:])}"
+        elif query_sp.shape[1] % (world_size * chunks):
+            dynamic_reason = (
+                f"global sequence {query_sp.shape[1]} does not split evenly across SP{world_size} x {chunks} chunks"
+            )
+        if dynamic_reason is not None:
+            logger.warning_once(
+                "MiniMax H3 two-chunk attention pipeline fell back after QKV: %s",
+                dynamic_reason,
+            )
+            return project_after_pre_attention()
+
+        comm_stream = torch.cuda.current_stream(query_sp.device)
+        input_ready = torch.cuda.Event()
+        input_ready.record(comm_stream)
+        compute_stream = _h3_qchunk_compute_stream(query_sp.device)
+
+        global_seq = query_sp.shape[1]
+        global_chunk = global_seq // chunks
+        attention_chunks: list[torch.Tensor] = []
+        ready_events: list[torch.cuda.Event] = []
+        with torch.cuda.stream(compute_stream):
+            compute_stream.wait_event(input_ready)
+            if int(getattr(ctx, "q_chunk_major_chunks", 0)) == chunks:
+                query_chunk_major = query_sp
+            else:
+                query_chunk_major = _h3_query_chunk_major(
+                    query_sp,
+                    world_size=world_size,
+                    chunks=chunks,
+                )
+                if bool(getattr(ctx, "qchunk2_direct_experiment", False)):
+                    from vllm_omni.diffusion.distributed.flashinfer_ulysses import (
+                        record_qchunk2_full_permute,
+                    )
+
+                    record_qchunk2_full_permute(
+                        query_chunk_major,
+                        ctx.ulysses_pg.group_name,
+                        world_size,
+                    )
+            for index in range(chunks):
+                start = index * global_chunk
+                query_chunk = query_chunk_major.narrow(1, start, global_chunk)
+                attention_chunks.append(
+                    self._run_local_attention(
+                        query_chunk,
+                        key_sp,
+                        value_sp,
+                        metadata_sp,
+                    )
+                )
+                ready = torch.cuda.Event()
+                ready.record(compute_stream)
+                ready_events.append(ready)
+
+        projected_chunks: list[torch.Tensor] = []
+        for attention_chunk, ready in zip(
+            attention_chunks,
+            ready_events,
+            strict=True,
+        ):
+            comm_stream.wait_event(ready)
+            # The chunk is allocated on ``compute_stream`` but its inverse
+            # exchange consumes it asynchronously on ``comm_stream``.  Keep
+            # the caching allocator from recycling that storage after the
+            # producer stream completes but before the communicator has
+            # finished reading it.
+            attention_chunk.record_stream(comm_stream)
+            gathered = strategy.post_attention(attention_chunk, ctx)
+            projected_chunks.append(output_projector(gathered))
+
+        result = torch.cat(projected_chunks, dim=0)
+        if not getattr(self, "_h3_qchunk_logged", False):
+            logger.info(
+                "MiniMax H3 two-chunk attention/O-gather/out-projection pipeline active: layer=%s shape=%s",
+                self.prefix,
+                tuple(query_sp.shape),
+            )
+            self._h3_qchunk_logged = True
+        return result
+
     @staticmethod
     def _active_paged_kv_adapter():
         """Return the Worker adapter selected by Runner-owned metadata."""
@@ -496,8 +836,10 @@ class Attention(nn.Module):
 
     def _run_local_attention(self, query, key, value, attn_metadata):
         if self._has_custom_attention:
+            assert callable(self.attention)
             return self.attention(query, key, value, attn_metadata)
 
+        assert self.attn_backend is not None and self.sdpa_fallback is not None
         self._assert_metadata_compatible(attn_metadata)
 
         if (
