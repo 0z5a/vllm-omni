@@ -20,7 +20,6 @@ block selection, and attention arithmetic are unchanged.
 
 from __future__ import annotations
 
-import math
 import os
 import weakref
 
@@ -29,8 +28,6 @@ from vllm.triton_utils import HAS_TRITON, tl, triton
 
 H3_VSA_FUSED_TILE_PACK_ENV = "VLLM_OMNI_FASTVIDEO_VSA_FUSED_TILE_PACK"
 H3_VSA_FUSED_UNTILE_ENV = "VLLM_OMNI_FASTVIDEO_VSA_FUSED_UNTILE"
-H3_VSA_FUSED_GATE_UNTILE_ENV = "VLLM_OMNI_FASTVIDEO_VSA_FUSED_GATE_UNTILE"
-H3_VSA_FP8_QKV_SCALES_KEY = "vsa_h3_fp8_qkv_scales"
 # Producer-owned marker that identifies an H3 target-video call whose resolved
 # attention backend is FASTVIDEO_VSA.  It deliberately does not depend on the
 # learned gate tensor being present: opt-in communication experiments use it
@@ -131,12 +128,6 @@ def h3_vsa_fused_tile_pack_enabled() -> bool:
 def h3_vsa_fused_untile_enabled() -> bool:
     """Return whether the opt-in H3 tile-to-aligned CUDA path is requested."""
     raw = os.environ.get(H3_VSA_FUSED_UNTILE_ENV, "0").strip().lower()
-    return raw in {"1", "true", "yes", "on"}
-
-
-def h3_vsa_fused_gate_untile_enabled() -> bool:
-    """Return whether H3's gate-add and output un-tiling should be fused."""
-    raw = os.environ.get(H3_VSA_FUSED_GATE_UNTILE_ENV, "0").strip().lower()
     return raw in {"1", "true", "yes", "on"}
 
 
@@ -318,68 +309,6 @@ def h3_vsa_tile_pack_reference(x: torch.Tensor, source_rows: torch.Tensor) -> to
     return output
 
 
-def _validate_h3_fp8_dequant_tile_pack_inputs(
-    x: torch.Tensor,
-    source_rows: torch.Tensor,
-    scale: float,
-) -> float:
-    _validate_h3_tile_pack_inputs(x, source_rows)
-    if x.dtype != torch.float8_e4m3fn:
-        raise TypeError(f"H3 VSA FP8 dequant tile pack requires float8_e4m3fn input, got {x.dtype}")
-    scale = float(scale)
-    if not math.isfinite(scale) or scale <= 0:
-        raise ValueError(f"H3 VSA FP8 dequant scale must be finite and positive, got {scale}")
-    return scale
-
-
-def h3_vsa_fp8_dequant_tile_pack_reference(
-    x: torch.Tensor,
-    source_rows: torch.Tensor,
-    scale: float,
-) -> torch.Tensor:
-    """Reference FP8 wire decode plus compact-to-tile64 layout.
-
-    The wire value represents ``round_e4m3(bf16 / scale)``.  Decode in FP32
-    and round once to the BF16 tensor consumed by the existing VSA kernels.
-    Padding rows remain exact zero.
-    """
-    scale = _validate_h3_fp8_dequant_tile_pack_inputs(x, source_rows, scale)
-    decoded = (x.to(torch.float32) * scale).to(torch.bfloat16)
-    return h3_vsa_tile_pack_reference(decoded, source_rows)
-
-
-def h3_vsa_fp8_dequant_tile_pack_cuda_supported(
-    x: torch.Tensor,
-    source_rows: torch.Tensor,
-) -> bool:
-    """Whether the fused E4M3 decode + tile-pack kernel can safely run."""
-    row_width = x.shape[2] * x.shape[3] if x.ndim == 4 else 0
-    return (
-        HAS_TRITON
-        and x.is_cuda
-        and x.ndim == 4
-        and x.dtype == torch.float8_e4m3fn
-        and not x.requires_grad
-        and source_rows.is_cuda
-        and source_rows.device == x.device
-        and source_rows.ndim == 1
-        and source_rows.dtype == torch.int32
-        and source_rows.is_contiguous()
-        and x.shape[0] > 0
-        and x.shape[1] > 0
-        and x.shape[2] > 0
-        and x.shape[3] > 0
-        and x.shape[1] <= source_rows.numel()
-        and 0 < row_width <= _MAX_FUSED_ROW_WIDTH
-        and _source_rows_are_registered(
-            source_rows,
-            kind="tile_pack",
-            source_bound=x.shape[1],
-            valid_rows=x.shape[1],
-        )
-    )
-
-
 def _validate_h3_tile_untile_inputs(x: torch.Tensor, source_rows: torch.Tensor) -> None:
     if x.ndim != 4:
         raise ValueError(f"H3 VSA tile untile expects [B,S,H,D], got {tuple(x.shape)}")
@@ -415,83 +344,6 @@ def _validate_h3_tile_untile_output(
         raise ValueError("H3 VSA tile untile output must not require gradients")
     if out.untyped_storage().data_ptr() == x.untyped_storage().data_ptr():
         raise ValueError("H3 VSA tile untile input and output must not share storage")
-
-
-def _validate_h3_gate_untile_inputs(
-    fine: torch.Tensor,
-    compressed: torch.Tensor,
-    gate: torch.Tensor,
-    source_rows: torch.Tensor,
-) -> None:
-    _validate_h3_tile_untile_inputs(fine, source_rows)
-    if fine.dtype != torch.bfloat16:
-        raise TypeError(f"H3 VSA fused gate untile requires bfloat16, got {fine.dtype}")
-    if compressed.ndim != 4 or gate.ndim != 4:
-        raise ValueError("compressed and gate must be [B,S,H,D] tensors")
-    if compressed.device != fine.device or gate.device != fine.device:
-        raise ValueError("fine, compressed, gate, and source_rows must share one device")
-    if compressed.dtype != fine.dtype or gate.dtype != fine.dtype:
-        raise TypeError("fine, compressed, and gate must share one dtype")
-    if compressed.shape[0] != fine.shape[0] or gate.shape[0] != fine.shape[0]:
-        raise ValueError("fine, compressed, and gate batch dimensions must match")
-    if compressed.shape[2:] != fine.shape[2:] or gate.shape[2:] != fine.shape[2:]:
-        raise ValueError("fine, compressed, and gate head dimensions must match")
-    if compressed.shape[1] * 64 != fine.shape[1]:
-        raise ValueError(
-            "compressed must contain one row per tile64 block: "
-            f"compressed={compressed.shape[1]}, fine_rows={fine.shape[1]}"
-        )
-    if not 0 < gate.shape[1] <= source_rows.numel():
-        raise ValueError(f"gate rows must be within aligned output rows, got {gate.shape[1]} and {source_rows.numel()}")
-    if fine.requires_grad or compressed.requires_grad or gate.requires_grad:
-        raise ValueError("H3 VSA fused gate untile is inference-only")
-    if fine.is_cuda and not _source_rows_are_registered(
-        source_rows,
-        kind="aligned_untile",
-        source_bound=fine.shape[1],
-        valid_rows=gate.shape[1],
-    ):
-        raise ValueError(
-            "CUDA source_rows must be an unmodified aligned map returned by build_h3_aligned_untile_source_rows"
-        )
-
-
-def h3_vsa_gate_untile_cuda_supported(
-    fine: torch.Tensor,
-    compressed: torch.Tensor,
-    gate: torch.Tensor,
-    source_rows: torch.Tensor,
-) -> bool:
-    """Whether the exact BF16 gate-add + tile-to-aligned kernel can run."""
-    row_width = fine.shape[2] * fine.shape[3] if fine.ndim == 4 else 0
-    return (
-        h3_vsa_tile_untile_cuda_supported(fine, source_rows)
-        and fine.dtype == torch.bfloat16
-        and fine.is_contiguous()
-        and compressed.is_cuda
-        and compressed.device == fine.device
-        and compressed.dtype == fine.dtype
-        and compressed.ndim == 4
-        and compressed.shape[0] == fine.shape[0]
-        and compressed.shape[1] * 64 == fine.shape[1]
-        and compressed.shape[2:] == fine.shape[2:]
-        and not compressed.requires_grad
-        and gate.is_cuda
-        and gate.device == fine.device
-        and gate.dtype == fine.dtype
-        and gate.ndim == 4
-        and gate.shape[0] == fine.shape[0]
-        and gate.shape[2:] == fine.shape[2:]
-        and 0 < gate.shape[1] <= source_rows.numel()
-        and not gate.requires_grad
-        and 0 < row_width <= _MAX_FUSED_ROW_WIDTH
-        and _source_rows_are_registered(
-            source_rows,
-            kind="aligned_untile",
-            source_bound=fine.shape[1],
-            valid_rows=gate.shape[1],
-        )
-    )
 
 
 def h3_vsa_tile_untile_cuda_supported(
@@ -548,24 +400,6 @@ def h3_vsa_tile_untile_reference(
     return output
 
 
-def h3_vsa_gate_untile_reference(
-    fine: torch.Tensor,
-    compressed: torch.Tensor,
-    gate: torch.Tensor,
-    source_rows: torch.Tensor,
-) -> torch.Tensor:
-    """Reference for BF16 ``fine + compressed * gate`` followed by un-tiling."""
-    _validate_h3_gate_untile_inputs(fine, compressed, gate, source_rows)
-    output = h3_vsa_tile_untile_reference(fine, source_rows)
-    gate_rows = gate.shape[1]
-    tiled_sources = source_rows[:gate_rows].to(torch.int64)
-    if bool(torch.any(tiled_sources < 0)):
-        raise ValueError("every compact gate row must map to a valid tiled source row")
-    compressed_rows = compressed.index_select(1, tiled_sources // 64)
-    output[:, :gate_rows] = output[:, :gate_rows] + compressed_rows * gate
-    return output
-
-
 if HAS_TRITON:
 
     @triton.jit
@@ -602,138 +436,6 @@ if HAS_TRITON:
         output_offsets = flat_destination_row * row_width + feature_offsets
         tl.store(output_ptr + output_offsets, values, mask=feature_mask)
 
-    @triton.jit
-    def _h3_vsa_fp8_dequant_tile_pack_kernel(
-        source_ptr,
-        source_rows_ptr,
-        output_ptr,
-        source_stride_batch,
-        source_stride_seq,
-        source_stride_head,
-        source_stride_dim,
-        scale,
-        padded_rows: tl.constexpr,
-        head_dim: tl.constexpr,
-        row_width: tl.constexpr,
-        block_size: tl.constexpr,
-    ):
-        flat_destination_row = tl.program_id(0)
-        batch_index = flat_destination_row // padded_rows
-        destination_row = flat_destination_row - batch_index * padded_rows
-        source_row = tl.load(source_rows_ptr + destination_row)
-
-        feature_offsets = tl.arange(0, block_size)
-        feature_mask = feature_offsets < row_width
-        head_index = feature_offsets // head_dim
-        dim_index = feature_offsets - head_index * head_dim
-        valid_source = source_row >= 0
-        source_offsets = (
-            batch_index * source_stride_batch
-            + source_row * source_stride_seq
-            + head_index * source_stride_head
-            + dim_index * source_stride_dim
-        )
-        values = tl.load(
-            source_ptr + source_offsets,
-            mask=feature_mask & valid_source,
-            other=0.0,
-        ).to(tl.float32)
-        values *= scale
-        output_offsets = flat_destination_row * row_width + feature_offsets
-        tl.store(output_ptr + output_offsets, values, mask=feature_mask)
-
-    @triton.jit
-    def _h3_vsa_gate_untile_kernel(
-        fine_ptr,
-        compressed_ptr,
-        gate_ptr,
-        source_rows_ptr,
-        output_ptr,
-        fine_stride_batch,
-        fine_stride_seq,
-        fine_stride_head,
-        fine_stride_dim,
-        compressed_stride_batch,
-        compressed_stride_seq,
-        compressed_stride_head,
-        compressed_stride_dim,
-        gate_stride_batch,
-        gate_stride_seq,
-        gate_stride_head,
-        gate_stride_dim,
-        aligned_rows: tl.constexpr,
-        gate_rows: tl.constexpr,
-        head_dim: tl.constexpr,
-        row_width: tl.constexpr,
-        block_size: tl.constexpr,
-    ):
-        flat_destination_row = tl.program_id(0)
-        batch_index = flat_destination_row // aligned_rows
-        destination_row = flat_destination_row - batch_index * aligned_rows
-        tiled_source_row = tl.load(source_rows_ptr + destination_row)
-
-        feature_offsets = tl.arange(0, block_size)
-        feature_mask = feature_offsets < row_width
-        head_index = feature_offsets // head_dim
-        dim_index = feature_offsets - head_index * head_dim
-        valid_source = tiled_source_row >= 0
-        fine_offsets = (
-            batch_index * fine_stride_batch
-            + tiled_source_row * fine_stride_seq
-            + head_index * fine_stride_head
-            + dim_index * fine_stride_dim
-        )
-        fine_values = tl.load(
-            fine_ptr + fine_offsets,
-            mask=feature_mask & valid_source,
-            other=0.0,
-        )
-
-        valid_gate = valid_source & (destination_row < gate_rows)
-        compressed_offsets = (
-            batch_index * compressed_stride_batch
-            + (tiled_source_row // 64) * compressed_stride_seq
-            + head_index * compressed_stride_head
-            + dim_index * compressed_stride_dim
-        )
-        gate_offsets = (
-            batch_index * gate_stride_batch
-            + destination_row * gate_stride_seq
-            + head_index * gate_stride_head
-            + dim_index * gate_stride_dim
-        )
-        compressed_values = tl.load(
-            compressed_ptr + compressed_offsets,
-            mask=feature_mask & valid_gate,
-            other=0.0,
-        )
-        gate_values = tl.load(
-            gate_ptr + gate_offsets,
-            mask=feature_mask & valid_gate,
-            other=0.0,
-        )
-        # Match eager BF16's two-kernel boundary exactly.  A plain Triton
-        # cast remains an SSA value and LLVM is allowed to contract the
-        # following add into an FP32 FMA, erasing the intermediate BF16
-        # rounding.  The packed PTX operations force multiply-round followed
-        # by add-round, which is the CUDA eager tensor-expression contract.
-        values = tl.inline_asm_elementwise(
-            """
-            {
-                .reg .b32 gated;
-                mul.rn.bf16x2 gated, $2, $3;
-                add.rn.bf16x2 $0, $1, gated;
-            }
-            """,
-            constraints="=r,r,r,r",
-            args=[fine_values, compressed_values, gate_values],
-            dtype=tl.bfloat16,
-            is_pure=True,
-            pack=2,
-        )
-        output_offsets = flat_destination_row * row_width + feature_offsets
-        tl.store(output_ptr + output_offsets, values, mask=feature_mask)
-
 
 def _h3_vsa_tile_pack_cuda_impl(x: torch.Tensor, source_rows: torch.Tensor) -> torch.Tensor:
     _validate_h3_tile_pack_inputs(x, source_rows)
@@ -754,39 +456,6 @@ def _h3_vsa_tile_pack_cuda_impl(x: torch.Tensor, source_rows: torch.Tensor) -> t
         x.stride(1),
         x.stride(2),
         x.stride(3),
-        padded_rows=source_rows.numel(),
-        head_dim=x.shape[3],
-        row_width=row_width,
-        block_size=block_size,
-        num_warps=4 if block_size <= 256 else 8,
-    )
-    return output
-
-
-def _h3_vsa_fp8_dequant_tile_pack_cuda_impl(
-    x: torch.Tensor,
-    source_rows: torch.Tensor,
-    scale: float,
-) -> torch.Tensor:
-    scale = _validate_h3_fp8_dequant_tile_pack_inputs(x, source_rows, scale)
-    if not h3_vsa_fp8_dequant_tile_pack_cuda_supported(x, source_rows):
-        raise RuntimeError("H3 VSA fused FP8 dequant tile pack received an unsupported CUDA input")
-    output = torch.empty(
-        (x.shape[0], source_rows.numel(), x.shape[2], x.shape[3]),
-        dtype=torch.bfloat16,
-        device=x.device,
-    )
-    row_width = x.shape[2] * x.shape[3]
-    block_size = triton.next_power_of_2(row_width)
-    _h3_vsa_fp8_dequant_tile_pack_kernel[(x.shape[0] * source_rows.numel(),)](
-        x,
-        source_rows,
-        output,
-        x.stride(0),
-        x.stride(1),
-        x.stride(2),
-        x.stride(3),
-        scale,
         padded_rows=source_rows.numel(),
         head_dim=x.shape[3],
         row_width=row_width,
@@ -832,58 +501,6 @@ def _h3_vsa_tile_untile_cuda_impl(
     return output
 
 
-def _h3_vsa_gate_untile_cuda_impl(
-    fine: torch.Tensor,
-    compressed: torch.Tensor,
-    gate: torch.Tensor,
-    source_rows: torch.Tensor,
-    out: torch.Tensor | None = None,
-) -> torch.Tensor:
-    _validate_h3_gate_untile_inputs(fine, compressed, gate, source_rows)
-    if not h3_vsa_gate_untile_cuda_supported(fine, compressed, gate, source_rows):
-        raise RuntimeError("H3 VSA fused gate untile received an unsupported CUDA input")
-    if out is None:
-        output = torch.empty(
-            (fine.shape[0], source_rows.numel(), fine.shape[2], fine.shape[3]),
-            dtype=fine.dtype,
-            device=fine.device,
-        )
-    else:
-        _validate_h3_tile_untile_output(fine, source_rows, out)
-        for name, tensor in (("compressed", compressed), ("gate", gate)):
-            if out.untyped_storage().data_ptr() == tensor.untyped_storage().data_ptr():
-                raise ValueError(f"H3 VSA gate untile output and {name} must not share storage")
-        output = out
-    row_width = fine.shape[2] * fine.shape[3]
-    block_size = triton.next_power_of_2(row_width)
-    _h3_vsa_gate_untile_kernel[(fine.shape[0] * source_rows.numel(),)](
-        fine,
-        compressed,
-        gate,
-        source_rows,
-        output,
-        fine.stride(0),
-        fine.stride(1),
-        fine.stride(2),
-        fine.stride(3),
-        compressed.stride(0),
-        compressed.stride(1),
-        compressed.stride(2),
-        compressed.stride(3),
-        gate.stride(0),
-        gate.stride(1),
-        gate.stride(2),
-        gate.stride(3),
-        aligned_rows=source_rows.numel(),
-        gate_rows=gate.shape[1],
-        head_dim=fine.shape[3],
-        row_width=row_width,
-        block_size=block_size,
-        num_warps=4 if block_size <= 256 else 8,
-    )
-    return output
-
-
 if not hasattr(torch.ops.vllm_omni, "h3_vsa_tile_pack"):
 
     @torch.library.custom_op("vllm_omni::h3_vsa_tile_pack", mutates_args=())
@@ -895,33 +512,6 @@ if not hasattr(torch.ops.vllm_omni, "h3_vsa_tile_pack"):
         return torch.empty(
             (x.shape[0], source_rows.shape[0], x.shape[2], x.shape[3]),
             dtype=x.dtype,
-            device=x.device,
-        )
-
-
-if not hasattr(torch.ops.vllm_omni, "h3_vsa_fp8_dequant_tile_pack"):
-
-    @torch.library.custom_op(
-        "vllm_omni::h3_vsa_fp8_dequant_tile_pack",
-        mutates_args=(),
-    )
-    def _h3_vsa_fp8_dequant_tile_pack_op(
-        x: torch.Tensor,
-        source_rows: torch.Tensor,
-        scale: float,
-    ) -> torch.Tensor:
-        return _h3_vsa_fp8_dequant_tile_pack_cuda_impl(x, source_rows, scale)
-
-    @_h3_vsa_fp8_dequant_tile_pack_op.register_fake
-    def _(
-        x: torch.Tensor,
-        source_rows: torch.Tensor,
-        scale: float,
-    ) -> torch.Tensor:
-        del scale
-        return torch.empty(
-            (x.shape[0], source_rows.shape[0], x.shape[2], x.shape[3]),
-            dtype=torch.bfloat16,
             device=x.device,
         )
 
@@ -950,22 +540,6 @@ def h3_vsa_tile_pack(x: torch.Tensor, source_rows: torch.Tensor) -> torch.Tensor
     if not h3_vsa_tile_pack_cuda_supported(x, source_rows):
         raise RuntimeError("H3 VSA fused tile pack is unavailable for this input")
     return torch.ops.vllm_omni.h3_vsa_tile_pack(x, source_rows)
-
-
-def h3_vsa_fp8_dequant_tile_pack(
-    x: torch.Tensor,
-    source_rows: torch.Tensor,
-    scale: float,
-) -> torch.Tensor:
-    """Decode E4M3 wire values and pack them into BF16 tile-64 order."""
-    scale = _validate_h3_fp8_dequant_tile_pack_inputs(x, source_rows, scale)
-    if not h3_vsa_fp8_dequant_tile_pack_cuda_supported(x, source_rows):
-        raise RuntimeError("H3 VSA fused FP8 dequant tile pack is unavailable for this input")
-    return torch.ops.vllm_omni.h3_vsa_fp8_dequant_tile_pack(
-        x,
-        source_rows,
-        scale,
-    )
 
 
 def h3_vsa_tile_untile(
@@ -1000,59 +574,14 @@ def h3_vsa_tile_untile_out(
     return _h3_vsa_tile_untile_cuda_impl(x, source_rows, out=out)
 
 
-@torch.compiler.disable
-def h3_vsa_gate_untile(
-    fine: torch.Tensor,
-    compressed: torch.Tensor,
-    gate: torch.Tensor,
-    source_rows: torch.Tensor,
-) -> torch.Tensor:
-    """Fuse H3's BF16 coarse gate-add with tile-to-aligned output layout."""
-    return _h3_vsa_gate_untile_cuda_impl(
-        fine,
-        compressed,
-        gate,
-        source_rows,
-    )
-
-
-@torch.compiler.disable
-def h3_vsa_gate_untile_out(
-    fine: torch.Tensor,
-    compressed: torch.Tensor,
-    gate: torch.Tensor,
-    source_rows: torch.Tensor,
-    *,
-    out: torch.Tensor,
-) -> torch.Tensor:
-    """Fuse gate-add and un-tiling directly into caller-owned O landing."""
-    return _h3_vsa_gate_untile_cuda_impl(
-        fine,
-        compressed,
-        gate,
-        source_rows,
-        out=out,
-    )
-
-
 __all__ = [
     "H3_VSA_ATTENTION_ACTIVE_KEY",
-    "H3_VSA_FUSED_GATE_UNTILE_ENV",
     "H3_VSA_FUSED_TILE_PACK_ENV",
     "H3_VSA_FUSED_UNTILE_ENV",
-    "H3_VSA_FP8_QKV_SCALES_KEY",
     "build_h3_aligned_untile_source_rows",
     "build_h3_tiled_source_rows",
-    "h3_vsa_fused_gate_untile_enabled",
     "h3_vsa_fused_tile_pack_enabled",
     "h3_vsa_fused_untile_enabled",
-    "h3_vsa_fp8_dequant_tile_pack",
-    "h3_vsa_fp8_dequant_tile_pack_cuda_supported",
-    "h3_vsa_fp8_dequant_tile_pack_reference",
-    "h3_vsa_gate_untile",
-    "h3_vsa_gate_untile_cuda_supported",
-    "h3_vsa_gate_untile_out",
-    "h3_vsa_gate_untile_reference",
     "h3_vsa_tile_pack",
     "h3_vsa_tile_pack_cuda_supported",
     "h3_vsa_tile_pack_reference",

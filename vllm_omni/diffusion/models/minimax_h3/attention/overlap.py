@@ -19,7 +19,7 @@ ACTIVE: ContextVar[dict[str, Any] | None] = ContextVar("minimax_h3_overlap", def
 
 @lru_cache(None)
 def streams(device):
-    return torch.cuda.Stream(device=device, priority=-1), torch.cuda.Stream(device=device)
+    return torch.get_device_module().Stream(device=device, priority=-1), torch.get_device_module().Stream(device=device)
 
 
 def run(
@@ -41,15 +41,15 @@ def run(
     assert impl.h3_kernel_backend == "flashinfer" and impl.topk == 162
     assert query.shape == key.shape == value.shape == (1, 11992, 56, 128)
     assert query.dtype == key.dtype == value.dtype == torch.bfloat16
-    caller = torch.cuda.current_stream()
+    caller = torch.get_device_module().current_stream()
     comm, side = streams(query.device)
     comm.wait_stream(caller)
     state = dict(comm=comm, side=side, projector=projector, impl=impl, prepared=None, reverse=None, projected=False)
     token = ACTIVE.set(state)
     try:
-        with torch.cuda.stream(comm), torch.cuda.nvtx.range("h3.overlap.attention"):
+        with torch.get_device_module().stream(comm), torch.cuda.nvtx.range("h3.overlap.attention"):
             if vsplit_input is not None:
-                from vllm_omni.diffusion.attention.ops.minimax_h3_qkv_overlap import begin
+                from vllm_omni.diffusion.models.minimax_h3.attention.qkv_overlap import begin
 
                 begin(state, attention, vsplit_projection, vsplit_input, value, vsplit_layer_index, metadata)
             if gate_input is not None:
@@ -67,7 +67,7 @@ def run(
                     assert ticket.launched and ticket.done is not None
                     with torch.cuda.nvtx.range("h3.vsplit.gate_after_v_ready"):
                         side.wait_event(ticket.done)
-                with torch.cuda.stream(side), torch.cuda.nvtx.range("h3.lossless.gate_gemm"):
+                with torch.get_device_module().stream(side), torch.cuda.nvtx.range("h3.lossless.gate_gemm"):
                     gate_input.record_stream(side)
                     gate_result = gate_projector(gate_input)
                     gate = gate_result[0] if isinstance(gate_result, tuple) else gate_result
@@ -84,7 +84,7 @@ def run(
             out = attention(query, key, value, metadata)
             assert state["projected"], "chunked reverse/projector did not run"
             if vsplit_input is not None:
-                from vllm_omni.diffusion.attention.ops.minimax_h3_qkv_overlap import finish
+                from vllm_omni.diffusion.models.minimax_h3.attention.qkv_overlap import finish
 
                 finish(state)
         caller.wait_stream(comm)
@@ -93,10 +93,10 @@ def run(
     finally:
         # Also cover exceptions before the normal preparation/reverse joins.
         if vsplit_input is not None:
-            from vllm_omni.diffusion.attention.ops.minimax_h3_qkv_overlap import cleanup
+            from vllm_omni.diffusion.models.minimax_h3.attention.qkv_overlap import cleanup
 
             cleanup(state, caller)
-        from .minimax_h3_output_overlap import cleanup as o_cleanup
+        from vllm_omni.diffusion.models.minimax_h3.attention.output_overlap import cleanup as o_cleanup
 
         o_cleanup(state, caller)
         caller.wait_stream(side)
@@ -109,10 +109,11 @@ def before_v(query, key, value, metadata, group):
     if active is None:
         return value
     if active.get("vsplit_ticket") is not None:
-        from vllm_omni.diffusion.attention.ops.minimax_h3_qkv_overlap import before_v as split_before_v
+        from vllm_omni.diffusion.models.minimax_h3.attention.qkv_overlap import before_v as split_before_v
 
         return split_before_v(active, query, key, value, metadata, group)
-    from vllm_omni.diffusion.attention.backends.fastvideo_vsa import (
+    from vllm_omni.diffusion.distributed.flashinfer_ulysses import _state_for
+    from vllm_omni.diffusion.models.minimax_h3.attention.backend import (
         _build_h3_ordered_q2k_indices,
         _get_h3_layout,
         _get_h3_tile_metadata,
@@ -120,7 +121,6 @@ def before_v(query, key, value, metadata, group):
         _pool_h3_tiles,
         h3_vsa_tile_pack,
     )
-    from vllm_omni.diffusion.distributed.flashinfer_ulysses import _state_for
 
     state = _state_for(value, group, 8)
     assert state.communicator is not None
@@ -131,8 +131,8 @@ def before_v(query, key, value, metadata, group):
     assert layout == ((558, 1206), (107, 22, 40), 1764), layout
     prefix, shape, _ = layout
     active["side"].wait_stream(active["comm"])
-    with torch.cuda.stream(active["side"]), torch.cuda.nvtx.range("h3.overlap.qk_prepare"):
-        from vllm_omni.diffusion.attention.ops.minimax_h3_attention_schedule import prepared_q
+    with torch.get_device_module().stream(active["side"]), torch.cuda.nvtx.range("h3.overlap.qk_prepare"):
+        from vllm_omni.diffusion.models.minimax_h3.attention.schedule import prepared_q
 
         _, sizes, _, _, prefix_blocks, video_blocks = _get_h3_tile_metadata(prefix, shape, query.device)
         maps = _get_h3_tiled_source_rows(prefix, shape, 105472, query.device)
@@ -163,7 +163,7 @@ def publish_reverse(fine, coarse, plan):
     active = ACTIVE.get()
     if active is None:
         return False
-    from vllm_omni.diffusion.attention.ops.minimax_h3_attention_schedule import join_coarse
+    from vllm_omni.diffusion.models.minimax_h3.attention.schedule import join_coarse
 
     join_coarse(coarse)
     assert active["reverse"] is None
@@ -175,9 +175,9 @@ def finish_reverse(attn_output, ctx):
     active = ACTIVE.get()
     if active is None:
         return None
-    from vllm_omni.diffusion.attention.ops.minimax_h3_chunks import gate_chunk
-    from vllm_omni.diffusion.attention.ops.minimax_h3_vsa_owner_route import h3_vsa_owner_route_plan_is_trusted
     from vllm_omni.diffusion.distributed.flashinfer_ulysses import _state_for
+    from vllm_omni.diffusion.models.minimax_h3.ops.attention.chunks import gate_chunk
+    from vllm_omni.diffusion.models.minimax_h3.ops.attention.owner_route import h3_vsa_owner_route_plan_is_trusted
 
     fine, coarse, plan = active["reverse"]
     assert fine is attn_output
@@ -195,9 +195,9 @@ def finish_reverse(attn_output, ctx):
     tiles, row_map = route_maps(plan, rank, fine.device)
     count = 2998
     result = torch.empty(1, 11992, 5376, device=fine.device, dtype=torch.bfloat16)
-    from .minimax_h3_output_overlap import complete as complete_o
-    from .minimax_h3_output_overlap import consume as consume_o
-    from .minimax_h3_output_overlap import prepare as prepare_o
+    from vllm_omni.diffusion.models.minimax_h3.attention.output_overlap import complete as complete_o
+    from vllm_omni.diffusion.models.minimax_h3.attention.output_overlap import consume as consume_o
+    from vllm_omni.diffusion.models.minimax_h3.attention.output_overlap import prepare as prepare_o
 
     prepare_o(active, fine, coarse, tiles, state)
     for index in range(4):
@@ -206,7 +206,10 @@ def finish_reverse(attn_output, ctx):
         with torch.cuda.nvtx.range(f"h3.overlap.o_rdma.{index}"):
             comm.gather_heads(landing, out=out)
         active["side"].wait_stream(active["comm"])
-        with torch.cuda.stream(active["side"]), torch.cuda.nvtx.range(f"h3.overlap.o_gate_project.{index}"):
+        with (
+            torch.get_device_module().stream(active["side"]),
+            torch.cuda.nvtx.range(f"h3.overlap.o_gate_project.{index}"),
+        ):
             view = gate_chunk(out, gate[:, start : start + count], row_map[start : start + count], count)
             projected = active["projector"](view)
             result[:, start : start + count].copy_(projected)

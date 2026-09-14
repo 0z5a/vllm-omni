@@ -1,60 +1,30 @@
-# MiniMax-H3 Ultra
+# MiniMax-H3 acceleration
 
-MiniMax-H3 Ultra combines FastH3 VSA, Sage attention, MXFP8 projections,
-communication overlap, and full video/audio VAE decoding in one E2E path.
-The existing [MiniMax-H3 recipe](MiniMax-H3.md) covers checkpoint access and
-standard serving.
+The [MiniMax-H3 recipe](MiniMax-H3.md) covers checkpoints and standard serving.
+This recipe configures the optional FastH3 execution path: cached AdaLN,
+Sage block-sparse attention, MXFP8 DiT and VAE projections, and overlapped
+attention/output and video/audio decoding.
 
-**Integration status:** this recipe accompanies a draft port to current
-vLLM-Omni. The frozen implementation completed the workload below in
-**14.9692 seconds**. The current PR's public FlashInfer API integration and
-shared helpers require a fresh GPU correctness and E2E qualification before
-this number can be attributed to the PR commit.
+## Requirements
 
-## Workload and supported scope
+- Use a vLLM version compatible with the vLLM-Omni checkout.
+- MXFP8 requires CUDA Blackwell hardware and PyTorch exposing
+  `torch.nn.functional.scaled_mm`, `ScalingType.BlockWise1x32`, and
+  `SwizzleType.SWIZZLE_32_4_4`.
+- Sage requires FlashInfer's SM120 block-sparse Sage provider.
+- The optional RDMA adapter requires `flashinfer.comm.UlyssesCommunicator`
+  with the PCIe backend and registered input/output buffers, supplied by
+  [FlashInfer #4876](https://github.com/flashinfer-ai/flashinfer/pull/4876).
+  This dependency is not yet available in a released FlashInfer wheel.
+- VAE quantization uses `comfy-kitchen==0.2.33`. MP4 output uses PyAV/libx264.
 
-The recorded workload uses eight SM120 GPUs with approximately 72 GiB memory
-per device, four physical ConnectX-8 NIC groups, TP1/Ulysses8/ring1 for the
-DiT, TP8 for the encoder, and eight-way VAE tile parallelism. It generates
-362 frames at 24 fps with stereo 32 kHz audio. A 1280x720 request produces
-1280x704 frames under H3's native spatial geometry.
-
-Use one request at a time, the `vsa-datafree` FastH3 adapter, four denoiser
-evaluations, top-k 162, and resident weights. The current overlap adapter is
-bounded to the recorded geometry: 11,992 local rows, 95,936 aligned sequence
-rows, and four reverse-projection chunks. Other prompt geometries, batch
-sizes, resolutions, GPU counts, and two-NIC deployments are not qualified.
-The shared Sage and MXFP8 helpers do not encode these H3 scheduling constants.
-
-## Dependencies
-
-Install vLLM-Omni from this PR with the vLLM version required by its base
-revision. PyTorch must expose `torch.nn.functional.scaled_mm`,
-`ScalingType.BlockWise1x32`, and `SwizzleType.SWIZZLE_32_4_4`.
-The historical run used vLLM 0.28.0 and PyTorch 2.13 with CUDA 13.2; that old
-vLLM installation does not satisfy all APIs used by current Omni main.
-
-Sage/CAKE and the by-value TMA launch are upstream in
-[FlashInfer #4951](https://github.com/flashinfer-ai/flashinfer/pull/4951) and
-[#5127](https://github.com/flashinfer-ai/flashinfer/pull/5127).
-The optional RDMA transport still requires
-[FlashInfer #4876](https://github.com/flashinfer-ai/flashinfer/pull/4876), which
-is a draft dependency. The adapter uses its `UlyssesCommunicator` API.
-A plain released FlashInfer wheel must not be assumed to include this transport.
-
-Public revisions inspected for this port:
-
-| Component | Revision |
-| --- | --- |
-| FlashInfer main, Sage API | `5d0c89eacae6ca08f2a1ce92eba557bbad7a1bfc` |
-| FlashInfer RDMA PR head | `a481f1d3d0c3ea597375058ba8f7dc11ccb28bb7` |
-| VAE weight/activation quantizer | `comfy-kitchen==0.2.33` |
-
-The combined FlashInfer build, including its CUDA JIT, CUTLASS/CuTe, and
-rdma-core dependencies, must be validated before publishing a reproducible
-installation pin. These optional dependencies are imported only when their
-paths are selected; they are not added to the default Omni installation.
-PyAV/libx264 and FFmpeg provide the MP4 output path.
+These dependencies are loaded only when the corresponding path is enabled.
+The complete preset currently requires TP1, Ulysses8, ring1, eight SM120 GPUs,
+the VSA/Data-Free adapter, four denoiser evaluations, and top-k 162. Its
+communication schedule requires 11,992 local rows, prefix segments `(558, 1206)`,
+and a target token grid of `(107, 22, 40)`. It rejects other layouts.
+The paired VAE schedule covers 21 temporal windows and 28 spatial tiles per
+window. Standard serving remains available for other request geometries.
 
 ## Prepare the model
 
@@ -99,93 +69,24 @@ vllm serve "${MODEL_DIR}/FL2VA" --omni --trust-remote-code \
   --vae-patch-parallel-size 8 --vae-parallel-mode tile --vae-use-tiling \
   --cache-backend none \
   --cache-config "{\"minimax_h3_adaln_cache_path\":\"${ADALN_CACHE}\"}" \
-  --diffusion-attention-config '{"default":{"backend":"FASTVIDEO_VSA","fastvideo_vsa_h3_kernel_backend":"flashinfer","fastvideo_vsa_topk":162},"per_role":{"minimax_h3.token_refiner":{"backend":"CUDNN_ATTN"}}}'
+  --diffusion-attention-config '{"default":{"backend":"FASTVIDEO_VSA","fastvideo_vsa_topk":162},"per_role":{"minimax_h3.token_refiner":{"backend":"CUDNN_ATTN"}}}'
 ```
 
-GPU ordering and NIC affinity depend on the machine topology. The recorded
-physical GPU order was `0,4,1,5,2,6,3,7`; do not assume that mapping describes
-another host. Model loading and compilation are cold-start work. Keep the
-server resident and exclude warmup from latency measurements.
+Configure GPU/NIC affinity for the host topology. Warm up a resident server
+before measuring request latency. This integration has no E2E latency claim
+until the combined dependency build and PR commit pass model qualification.
 
-The recorded request is available as
-[ultra_prompt.txt](../../benchmarks/diffusion/minimax_h3/ultra_prompt.txt):
+FastH3/VSA, Sage and MXFP8 change numerical precision or model computation;
+the full configuration is not bitwise equivalent to dense BF16 H3.
 
-```bash
-curl --fail-with-body http://127.0.0.1:8093/v1/videos/sync \
-  -F "model=${MODEL_DIR}/FL2VA" \
-  -F 'prompt=<benchmarks/diffusion/minimax_h3/ultra_prompt.txt' \
-  -F 'width=1280' -F 'height=720' -F 'fps=24' \
-  -F 'num_inference_steps=4' -F 'seed=1101' \
-  -F 'extra_params={"task":"t2va","duration":15,"audio_flow_shift":3.0}' \
-  --output minimax-h3-ultra.mp4
-```
+## Implementation boundaries
 
-## Adopted optimizations
+Device detection, memory queries and synchronization use the existing platform
+interfaces. Shared layers provide indexed modulation and MXFP8 producers;
+shared attention ops provide Sage quantization and sparse attention. Ulysses
+owns the reusable communication and buffer lifecycle.
 
-| Module | Adopted implementation | Numerical boundary |
-| --- | --- | --- |
-| Encoder | Resident TP8 encoder using the existing H3 serving path | Same conditioning computation |
-| Attention | FastH3 VSA and shared Sage Q/K INT8, V FP8 helper; public CAKE launch | Approximate attention |
-| DiT projections | MXFP8 E4M3 payload and E8M0 scale per 32 values | Approximate relative to BF16 |
-| Attention schedule | Early Q preparation, split QK/V, BF16 gate projection overlap, four-chunk O producer lookahead | Same selected operands; explicit producer/consumer waits |
-| MLP | Fused BF16 SwiGLU rounding and MXFP8 activation production before FC2 | Compared with the matching unfused quantized path |
-| Modulation | Exact AdaLN output cache bound to the fused student | Same fixed-schedule projection outputs |
-| VAE | Full H3 VAE, online MXFP8, paired temporal/spatial work, B4/B1 decode with B1 output projection, gather overlap | MXFP8 is approximate; schedules preserve the matched decoder |
-| Output | Concurrent rank-zero audio decode, bounded chunked CPU MP4 encoding | Same output/codec contract |
-
-## Cumulative evidence
-
-![Cumulative latency for the frozen full-VAE route](assets/minimax-h3-ultra-cumulative.svg)
-
-These are **historical frozen-run means**, not measurements of the refactored
-PR. Each later row retains the earlier adopted stack. Delta is the adjacent
-mean difference; speedup uses C0. The combined C3 change is not decomposed into
-unsupported individual speedup claims. No prefix scheduling is included.
-
-| ID | Optimization | E2E s | Delta s | Speedup | Fidelity |
-| --- | --- | ---: | ---: | ---: | --- |
-| C0 | Adopted DiT stack + paired full-VAE baseline | 17.4168 | — | 1.000x | Matched reference |
-| C1 | Online full-VAE MXFP8 | 15.8322 | 1.5846 | 1.100x | Approximate; SSIM/PSNR below |
-| C2 | CAKE by-value TMA launch | 15.6370 | 0.1952 | 1.114x | Same final MP4 in recorded comparison |
-| C3 | QK/V split + B4 VAE + audio overlap | 15.1336 | 0.5034 | 1.151x | Same final MP4 in recorded comparison |
-| C4 | O producer lookahead | 14.9692 | 0.1644 | 1.163x | Same final MP4 in recorded comparison |
-
-The endpoint samples are 14.973, 14.975, 14.968, 14.954, and 14.976 seconds
-(sample SD 0.00904 s), after one warmup. E2E starts at the client POST and ends
-when the complete MP4 is saved. Profiling, load time, and warmup are excluded.
-Runs were not randomized/interleaved; these differences are descriptive and
-do not constitute a causal confidence interval. The old 653.838-second result
-used a different historical setup and is not a matched baseline for this table.
-
-The full-VAE MXFP8 comparison measured SSIM **0.978920** and PSNR
-**43.041443 dB** across 362 decoded frames for one prompt/seed. Decoded audio
-PCM was byte-identical. Later schedule changes retained the candidate MP4
-bytes for one warmup and five formal requests; these are repeated requests,
-not six independent prompts. This is not a claim of losslessness against
-dense BF16 or a general quality benchmark.
-
-See the [public cumulative report](https://lishunyang12.github.io/vllm-omni-rankings/scripts/minimax_h3_pro5000_cumulative_report/minimax_h3_653s_to_14s_cumulative_report.pdf)
-and the generated-video comparison:
-[reference](https://lishunyang12.github.io/vllm-omni-rankings/fasth3-vae-mxfp8-20260914/videos/baseline.mp4),
-[MXFP8 candidate](https://lishunyang12.github.io/vllm-omni-rankings/fasth3-vae-mxfp8-20260914/videos/candidate.mp4).
-Both videos are model-generated outputs, not ground truth.
-
-## PR validation
-
-At this revision, 23 CPU interface/export checks and eight SM120 MXFP8
-correctness checks passed, including the actual H3 QKV and SwiGLU dimensions.
-The full H3 CPU suite could not collect with the installed vLLM 0.28.0 because
-current Omni main requires `compute_layout_strides`. These checks do not
-qualify the complete public Sage/RDMA route.
-
-The PR separates reusable arithmetic from model policy:
-`attention/ops/sage_block_sparse_attention.py` validates the sparse interface;
-`layers/mxfp8.py` owns quantization, scaled GEMM, and tensor-only compile
-boundaries. H3 layout, tile ownership, and scheduling remain in the H3 adapters.
-
-Before marking the integration ready, run the H3 CPU regression suite with
-current vLLM, validate the public Sage and RDMA build on SM120, and repeat
-full-request correctness and latency measurements at the PR commit. Keep
-Nsight Systems and synchronized stage breakdown runs separate from formal
-E2E timing. The frozen 14.9692-second result alone does not qualify a new
-backend build or compiler version.
+`models/minimax_h3/attention/` owns H3 layout metadata, QKV/gate scheduling,
+and output projection overlap. `models/minimax_h3/ops/attention/` owns its tile
+maps and chunk kernels. VAE schedules, adapter/cache identity and quantized
+layer selection also remain in the model directory.

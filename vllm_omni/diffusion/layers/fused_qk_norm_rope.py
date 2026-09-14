@@ -11,32 +11,31 @@ The public contract is shared by diffusion attention implementations:
   ``[cos(theta), sin(theta)]`` with ``theta`` of width ``rotary_dim // 2``;
   its dtype is either the activation dtype or float32;
 * ``interleaved=False`` rotates half-split pairs ``(d, d + rotary_dim/2)``
-  (MiniMax-H3); ``interleaved=True`` rotates adjacent pairs ``(2i, 2i + 1)``
+  (three-axis); ``interleaved=True`` rotates adjacent pairs ``(2i, 2i + 1)``
   with ``theta_i`` (Boogu-Image, matching its ``apply_rotary_emb``).
 
 The CUDA fast path fuses RMSNorm and RoPE without materializing normalized Q/K
 or rotary-product intermediates. The interleaved mode supports any even
 ``rotary_dim <= head_dim <= 256`` (``tl.arange`` padding to the next power of
-two); the half-split mode keeps the pre-existing kernel and its MiniMax-H3
+two); the half-split mode keeps the pre-existing kernel and its three-axis
 geometry contract (``head_dim == 128``, ``rotary_dim == 96``). Ascend
-composes its RMSNorm and rotary fused primitives on the MiniMax-H3 geometry;
+composes its RMSNorm and rotary fused primitives on the three-axis rotary geometry;
 unsupported inputs use the eager reference.
 """
 
 from __future__ import annotations
 
-import math
 from importlib.util import find_spec
 
 import torch
 import torch.nn.functional as F
 from torch.library import Library
-from vllm.platforms import current_platform
 from vllm.triton_utils import HAS_TRITON, tl, triton
 from vllm.utils.torch_utils import direct_register_custom_op
 
 from vllm_omni.diffusion import envs
 from vllm_omni.platforms import current_omni_platform
+from vllm_omni.platforms import current_omni_platform as current_platform
 
 _FUSED_HEAD_DIM = 128
 _FUSED_ROTARY_DIM = 96
@@ -64,7 +63,7 @@ def _apply_rope_table(
     ``[cos(theta) | sin(theta)]`` with ``theta`` of width ``rotary_dim // 2``.
 
     ``interleaved`` selects the pairing: half-split ``(d, d + rotary_dim/2)``
-    sharing ``theta_d`` (MiniMax-H3) or adjacent pairs ``(2i, 2i + 1)``
+    sharing ``theta_d`` (three-axis) or adjacent pairs ``(2i, 2i + 1)``
     sharing ``theta_i`` (Boogu-Image). ``dtype`` is the precision the
     rotation arithmetic runs in and ``output_dtype`` the precision the result
     is cast to; both default to ``x``'s dtype (the historical half-split
@@ -167,100 +166,6 @@ if HAS_TRITON:
         out_offsets = token * out_stride_t + heads[:, None] * out_stride_h + dims[None, :] * out_stride_d
         tl.store(out_ptr + out_offsets, output, mask=mask)
 
-    @triton.jit
-    def _rms_norm_rope_e4m3_kernel(
-        x_ptr,
-        weight_ptr,
-        rope_table_ptr,
-        out_ptr,
-        x_stride_t,
-        x_stride_h,
-        x_stride_d,
-        rope_stride_t,
-        out_stride_t,
-        out_stride_h,
-        out_stride_d,
-        quant_scale,
-        num_heads: tl.constexpr,
-        head_dim: tl.constexpr,
-        rotary_half: tl.constexpr,
-        eps: tl.constexpr,
-        heads_per_program: tl.constexpr,
-    ):
-        """Preserve H3's two BF16 boundaries, then quantize for transport."""
-        token = tl.program_id(0)
-        head_group = tl.program_id(1)
-        heads = head_group * heads_per_program + tl.arange(0, heads_per_program)
-        dims = tl.arange(0, head_dim)
-        mask = heads[:, None] < num_heads
-        offsets = token * x_stride_t + heads[:, None] * x_stride_h + dims[None, :] * x_stride_d
-
-        x = tl.load(x_ptr + offsets, mask=mask, other=0.0).to(tl.float32)
-        weight = tl.load(weight_ptr + dims).to(tl.float32)
-        inv_rms = tl.rsqrt(tl.sum(x * x, axis=1) / head_dim + eps)
-        normalized = (x * inv_rms[:, None] * weight[None, :]).to(tl.bfloat16)
-
-        rotary_dim = rotary_half * 2
-        pair_dims = tl.where(
-            dims < rotary_half,
-            dims + rotary_half,
-            tl.where(dims < rotary_dim, dims - rotary_half, dims),
-        )
-        pair_offsets = token * x_stride_t + heads[:, None] * x_stride_h + pair_dims[None, :] * x_stride_d
-        pair_x = tl.load(x_ptr + pair_offsets, mask=mask, other=0.0).to(tl.float32)
-        pair_weight = tl.load(weight_ptr + pair_dims).to(tl.float32)
-        pair_normalized = (pair_x * inv_rms[:, None] * pair_weight[None, :]).to(tl.bfloat16)
-
-        freq_dims = tl.where(
-            dims < rotary_half,
-            dims,
-            tl.where(dims < rotary_dim, dims - rotary_half, 0),
-        )
-        table_offsets = token * rope_stride_t + freq_dims
-        cos = tl.load(rope_table_ptr + table_offsets).to(tl.float32)
-        sin = tl.load(rope_table_ptr + table_offsets + rotary_half).to(tl.float32)
-        first = normalized.to(tl.float32) * cos - pair_normalized.to(tl.float32) * sin
-        second = normalized.to(tl.float32) * cos + pair_normalized.to(tl.float32) * sin
-        # This explicit conversion is the second rounding boundary. The BF16
-        # transport baseline stores here before the subsequent E4M3 encoder.
-        output_bf16 = tl.where(
-            dims < rotary_dim,
-            tl.where(dims < rotary_half, first, second),
-            normalized.to(tl.float32),
-        ).to(tl.bfloat16)
-        encoded = output_bf16.to(tl.float32) * quant_scale
-        encoded = tl.maximum(tl.minimum(encoded, 448.0), -448.0)
-
-        out_offsets = token * out_stride_t + heads[:, None] * out_stride_h + dims[None, :] * out_stride_d
-        tl.store(out_ptr + out_offsets, encoded, mask=mask)
-
-    @triton.jit
-    def _quantize_e4m3_kernel(
-        x_ptr,
-        out_ptr,
-        x_stride_t,
-        x_stride_h,
-        x_stride_d,
-        out_stride_t,
-        out_stride_h,
-        out_stride_d,
-        quant_scale,
-        num_heads: tl.constexpr,
-        head_dim: tl.constexpr,
-        heads_per_program: tl.constexpr,
-    ):
-        token = tl.program_id(0)
-        head_group = tl.program_id(1)
-        heads = head_group * heads_per_program + tl.arange(0, heads_per_program)
-        dims = tl.arange(0, head_dim)
-        mask = heads[:, None] < num_heads
-        x_offsets = token * x_stride_t + heads[:, None] * x_stride_h + dims[None, :] * x_stride_d
-        values = tl.load(x_ptr + x_offsets, mask=mask, other=0.0).to(tl.float32)
-        encoded = values * quant_scale
-        encoded = tl.maximum(tl.minimum(encoded, 448.0), -448.0)
-        out_offsets = token * out_stride_t + heads[:, None] * out_stride_h + dims[None, :] * out_stride_d
-        tl.store(out_ptr + out_offsets, encoded, mask=mask)
-
 
 def _eager_qk_norm_rope(
     q: torch.Tensor,
@@ -276,7 +181,7 @@ def _eager_qk_norm_rope(
     q_norm = F.rms_norm(q, (head_dim,), q_weight, eps)
     k_norm = F.rms_norm(k, (head_dim,), k_weight, eps)
     # fp32 rotation for the interleaved (Boogu) semantics; the half-split
-    # (H3) reference keeps its historical x-dtype arithmetic via the defaults.
+    # half-split reference keeps its historical x-dtype arithmetic via the defaults.
     rope_dtype = torch.float32 if interleaved else None
     return (
         _apply_rope_table(q_norm, rope_table, rotary_dim, interleaved=interleaved, dtype=rope_dtype),
@@ -289,13 +194,13 @@ def _npu_apply_rope_table(
     rope_table: torch.Tensor,
     rotary_dim: int,
 ) -> torch.Tensor:
-    """Apply H3's rotary dimensions through Ascend's fused rotary kernel.
+    """Apply packed rotary dimensions through Ascend's fused rotary kernel.
 
     ``mindiesd.rotary_position_embedding`` takes a 4-D BSND tensor, whereas
-    MiniMax-H3 keeps packed activations as ``[tokens, heads, head_dim]``.
+    The packed input keeps packed activations as ``[tokens, heads, head_dim]``.
     The shared MindIE-SD wrapper normalizes this 3-D layout to BSND and
     restores it afterwards. It receives the half-width cos/sin values from
-    the packed table; the wrapper expands them to H3's non-interleaved 96-D
+    the packed table; the wrapper expands them to the non-interleaved 96-D
     rotary layout. The 32 non-rotary head dimensions bypass the kernel.
 
     Some CANN environments package ``torch_npu`` without MindIE-SD. Keep
@@ -320,7 +225,7 @@ def _npu_apply_rope_table(
             half_head_dim=True,
         )
     else:
-        # npu_rotary_mul uses BSND and full rotary-width cos/sin. H3 uses
+        # npu_rotary_mul uses BSND and full rotary-width cos/sin. The packed table uses
         # NeoX/rotated-half ordering, so duplicate rather than interleave the
         # half-width table along the final dimension.
         cos = cos.unsqueeze(0).unsqueeze(2).repeat(1, 1, 1, 2)
@@ -339,7 +244,7 @@ def _npu_qk_norm_rope(
     eps: float,
     rotary_dim: int,
 ) -> tuple[torch.Tensor, torch.Tensor]:
-    """Use Ascend RMSNorm and RoPE fused primitives for MiniMax-H3 DiT."""
+    """Use Ascend RMSNorm and RoPE fused primitives for packed diffusion attention."""
     import torch_npu
 
     q_norm = torch_npu.npu_rms_norm(q, q_weight, epsilon=eps)[0]
@@ -369,7 +274,7 @@ def _fused_cuda_supported(
     if interleaved:
         return rotary_dim % 2 == 0 and 2 <= rotary_dim <= head_dim <= _FUSED_MAX_HEAD_DIM
     # Half-split traffic keeps the pre-existing per-tensor kernel and its
-    # exact MiniMax-H3 geometry contract (that kernel is untouched by the
+    # exact three-axis rotary geometry contract (that kernel is untouched by the
     # interleaved extension).
     return head_dim == _FUSED_HEAD_DIM and rotary_dim == _FUSED_ROTARY_DIM
 
@@ -381,7 +286,7 @@ def _fused_npu_supported(
     rotary_dim: int,
     interleaved: bool = False,
 ) -> bool:
-    """Return whether the MiniMax-H3 Ascend fused-op contract is satisfied."""
+    """Return whether the packed Ascend fused-op contract is satisfied."""
     return (
         not interleaved
         and current_omni_platform.is_npu()
@@ -391,17 +296,6 @@ def _fused_npu_supported(
         and k.dtype == torch.bfloat16
         and head_dim == _FUSED_HEAD_DIM
         and rotary_dim == _FUSED_ROTARY_DIM
-    )
-
-
-def _e4m3_v_cuda_supported(value: torch.Tensor) -> bool:
-    return (
-        HAS_TRITON
-        and current_platform.is_cuda()
-        and value.is_cuda
-        and value.dtype == torch.bfloat16
-        and value.ndim == 3
-        and value.shape[-1] == _FUSED_HEAD_DIM
     )
 
 
@@ -436,80 +330,6 @@ def _launch_fused_rms_norm_rope(
         head_dim=head_dim,
         rotary_half=rotary_half,
         eps=eps,
-        heads_per_program=_HEADS_PER_PROGRAM,
-        num_warps=8,
-    )
-    return out
-
-
-def _validate_dequant_scale(scale: float, *, name: str) -> float:
-    scale = float(scale)
-    if not math.isfinite(scale) or scale <= 0:
-        raise ValueError(f"{name} must be finite and positive, got {scale}")
-    if not math.isfinite(float(torch.tensor(scale, dtype=torch.float32).reciprocal())):
-        raise ValueError(f"{name} must have a finite FP32 reciprocal, got {scale}")
-    return scale
-
-
-def _launch_fused_rms_norm_rope_e4m3(
-    x: torch.Tensor,
-    weight: torch.Tensor,
-    rope_table: torch.Tensor,
-    eps: float,
-    *,
-    dequant_scale: float,
-    out: torch.Tensor,
-) -> torch.Tensor:
-    tokens, heads, head_dim = x.shape
-    rotary_half = rope_table.shape[-1] // 2
-    if tokens == 0:
-        return out
-    grid = (tokens, triton.cdiv(heads, _HEADS_PER_PROGRAM))
-    _rms_norm_rope_e4m3_kernel[grid](
-        x,
-        weight,
-        rope_table,
-        out,
-        x.stride(0),
-        x.stride(1),
-        x.stride(2),
-        rope_table.stride(0),
-        out.stride(0),
-        out.stride(1),
-        out.stride(2),
-        1.0 / dequant_scale,
-        num_heads=heads,
-        head_dim=head_dim,
-        rotary_half=rotary_half,
-        eps=eps,
-        heads_per_program=_HEADS_PER_PROGRAM,
-        num_warps=8,
-    )
-    return out
-
-
-def _launch_quantize_e4m3(
-    x: torch.Tensor,
-    *,
-    dequant_scale: float,
-    out: torch.Tensor,
-) -> torch.Tensor:
-    tokens, heads, head_dim = x.shape
-    if tokens == 0:
-        return out
-    grid = (tokens, triton.cdiv(heads, _HEADS_PER_PROGRAM))
-    _quantize_e4m3_kernel[grid](
-        x,
-        out,
-        x.stride(0),
-        x.stride(1),
-        x.stride(2),
-        out.stride(0),
-        out.stride(1),
-        out.stride(2),
-        1.0 / dequant_scale,
-        num_heads=heads,
-        head_dim=head_dim,
         heads_per_program=_HEADS_PER_PROGRAM,
         num_warps=8,
     )
@@ -566,47 +386,6 @@ def _validate_qk_norm_rope_outputs(
             raise ValueError(f"{name}_out must be contiguous")
     if q_out.data_ptr() == k_out.data_ptr() and q_out.numel() != 0:
         raise ValueError("q_out and k_out must use distinct storage")
-
-
-def _validate_qk_norm_rope_e4m3_outputs(
-    q: torch.Tensor,
-    k: torch.Tensor,
-    q_out: torch.Tensor,
-    k_out: torch.Tensor,
-) -> None:
-    for name, source, out in (("q", q, q_out), ("k", k, k_out)):
-        if out.shape != source.shape:
-            raise ValueError(f"{name}_out must have shape {tuple(source.shape)}, got {tuple(out.shape)}")
-        if out.dtype != torch.float8_e4m3fn or out.device != source.device:
-            raise ValueError(f"{name}_out must be float8_e4m3fn on {source.device}, got ({out.dtype}, {out.device})")
-        if not out.is_contiguous():
-            raise ValueError(f"{name}_out must be contiguous")
-        if out.requires_grad:
-            raise ValueError(f"{name}_out must not require gradients")
-        if out.untyped_storage().data_ptr() == source.untyped_storage().data_ptr():
-            raise ValueError(f"{name}_out must not alias its BF16 source")
-    if q_out.untyped_storage().data_ptr() == k_out.untyped_storage().data_ptr() and q_out.numel() != 0:
-        raise ValueError("q_out and k_out must use distinct storage")
-
-
-def _validate_e4m3_quantize_output(
-    x: torch.Tensor,
-    out: torch.Tensor,
-) -> None:
-    if x.ndim != 3:
-        raise ValueError(f"E4M3 transport quantization expects [T,H,D], got {x.shape}")
-    if x.dtype != torch.bfloat16:
-        raise TypeError(f"E4M3 transport quantization requires BF16 input, got {x.dtype}")
-    if out.shape != x.shape:
-        raise ValueError(f"E4M3 output must have shape {tuple(x.shape)}, got {tuple(out.shape)}")
-    if out.dtype != torch.float8_e4m3fn or out.device != x.device:
-        raise ValueError(f"E4M3 output must use float8_e4m3fn on the input device, got ({out.dtype}, {out.device})")
-    if not out.is_contiguous():
-        raise ValueError("E4M3 output must be contiguous")
-    if x.requires_grad or out.requires_grad:
-        raise ValueError("E4M3 transport quantization is inference-only")
-    if out.untyped_storage().data_ptr() == x.untyped_storage().data_ptr():
-        raise ValueError("E4M3 output must not alias its BF16 source")
 
 
 def _fused_qk_norm_rope_impl(
@@ -831,105 +610,9 @@ def fused_qk_norm_rope_out(
     )
 
 
-@torch.compiler.disable
-def fused_qk_norm_rope_e4m3_out(
-    q: torch.Tensor,
-    k: torch.Tensor,
-    q_weight: torch.Tensor,
-    k_weight: torch.Tensor,
-    rope_table: torch.Tensor,
-    eps: float,
-    *,
-    q_dequant_scale: float,
-    k_dequant_scale: float,
-    q_out: torch.Tensor,
-    k_out: torch.Tensor,
-    head_dim: int | None = None,
-    rotary_dim: int | None = None,
-) -> tuple[torch.Tensor, torch.Tensor]:
-    """Write H3 Q/K directly to registered E4M3 transport storage.
-
-    The kernel preserves the existing BF16 round after RMSNorm and after
-    RoPE. E4M3 encoding is therefore the only numerical delta relative to the
-    qualified BF16 producer-direct path.
-    """
-    head_dim, rotary_dim = _validate_qk_norm_rope_inputs(
-        q,
-        k,
-        q_weight,
-        k_weight,
-        rope_table,
-        head_dim,
-        rotary_dim,
-    )
-    _validate_qk_norm_rope_e4m3_outputs(q, k, q_out, k_out)
-    q_dequant_scale = _validate_dequant_scale(
-        q_dequant_scale,
-        name="q_dequant_scale",
-    )
-    k_dequant_scale = _validate_dequant_scale(
-        k_dequant_scale,
-        name="k_dequant_scale",
-    )
-    if not _fused_cuda_supported(q, k, head_dim, rotary_dim):
-        raise RuntimeError(
-            "caller-owned E4M3 Q/K output storage requires the CUDA Triton "
-            f"fast path (bf16, head_dim={_FUSED_HEAD_DIM}, "
-            f"rotary_dim={_FUSED_ROTARY_DIM})"
-        )
-
-    q_weight = q_weight.contiguous()
-    k_weight = k_weight.contiguous()
-    rope_table = rope_table.contiguous()
-    return (
-        _launch_fused_rms_norm_rope_e4m3(
-            q,
-            q_weight,
-            rope_table,
-            eps,
-            dequant_scale=q_dequant_scale,
-            out=q_out,
-        ),
-        _launch_fused_rms_norm_rope_e4m3(
-            k,
-            k_weight,
-            rope_table,
-            eps,
-            dequant_scale=k_dequant_scale,
-            out=k_out,
-        ),
-    )
-
-
-@torch.compiler.disable
-def quantize_v_e4m3_out(
-    value: torch.Tensor,
-    *,
-    dequant_scale: float,
-    out: torch.Tensor,
-) -> torch.Tensor:
-    """Encode H3 V directly into registered E4M3 transport storage."""
-    _validate_e4m3_quantize_output(value, out)
-    dequant_scale = _validate_dequant_scale(
-        dequant_scale,
-        name="v_dequant_scale",
-    )
-    if not _e4m3_v_cuda_supported(value):
-        raise RuntimeError(
-            f"caller-owned E4M3 V output storage requires CUDA Triton with BF16 head_dim={_FUSED_HEAD_DIM}"
-        )
-    return _launch_quantize_e4m3(
-        value,
-        dequant_scale=dequant_scale,
-        out=out,
-    )
-
-
 __all__ = [
     "fused_qk_norm_rope",
-    "fused_qk_norm_rope_e4m3_out",
     "fused_qk_norm_rope_out",
-    "quantize_v_e4m3_out",
 ]
 
 

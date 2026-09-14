@@ -40,7 +40,7 @@ def prepare_stream(device, *, paired: bool, mixed: bool, owner):
         streams = {}
         owner._h3_vae_gather_streams = streams
     if index not in streams:
-        streams[index] = torch.cuda.Stream(device=device)
+        streams[index] = torch.get_device_module().Stream(device=device)
     return streams[index]
 
 
@@ -52,14 +52,14 @@ def gather_on_stream(packed, group, stream):
     decoder round may be submitted on the original caller stream. The leader
     must wait on this gather stream before consuming the returned tensor.
     """
-    from .temporal_chunk_parallel import _gather_stack_to_rank_zero
+    from .vae_collectives import _gather_stack_to_rank_zero
 
-    caller = torch.cuda.current_stream(packed.device)
+    caller = torch.get_device_module().current_stream(packed.device)
     if stream == caller:
         raise RuntimeError("VAE gather overlap requires a distinct stream")
     stream.wait_stream(caller)
     # `packed` was allocated/written on caller. Its Python lifetime ends after
     # this round is submitted, potentially before the gather stream finishes.
     packed.record_stream(stream)
-    with torch.cuda.stream(stream):
+    with torch.get_device_module().stream(stream):
         return _gather_stack_to_rank_zero(packed, group)

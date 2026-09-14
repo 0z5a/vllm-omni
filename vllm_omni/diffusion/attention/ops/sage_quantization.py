@@ -30,6 +30,8 @@ import torch
 from vllm.triton_utils import tl, triton
 from vllm.triton_utils import tldevice as libdevice
 
+from vllm_omni.platforms import current_omni_platform
+
 SAGE_Q_GROUP_SIZE = 32
 SAGE_Q_BLOCK_SIZE = 128
 SAGE_K_BLOCK_SIZE = 64
@@ -312,7 +314,9 @@ def _require_sm120_bf16_bhsd(name: str, tensor: torch.Tensor) -> None:
         raise ValueError(f"{name} must have head dimension 128")
     if tensor.shape[0] < 1 or tensor.shape[1] < 1 or tensor.shape[2] < 1:
         raise ValueError(f"{name} requires positive B, H, and sequence length")
-    if torch.cuda.get_device_capability(tensor.device) != (12, 0):
+    if current_omni_platform.get_device_capability(
+        tensor.device.index if tensor.device.index is not None else torch.accelerator.current_device_index()
+    ) != (12, 0):
         raise RuntimeError("SM120 Sage quantization requires compute capability 12.0")
 
 

@@ -38,46 +38,15 @@ from .ops import (
     snapshot_h3_vae_exact_op_stats,
 )
 from .packed_tokens import minimax_h3_patchify_video_latent
-from .temporal_chunk_parallel import (
-    MiniMaxH3TemporalChunkParallelStats,
-    decode_minimax_h3_temporal_chunks_parallel,
-)
+from .vae_collectives import _agree_on_failure
 
 MINIMAX_H3_KEYFRAME_ENCODE_SEED = 42
 MINIMAX_H3_AUDIO_SAMPLE_RATE = 32000
 MINIMAX_H3_AUDIO_CHANNELS = 2
-MINIMAX_H3_VAE_TEMPORAL_PRE_GATHER_PRUNE_ENV = "VLLM_OMNI_MINIMAX_H3_VAE_TEMPORAL_PRE_GATHER_PRUNE"
-MINIMAX_H3_VAE_TEMPORAL_CHUNK_PARALLEL_ENV = "VLLM_OMNI_MINIMAX_H3_VAE_TEMPORAL_CHUNK_PARALLEL"
 MINIMAX_H3_VAE_DECODER_TILE_SIZE_ENV = "VLLM_OMNI_MINIMAX_H3_VAE_DECODER_TILE_SIZE"
 
 
 logger = init_logger(__name__)
-
-
-def resolve_minimax_h3_vae_temporal_pre_gather_prune(raw: str | None = None) -> bool:
-    """Resolve the opt-in PP VAE payload-pruning gate strictly."""
-
-    if raw is None:
-        raw = os.environ.get(MINIMAX_H3_VAE_TEMPORAL_PRE_GATHER_PRUNE_ENV, "0")
-    normalized = str(raw).strip().lower()
-    if normalized in {"1", "true", "yes", "on", "enable", "enabled"}:
-        return True
-    if normalized in {"0", "false", "no", "off", "disable", "disabled", ""}:
-        return False
-    raise ValueError(f"{MINIMAX_H3_VAE_TEMPORAL_PRE_GATHER_PRUNE_ENV} must be 0 or 1, got {raw!r}")
-
-
-def resolve_minimax_h3_vae_temporal_chunk_parallel(raw: str | None = None) -> bool:
-    """Resolve the opt-in temporal-window PP gate strictly."""
-
-    if raw is None:
-        raw = os.environ.get(MINIMAX_H3_VAE_TEMPORAL_CHUNK_PARALLEL_ENV, "0")
-    normalized = str(raw).strip().lower()
-    if normalized in {"1", "true", "yes", "on", "enable", "enabled"}:
-        return True
-    if normalized in {"0", "false", "no", "off", "disable", "disabled", ""}:
-        return False
-    raise ValueError(f"{MINIMAX_H3_VAE_TEMPORAL_CHUNK_PARALLEL_ENV} must be 0 or 1, got {raw!r}")
 
 
 def resolve_minimax_h3_vae_decoder_tile_size(raw: str | None = None) -> int:
@@ -138,7 +107,7 @@ def _apply_minimax_h3_vae_decoder_tile_size_override(remote: nn.Module, tile_siz
 
 
 @dataclass(frozen=True)
-class _TemporalPreGatherPrunePlan:
+class _TemporalDecodePlan:
     """Exact released-H3 temporal layout used by the communication shortcut."""
 
     num_windows: int
@@ -148,19 +117,6 @@ class _TemporalPreGatherPrunePlan:
     overlap_frames: int
     output_frames: int
     keep_ranges: tuple[tuple[int, int], ...]
-
-
-@dataclass
-class _TemporalPreGatherPruneStats:
-    gather_calls: int = 0
-    decoded_elements: int = 0
-    gathered_elements: int = 0
-
-    @property
-    def reduction_percent(self) -> float:
-        if self.decoded_elements <= 0:
-            return 0.0
-        return 100.0 * (1.0 - self.gathered_elements / self.decoded_elements)
 
 
 def _load_component_config(component_path: str) -> dict[str, Any]:
@@ -751,13 +707,13 @@ class MiniMaxH3VideoVAE(nn.Module, DistributedVaeMixin):
                 f"MiniMax H3 checkpoint method {name} has unsupported signature {actual}; expected {parameters}"
             )
 
-    def _temporal_pre_gather_prune_plan(
+    def _temporal_decode_plan(
         self,
         latent: torch.Tensor,
         *,
         num_tiles: int,
         require_spatial_rank_share: bool = True,
-    ) -> _TemporalPreGatherPrunePlan:
+    ) -> _TemporalDecodePlan:
         """Validate and describe the one released temporal layout we can prune.
 
         The optimization deliberately has no heuristic path. The released H3
@@ -866,7 +822,7 @@ class MiniMaxH3VideoVAE(nn.Module, DistributedVaeMixin):
                 f"checkpoint={(int(total), int(pad), int(checkpoint_output))}, "
                 f"expected={(output_frames, 0, output_frames)}"
             )
-        return _TemporalPreGatherPrunePlan(
+        return _TemporalDecodePlan(
             num_windows=num_windows,
             decoded_frames_per_window=decoded_frames,
             gathered_frames_per_window=gathered_frames,
@@ -876,15 +832,15 @@ class MiniMaxH3VideoVAE(nn.Module, DistributedVaeMixin):
             keep_ranges=keep_ranges,
         )
 
-    def _temporal_chunk_parallel_plan(
+    def _paired_decode_plan(
         self,
         latent: torch.Tensor,
         *,
         num_tiles: int,
-    ) -> _TemporalPreGatherPrunePlan:
+    ) -> _TemporalDecodePlan:
         """Validate the one canonical 107-token temporal-PP serving shape."""
 
-        plan = self._temporal_pre_gather_prune_plan(
+        plan = self._temporal_decode_plan(
             latent,
             num_tiles=num_tiles,
             require_spatial_rank_share=False,
@@ -904,119 +860,6 @@ class MiniMaxH3VideoVAE(nn.Module, DistributedVaeMixin):
                 f"observed={observed}, expected={expected}"
             )
         return plan
-
-    @contextmanager
-    def _temporally_pruned_tile_gather(
-        self,
-        plan: _TemporalPreGatherPrunePlan,
-    ) -> Iterator[_TemporalPreGatherPruneStats]:
-        """Temporarily make the checkpoint gather only useful tile frames."""
-
-        model = self.model
-        attribute = "_all_gather_tiled_results"
-        original = getattr(model, attribute)
-        no_override = object()
-        previous_override = vars(model).get(attribute, no_override)
-        stats = _TemporalPreGatherPruneStats()
-
-        def pruned_gather(tasks: Any, num_tiles: int) -> Any:
-            pruned_tasks = []
-            for task in tasks:
-                if task.ndim != 5 or int(task.shape[2]) != plan.decoded_frames_per_window:
-                    raise RuntimeError(
-                        "MiniMax H3 decoder tile violated the pre-gather temporal contract: "
-                        f"shape={tuple(task.shape)}, expected_T={plan.decoded_frames_per_window}"
-                    )
-                pieces = [task[:, :, start:end, :, :] for start, end in plan.keep_ranges]
-                pruned = torch.cat(pieces, dim=2)
-                if int(pruned.shape[2]) != plan.gathered_frames_per_window:
-                    raise RuntimeError(
-                        f"MiniMax H3 pre-gather temporal prune produced an invalid tile: shape={tuple(pruned.shape)}"
-                    )
-                stats.decoded_elements += task.numel()
-                stats.gathered_elements += pruned.numel()
-                pruned_tasks.append(pruned)
-
-            gathered = original(pruned_tasks, num_tiles)
-            for tile in gathered:
-                if tile.ndim != 5 or int(tile.shape[2]) != plan.gathered_frames_per_window:
-                    raise RuntimeError(
-                        "MiniMax H3 gathered tile violated the pruned temporal contract: "
-                        f"shape={tuple(tile.shape)}, expected_T={plan.gathered_frames_per_window}"
-                    )
-            stats.gather_calls += 1
-            return gathered
-
-        setattr(model, attribute, pruned_gather)
-        try:
-            yield stats
-        finally:
-            if previous_override is no_override:
-                delattr(model, attribute)
-            else:
-                setattr(model, attribute, previous_override)
-
-    def _decode_temporal_with_pre_gather_prune(
-        self,
-        latent: torch.Tensor,
-        plan: _TemporalPreGatherPrunePlan,
-        output_callback: Any,
-    ) -> _TemporalPreGatherPruneStats:
-        """Execute the canonical streaming decode directly on packed 17+5 frames."""
-
-        model = self.model
-        temporal_dtype = importlib.import_module(model.__class__.__module__)._resolve_temporal_cat_dtype()
-        previous_overlap = None
-        write_pos = 0
-
-        with self._temporally_pruned_tile_gather(plan) as stats:
-            for window in range(plan.num_windows):
-                token_start = window * int(model.tokens_chunk_size)
-                token_end = token_start + int(model.tokens_chunk_size) + int(model.token_overlap)
-                clip_latent = latent[:, :, token_start:token_end, :, :]
-                if int(clip_latent.shape[2]) != int(model.tokens_chunk_size) + int(model.token_overlap):
-                    raise RuntimeError(
-                        "MiniMax H3 temporal pre-gather prune found a short latent window: "
-                        f"window={window}, shape={tuple(clip_latent.shape)}"
-                    )
-
-                gather_calls_before = stats.gather_calls
-                clip_decoded = model._adaptive_decode(clip_latent)
-                if stats.gather_calls != gather_calls_before + 1:
-                    raise RuntimeError(
-                        "MiniMax H3 temporal pre-gather prune requires exactly one tile gather per window: "
-                        f"window={window}, observed={stats.gather_calls - gather_calls_before}"
-                    )
-                if temporal_dtype is not None and clip_decoded.dtype != temporal_dtype:
-                    clip_decoded = clip_decoded.to(temporal_dtype)
-                if clip_decoded.device != latent.device:
-                    clip_decoded = clip_decoded.to(latent.device)
-                if clip_decoded.ndim != 5 or int(clip_decoded.shape[2]) != plan.gathered_frames_per_window:
-                    raise RuntimeError(
-                        "MiniMax H3 assembled clip violated the pruned temporal contract: "
-                        f"window={window}, shape={tuple(clip_decoded.shape)}"
-                    )
-
-                main = clip_decoded[:, :, : plan.main_frames, :, :]
-                overlap = clip_decoded[:, :, plan.main_frames :, :, :]
-                if previous_overlap is not None:
-                    main = model.blend(previous_overlap, main, plan.overlap_frames, dim=-3)
-                output_callback(main, write_pos, plan.output_frames)
-                write_pos += int(main.shape[2])
-                previous_overlap = overlap.contiguous()
-                del clip_decoded, clip_latent
-
-            if previous_overlap is None:
-                raise RuntimeError("MiniMax H3 temporal pre-gather prune produced no overlap tail")
-            output_callback(previous_overlap, write_pos, plan.output_frames)
-            write_pos += int(previous_overlap.shape[2])
-
-        if stats.gather_calls != plan.num_windows or write_pos != plan.output_frames:
-            raise RuntimeError(
-                "MiniMax H3 temporal pre-gather prune completion mismatch: "
-                f"gathers={stats.gather_calls}/{plan.num_windows}, frames={write_pos}/{plan.output_frames}"
-            )
-        return stats
 
     @torch.inference_mode()
     def decode_latent_to_chunked_cpu_mp4(
@@ -1039,13 +882,10 @@ class MiniMaxH3VideoVAE(nn.Module, DistributedVaeMixin):
         and route-validation status is reduced before decode so a local error
         cannot strand peers in the first VAE data collective.
         """
-
         from .chunked_cpu_output import MiniMaxH3ChunkedCpuMp4Output
 
         sink = None
-        prune_plan: _TemporalPreGatherPrunePlan | None = None
-        temporal_chunk_plan: _TemporalPreGatherPrunePlan | None = None
-        temporal_chunk_stats: MiniMaxH3TemporalChunkParallelStats | None = None
+        paired_plan: _TemporalDecodePlan | None = None
         pair_stats = None
         gather_stream = None
         num_tiles = 0
@@ -1054,8 +894,6 @@ class MiniMaxH3VideoVAE(nn.Module, DistributedVaeMixin):
         try:
             self.validate_chunked_output()
             num_tiles = self._decoder_tile_count(latent)
-            prune_enabled = resolve_minimax_h3_vae_temporal_pre_gather_prune()
-            temporal_chunk_enabled = resolve_minimax_h3_vae_temporal_chunk_parallel()
             pair_flag = os.environ.get("VLLM_OMNI_H3_VAE_PAIR_PIPELINE", "0")
             if pair_flag not in ("0", "1"):
                 raise ValueError("VLLM_OMNI_H3_VAE_PAIR_PIPELINE must be 0 or 1")
@@ -1064,43 +902,26 @@ class MiniMaxH3VideoVAE(nn.Module, DistributedVaeMixin):
             if mixed_flag not in ("0", "1"):
                 raise ValueError("VLLM_OMNI_H3_VAE_MIXED_BATCH must be 0 or 1")
             mixed_enabled = mixed_flag == "1"
-            if mixed_enabled and not pair_enabled:
+            if mixed_enabled and (not pair_enabled):
                 raise ValueError("Mixed VAE batching requires paired VAE scheduling")
             from .vae_gather_overlap import prepare_stream
 
             gather_stream = prepare_stream(latent.device, paired=pair_enabled, mixed=mixed_enabled, owner=self)
             if pair_enabled:
-                if prune_enabled or temporal_chunk_enabled:
-                    raise ValueError("Paired VAE requires the other experimental VAE routes to be disabled")
-                temporal_chunk_enabled = True
-            if prune_enabled and temporal_chunk_enabled:
-                raise RuntimeError(
-                    f"{MINIMAX_H3_VAE_TEMPORAL_PRE_GATHER_PRUNE_ENV}=1 and "
-                    f"{MINIMAX_H3_VAE_TEMPORAL_CHUNK_PARALLEL_ENV}=1 are mutually exclusive"
-                )
-            if temporal_chunk_enabled:
                 if self.parallel_size <= 1 or world is None:
                     raise RuntimeError("MiniMax H3 temporal chunk parallel requires distributed VAE parallel_size > 1")
                 if int(world.world_size) != int(self.parallel_size):
                     raise RuntimeError(
-                        "MiniMax H3 temporal chunk group size must match VAE parallel_size: "
+                        f"MiniMax H3 temporal chunk group size must match VAE parallel_size: "
                         f"group={world.world_size}, VAE={self.parallel_size}"
                     )
                 expected_return_output = int(world.rank_in_group) == 0
                 if bool(return_output) != expected_return_output:
                     raise RuntimeError(
-                        "MiniMax H3 temporal chunk output rank must be group rank zero: "
+                        f"MiniMax H3 temporal chunk output rank must be group rank zero: "
                         f"rank={world.rank_in_group}, return_output={return_output}"
                     )
-                temporal_chunk_plan = self._temporal_chunk_parallel_plan(
-                    latent,
-                    num_tiles=num_tiles,
-                )
-            elif prune_enabled:
-                prune_plan = self._temporal_pre_gather_prune_plan(
-                    latent,
-                    num_tiles=num_tiles,
-                )
+                paired_plan = self._paired_decode_plan(latent, num_tiles=num_tiles)
             if return_output:
                 sink = MiniMaxH3ChunkedCpuMp4Output(
                     width=width,
@@ -1113,14 +934,9 @@ class MiniMaxH3VideoVAE(nn.Module, DistributedVaeMixin):
                 )
         except BaseException as exc:
             creation_error = exc
-
         group = world.device_group if world is not None else None
         if self.parallel_size > 1 and group is not None:
-            failed = torch.tensor(
-                [creation_error is not None],
-                dtype=torch.int32,
-                device=latent.device,
-            )
+            failed = torch.tensor([creation_error is not None], dtype=torch.int32, device=latent.device)
             dist.all_reduce(failed, op=dist.ReduceOp.MAX, group=group)
             if bool(failed.item()):
                 if sink is not None:
@@ -1130,28 +946,19 @@ class MiniMaxH3VideoVAE(nn.Module, DistributedVaeMixin):
                 raise RuntimeError("chunked CPU MP4 output sink failed on the output rank")
         elif creation_error is not None:
             raise RuntimeError("failed to construct chunked CPU MP4 output sink") from creation_error
-
         channels = int(self.config_dict["latent_channels"])
-        mean = torch.tensor(
-            self.config_dict["latents_mean"],
-            device=latent.device,
-            dtype=latent.dtype,
-        ).view(1, channels, 1, 1, 1)
-        std = torch.tensor(
-            self.config_dict["latents_std"],
-            device=latent.device,
-            dtype=latent.dtype,
-        ).view(1, channels, 1, 1, 1)
-
-        if temporal_chunk_plan is not None:
-            # Temporal PP assigns whole windows to ranks. Each owner still
-            # uses the checkpoint's local spatial tiler, without nesting its
-            # native cross-rank tile all-gather.
+        mean = torch.tensor(self.config_dict["latents_mean"], device=latent.device, dtype=latent.dtype).view(
+            1, channels, 1, 1, 1
+        )
+        std = torch.tensor(self.config_dict["latents_std"], device=latent.device, dtype=latent.dtype).view(
+            1, channels, 1, 1, 1
+        )
+        if paired_plan is not None:
             tiling_context = self._rank_local_tiling()
         elif self.parallel_size > 1 and num_tiles < self.parallel_size:
             logger.warning_once(
-                "MiniMax-H3 VAE decode splits into %d tile(s) but the tile group has "
-                "%d ranks; decoding rank-locally for this shape instead.",
+                "MiniMax-H3 VAE decode splits into %d tile(s) but the tile group has %d ranks; "
+                "decoding rank-locally for this shape instead.",
                 num_tiles,
                 self.parallel_size,
             )
@@ -1161,100 +968,54 @@ class MiniMaxH3VideoVAE(nn.Module, DistributedVaeMixin):
 
         def consume(decoded: torch.Tensor, first_frame: int, total_frames: int) -> None:
             if sink is not None:
-                sink.submit_decoded(
-                    decoded,
-                    first_frame,
-                    total_frames,
-                    self.model.processor,
-                )
+                sink.submit_decoded(decoded, first_frame, total_frames, self.model.processor)
 
         decoder = getattr(self.model, "decoder", None)
         exact_stats_before = snapshot_h3_vae_exact_op_stats(decoder) if decoder is not None else None
         exact_route = (
             ("temporal_spatial_mixed_pp" if mixed_enabled else "temporal_spatial_pair_pp")
             if pair_enabled
-            else (
-                "temporal_window_pp"
-                if temporal_chunk_plan is not None
-                else ("spatial_pp_pruned" if prune_plan is not None else "spatial_pp_chunked")
-            )
+            else "temporal_window_pp"
+            if paired_plan is not None
+            else "spatial_pp_chunked"
         )
         try:
             with tiling_context:
                 denormalized_latent = latent * std + mean
-                if temporal_chunk_plan is not None:
+                if paired_plan is not None:
                     assert world is not None
                     temporal_cat_dtype = importlib.import_module(
                         self.model.__class__.__module__
                     )._resolve_temporal_cat_dtype()
-                    if pair_enabled:
-                        from .paired_vae import decode_pairs
+                    from .paired_vae import decode_pairs
 
-                        with ExitStack() as mixed_stack:
-                            mixed_stats = None
-                            if mixed_enabled:
-                                from .temporal_chunk_parallel import _agree_on_failure
+                    with ExitStack() as mixed_stack:
+                        mixed_stats = None
+                        if mixed_enabled:
+                            setup_error = None
+                            try:
+                                from .mixed_vae import mixed_decode
 
-                                setup_error = None
-                                try:
-                                    from .mixed_vae import mixed_decode
-
-                                    mixed_stats = mixed_stack.enter_context(
-                                        mixed_decode(
-                                            self.model,
-                                            denormalized_latent,
-                                            world.rank_in_group,
-                                        )
-                                    )
-                                except BaseException as error:
-                                    setup_error = error
-                                # Every rank must finish installing the adapter before
-                                # any rank enters the first paired tile collective.
-                                # ExitStack restores successful peer installations if
-                                # one rank rejects geometry or cannot install a patch.
-                                if _agree_on_failure(world, denormalized_latent.device, setup_error is not None):
-                                    raise RuntimeError("Mixed VAE adapter setup failed") from setup_error
-                            pair_stats = decode_pairs(
-                                self.model,
-                                denormalized_latent,
-                                world,
-                                consume if return_output else None,
-                                temporal_cat_dtype=temporal_cat_dtype,
-                                gather_stream=gather_stream,
-                            )
-                        if mixed_stats is not None:
-                            pair_stats["mixed"] = mixed_stats
-                    else:
-                        temporal_chunk_stats = decode_minimax_h3_temporal_chunks_parallel(
+                                mixed_stats = mixed_stack.enter_context(
+                                    mixed_decode(self.model, denormalized_latent, world.rank_in_group)
+                                )
+                            except BaseException as error:
+                                setup_error = error
+                            if _agree_on_failure(world, denormalized_latent.device, setup_error is not None):
+                                raise RuntimeError("Mixed VAE adapter setup failed") from setup_error
+                        pair_stats = decode_pairs(
                             self.model,
                             denormalized_latent,
                             world,
                             consume if return_output else None,
-                            num_windows=temporal_chunk_plan.num_windows,
-                            tokens_per_window=int(self.model.tokens_chunk_size),
-                            token_overlap=int(self.model.token_overlap),
-                            decoded_frames_per_window=temporal_chunk_plan.decoded_frames_per_window,
-                            main_frames=temporal_chunk_plan.main_frames,
-                            overlap_frames=temporal_chunk_plan.overlap_frames,
-                            output_frames=temporal_chunk_plan.output_frames,
-                            keep_ranges=temporal_chunk_plan.keep_ranges,
                             temporal_cat_dtype=temporal_cat_dtype,
+                            gather_stream=gather_stream,
                         )
+                    if mixed_stats is not None:
+                        pair_stats["mixed"] = mixed_stats
                     decoded = None
-                    prune_stats = None
-                elif prune_plan is None:
-                    decoded = self.model.decode_base(
-                        denormalized_latent,
-                        output_callback=consume,
-                    )
-                    prune_stats = None
                 else:
-                    prune_stats = self._decode_temporal_with_pre_gather_prune(
-                        denormalized_latent,
-                        prune_plan,
-                        consume,
-                    )
-                    decoded = None
+                    decoded = self.model.decode_base(denormalized_latent, output_callback=consume)
         except BaseException:
             if sink is not None:
                 sink.abort()
@@ -1263,45 +1024,7 @@ class MiniMaxH3VideoVAE(nn.Module, DistributedVaeMixin):
             if sink is not None:
                 sink.abort()
             raise RuntimeError("chunked MiniMax H3 VAE decode unexpectedly returned a full tensor")
-        self._log_exact_op_chunked_decode(
-            latent,
-            num_tiles=num_tiles,
-            route=exact_route,
-            before=exact_stats_before,
-        )
-        if prune_plan is not None and prune_stats is not None:
-            state = self._native_parallel_state()
-            if int(state.get("sp_rank", 0)) == 0:
-                logger.info(
-                    "MiniMax H3 VAE temporal pre-gather prune complete: "
-                    "route=canonical_28_to_22 owner=sp_rank0 calls=%d "
-                    "decoded_frames_per_window=%d gathered_frames_per_window=%d "
-                    "output_frames=%d reduction=%.2f%%",
-                    prune_stats.gather_calls,
-                    prune_plan.decoded_frames_per_window,
-                    prune_plan.gathered_frames_per_window,
-                    prune_plan.output_frames,
-                    prune_stats.reduction_percent,
-                )
-        if temporal_chunk_plan is not None and temporal_chunk_stats is not None:
-            assert world is not None
-            if int(world.rank_in_group) == 0:
-                logger.info(
-                    "MiniMax H3 VAE temporal chunk parallel complete: "
-                    "route=canonical_107t_21w_round_robin_gather owner=sp_rank0 "
-                    "rounds=%d windows=%d real=%d placeholders=%d gathers=%d "
-                    "segment_bytes=%d input_bytes=%d output_bytes=%d output_frames=%d "
-                    "quality=eager_bit_exact_candidate_requires_gpu_multiseed_ab",
-                    temporal_chunk_stats.rounds,
-                    temporal_chunk_stats.windows,
-                    temporal_chunk_stats.real_segments,
-                    temporal_chunk_stats.placeholder_segments,
-                    temporal_chunk_stats.gather_calls,
-                    temporal_chunk_stats.segment_bytes,
-                    temporal_chunk_stats.input_bytes,
-                    temporal_chunk_stats.output_bytes,
-                    temporal_chunk_stats.output_frames,
-                )
+        self._log_exact_op_chunked_decode(latent, num_tiles=num_tiles, route=exact_route, before=exact_stats_before)
         if pair_stats is not None:
             logger.info("H3_VAE_PAIR_COMPLETE %s", json.dumps(pair_stats, sort_keys=True))
         return sink

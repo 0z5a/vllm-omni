@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: Apache-2.0
 # SPDX-FileCopyrightText: Copyright contributors to the vLLM-Omni project
-"""Experimental row-chunk producer; uses the existing BF16 gate kernel.
+"""H3 row-chunk producer using the shared BF16 indexed gate operator.
 
 Each chunk duplicates the owner's existing compact coarse tail. This keeps
 the current native collective and its completion/abort protocol unchanged.
@@ -10,7 +10,7 @@ The additional bytes are measured and reported by the benchmark.
 import torch
 from vllm.triton_utils import tl, triton
 
-from vllm_omni.diffusion.attention.ops.minimax_h3_vsa_o_bundle import _h3_vsa_o_bundle_local_gate_kernel
+from vllm_omni.diffusion.layers.indexed_modulation import bf16_indexed_gate_add_
 
 
 @triton.jit
@@ -68,16 +68,4 @@ def gate_chunk(bundle, gate, row_map, count):
     assert bundle.shape == (1, count + 270, 56, 128) and bundle.is_contiguous()
     assert gate.shape == (1, count, 56, 128) and gate.is_contiguous()
     assert row_map.shape == (count,) and row_map.dtype == torch.int32
-    _h3_vsa_o_bundle_local_gate_kernel[(count, 7)](
-        bundle,
-        gate,
-        row_map,
-        *bundle.stride(),
-        *gate.stride(),
-        local_rows=count,
-        head_dim=128,
-        row_width=7168,
-        feature_block=1024,
-        num_warps=8,
-    )
-    return bundle[:, :count]
+    return bf16_indexed_gate_add_(bundle, gate, row_map)
