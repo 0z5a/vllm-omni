@@ -12,9 +12,9 @@ from vllm_omni.diffusion.attention.parallel.base import ParallelAttentionContext
 from vllm_omni.diffusion.attention.parallel.ulysses import UlyssesParallelAttention
 from vllm_omni.diffusion.forward_context import get_ulysses_mode
 
-from ..ops.attention.o_bundle import H3_VSA_O_BUNDLE_ACTIVE_KEY, H3_VSA_O_BUNDLE_STATE_KEY, h3_vsa_o_bundle_enabled
-from . import overlap, qkv_overlap, schedule
-from .backend import _get_h3_layout, get_h3_vsa_owner_route_plan
+from . import overlap, qkv_overlap
+from .overlap import H3_VSA_O_BUNDLE_ACTIVE_KEY, H3_VSA_O_BUNDLE_STATE_KEY, h3_vsa_o_bundle_enabled
+from .vsa import _get_h3_layout, get_h3_vsa_owner_route_plan
 
 
 @dataclass(frozen=True)
@@ -35,7 +35,7 @@ class H3UlyssesAttention(UlyssesParallelAttention):
         if overlap.ACTIVE.get() is None:
             return super()._exchange_qkv(query, key, value, attn_metadata)
         query = self._scatter_heads(query, "q")
-        schedule.after_q(query, attn_metadata)
+        overlap.after_q(query, attn_metadata)
         qkv_overlap.after_q()
         key = self._scatter_heads(key, "k")
         value = overlap.before_v(query, key, value, attn_metadata, self._ulysses_pg)

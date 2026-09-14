@@ -5,7 +5,7 @@ from collections import Counter
 
 import pytest
 
-from vllm_omni.diffusion.models.minimax_h3.paired_vae import jobs
+from vllm_omni.diffusion.models.minimax_h3.vae_batching import jobs
 
 pytestmark = [pytest.mark.core_model, pytest.mark.cpu, pytest.mark.diffusion]
 

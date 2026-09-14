@@ -13,12 +13,17 @@ from vllm.logger import init_logger
 
 from vllm_omni.diffusion.attention.backends.abstract import AttentionMetadata
 from vllm_omni.diffusion.attention.backends.fastvideo_vsa import (
-    FastVideoVSABackend,
     FastVideoVSAImpl,
     _construct_variable_block_sizes,
     _get_gate_compress,
     _get_non_pad_index,
     _get_tile_partition_indices,
+)
+from vllm_omni.diffusion.models.minimax_h3.attention.overlap import (
+    H3_VSA_O_BUNDLE_ACTIVE_KEY,
+    H3_VSA_O_BUNDLE_ENV,
+    H3_VSA_O_BUNDLE_STATE_KEY,
+    h3_vsa_o_bundle_enabled,
 )
 from vllm_omni.diffusion.models.minimax_h3.ops.attention.layout import (
     H3_VSA_FUSED_TILE_PACK_ENV,
@@ -32,12 +37,6 @@ from vllm_omni.diffusion.models.minimax_h3.ops.attention.layout import (
     h3_vsa_tile_untile,
     h3_vsa_tile_untile_cuda_supported,
     h3_vsa_tile_untile_out,
-)
-from vllm_omni.diffusion.models.minimax_h3.ops.attention.o_bundle import (
-    H3_VSA_O_BUNDLE_ACTIVE_KEY,
-    H3_VSA_O_BUNDLE_ENV,
-    H3_VSA_O_BUNDLE_STATE_KEY,
-    h3_vsa_o_bundle_enabled,
 )
 from vllm_omni.diffusion.models.minimax_h3.ops.attention.owner_route import (
     H3VSAOwnerRoutePlan,
@@ -187,7 +186,7 @@ def _flashinfer_h3_vsa_q2k_bshd_impl(
         if skip_softmax_threshold:
             raise ValueError("Sage requires the zero skip-softmax threshold")
         from vllm_omni.diffusion.attention.ops.sage_block_sparse_attention import sage_block_sparse_attention
-        from vllm_omni.diffusion.models.minimax_h3.attention.schedule import quantized_q
+        from vllm_omni.diffusion.models.minimax_h3.attention.overlap import quantized_q
 
         with _h3_vsa_nvtx_stage("vsa.sage"):
             return sage_block_sparse_attention(
@@ -664,7 +663,7 @@ class MiniMaxH3VSAImpl(FastVideoVSAImpl):
             with _h3_vsa_nvtx_stage("vsa.coarse.qk_scores"):
                 scores = torch.matmul(q_pool, k_pool.transpose(-2, -1)) * self.softmax_scale
         kernel_sizes = sizes
-        from vllm_omni.diffusion.models.minimax_h3.attention.schedule import coarse_ready, coarse_scope
+        from vllm_omni.diffusion.models.minimax_h3.attention.overlap import coarse_ready, coarse_scope
 
         coarse_ticket = coarse_ready(v_tiled, scores) if gate is not None or o_bundle else None
 
@@ -917,11 +916,3 @@ class MiniMaxH3VSAImpl(FastVideoVSAImpl):
                     original_query, original_key, original_value, attn_metadata, f"VSA-H3 kernel failed: {exc}"
                 )
         return super().forward_cuda(original_query, original_key, original_value, attn_metadata)
-
-
-class MiniMaxH3VSABackend(FastVideoVSABackend):
-    """Prefix-dense tile64 VSA; Wan retains the shared tile256 backend."""
-
-    @staticmethod
-    def get_impl_cls():
-        return MiniMaxH3VSAImpl

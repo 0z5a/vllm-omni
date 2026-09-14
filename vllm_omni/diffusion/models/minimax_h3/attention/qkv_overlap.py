@@ -49,7 +49,7 @@ def validate_projection(projection, prepared) -> None:
     from vllm.distributed import get_tensor_model_parallel_world_size
 
     from vllm_omni.diffusion.layers.mxfp8 import _scale_numel
-    from vllm_omni.diffusion.models.minimax_h3.mxfp8 import validate_split_projection
+    from vllm_omni.diffusion.models.minimax_h3.quantization import validate_split_projection
 
     if not dist.is_initialized() or dist.get_world_size() != 8 or get_tensor_model_parallel_world_size() != 1:
         raise RuntimeError("MXFP8 split requires initialized TP1/SP8")
@@ -116,7 +116,7 @@ def begin(active, attention, projection, prepared, placeholder, layer_index: int
     stream.wait_event(ready)
     ticket.launched = True  # Exception cleanup joins partial submissions.
     with torch.get_device_module().stream(stream):
-        from vllm_omni.diffusion.models.minimax_h3.mxfp8 import project_split_v
+        from vllm_omni.diffusion.models.minimax_h3.quantization import project_split_v
 
         ticket.result = project_split_v(projection, x, x_scale, qk).view(1, ROWS, 56, 128)
         ticket.done = torch.get_device_module().Event(enable_timing=False)
@@ -179,7 +179,8 @@ def after_q() -> None:
 def before_v(active, query, key, placeholder, metadata, group):
     """Schedule K-dependent work before joining the independent V producer."""
     from vllm_omni.diffusion.distributed.flashinfer_ulysses import _state_for
-    from vllm_omni.diffusion.models.minimax_h3.attention.backend import (
+    from vllm_omni.diffusion.models.minimax_h3.attention.overlap import prepared_q
+    from vllm_omni.diffusion.models.minimax_h3.attention.vsa import (
         _build_h3_ordered_q2k_indices,
         _get_h3_layout,
         _get_h3_tile_metadata,
@@ -187,7 +188,6 @@ def before_v(active, query, key, placeholder, metadata, group):
         _pool_h3_tiles,
         h3_vsa_tile_pack,
     )
-    from vllm_omni.diffusion.models.minimax_h3.attention.schedule import prepared_q
 
     ticket = active["vsplit_ticket"]
     if (
@@ -206,7 +206,7 @@ def before_v(active, query, key, placeholder, metadata, group):
     if active.get("vsplit_k_ready", False) or "v3_q_ready" in active:
         raise RuntimeError("Deferred Q preparation must be submitted once after K")
     active["vsplit_k_ready"] = True
-    from vllm_omni.diffusion.models.minimax_h3.attention.schedule import after_q
+    from vllm_omni.diffusion.models.minimax_h3.attention.overlap import after_q
 
     after_q(query, metadata)
     with torch.cuda.nvtx.range("h3.vsplit.qk_ready"):

@@ -4,7 +4,7 @@
 import pytest
 import torch
 
-from vllm_omni.diffusion.models.minimax_h3.attention import overlap, parallel, qkv_overlap, schedule
+from vllm_omni.diffusion.models.minimax_h3.attention import overlap, parallel, qkv_overlap
 
 pytestmark = [pytest.mark.core_model, pytest.mark.diffusion, pytest.mark.cpu]
 
@@ -22,7 +22,7 @@ def test_split_v_is_replaced_before_transport(monkeypatch):
         return tensor
 
     monkeypatch.setattr(strategy, "_scatter_heads", scatter)
-    monkeypatch.setattr(schedule, "after_q", lambda *args: order.append("prepare_q"))
+    monkeypatch.setattr(overlap, "after_q", lambda *args: order.append("prepare_q"))
     monkeypatch.setattr(qkv_overlap, "after_q", lambda: order.append("submit_v"))
 
     def before_v(q, k, v, metadata, group):
@@ -43,6 +43,6 @@ def test_split_v_is_replaced_before_transport(monkeypatch):
 def test_default_path_uses_generic_exchange(monkeypatch):
     strategy = object.__new__(parallel.H3UlyssesAttention)
     monkeypatch.setattr(strategy, "_scatter_heads", lambda tensor, slot: tensor)
-    monkeypatch.setattr(schedule, "after_q", lambda *args: pytest.fail("inactive schedule ran"))
+    monkeypatch.setattr(overlap, "after_q", lambda *args: pytest.fail("inactive schedule ran"))
     q, k, v = (torch.tensor(i) for i in range(3))
     assert strategy._exchange_qkv(q, k, v, None) == (q, k, v)

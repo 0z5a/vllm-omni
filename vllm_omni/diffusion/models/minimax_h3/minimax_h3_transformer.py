@@ -471,8 +471,8 @@ class MiniMaxH3Attention(nn.Module):
         self._h3_vsplit_layer_index = int(prefix.split(".")[1]) if self._h3_vsplit_mode != "off" else -1
         self._gate_quant_config = quant_config
         self._gate_prefix = f"{prefix}.to_gate_compress"
-        from .attention.backend import MiniMaxH3VSABackend
         from .attention.parallel import configure_parallel_attention
+        from .attention.vsa import MiniMaxH3VSAImpl
 
         self.attention = Attention(
             num_heads=self.num_heads,
@@ -486,7 +486,7 @@ class MiniMaxH3Attention(nn.Module):
             role_category=role_category,
             skip_sequence_parallel=skip_sequence_parallel,
             prefix=prefix,
-            backend_overrides={"FASTVIDEO_VSA": MiniMaxH3VSABackend},
+            impl_overrides={"FASTVIDEO_VSA": MiniMaxH3VSAImpl},
         )
         configure_parallel_attention(self.attention)
         # Static and strictly opt-in: only FlashInfer PCIe Ulysses advertises
@@ -755,7 +755,7 @@ class MiniMaxH3Attention(nn.Module):
         q_size = self.num_heads * self.head_dim
         kv_size = self.num_kv_heads * self.head_dim
         if self._h3_vsplit_mode == "split":
-            from .mxfp8 import project_split_qk
+            from .quantization import project_split_qk
 
             qk, quantized_x, activation_scale = project_split_qk(self.qkv_proj, x)
             q, k = qk.split([q_size, kv_size], dim=-1)
@@ -863,7 +863,7 @@ class MiniMaxH3MLP(nn.Module):
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         hidden, _ = self.fc1(x)
         if getattr(self, "_h3_swiglu_mxfp8_fused", False):
-            from .mxfp8 import fused_swiglu_fc2
+            from .quantization import fused_swiglu_fc2
 
             return fused_swiglu_fc2(self.fc2, hidden)
         hidden = self.act_fn(hidden)
@@ -1473,9 +1473,9 @@ class MiniMaxH3DiTModel(nn.Module):
             self.adaln_cache.load(self.video_patch_proj.weight.device)
 
         if os.getenv("VLLM_OMNI_H3_DIT_MXFP8", "0") == "1":
-            from .mxfp8 import install_and_audit
+            from .quantization import install_dit_mxfp8
 
-            install_and_audit(self)
+            install_dit_mxfp8(self)
 
     def validate_restored_host_weights(self) -> None:
         """Validate mixed-precision invariants after lease-backed restore."""

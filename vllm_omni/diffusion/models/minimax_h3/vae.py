@@ -38,7 +38,7 @@ from .ops import (
     snapshot_h3_vae_exact_op_stats,
 )
 from .packed_tokens import minimax_h3_patchify_video_latent
-from .vae_collectives import _agree_on_failure
+from .vae_parallel import _agree_on_failure
 
 MINIMAX_H3_KEYFRAME_ENCODE_SEED = 42
 MINIMAX_H3_AUDIO_SAMPLE_RATE = 32000
@@ -221,9 +221,9 @@ class MiniMaxH3VideoVAE(nn.Module, DistributedVaeMixin):
         initial_device = load_device or device
         self.remote.eval().to(device=initial_device, dtype=torch.float32)
         decoder = getattr(self.remote.model, "decoder", None)
-        from . import online_mxfp8
+        from . import quantization
 
-        mxfp8_enabled = online_mxfp8.enabled()
+        mxfp8_enabled = quantization.vae_mxfp8_enabled()
         if mxfp8_enabled and (decoder is None or initial_device.type != "cuda"):
             raise RuntimeError("MXFP8 arm requires the resident CUDA H3 video decoder")
         if decoder is not None:
@@ -235,7 +235,7 @@ class MiniMaxH3VideoVAE(nn.Module, DistributedVaeMixin):
             if mxfp8_enabled:
                 if not exact_ops_installed:
                     raise RuntimeError("MXFP8 requires the current-best VAE operators")
-                recipe = online_mxfp8.install(decoder)
+                recipe = quantization.install_vae_mxfp8(decoder)
                 logger.info("H3_VAE_MXFP8_READY %s", json.dumps(recipe, sort_keys=True))
             if exact_ops_installed:
                 rank = dist.get_rank() if dist.is_initialized() else 0
@@ -606,9 +606,9 @@ class MiniMaxH3VideoVAE(nn.Module, DistributedVaeMixin):
         if before is None or after is None:
             return
         delta = after.delta(before)
-        from . import online_mxfp8
+        from . import quantization
 
-        online_mxfp8.complete(decoder, dist.get_rank() if dist.is_initialized() else 0, logger)
+        quantization.audit_vae_mxfp8_calls(decoder, dist.get_rank() if dist.is_initialized() else 0, logger)
 
         model = self.model
         latent_tokens = int(latent.shape[2])
@@ -642,7 +642,7 @@ class MiniMaxH3VideoVAE(nn.Module, DistributedVaeMixin):
         block_count = len(getattr(decoder, "transformer_blocks", ()))
         expected_block_calls = owned_windows * decoder_calls_per_window * block_count
         if route in ("temporal_spatial_pair_pp", "temporal_spatial_mixed_pp"):
-            from .paired_vae import jobs
+            from .vae_batching import jobs
 
             assert (temporal_windows, num_tiles, sp_size) == (21, 28, 8) and not stack_tiling
             # Per-window ownership varies. -1 is an explicit sentinel, while
@@ -650,7 +650,7 @@ class MiniMaxH3VideoVAE(nn.Module, DistributedVaeMixin):
             local_tiles = -1
             expected_block_calls = sum(len(row[sp_rank]) for row in jobs()) * block_count
             if route == "temporal_spatial_mixed_pp":
-                from .mixed_vae import batch_plan
+                from .vae_batching import batch_plan
 
                 expected_block_calls = len(batch_plan(sp_rank)) * block_count
         fallback_total = (
@@ -904,9 +904,9 @@ class MiniMaxH3VideoVAE(nn.Module, DistributedVaeMixin):
             mixed_enabled = mixed_flag == "1"
             if mixed_enabled and (not pair_enabled):
                 raise ValueError("Mixed VAE batching requires paired VAE scheduling")
-            from .vae_gather_overlap import prepare_stream
+            from .vae_parallel import prepare_gather_stream
 
-            gather_stream = prepare_stream(latent.device, paired=pair_enabled, mixed=mixed_enabled, owner=self)
+            gather_stream = prepare_gather_stream(latent.device, paired=pair_enabled, mixed=mixed_enabled, owner=self)
             if pair_enabled:
                 if self.parallel_size <= 1 or world is None:
                     raise RuntimeError("MiniMax H3 temporal chunk parallel requires distributed VAE parallel_size > 1")
@@ -987,14 +987,14 @@ class MiniMaxH3VideoVAE(nn.Module, DistributedVaeMixin):
                     temporal_cat_dtype = importlib.import_module(
                         self.model.__class__.__module__
                     )._resolve_temporal_cat_dtype()
-                    from .paired_vae import decode_pairs
+                    from .vae_batching import decode_pairs
 
                     with ExitStack() as mixed_stack:
                         mixed_stats = None
                         if mixed_enabled:
                             setup_error = None
                             try:
-                                from .mixed_vae import mixed_decode
+                                from .vae_batching import mixed_decode
 
                                 mixed_stats = mixed_stack.enter_context(
                                     mixed_decode(self.model, denormalized_latent, world.rank_in_group)
