@@ -728,7 +728,9 @@ class OmniBagelForConditionalGeneration(BagelForConditionalGeneration, SupportsE
         side = config.image_size // config.patch_size
         coords = torch.arange(side, device=device)
         position_ids = (coords[:, None] * self.config.vit_max_num_patch_per_side + coords).flatten()
-        positions = self.vit_pos_embed(position_ids).unsqueeze(0)
+        # The loader can leave the non-persistent sin-cos buffer on CPU.
+        # Match eager placement before capture, preserving its dtype.
+        positions = self.vit_pos_embed(position_ids).to(device=device).unsqueeze(0)
         return EncoderCudaGraphCaptureInputs(values={"pixel_values": pixels, "pos_embeds": positions})
 
     def prepare_encoder_cudagraph_replay_buffers(

@@ -21,8 +21,8 @@ from vllm_omni.platforms import current_omni_platform
 pytestmark = [pytest.mark.core_model, pytest.mark.cuda]
 
 
-@pytest.fixture
-def encoder(tmp_path):
+@pytest.fixture(params=["cuda", "cpu"])
+def encoder(tmp_path, request):
     if not current_omni_platform.is_cuda():
         pytest.skip("CUDA graph test requires CUDA")
     init_distributed_environment(world_size=1, rank=0, distributed_init_method=f"file://{tmp_path}/dist", local_rank=0)
@@ -44,6 +44,10 @@ def encoder(tmp_path):
             model.connector = BagelVisionMLP(64, 64, 64)
             model.vit_pos_embed = PositionEmbedding(2, 64)
             model.to(device=current_omni_platform.get_torch_device(), dtype=torch.bfloat16).eval()
+            if request.param == "cpu":
+                # Full-model loading retains this non-persistent buffer on
+                # CPU in float32; moving the whole fixture hid that case.
+                model.vit_pos_embed = PositionEmbedding(2, 64)
             # vLLM linear layers allocate empty weights for checkpoint loading.
             generator = torch.Generator(device=model.vit_model.device).manual_seed(17)
             with torch.no_grad():
