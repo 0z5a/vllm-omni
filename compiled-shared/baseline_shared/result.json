@@ -1,0 +1,164 @@
+{
+  "schema_version": 1,
+  "status": "PASS",
+  "variant": "baseline",
+  "source_sha": "927e17d0522d4d9c606edb3327ef1569ee6b8d9b29c30f63a893f0ec9c5d2478",
+  "repo": "/experiment/baseline",
+  "manager_file": "/experiment/baseline/vllm_omni/diffusion/lora/manager.py",
+  "controller_pid": 318,
+  "model": "/experiment/model",
+  "model_revision": "f332072aa78be7aecdf3ee76d5c247082da564a6",
+  "dtype": "bfloat16",
+  "tensor_parallel_size": 1,
+  "compile_mode": "regional torch.compile(dynamic=True)",
+  "cuda_graph": false,
+  "prompt": "a photo of a cat sitting on a laptop keyboard",
+  "height": 256,
+  "width": 256,
+  "steps": 2,
+  "seed": 42,
+  "adapter": {
+    "rank": 16,
+    "target_count": 16,
+    "target_modules": "transformer.layers.[0-15].attention.to_qkv",
+    "target_weight_bytes_bf16": 1415577600,
+    "lora_scale": 64.0,
+    "adapter_a_sha256": "94cea74c1c8453fb425c2e3cc5fb9f86158a2c40c66c4663fd88003b3aefe14b",
+    "adapter_b_sha256": "da834ada61d525cfebe80d6ff624d664597c2d6f982d0adf6f3f0cbcbce3c10d",
+    "adapter_config_sha256": "3656f14cb47975643f2889305bc688726e7d4d9e3a871c016c4f97f760f65fd2"
+  },
+  "startup_s": 114.30066889000591,
+  "cold_first_base_s": 0.19533514301292598,
+  "cold_first_adapter_a_s": 0.334328004042618,
+  "cold_first_adapter_b_s": 0.2798203150741756,
+  "warmup_switches": 2,
+  "warmup_switch_latency_s": [
+    0.2021329599665478,
+    0.20190589292906225
+  ],
+  "normalization_s": 0.2017321370076388,
+  "same_adapter_control": {
+    "n": 4,
+    "mean_s": 0.15973297049640678,
+    "median_s": 0.15838131896452978,
+    "p95_s_descriptive": 0.1631900970998686,
+    "stdev_s": 0.002853436833471424,
+    "total_s": 0.6389318819856271,
+    "images_per_s": 6.26044827747378,
+    "raw_s": [
+      0.1581658610375598,
+      0.15818116103764623,
+      0.15858147689141333,
+      0.16400338301900774
+    ]
+  },
+  "switch_update_plus_generation": {
+    "n": 8,
+    "mean_s": 0.20249061375216115,
+    "median_s": 0.20249868149403483,
+    "p95_s_descriptive": 0.20399963632808066,
+    "stdev_s": 0.0010829830553346462,
+    "total_s": 1.6199249100172892,
+    "images_per_s": 4.93850051352974,
+    "raw_s": [
+      0.2045865369727835,
+      0.20279431098606437,
+      0.20290967798791826,
+      0.2028198060579598,
+      0.20220305200200528,
+      0.20205632294528186,
+      0.2009408820886165,
+      0.20161432097665966
+    ]
+  },
+  "estimated_switch_overhead_median_s": 0.044117362529505044,
+  "base_restore_s": 0.16187415597960353,
+  "image_hashes": {
+    "base": "8fd5f07cc8e30c61632c21483d94cfb700eeec921a19aeaae7f3600331661fc8",
+    "adapter_a": "0e440a677bb6f09eca4fde125cc3d4dba4b5862d7249594b36cce0227e452607",
+    "adapter_b": "77f979a345e20d41f901f8af33148d63240bea51e351419435940b81a597d4d2"
+  },
+  "correctness": {
+    "base_restore_byte_equal": true,
+    "adapter_a_repeat_byte_equal": true,
+    "adapter_b_repeat_byte_equal": true,
+    "adapters_differ_from_base_and_each_other": true
+  },
+  "same_records": [
+    {
+      "index": 0,
+      "adapter": "A",
+      "elapsed_s": 0.1581658610375598,
+      "image_hash": "0e440a677bb6f09eca4fde125cc3d4dba4b5862d7249594b36cce0227e452607"
+    },
+    {
+      "index": 1,
+      "adapter": "A",
+      "elapsed_s": 0.15818116103764623,
+      "image_hash": "0e440a677bb6f09eca4fde125cc3d4dba4b5862d7249594b36cce0227e452607"
+    },
+    {
+      "index": 2,
+      "adapter": "A",
+      "elapsed_s": 0.15858147689141333,
+      "image_hash": "0e440a677bb6f09eca4fde125cc3d4dba4b5862d7249594b36cce0227e452607"
+    },
+    {
+      "index": 3,
+      "adapter": "A",
+      "elapsed_s": 0.16400338301900774,
+      "image_hash": "0e440a677bb6f09eca4fde125cc3d4dba4b5862d7249594b36cce0227e452607"
+    }
+  ],
+  "switch_records": [
+    {
+      "index": 0,
+      "adapter": "B",
+      "elapsed_s": 0.2045865369727835,
+      "image_hash": "77f979a345e20d41f901f8af33148d63240bea51e351419435940b81a597d4d2"
+    },
+    {
+      "index": 1,
+      "adapter": "A",
+      "elapsed_s": 0.20279431098606437,
+      "image_hash": "0e440a677bb6f09eca4fde125cc3d4dba4b5862d7249594b36cce0227e452607"
+    },
+    {
+      "index": 2,
+      "adapter": "B",
+      "elapsed_s": 0.20290967798791826,
+      "image_hash": "77f979a345e20d41f901f8af33148d63240bea51e351419435940b81a597d4d2"
+    },
+    {
+      "index": 3,
+      "adapter": "A",
+      "elapsed_s": 0.2028198060579598,
+      "image_hash": "0e440a677bb6f09eca4fde125cc3d4dba4b5862d7249594b36cce0227e452607"
+    },
+    {
+      "index": 4,
+      "adapter": "B",
+      "elapsed_s": 0.20220305200200528,
+      "image_hash": "77f979a345e20d41f901f8af33148d63240bea51e351419435940b81a597d4d2"
+    },
+    {
+      "index": 5,
+      "adapter": "A",
+      "elapsed_s": 0.20205632294528186,
+      "image_hash": "0e440a677bb6f09eca4fde125cc3d4dba4b5862d7249594b36cce0227e452607"
+    },
+    {
+      "index": 6,
+      "adapter": "B",
+      "elapsed_s": 0.2009408820886165,
+      "image_hash": "77f979a345e20d41f901f8af33148d63240bea51e351419435940b81a597d4d2"
+    },
+    {
+      "index": 7,
+      "adapter": "A",
+      "elapsed_s": 0.20161432097665966,
+      "image_hash": "0e440a677bb6f09eca4fde125cc3d4dba4b5862d7249594b36cce0227e452607"
+    }
+  ],
+  "device_processes_after_measure": "318, 23066"
+}
