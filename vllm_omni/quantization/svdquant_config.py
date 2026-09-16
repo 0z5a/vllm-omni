@@ -52,6 +52,7 @@ if TYPE_CHECKING:
 logger = init_logger(__name__)
 
 _SUPPORTED_CAPABILITIES = {(10, 0), (10, 3), (12, 0)}
+_NATIVE_BACKENDS = ("cutlass", "cute-dsl", "cute-dsl-unfused", "auto")
 _COMPATIBLE_NVFP4_KERNELS = (
     CutlassNvFp4LinearKernel,
     FbgemmNvFp4LinearKernel,
@@ -110,8 +111,12 @@ def _flashinfer_svdquant():
     capability = current_platform.get_device_capability()
     if not _supports_capability(capability):
         _assert_supported()
-    backend = "cute-dsl" if capability.major == 12 else "cutlass"
-    return svdquant_linear, block_scale_interleave, backend
+    return svdquant_linear, block_scale_interleave, _default_native_backend(capability)
+
+
+def _default_native_backend(capability: DeviceCapability) -> str:
+    """Architecture default for the native fused correction backend."""
+    return "cute-dsl" if capability.major == 12 else "cutlass"
 
 
 class DiffusionSVDQuantConfig(QuantizationConfig):
@@ -127,6 +132,8 @@ class DiffusionSVDQuantConfig(QuantizationConfig):
         modules_to_not_convert: list[str] | None = None,
         activation_bits: int = 4,
         linear_backend: str = "compatibility",
+        native_backend: str | None = None,
+        native_enable_pdl: bool | None = None,
     ) -> None:
         super().__init__()
         if rank <= 0:
@@ -145,6 +152,14 @@ class DiffusionSVDQuantConfig(QuantizationConfig):
             raise ValueError("SVDQuant linear_backend must be 'compatibility' or 'flashinfer'")
         if linear_backend == "flashinfer" and (activation_bits != 4 or rank % 32 or rank > 128):
             raise ValueError("Native FlashInfer SVDQuant requires W4A4 and a rank divisible by 32, at most 128")
+        if native_backend is not None and native_backend not in _NATIVE_BACKENDS:
+            raise ValueError(f"SVDQuant native_backend must be one of {_NATIVE_BACKENDS} or None")
+        if native_enable_pdl is not None and not isinstance(native_enable_pdl, bool):
+            raise ValueError("SVDQuant native_enable_pdl must be a bool or None")
+        if linear_backend != "flashinfer" and (native_backend is not None or native_enable_pdl is not None):
+            raise ValueError("native_backend and native_enable_pdl require linear_backend='flashinfer'")
+        self.native_backend = native_backend
+        self.native_enable_pdl = native_enable_pdl
         self.linear_backend = linear_backend
         self.precision = precision
         self.modules_to_not_convert = modules_to_not_convert or []
@@ -152,7 +167,8 @@ class DiffusionSVDQuantConfig(QuantizationConfig):
     def __repr__(self) -> str:
         return (
             f"DiffusionSVDQuantConfig(rank={self.rank}, precision={self.precision!r}, "
-            f"activation_bits={self.activation_bits}, linear_backend={self.linear_backend!r})"
+            f"activation_bits={self.activation_bits}, linear_backend={self.linear_backend!r}, "
+            f"native_backend={self.native_backend!r}, native_enable_pdl={self.native_enable_pdl!r})"
         )
 
     @classmethod
@@ -180,6 +196,8 @@ class DiffusionSVDQuantConfig(QuantizationConfig):
             modules_to_not_convert=config.get("modules_to_not_convert"),
             activation_bits=config.get("activation_bits", 4),
             linear_backend=config.get("linear_backend", "compatibility"),
+            native_backend=config.get("native_backend"),
+            native_enable_pdl=config.get("native_enable_pdl"),
         )
 
     def get_quant_method(
@@ -411,7 +429,11 @@ class DiffusionSVDQuantLinearMethod(LinearMethodBase):
         )
 
     def _prepare_native_weights(self, layer: torch.nn.Module) -> None:
-        _, interleave, backend = _flashinfer_svdquant()
+        _, interleave, arch_backend = _flashinfer_svdquant()
+        # The architecture default is the reviewed choice; an explicit
+        # native_backend in the checkpoint config exists so the alternative
+        # fused backends can be measured against it without a code change.
+        backend = self.quant_config.native_backend or arch_backend
         n, packed_k = layer.qweight.shape
         if n % 128 or (packed_k * 2) % 128:
             raise ValueError("Native SVDQuant currently requires N and K divisible by 128; use compatibility otherwise")
@@ -435,11 +457,16 @@ class DiffusionSVDQuantLinearMethod(LinearMethodBase):
         if not bool(torch.isfinite(pre_quant_scale).all() and torch.isfinite(up_scaled).all()):
             raise ValueError("Native SVDQuant factor rescaling overflowed BF16; use compatibility otherwise")
         weight_sf = interleave(layer.wscales.detach().T.contiguous().view(torch.uint8))
+        # The native path consumes the packed weight as uint8 for every call.
+        # Reinterpret once here instead of on each of the ~10k forward calls.
+        packed_u8 = layer.qweight.detach().view(torch.uint8)
         del layer.wscales
         del layer.wtscale
         del layer.smooth_factor
         del layer.proj_up
         del layer.wcscales
+        del layer.qweight
+        layer.register_parameter("weight_u8", Parameter(packed_u8, requires_grad=False))
         layer.register_parameter("weight_sf", Parameter(weight_sf.view(torch.uint8), requires_grad=False))
         layer.register_parameter("alpha", Parameter(alpha, requires_grad=False))
         layer.register_parameter("smooth_factor", Parameter(pre_quant_scale, requires_grad=False))
@@ -453,6 +480,7 @@ class DiffusionSVDQuantLinearMethod(LinearMethodBase):
         else:
             layer.register_parameter("output_channel_scale", Parameter(channel_scale, requires_grad=False))
         layer.svdquant_native_backend = backend
+        layer.svdquant_native_enable_pdl = self.quant_config.native_enable_pdl
         logger.info_once("SVDQuant uses FlashInfer's native fused rank correction (%s).", backend)
 
     def apply(
@@ -473,7 +501,7 @@ class DiffusionSVDQuantLinearMethod(LinearMethodBase):
             channel_scale = layer.output_channel_scale
             out = linear(
                 x_2d,
-                layer.qweight.view(torch.uint8),
+                layer.weight_u8,
                 layer.weight_sf,
                 layer.alpha,
                 layer.smooth_factor,
@@ -481,6 +509,7 @@ class DiffusionSVDQuantLinearMethod(LinearMethodBase):
                 layer.proj_up,
                 layer.input_global_scale_inv,
                 bias=bias if channel_scale is None else None,
+                enable_pdl=layer.svdquant_native_enable_pdl,
                 backend=layer.svdquant_native_backend,
             )
             if channel_scale is not None:
