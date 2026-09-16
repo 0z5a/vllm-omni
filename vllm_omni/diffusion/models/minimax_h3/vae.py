@@ -12,7 +12,7 @@ from collections.abc import Iterator
 from contextlib import AbstractContextManager, ExitStack, contextmanager, nullcontext
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any
+from typing import Any, ClassVar
 
 import torch
 import torch.distributed as dist
@@ -195,6 +195,9 @@ class _AudioVAEDeterminismContext(AbstractContextManager):
 
 class MiniMaxH3VideoVAE(nn.Module, DistributedVaeMixin):
     """Adapter around the checkpoint's native parallel-tiled video VAE."""
+
+    # The checkpoint processor normalizes decoded chunks to the unit interval.
+    chunk_value_range: ClassVar[tuple[float, float]] = (0.0, 1.0)
 
     def __init__(
         self,
@@ -934,52 +937,53 @@ class MiniMaxH3VideoVAE(nn.Module, DistributedVaeMixin):
                 )
         except BaseException as exc:
             creation_error = exc
-        group = world.device_group if world is not None else None
-        if self.parallel_size > 1 and group is not None:
-            failed = torch.tensor([creation_error is not None], dtype=torch.int32, device=latent.device)
-            dist.all_reduce(failed, op=dist.ReduceOp.MAX, group=group)
-            if bool(failed.item()):
-                if sink is not None:
-                    sink.abort()
-                if creation_error is not None:
-                    raise RuntimeError("failed to construct chunked CPU MP4 output sink") from creation_error
-                raise RuntimeError("chunked CPU MP4 output sink failed on the output rank")
-        elif creation_error is not None:
-            raise RuntimeError("failed to construct chunked CPU MP4 output sink") from creation_error
-        channels = int(self.config_dict["latent_channels"])
-        mean = torch.tensor(self.config_dict["latents_mean"], device=latent.device, dtype=latent.dtype).view(
-            1, channels, 1, 1, 1
-        )
-        std = torch.tensor(self.config_dict["latents_std"], device=latent.device, dtype=latent.dtype).view(
-            1, channels, 1, 1, 1
-        )
-        if paired_plan is not None:
-            tiling_context = self._rank_local_tiling()
-        elif self.parallel_size > 1 and num_tiles < self.parallel_size:
-            logger.warning_once(
-                "MiniMax-H3 VAE decode splits into %d tile(s) but the tile group has %d ranks; "
-                "decoding rank-locally for this shape instead.",
-                num_tiles,
-                self.parallel_size,
-            )
-            tiling_context: AbstractContextManager = self._rank_local_tiling()
-        else:
-            tiling_context = nullcontext()
-
-        def consume(decoded: torch.Tensor, first_frame: int, total_frames: int) -> None:
-            if sink is not None:
-                sink.submit_decoded(decoded, first_frame, total_frames, self.model.processor)
-
-        decoder = getattr(self.model, "decoder", None)
-        exact_stats_before = snapshot_h3_vae_exact_op_stats(decoder) if decoder is not None else None
-        exact_route = (
-            ("temporal_spatial_mixed_pp" if mixed_enabled else "temporal_spatial_pair_pp")
-            if pair_enabled
-            else "temporal_window_pp"
-            if paired_plan is not None
-            else "spatial_pp_chunked"
-        )
+        # This method owns the worker until the sink is returned to the caller.
+        # Setup allocations, collective failures, and post-decode bookkeeping
+        # must release it just like failures inside decode_base.
         try:
+            group = world.device_group if world is not None else None
+            if self.parallel_size > 1 and group is not None:
+                failed = torch.tensor([creation_error is not None], dtype=torch.int32, device=latent.device)
+                dist.all_reduce(failed, op=dist.ReduceOp.MAX, group=group)
+                if bool(failed.item()):
+                    if creation_error is not None:
+                        raise RuntimeError("failed to construct chunked CPU MP4 output sink") from creation_error
+                    raise RuntimeError("chunked CPU MP4 output sink failed on the output rank")
+            elif creation_error is not None:
+                raise RuntimeError("failed to construct chunked CPU MP4 output sink") from creation_error
+            channels = int(self.config_dict["latent_channels"])
+            mean = torch.tensor(self.config_dict["latents_mean"], device=latent.device, dtype=latent.dtype).view(
+                1, channels, 1, 1, 1
+            )
+            std = torch.tensor(self.config_dict["latents_std"], device=latent.device, dtype=latent.dtype).view(
+                1, channels, 1, 1, 1
+            )
+            if paired_plan is not None:
+                tiling_context = self._rank_local_tiling()
+            elif self.parallel_size > 1 and num_tiles < self.parallel_size:
+                logger.warning_once(
+                    "MiniMax-H3 VAE decode splits into %d tile(s) but the tile group has %d ranks; "
+                    "decoding rank-locally for this shape instead.",
+                    num_tiles,
+                    self.parallel_size,
+                )
+                tiling_context: AbstractContextManager = self._rank_local_tiling()
+            else:
+                tiling_context = nullcontext()
+
+            def consume(decoded: torch.Tensor, first_frame: int, total_frames: int) -> None:
+                if sink is not None:
+                    sink.submit_decoded(decoded, first_frame, total_frames, self.model.processor)
+
+            decoder = getattr(self.model, "decoder", None)
+            exact_stats_before = snapshot_h3_vae_exact_op_stats(decoder) if decoder is not None else None
+            exact_route = (
+                ("temporal_spatial_mixed_pp" if mixed_enabled else "temporal_spatial_pair_pp")
+                if pair_enabled
+                else "temporal_window_pp"
+                if paired_plan is not None
+                else "spatial_pp_chunked"
+            )
             with tiling_context:
                 denormalized_latent = latent * std + mean
                 if paired_plan is not None:
@@ -1016,18 +1020,16 @@ class MiniMaxH3VideoVAE(nn.Module, DistributedVaeMixin):
                     decoded = None
                 else:
                     decoded = self.model.decode_base(denormalized_latent, output_callback=consume)
+            if decoded is not None:
+                raise RuntimeError("chunked MiniMax H3 VAE decode unexpectedly returned a full tensor")
+            self._log_exact_op_chunked_decode(latent, num_tiles=num_tiles, route=exact_route, before=exact_stats_before)
+            if pair_stats is not None:
+                logger.info("H3_VAE_PAIR_COMPLETE %s", json.dumps(pair_stats, sort_keys=True))
+            return sink
         except BaseException:
             if sink is not None:
                 sink.abort()
             raise
-        if decoded is not None:
-            if sink is not None:
-                sink.abort()
-            raise RuntimeError("chunked MiniMax H3 VAE decode unexpectedly returned a full tensor")
-        self._log_exact_op_chunked_decode(latent, num_tiles=num_tiles, route=exact_route, before=exact_stats_before)
-        if pair_stats is not None:
-            logger.info("H3_VAE_PAIR_COMPLETE %s", json.dumps(pair_stats, sort_keys=True))
-        return sink
 
 
 class MiniMaxH3AudioVAE(nn.Module):
