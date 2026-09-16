@@ -338,6 +338,7 @@ class Attention(nn.Module):
     def _init_kv_cache_quantization(self, config) -> None:
         if config is None or self._has_custom_attention:
             return
+        assert self.attn_backend is not None
         dtype = getattr(config, "diffusion_kv_cache_dtype", None)
         if dtype == "auto":
             dtype = None

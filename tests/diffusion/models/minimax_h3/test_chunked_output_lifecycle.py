@@ -13,6 +13,37 @@ from vllm_omni.diffusion.models.minimax_h3 import chunked_cpu_output, vae, vae_p
 pytestmark = [pytest.mark.core_model, pytest.mark.cpu, pytest.mark.diffusion]
 
 
+@pytest.mark.parametrize("route", ["mainline", "legacy", "compact", "mp4", "mp4_batch"])
+def test_postprocess_preserves_mainline_and_chunked_output_routes(route):
+    from vllm_omni.diffusion.models.minimax_h3.pipeline_minimax_h3 import (
+        _minimax_h3_post_process,
+        _minimax_h3_prepare_video_transport,
+    )
+
+    frames = torch.arange(2 * 4 * 5 * 3, dtype=torch.uint8).reshape(1, 2, 4, 5, 3)
+    if route == "mainline":
+        video = frames
+    elif route == "legacy":
+        video = frames.float().permute(0, 4, 1, 2, 3) / 255
+    elif route == "compact":
+        video = _minimax_h3_prepare_video_transport(
+            frames.float().permute(0, 4, 1, 2, 3) / 255, enabled=True, output_type="np"
+        )
+    else:
+        video = b"mp4" if route == "mp4" else [b"mp4", b"second"]
+    audio = torch.zeros(1, 2, 6)
+    result = _minimax_h3_post_process((video, audio))
+    if route.startswith("mp4"):
+        assert result["video"] == ([b"mp4"] if route == "mp4" else video)
+        assert result["audio"] == [None] * len(result["video"])
+    else:
+        expected = frames.float() / 255 if route == "legacy" else frames
+        torch.testing.assert_close(torch.from_numpy(result["video"][0]), expected[0])
+        torch.testing.assert_close(torch.from_numpy(result["audio"]), audio)
+    assert result["fps"] == 24
+    assert result["audio_sample_rate"] == 32000
+
+
 class _WaitingSink:
     """Model the sink's worker waiting for ownership transfer or abort."""
 

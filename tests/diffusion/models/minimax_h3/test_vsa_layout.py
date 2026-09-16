@@ -209,3 +209,54 @@ def test_h3_block_map_makes_prefix_queries_dense_and_prefix_keys_exempt():
     assert block_map[:, :, :2].all()
     assert block_map[..., :2].all()
     assert (block_map[:, :, 2:, 2:].sum(dim=-1) == 1).all()
+
+
+@pytest.mark.parametrize("fallback_on_error", [False, True])
+def test_h3_kernel_failure_preserves_fallback_policy(monkeypatch, fallback_on_error):
+    impl = _h3_impl(fallback_on_error=fallback_on_error)
+    query = torch.randn(1, 37, 2, 8)
+    metadata = _h3_metadata((5,), (2, 4, 4))
+
+    def fail(*args, **kwargs):
+        raise RuntimeError("kernel failure")
+
+    monkeypatch.setattr(impl, "_forward_h3", fail)
+    monkeypatch.setattr(impl.sdpa_fallback, "forward", impl.sdpa_fallback.forward_cuda)
+    if fallback_on_error:
+        output = impl.forward_cuda(query, query, query, metadata)
+        expected = impl.sdpa_fallback.forward_cuda(query, query, query, metadata)
+        torch.testing.assert_close(output, expected, rtol=0, atol=0)
+    else:
+        with pytest.raises(RuntimeError, match="kernel failure"):
+            impl.forward_cuda(query, query, query, metadata)
+
+
+def test_h3_accelerator_failure_is_not_swallowed(monkeypatch):
+    impl = _h3_impl(fallback_on_error=True)
+    query = torch.randn(1, 37, 2, 8)
+
+    def fail(*args, **kwargs):
+        raise torch.AcceleratorError("device failure")
+
+    monkeypatch.setattr(impl, "_forward_h3", fail)
+    with pytest.raises(torch.AcceleratorError, match="device failure"):
+        impl.forward_cuda(query, query, query, _h3_metadata((5,), (2, 4, 4)))
+
+
+def test_h3_without_layout_delegates_to_shared_backend(monkeypatch):
+    from vllm_omni.diffusion.attention.backends.fastvideo_vsa import FastVideoVSAImpl
+
+    impl = _h3_impl()
+    query = torch.randn(1, 37, 2, 8)
+    metadata = AttentionMetadata()
+    expected = torch.empty_like(query)
+    calls = []
+
+    def forward(self, q, k, v, attn_metadata):
+        calls.append((self, q, k, v, attn_metadata))
+        return expected
+
+    monkeypatch.setattr(FastVideoVSAImpl, "forward_cuda", forward)
+    assert impl.forward_cuda(query, query, query, metadata) is expected
+    assert len(calls) == 1
+    assert all(actual is wanted for actual, wanted in zip(calls[0], (impl, query, query, query, metadata)))
