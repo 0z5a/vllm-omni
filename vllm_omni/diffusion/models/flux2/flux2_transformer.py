@@ -1031,11 +1031,13 @@ class Flux2Transformer2DModel(nn.Module):
             qk_norm_rope_table = _packed_qk_norm_rope_table(
                 concat_rotary_emb, hidden_states.shape[0], hidden_states.dtype
             )
+        # Never mutate the caller-owned dict: rebind to a copy with (or
+        # without) this forward's table.
         if qk_norm_rope_table is not None:
-            joint_attention_kwargs[_QK_NORM_ROPE_TABLE_KEY] = qk_norm_rope_table
+            joint_attention_kwargs = {**joint_attention_kwargs, _QK_NORM_ROPE_TABLE_KEY: qk_norm_rope_table}
         else:
             # A caller-owned dict may carry the previous forward's table.
-            joint_attention_kwargs.pop(_QK_NORM_ROPE_TABLE_KEY, None)
+            joint_attention_kwargs = {k: v for k, v in joint_attention_kwargs.items() if k != _QK_NORM_ROPE_TABLE_KEY}
 
         # Create separate masks for image and text portions for Ulysses SP joint attention
         hidden_states_mask = None

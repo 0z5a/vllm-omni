@@ -341,3 +341,28 @@ def test_fused_joint_qkv_norm_rope_rejects_bad_shapes():
         fused_joint_qkv_norm_rope(q0, q0, q0, q1, q1, q1, w, w, w, w, table[:9], 1e-6)
     with pytest.raises(ValueError, match="batch, seq, heads, head_dim"):
         fused_joint_qkv_norm_rope(q0[0], q0, q0, q1, q1, q1, w, w, w, w, table, 1e-6)
+
+
+def test_pack_qk_norm_rope_table_skips_when_fused_path_unavailable(monkeypatch):
+    """No table (and no allocation) on devices/dtypes the fused kernel cannot
+    serve: CPU tensors, non-bf16 activations, unsupported geometry."""
+    from vllm_omni.diffusion.layers.fused_qk_norm_rope import pack_qk_norm_rope_table
+
+    monkeypatch.setenv("VLLM_OMNI_FUSED_QK_NORM_ROPE_MIN_TOKENS", "0")
+    cos, sin = torch.randn(16, 64), torch.randn(16, 64)  # CPU
+    assert pack_qk_norm_rope_table(cos, sin, 1, dtype=torch.bfloat16, min_tokens=0) is None
+    if torch.cuda.is_available() and HAS_TRITON:
+        cos, sin = cos.cuda(), sin.cuda()
+        assert pack_qk_norm_rope_table(cos, sin, 1, dtype=torch.float16, min_tokens=0) is None
+        assert (
+            pack_qk_norm_rope_table(cos, sin, 1, dtype=torch.float32, min_tokens=0, activation_dtype=torch.float16)
+            is None
+        )
+        assert pack_qk_norm_rope_table(cos, sin, 1, dtype=torch.bfloat16, min_tokens=0, head_dim=512) is None  # > 256
+        table = pack_qk_norm_rope_table(cos, sin, 2, dtype=torch.bfloat16, min_tokens=0)
+        assert table is not None and table.shape == (32, 128) and table.dtype == torch.bfloat16
+        # fp32 table for bf16 activations (Qwen-Image style) is allowed
+        assert (
+            pack_qk_norm_rope_table(cos, sin, 1, dtype=torch.float32, min_tokens=0, activation_dtype=torch.bfloat16)
+            is not None
+        )

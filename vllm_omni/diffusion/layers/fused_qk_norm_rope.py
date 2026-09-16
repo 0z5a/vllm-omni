@@ -173,6 +173,77 @@ if HAS_TRITON:
         tl.store(out_ptr + out_offsets, output, mask=mask)
 
     @triton.jit
+    def _norm_rope_tile(
+        in_ptr,
+        weight_ptr,
+        rope_table_ptr,
+        out_ptr,
+        in_row,
+        out_row,
+        in_stride_t,
+        in_stride_h,
+        in_stride_d,
+        rope_stride_t,
+        out_stride_t,
+        out_stride_h,
+        out_stride_d,
+        heads,
+        mask,
+        dims,
+        dim_mask,
+        head_dim: tl.constexpr,
+        rotary_half: tl.constexpr,
+        eps: tl.constexpr,
+        interleaved: tl.constexpr,
+    ):
+        """One ``[heads_per_program, padded_dim]`` RMSNorm + RoPE tile.
+
+        Shared by ``_qk_norm_rope_kernel`` (``in_row == out_row``) and
+        ``_joint_qkv_norm_rope_kernel``, which gathers each output row from
+        one of two streams (``in_row`` into that stream's projection,
+        ``out_row`` into the joint sequence and the rope table).
+        """
+        offsets = in_row * in_stride_t + heads[:, None] * in_stride_h + dims[None, :] * in_stride_d
+        x = tl.load(in_ptr + offsets, mask=mask, other=0.0).to(tl.float32)
+        weight = tl.load(weight_ptr + dims, mask=dim_mask, other=0.0).to(tl.float32)
+        inv_rms = tl.rsqrt(tl.sum(x * x, axis=1) / head_dim + eps)
+        normalized = (x * inv_rms[:, None] * weight[None, :]).to(tl.bfloat16)
+
+        rotary_dim = rotary_half * 2
+        if interleaved:
+            pair_dims = tl.where(dims < rotary_dim, dims ^ 1, dims)
+            freq_dims = tl.where(dims < rotary_dim, dims // 2, 0)
+            is_first = (dims % 2) == 0
+        else:
+            pair_dims = tl.where(
+                dims < rotary_half,
+                dims + rotary_half,
+                tl.where(dims < rotary_dim, dims - rotary_half, dims),
+            )
+            freq_dims = tl.where(
+                dims < rotary_half,
+                dims,
+                tl.where(dims < rotary_dim, dims - rotary_half, 0),
+            )
+            is_first = dims < rotary_half
+        pair_offsets = in_row * in_stride_t + heads[:, None] * in_stride_h + pair_dims[None, :] * in_stride_d
+        pair_x = tl.load(in_ptr + pair_offsets, mask=mask, other=0.0).to(tl.float32)
+        pair_weight = tl.load(weight_ptr + pair_dims, mask=pair_dims < head_dim, other=0.0).to(tl.float32)
+        pair_normalized = (pair_x * inv_rms[:, None] * pair_weight[None, :]).to(tl.bfloat16)
+        table_offsets = out_row * rope_stride_t + freq_dims
+        cos = tl.load(rope_table_ptr + table_offsets).to(tl.float32)
+        sin = tl.load(rope_table_ptr + table_offsets + rotary_half).to(tl.float32)
+        first = normalized.to(tl.float32) * cos - pair_normalized.to(tl.float32) * sin
+        second = normalized.to(tl.float32) * cos + pair_normalized.to(tl.float32) * sin
+        output = tl.where(
+            dims < rotary_dim,
+            tl.where(is_first, first, second),
+            normalized.to(tl.float32),
+        )
+        out_offsets = out_row * out_stride_t + heads[:, None] * out_stride_h + dims[None, :] * out_stride_d
+        tl.store(out_ptr + out_offsets, output, mask=mask)
+
+    @triton.jit
     def _qk_norm_rope_kernel(
         q_ptr,
         k_ptr,
@@ -218,9 +289,9 @@ if HAS_TRITON:
           awaits the maintainers' call before taking over that path.
 
         The modes differ only in the pair/frequency/selector index
-        expressions; the arithmetic is shared. Beyond the rotary width
-        (partial rotary or lane padding) the output is the normalized value
-        unchanged.
+        expressions; the arithmetic lives in ``_norm_rope_tile``, shared
+        with the two-stream kernel. Beyond the rotary width (partial rotary
+        or lane padding) the output is the normalized value unchanged.
         """
         token = tl.program_id(0)
         head_group = tl.program_id(1)
@@ -253,125 +324,29 @@ if HAS_TRITON:
                 out_k_stride_d,
             )
 
-        offsets = token * in_stride_t + heads[:, None] * in_stride_h + dims[None, :] * in_stride_d
-        x = tl.load(in_ptr + offsets, mask=mask, other=0.0).to(tl.float32)
-        weight = tl.load(weight_ptr + dims, mask=dim_mask, other=0.0).to(tl.float32)
-        # Padding lanes load 0 and do not perturb the sum; divide by the true
-        # head_dim, not the padded width.
-        inv_rms = tl.rsqrt(tl.sum(x * x, axis=1) / head_dim + eps)
-        normalized = (x * inv_rms[:, None] * weight[None, :]).to(tl.bfloat16)
-
-        # The two pairings differ only in three index expressions; the pair
-        # reload, the table gather, the rotation formulas and the write-back
-        # are shared (the same structure as _apply_rope_table).
-        rotary_dim = rotary_half * 2
-        if interleaved:
-            # Adjacent pairs (2i, 2i+1) sharing theta_i.
-            pair_dims = tl.where(dims < rotary_dim, dims ^ 1, dims)
-            freq_dims = tl.where(dims < rotary_dim, dims // 2, 0)
-            is_first = (dims % 2) == 0
-        else:
-            # Half-split pairs (d, d + rotary_half) sharing theta_d.
-            pair_dims = tl.where(
-                dims < rotary_half,
-                dims + rotary_half,
-                tl.where(dims < rotary_dim, dims - rotary_half, dims),
-            )
-            freq_dims = tl.where(
-                dims < rotary_half,
-                dims,
-                tl.where(dims < rotary_dim, dims - rotary_half, 0),
-            )
-            is_first = dims < rotary_half
-        pair_offsets = token * in_stride_t + heads[:, None] * in_stride_h + pair_dims[None, :] * in_stride_d
-        pair_x = tl.load(in_ptr + pair_offsets, mask=mask, other=0.0).to(tl.float32)
-        pair_weight = tl.load(weight_ptr + pair_dims, mask=pair_dims < head_dim, other=0.0).to(tl.float32)
-        pair_normalized = (pair_x * inv_rms[:, None] * pair_weight[None, :]).to(tl.bfloat16)
-        table_offsets = token * rope_stride_t + freq_dims
-        cos = tl.load(rope_table_ptr + table_offsets).to(tl.float32)
-        sin = tl.load(rope_table_ptr + table_offsets + rotary_half).to(tl.float32)
-        first = normalized.to(tl.float32) * cos - pair_normalized.to(tl.float32) * sin
-        second = normalized.to(tl.float32) * cos + pair_normalized.to(tl.float32) * sin
-        output = tl.where(
-            dims < rotary_dim,
-            tl.where(is_first, first, second),
-            normalized.to(tl.float32),
+        _norm_rope_tile(
+            in_ptr,
+            weight_ptr,
+            rope_table_ptr,
+            out_ptr,
+            token,
+            token,
+            in_stride_t,
+            in_stride_h,
+            in_stride_d,
+            rope_stride_t,
+            out_stride_t,
+            out_stride_h,
+            out_stride_d,
+            heads,
+            mask,
+            dims,
+            dim_mask,
+            head_dim,
+            rotary_half,
+            eps,
+            interleaved,
         )
-
-        out_offsets = token * out_stride_t + heads[:, None] * out_stride_h + dims[None, :] * out_stride_d
-        tl.store(out_ptr + out_offsets, output, mask=mask)
-
-    @triton.jit
-    def _norm_rope_tile(
-        in_ptr,
-        weight_ptr,
-        rope_table_ptr,
-        out_ptr,
-        in_row,
-        out_row,
-        in_stride_t,
-        in_stride_h,
-        in_stride_d,
-        rope_stride_t,
-        out_stride_t,
-        out_stride_h,
-        out_stride_d,
-        heads,
-        mask,
-        dims,
-        dim_mask,
-        head_dim: tl.constexpr,
-        rotary_half: tl.constexpr,
-        eps: tl.constexpr,
-        interleaved: tl.constexpr,
-    ):
-        """One ``[heads_per_program, padded_dim]`` RMSNorm + RoPE tile.
-
-        The body of ``_qk_norm_rope_kernel`` after its pointer selection,
-        arithmetic unchanged, with the input row (``in_row``, into the
-        stream's own projection) and the output/table row (``out_row``, into
-        the joint sequence) passed separately so the joint kernel can gather
-        from two streams.
-        """
-        offsets = in_row * in_stride_t + heads[:, None] * in_stride_h + dims[None, :] * in_stride_d
-        x = tl.load(in_ptr + offsets, mask=mask, other=0.0).to(tl.float32)
-        weight = tl.load(weight_ptr + dims, mask=dim_mask, other=0.0).to(tl.float32)
-        inv_rms = tl.rsqrt(tl.sum(x * x, axis=1) / head_dim + eps)
-        normalized = (x * inv_rms[:, None] * weight[None, :]).to(tl.bfloat16)
-
-        rotary_dim = rotary_half * 2
-        if interleaved:
-            pair_dims = tl.where(dims < rotary_dim, dims ^ 1, dims)
-            freq_dims = tl.where(dims < rotary_dim, dims // 2, 0)
-            is_first = (dims % 2) == 0
-        else:
-            pair_dims = tl.where(
-                dims < rotary_half,
-                dims + rotary_half,
-                tl.where(dims < rotary_dim, dims - rotary_half, dims),
-            )
-            freq_dims = tl.where(
-                dims < rotary_half,
-                dims,
-                tl.where(dims < rotary_dim, dims - rotary_half, 0),
-            )
-            is_first = dims < rotary_half
-        pair_offsets = in_row * in_stride_t + heads[:, None] * in_stride_h + pair_dims[None, :] * in_stride_d
-        pair_x = tl.load(in_ptr + pair_offsets, mask=mask, other=0.0).to(tl.float32)
-        pair_weight = tl.load(weight_ptr + pair_dims, mask=pair_dims < head_dim, other=0.0).to(tl.float32)
-        pair_normalized = (pair_x * inv_rms[:, None] * pair_weight[None, :]).to(tl.bfloat16)
-        table_offsets = out_row * rope_stride_t + freq_dims
-        cos = tl.load(rope_table_ptr + table_offsets).to(tl.float32)
-        sin = tl.load(rope_table_ptr + table_offsets + rotary_half).to(tl.float32)
-        first = normalized.to(tl.float32) * cos - pair_normalized.to(tl.float32) * sin
-        second = normalized.to(tl.float32) * cos + pair_normalized.to(tl.float32) * sin
-        output = tl.where(
-            dims < rotary_dim,
-            tl.where(is_first, first, second),
-            normalized.to(tl.float32),
-        )
-        out_offsets = out_row * out_stride_t + heads[:, None] * out_stride_h + dims[None, :] * out_stride_d
-        tl.store(out_ptr + out_offsets, output, mask=mask)
 
     @triton.jit
     def _joint_qkv_norm_rope_kernel(
@@ -617,6 +592,23 @@ def _npu_qk_norm_rope(
     )
 
 
+def fused_qk_norm_rope_available(
+    device: torch.device,
+    dtype: torch.dtype,
+    head_dim: int,
+    rotary_dim: int,
+    interleaved: bool = True,
+) -> bool:
+    """Whether the fused CUDA kernels would run for activations of this
+    device/dtype/geometry. Consumers gate their per-forward rope-table packing
+    on it so CPU, NPU, ROCm and non-bf16 paths pay no allocation or copy."""
+    if not (HAS_TRITON and current_platform.is_cuda() and device.type == "cuda" and dtype == torch.bfloat16):
+        return False
+    if interleaved:
+        return rotary_dim % 2 == 0 and 2 <= rotary_dim <= head_dim <= _FUSED_MAX_HEAD_DIM
+    return head_dim == _FUSED_HEAD_DIM and rotary_dim == _FUSED_ROTARY_DIM
+
+
 def _fused_cuda_supported(
     q: torch.Tensor,
     k: torch.Tensor,
@@ -624,17 +616,12 @@ def _fused_cuda_supported(
     rotary_dim: int,
     interleaved: bool = False,
 ) -> bool:
-    if not (
-        HAS_TRITON
-        and current_platform.is_cuda()
-        and q.is_cuda
-        and k.is_cuda
-        and q.dtype == torch.bfloat16
-        and k.dtype == torch.bfloat16
-    ):
+    if not (q.is_cuda and k.is_cuda and q.dtype == k.dtype):
         return False
     if interleaved:
-        return rotary_dim % 2 == 0 and 2 <= rotary_dim <= head_dim <= _FUSED_MAX_HEAD_DIM
+        return fused_qk_norm_rope_available(q.device, q.dtype, head_dim, rotary_dim, interleaved=True)
+    if not (HAS_TRITON and current_platform.is_cuda() and q.dtype == torch.bfloat16):
+        return False
     # Half-split traffic keeps the pre-existing per-tensor kernel and its
     # exact MiniMax-H3 geometry contract (that kernel is untouched by the
     # interleaved extension).
@@ -1134,12 +1121,21 @@ def pack_qk_norm_rope_table(
     *,
     dtype: torch.dtype,
     min_tokens: int,
+    activation_dtype: torch.dtype | None = None,
+    head_dim: int | None = None,
 ) -> torch.Tensor | None:
     """Pack theta-width ``cos``/``sin`` ``[S, D/2]`` (shared by the batch) into
     the ``[B*S, D] = [cos | sin]`` table the fused ops index by flattened
-    token, in ``dtype``; ``None`` when ``B*S`` is below the consumer's token
-    gate (``fused_qk_norm_rope_min_tokens(min_tokens)``), which keeps every
-    attention site on its eager chain for that forward."""
+    token, in ``dtype``. Returns ``None`` — so every attention site keeps its
+    eager chain for that forward and nothing is allocated — when the fused
+    CUDA kernel would not run for activations of ``activation_dtype``
+    (defaults to ``dtype``) on this device/geometry, or when ``B*S`` is below
+    the consumer's token gate (``fused_qk_norm_rope_min_tokens(min_tokens)``)."""
+    rotary_dim = 2 * cos.shape[-1]
+    if not fused_qk_norm_rope_available(
+        cos.device, activation_dtype or dtype, head_dim if head_dim is not None else rotary_dim, rotary_dim
+    ):
+        return None
     tokens = batch_size * cos.shape[0]
     if tokens < fused_qk_norm_rope_min_tokens(min_tokens):
         return None
@@ -1230,6 +1226,7 @@ def fused_qk_norm_rope(
 __all__ = [
     "fused_joint_qkv_norm_rope",
     "fused_qk_norm_rope",
+    "fused_qk_norm_rope_available",
     "fused_qk_norm_rope_min_tokens",
     "pack_qk_norm_rope_table",
 ]
