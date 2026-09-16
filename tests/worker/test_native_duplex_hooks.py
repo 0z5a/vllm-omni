@@ -914,7 +914,8 @@ def test_minicpmo_stage0_context_window_inserts_previous_before_suffix():
     assert rebuilt["num_input_tokens"] == 7
 
 
-def test_minicpmo_stage0_window_uses_accepted_output_not_async_sampler_history():
+@pytest.mark.parametrize("pending_terminator", [None, 3, 99])
+def test_minicpmo_stage0_window_uses_accepted_output_not_async_sampler_history(pending_terminator):
     from vllm_omni.model_executor.models.minicpmo_4_5.duplex.stage0 import (
         _MiniCPMO45Stage0SessionState,
     )
@@ -931,8 +932,8 @@ def test_minicpmo_stage0_window_uses_accepted_output_not_async_sampler_history()
     runtime._stage_prefill_embeddings_only(state, np.zeros(4, dtype=np.float32), seq=1)
     for seq in (2, 3):
         state.pending_window_generated_tokens = [3, 40, 41]
-        state.pending_terminator_token = 3
-        plan = {"completed_token_ids": []}
+        state.pending_terminator_token = pending_terminator
+        plan = {"completed_token_ids": [], "completed_terminator_token_id": 3}
         if seq == 3:
             plan.update(replace=True, mode="context", drop_units=1, replacement_prompt_len=32)
         result = runtime._stage_prefill_embeddings_only(

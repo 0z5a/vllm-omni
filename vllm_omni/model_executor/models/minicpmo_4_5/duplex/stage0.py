@@ -226,6 +226,12 @@ class MiniCPMO45Stage0DuplexRuntime:
             completed_ids = stage0_window.get("completed_token_ids")
             if isinstance(completed_ids, list):
                 state.pending_window_generated_tokens = [int(token_id) for token_id in completed_ids]
+            completed_terminator = stage0_window.get("completed_terminator_token_id")
+            if isinstance(completed_terminator, int):
+                # Async sampling can overwrite the worker's pending token
+                # after the scheduler accepted a segment stop. Rebuild from
+                # the scheduler's canonical boundary, just like its content.
+                state.pending_terminator_token = completed_terminator
         if audio_waveform is None or len(audio_waveform) == 0:
             return self._stage_prefill_result(False, start_time, "empty audio")
         state.audio_buffer = np.concatenate([state.audio_buffer, np.asarray(audio_waveform, dtype=np.float32)])

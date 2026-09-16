@@ -777,9 +777,16 @@ class OmniARScheduler(OmniSchedulerMixin, VLLMScheduler):
         req_id = session.request_id
         self._new_prompt_len_snapshot[req_id] = len(update.prompt_token_ids)
         outstanding_async_tokens = getattr(session, "num_output_placeholders", 0)
-        segment_output_ids = list(getattr(session, "_output_token_ids", ()))
-        if outstanding_async_tokens > 0:
-            segment_output_ids = segment_output_ids[:-outstanding_async_tokens]
+        # Use the same confirmed span that upstream preserves when extending
+        # a session. The segment output list is cleared on a resumable stop,
+        # and, for an already queued append, can still include its terminator.
+        confirmed_end = session.num_computed_tokens - outstanding_async_tokens
+        segment_output_ids = list(session._all_token_ids[session.num_prompt_tokens : confirmed_end])
+        completed_terminator = (
+            session._all_token_ids[confirmed_end]
+            if session.num_prompt_tokens <= confirmed_end < len(session._all_token_ids)
+            else None
+        )
         # Seed the stale share in SCHEDULED-token units (see the segment-stop
         # site in update_from_output): num_in_flight_tokens matches what each
         # pre-replacement frame will drain, so the counter reaches exactly
@@ -830,6 +837,7 @@ class OmniARScheduler(OmniSchedulerMixin, VLLMScheduler):
             session,
             update,
             segment_output_ids=segment_output_ids,
+            completed_terminator=completed_terminator,
         ):
             self._release_replaced_streaming_prompt_cache(session)
             self._replace_streaming_session(session, update)
@@ -905,6 +913,7 @@ class OmniARScheduler(OmniSchedulerMixin, VLLMScheduler):
         update: StreamingUpdate,
         *,
         segment_output_ids: list[int],
+        completed_terminator: int | None = None,
     ) -> bool:
         """Plan an official-style MiniCPM Stage-0 window at unit boundaries.
 
@@ -942,13 +951,14 @@ class OmniARScheduler(OmniSchedulerMixin, VLLMScheduler):
 
         # The sampled terminator is discarded by the normal session update and
         # re-injected at the head of this append, followed by </unit>.
-        # Stop tokens are consumed by vLLM's stop handling before a resumable
-        # segment is updated.  The remaining row-local output ids are the
-        # generated content that official MiniCPM records for this unit.
+        # generated_ids contains only the confirmed output span retained by
+        # the streaming update, excluding its final uncomputed sample.
         generated_ids = segment_output_ids
         # Sampler-side history can contain speculative or stale async output.
         # The worker must rebuild from the same accepted ids used for lengths.
         duplex["stage0_window"] = {"completed_token_ids": list(generated_ids)}
+        if completed_terminator is not None:
+            duplex["stage0_window"]["completed_terminator_token_id"] = int(completed_terminator)
         base_len = int(getattr(session, "num_prompt_tokens", 0) or 0) + len(generated_ids)
         boundary = base_len + 2
         open_start = int(getattr(session, "_minicpmo45_window_open_start", preserve_len) or preserve_len)
@@ -1036,6 +1046,8 @@ class OmniARScheduler(OmniSchedulerMixin, VLLMScheduler):
             "previous_token_ids": previous_ids,
             "replacement_prompt_len": replacement_len,
         }
+        if completed_terminator is not None:
+            duplex["stage0_window"]["completed_terminator_token_id"] = int(completed_terminator)
         prefix_len = int(runtime_config.get("duplex_window_prefix_tokens", preserve_len) or preserve_len)
         suffix_len = len(runtime_config.get("duplex_window_suffix_token_ids", ()) or ())
         previous_len = int(getattr(session, "_minicpmo45_window_previous_len", 0) or 0)
