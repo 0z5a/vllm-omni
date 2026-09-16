@@ -35,6 +35,7 @@ from vllm_omni.diffusion.distributed.sp_plan import (
 )
 from vllm_omni.diffusion.forward_context import get_forward_context, is_forward_context_available
 from vllm_omni.diffusion.layers.fused_qk_norm_rope import (
+    QK_NORM_ROPE_TABLE_KEY,
     _fused_cuda_supported,
     fused_joint_qkv_norm_rope,
     fused_qk_norm_rope,
@@ -55,26 +56,6 @@ logger = init_logger(__name__)
 # fuse by default and keep the gate for VLLM_OMNI_FUSED_QK_NORM_ROPE_MIN_TOKENS
 # overrides on other hardware; see fused_qk_norm_rope_min_tokens().
 _FUSED_MIN_TOKENS = 0
-# joint_attention_kwargs key carrying the per-forward packed RoPE table.
-_QK_NORM_ROPE_TABLE_KEY = "qk_norm_rope_table"
-
-
-def _packed_qk_norm_rope_table(
-    rotary_emb: tuple[torch.Tensor, torch.Tensor],
-    batch_size: int,
-    dtype: torch.dtype,
-) -> torch.Tensor | None:
-    """Pack the joint ``(cos, sin)`` into the fused op's ``[B*S, D]`` table.
-
-    Flux.2's ``cos``/``sin`` are ``[S, D/2]`` (theta width, one row per joint
-    token, text first), which is exactly the ``[cos(theta) | sin(theta)]``
-    half of the fused op's table. It is stored in the activation dtype — the
-    eager chain casts ``cos``/``sin`` to that dtype before ``apply_rotary_emb``
-    — so both paths rotate with identical coefficients. Returns ``None``
-    below the token gate, keeping every block on the eager chain.
-    """
-    cos, sin = rotary_emb
-    return pack_qk_norm_rope_table(cos, sin, batch_size, dtype=dtype, min_tokens=_FUSED_MIN_TOKENS)
 
 
 def _join_prefix(prefix: str, name: str) -> str:
@@ -260,7 +241,7 @@ class Flux2Attention(nn.Module):
             # forward supplied the packed table and the CUDA kernel accepts
             # the geometry; otherwise the eager chain, which the SP path (its
             # RoPE is applied per stream) always uses.
-            qk_norm_rope_table = None if use_sp_joint_attention else kwargs.get(_QK_NORM_ROPE_TABLE_KEY)
+            qk_norm_rope_table = None if use_sp_joint_attention else kwargs.get(QK_NORM_ROPE_TABLE_KEY)
             use_fused_qk_norm_rope = qk_norm_rope_table is not None and _fused_cuda_supported(
                 query, key, self.head_dim, qk_norm_rope_table.shape[-1], interleaved=True
             )
@@ -460,7 +441,7 @@ class Flux2ParallelSelfAttention(nn.Module):
 
         # Fused RMSNorm + RoPE over the already-joint sequence when the
         # forward supplied the packed table (see Flux2Attention).
-        qk_norm_rope_table = None if use_sp_single_stream else kwargs.get(_QK_NORM_ROPE_TABLE_KEY)
+        qk_norm_rope_table = None if use_sp_single_stream else kwargs.get(QK_NORM_ROPE_TABLE_KEY)
         use_fused_qk_norm_rope = qk_norm_rope_table is not None and _fused_cuda_supported(
             query, key, self.head_dim, qk_norm_rope_table.shape[-1], interleaved=True
         )
@@ -1026,18 +1007,20 @@ class Flux2Transformer2DModel(nn.Module):
         # One packed table per forward for the fused QK RMSNorm + RoPE in
         # every block (double: joint text/image op; single: joint sequence).
         # SP applies RoPE per stream/shard and keeps the eager chain.
-        qk_norm_rope_table = None
-        if not sp_size or sp_size <= 1:
-            qk_norm_rope_table = _packed_qk_norm_rope_table(
-                concat_rotary_emb, hidden_states.shape[0], hidden_states.dtype
-            )
+        qk_norm_rope_table = pack_qk_norm_rope_table(
+            *concat_rotary_emb,
+            hidden_states.shape[0],
+            dtype=hidden_states.dtype,
+            min_tokens=_FUSED_MIN_TOKENS,
+            sequence_parallel_size=sp_size,
+        )
         # Never mutate the caller-owned dict: rebind to a copy with (or
         # without) this forward's table.
         if qk_norm_rope_table is not None:
-            joint_attention_kwargs = {**joint_attention_kwargs, _QK_NORM_ROPE_TABLE_KEY: qk_norm_rope_table}
+            joint_attention_kwargs = {**joint_attention_kwargs, QK_NORM_ROPE_TABLE_KEY: qk_norm_rope_table}
         else:
             # A caller-owned dict may carry the previous forward's table.
-            joint_attention_kwargs = {k: v for k, v in joint_attention_kwargs.items() if k != _QK_NORM_ROPE_TABLE_KEY}
+            joint_attention_kwargs = {k: v for k, v in joint_attention_kwargs.items() if k != QK_NORM_ROPE_TABLE_KEY}
 
         # Create separate masks for image and text portions for Ulysses SP joint attention
         hidden_states_mask = None

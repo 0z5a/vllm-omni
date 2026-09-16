@@ -366,3 +366,105 @@ def test_pack_qk_norm_rope_table_skips_when_fused_path_unavailable(monkeypatch):
             pack_qk_norm_rope_table(cos, sin, 1, dtype=torch.float32, min_tokens=0, activation_dtype=torch.bfloat16)
             is not None
         )
+
+
+def test_pack_qk_norm_rope_table_token_gate_boundary(monkeypatch):
+    """``None`` strictly below the resolved token gate, a table at and above
+    it; the env override wins over the consumer default. CPU-only: the
+    device/dtype check is stubbed so only the gate decides."""
+    from vllm_omni.diffusion.layers import fused_qk_norm_rope as mod
+
+    monkeypatch.setattr(mod, "fused_qk_norm_rope_available", lambda *a, **k: True)
+    env = "VLLM_OMNI_FUSED_QK_NORM_ROPE_MIN_TOKENS"
+    monkeypatch.delenv(env, raising=False)
+    cos, sin = torch.randn(8, 4), torch.randn(8, 4)  # S=8, rotary_dim=8
+    batch = 2  # 16 tokens
+
+    assert mod.pack_qk_norm_rope_table(cos, sin, batch, dtype=torch.bfloat16, min_tokens=17) is None
+    table = mod.pack_qk_norm_rope_table(cos, sin, batch, dtype=torch.bfloat16, min_tokens=16)
+    assert table is not None and table.shape == (16, 8) and table.dtype == torch.bfloat16
+    assert torch.equal(table.view(batch, 8, 8)[1], torch.cat((cos, sin), dim=-1).to(torch.bfloat16))
+    assert mod.pack_qk_norm_rope_table(cos, sin, batch, dtype=torch.bfloat16, min_tokens=0) is not None
+
+    monkeypatch.setenv(env, "17")  # env override: consumer default 0 no longer fuses
+    assert mod.pack_qk_norm_rope_table(cos, sin, batch, dtype=torch.bfloat16, min_tokens=0) is None
+    monkeypatch.setenv(env, "0")  # env override: consumer default 1000 fuses
+    assert mod.pack_qk_norm_rope_table(cos, sin, batch, dtype=torch.bfloat16, min_tokens=1000) is not None
+
+
+def test_pack_qk_norm_rope_table_skips_under_sequence_parallel(monkeypatch):
+    """Under SP (``sequence_parallel_size > 1``) no table is packed: RoPE is
+    applied per stream/shard and the consumer keeps its eager chain."""
+    from vllm_omni.diffusion.layers import fused_qk_norm_rope as mod
+
+    monkeypatch.setattr(mod, "fused_qk_norm_rope_available", lambda *a, **k: True)
+    monkeypatch.setenv("VLLM_OMNI_FUSED_QK_NORM_ROPE_MIN_TOKENS", "0")
+    cos, sin = torch.randn(8, 4), torch.randn(8, 4)
+
+    for sp_size in (2, 8):
+        assert (
+            mod.pack_qk_norm_rope_table(cos, sin, 1, dtype=torch.bfloat16, min_tokens=0, sequence_parallel_size=sp_size)
+            is None
+        )
+    for sp_size in (None, 0, 1):
+        assert (
+            mod.pack_qk_norm_rope_table(cos, sin, 1, dtype=torch.bfloat16, min_tokens=0, sequence_parallel_size=sp_size)
+            is not None
+        )
+
+
+@pytest.mark.skipif(not torch.cuda.is_available(), reason="CUDA required")
+@pytest.mark.skipif(not HAS_TRITON, reason="Triton required")
+def test_fused_ops_bitwise_under_torch_compile_and_cuda_graph():
+    """Both custom ops under ``torch.compile(fullgraph=True)`` and under CUDA
+    graph capture/replay produce exactly the eager op's outputs."""
+    from vllm_omni.diffusion.layers.fused_qk_norm_rope import fused_joint_qkv_norm_rope, fused_qk_norm_rope
+
+    torch.manual_seed(3)
+    batch, txt_len, img_len = 2, 512, 4096
+    (q0, k0, v0, q1, k1, v1), (q0_w, k0_w, q1_w, k1_w), rope_table = _flux2_inputs(batch, txt_len, img_len)
+    seq_total = txt_len + img_len
+    heads = q0.shape[2]
+
+    def joint(q0, k0, v0, q1, k1, v1, table):
+        return fused_joint_qkv_norm_rope(q0, k0, v0, q1, k1, v1, q0_w, k0_w, q1_w, k1_w, table, _EPS)
+
+    # Single-stream op over the joint sequence (the single blocks' call).
+    qkv = torch.randn(batch * seq_total, heads * _FLUX2_HEAD_DIM * 3, device="cuda", dtype=torch.bfloat16)
+    sq, sk, _ = (t.unflatten(-1, (heads, -1)) for t in qkv.chunk(3, dim=-1))
+
+    def single(q, k, table):
+        return fused_qk_norm_rope(q, k, q0_w, k0_w, table, _EPS, interleaved=True)
+
+    joint_inputs = (q0, k0, v0, q1, k1, v1, rope_table)
+    single_inputs = (sq, sk, rope_table)
+    eager_joint = joint(*joint_inputs)
+    eager_single = single(*single_inputs)
+
+    def check(actual, expected):
+        assert len(actual) == len(expected)
+        for a, e in zip(actual, expected):
+            assert torch.equal(a, e)
+
+    compiled_joint = torch.compile(joint, fullgraph=True)
+    compiled_single = torch.compile(single, fullgraph=True)
+    check(compiled_joint(*joint_inputs), eager_joint)
+    check(compiled_single(*single_inputs), eager_single)
+
+    # CUDA graph: capture on a side stream after warmup, replay, compare.
+    for fn, inputs, expected in ((joint, joint_inputs, eager_joint), (single, single_inputs, eager_single)):
+        stream = torch.cuda.Stream()
+        stream.wait_stream(torch.cuda.current_stream())
+        with torch.cuda.stream(stream):
+            for _ in range(2):
+                fn(*inputs)
+        torch.cuda.current_stream().wait_stream(stream)
+        graph = torch.cuda.CUDAGraph()
+        with torch.cuda.graph(graph):
+            static_out = fn(*inputs)
+        graph.replay()
+        torch.accelerator.synchronize()
+        check(static_out, expected)
+        graph.replay()
+        torch.accelerator.synchronize()
+        check(static_out, expected)

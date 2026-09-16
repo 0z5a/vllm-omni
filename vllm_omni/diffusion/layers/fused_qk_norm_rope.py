@@ -1123,14 +1123,19 @@ def pack_qk_norm_rope_table(
     min_tokens: int,
     activation_dtype: torch.dtype | None = None,
     head_dim: int | None = None,
+    sequence_parallel_size: int | None = None,
 ) -> torch.Tensor | None:
     """Pack theta-width ``cos``/``sin`` ``[S, D/2]`` (shared by the batch) into
     the ``[B*S, D] = [cos | sin]`` table the fused ops index by flattened
     token, in ``dtype``. Returns ``None`` — so every attention site keeps its
     eager chain for that forward and nothing is allocated — when the fused
     CUDA kernel would not run for activations of ``activation_dtype``
-    (defaults to ``dtype``) on this device/geometry, or when ``B*S`` is below
-    the consumer's token gate (``fused_qk_norm_rope_min_tokens(min_tokens)``)."""
+    (defaults to ``dtype``) on this device/geometry, when ``B*S`` is below
+    the consumer's token gate (``fused_qk_norm_rope_min_tokens(min_tokens)``),
+    or under sequence parallelism (``sequence_parallel_size > 1``: RoPE is
+    then applied per stream/shard and the consumer keeps its eager chain)."""
+    if sequence_parallel_size is not None and sequence_parallel_size > 1:
+        return None
     rotary_dim = 2 * cos.shape[-1]
     if not fused_qk_norm_rope_available(
         cos.device, activation_dtype or dtype, head_dim if head_dim is not None else rotary_dim, rotary_dim
@@ -1223,7 +1228,12 @@ def fused_qk_norm_rope(
     )
 
 
+# ``joint_attention_kwargs`` key under which a model forward hands the packed
+# table of the current forward to its attention sites.
+QK_NORM_ROPE_TABLE_KEY = "qk_norm_rope_table"
+
 __all__ = [
+    "QK_NORM_ROPE_TABLE_KEY",
     "fused_joint_qkv_norm_rope",
     "fused_qk_norm_rope",
     "fused_qk_norm_rope_available",
