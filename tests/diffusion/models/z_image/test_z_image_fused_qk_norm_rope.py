@@ -35,13 +35,24 @@ def _dist_env():
         cleanup_dist_env_and_memory()
 
 
+def test_packed_table_skipped_on_cpu(monkeypatch):
+    """No table (no allocation) where the fused kernel cannot run."""
+    from vllm_omni.diffusion.models.z_image.z_image_transformer import _packed_qk_norm_rope_table
+
+    monkeypatch.setenv("VLLM_OMNI_FUSED_QK_NORM_ROPE_MIN_TOKENS", "0")
+    cos, sin = torch.randn(3, 20, _HEAD_DIM // 2), torch.randn(3, 20, _HEAD_DIM // 2)
+    assert _packed_qk_norm_rope_table(cos, sin, torch.bfloat16) is None
+
+
+@pytest.mark.skipif(not torch.cuda.is_available(), reason="CUDA required")
+@pytest.mark.skipif(not HAS_TRITON, reason="Triton required")
 def test_packed_table_uses_row_zero_like_rotary_embedding(monkeypatch):
     """``RotaryEmbedding`` applies ``cos[0]``/``sin[0]`` to every batch element;
     the packed table must repeat exactly those rows."""
     from vllm_omni.diffusion.models.z_image.z_image_transformer import _packed_qk_norm_rope_table
 
     monkeypatch.delenv("VLLM_OMNI_FUSED_QK_NORM_ROPE_MIN_TOKENS", raising=False)
-    cos, sin = torch.randn(3, 20, _HEAD_DIM // 2), torch.randn(3, 20, _HEAD_DIM // 2)
+    cos, sin = torch.randn(3, 20, _HEAD_DIM // 2, device="cuda"), torch.randn(3, 20, _HEAD_DIM // 2, device="cuda")
     table = _packed_qk_norm_rope_table(cos, sin, torch.bfloat16)
     assert table.shape == (60, _HEAD_DIM) and table.dtype == torch.bfloat16
     expected = torch.cat((cos[0], sin[0]), dim=-1).to(torch.bfloat16)
@@ -49,6 +60,8 @@ def test_packed_table_uses_row_zero_like_rotary_embedding(monkeypatch):
         assert torch.equal(table[b * 20 : (b + 1) * 20], expected)
     monkeypatch.setenv("VLLM_OMNI_FUSED_QK_NORM_ROPE_MIN_TOKENS", "1000000")
     assert _packed_qk_norm_rope_table(cos, sin, torch.bfloat16) is None
+    monkeypatch.setenv("VLLM_OMNI_FUSED_QK_NORM_ROPE_MIN_TOKENS", "0")
+    assert _packed_qk_norm_rope_table(cos, sin, torch.float16) is None  # non-bf16 activations
 
 
 @pytest.mark.skipif(not torch.cuda.is_available(), reason="CUDA required")
