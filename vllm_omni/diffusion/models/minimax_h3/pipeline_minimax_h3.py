@@ -2995,7 +2995,7 @@ class MiniMaxH3Pipeline(
                 _STEP_SHAPE: {
                     "height": context["height"],
                     "width": context["width"],
-                    "fps": context["fps"],
+                    "fps": context.get("fps", MINIMAX_H3_FPS),
                     "latent_t": context["latent_t"],
                     "latent_h": context["latent_h"],
                     "latent_w": context["latent_w"],
@@ -3194,7 +3194,7 @@ class MiniMaxH3Pipeline(
                 audio_latent,
                 height=shape["height"],
                 width=shape["width"],
-                fps=shape["fps"],
+                fps=shape.get("fps", MINIMAX_H3_FPS),
                 use_chunked_cpu_mp4=getattr(
                     self,
                     "_chunked_cpu_mp4_output_enabled",
