@@ -65,6 +65,39 @@ def _make_update(prompt_token_ids: list[int] | None = None) -> StreamingUpdate:
     )
 
 
+def _make_minicpm_window_update(
+    *,
+    seq: int,
+    mode: str,
+    high: int = 15,
+    low: int = 10,
+    context_max_units: int = 1,
+) -> StreamingUpdate:
+    update = _make_update([0] * 8)
+    update.model_intermediate_buffer = {
+        "duplex": {
+            "data_plane": True,
+            "seq": seq,
+            "runtime_config": {
+                "duplex_scheduler_token_id": 0,
+                "duplex_first_append_context_tokens": 3,
+                "duplex_window_prefix_tokens": 2,
+                "duplex_window_suffix_token_ids": [3],
+                "duplex_window_previous_marker_token_ids": [70, 71],
+                "duplex_window_special_token_ids": [99],
+                "duplex_window_config": {
+                    "sliding_window_mode": mode,
+                    "basic_window_high_tokens": high,
+                    "basic_window_low_tokens": low,
+                    "context_previous_max_tokens": 4,
+                    "context_max_units": context_max_units,
+                },
+            },
+        }
+    }
+    return update
+
+
 def _make_talker_adapter(
     *,
     max_model_len: int = 100,
@@ -504,6 +537,67 @@ def test_stage0_streaming_update_keeps_all_computed_tokens_without_placeholder()
     assert session._output_token_ids == []
     assert session.num_prompt_tokens == 8
     assert sched._new_prompt_len_snapshot[session.request_id] == 2
+
+
+def test_stage0_basic_window_rebuilds_below_low_watermark() -> None:
+    sched = _make_scheduler(stage_id=0)
+    session = _make_request()
+    session.prompt_token_ids = [0] * 9
+    session._all_token_ids.clear()
+    session._all_token_ids.extend(session.prompt_token_ids)
+    session.num_prompt_tokens = 9
+    session.append_output_token_ids([40])
+    session.num_computed_tokens = 10
+    session.status = RequestStatus.WAITING_FOR_STREAMING_REQ
+    update = _make_minicpm_window_update(seq=2, mode="basic")
+
+    sched._update_request_as_session(session, update)
+
+    assert session.prompt_token_ids == [0] * 9
+    assert session.num_computed_tokens == 0
+    assert update.model_intermediate_buffer["meta"]["replace_streaming_prompt"] is True
+    plan = update.model_intermediate_buffer["duplex"]["stage0_window"]
+    assert plan == {
+        "completed_token_ids": [40],
+        "replace": True,
+        "mode": "basic",
+        "drop_units": 1,
+        "dropped_tokens": 9,
+        "previous_token_ids": [],
+        "replacement_prompt_len": 9,
+    }
+    sched._free_request_blocks.assert_called_once_with(session)
+
+
+def test_stage0_context_window_compacts_dropped_speech() -> None:
+    sched = _make_scheduler(stage_id=0)
+    session = _make_request()
+    session.prompt_token_ids = [0] * 9
+    session._all_token_ids.clear()
+    session._all_token_ids.extend(session.prompt_token_ids)
+    session.num_prompt_tokens = 9
+    session.append_output_token_ids([40])
+    session.num_computed_tokens = 10
+    session.status = RequestStatus.WAITING_FOR_STREAMING_REQ
+
+    first = _make_minicpm_window_update(seq=2, mode="context")
+    sched._update_request_as_session(session, first)
+    assert session.num_prompt_tokens == 18
+    assert first.model_intermediate_buffer["duplex"]["stage0_window"] == {"completed_token_ids": [40]}
+
+    session.append_output_token_ids([50])
+    session.num_computed_tokens = 19
+    session.status = RequestStatus.WAITING_FOR_STREAMING_REQ
+    second = _make_minicpm_window_update(seq=3, mode="context")
+    sched._update_request_as_session(session, second)
+
+    assert session.prompt_token_ids == [0] * 21
+    plan = second.model_intermediate_buffer["duplex"]["stage0_window"]
+    assert plan["completed_token_ids"] == [50]
+    assert plan["drop_units"] == 1
+    assert plan["previous_token_ids"] == [40]
+    assert plan["replacement_prompt_len"] == 21
+    assert getattr(session, "_minicpmo45_window_previous_len") == 3
 
 
 def test_explicit_streaming_payload_replaces_placeholder_prompt() -> None:

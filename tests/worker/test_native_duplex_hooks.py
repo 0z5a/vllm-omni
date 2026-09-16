@@ -848,6 +848,104 @@ def test_minicpmo_stage0_data_plane_prefill_matches_official_unit_format():
     assert result["prompt_suffix_len"] == 0
 
 
+def test_minicpmo_stage0_basic_window_rebuilds_from_retained_units():
+    from vllm_omni.model_executor.models.minicpmo_4_5.duplex.stage0 import (
+        _MiniCPMO45Stage0SessionState,
+    )
+
+    runtime = _stage0_vision_runtime()
+    state = _MiniCPMO45Stage0SessionState(session_id="sid-stage0-basic-window")
+    first = runtime._stage_prefill_embeddings_only(state, np.zeros(4, dtype=np.float32), seq=1)
+    assert first["input_token_ids"] == [1, 11]
+    state.pending_window_generated_tokens.append(5)
+    state.pending_terminator_token = 3
+
+    rebuilt = runtime._stage_prefill_embeddings_only(
+        state,
+        np.zeros(4, dtype=np.float32),
+        seq=2,
+        stage0_window={
+            "replace": True,
+            "mode": "basic",
+            "drop_units": 1,
+            "replacement_prompt_len": 2,
+        },
+    )
+
+    assert rebuilt["stage0_window_replaced"] is True
+    assert rebuilt["input_token_ids"] == [1, 11]
+    assert state.window_units == []
+
+
+def test_minicpmo_stage0_context_window_inserts_previous_before_suffix():
+    from vllm_omni.model_executor.models.minicpmo_4_5.duplex.stage0 import (
+        _MiniCPMO45Stage0SessionState,
+    )
+
+    runtime = _stage0_vision_runtime()
+    state = _MiniCPMO45Stage0SessionState(session_id="sid-stage0-context-window")
+    prefix = runtime._embed_token(200)
+    suffix = runtime._embed_token(202)
+    state.context_embeds = [prefix, suffix]
+    state.context_token_ids = [200, 202]
+    state.context_prefix_embeds = [prefix]
+    state.context_prefix_token_ids = [200]
+    state.context_suffix_embeds = [suffix]
+    state.context_suffix_token_ids = [202]
+    first = runtime._stage_prefill_embeddings_only(state, np.zeros(4, dtype=np.float32), seq=1)
+    assert first["input_token_ids"] == [200, 202, 1, 11]
+    state.pending_window_generated_tokens.append(42)
+    state.pending_terminator_token = 3
+
+    rebuilt = runtime._stage_prefill_embeddings_only(
+        state,
+        np.zeros(4, dtype=np.float32),
+        seq=2,
+        stage0_window={
+            "replace": True,
+            "mode": "context",
+            "drop_units": 1,
+            "previous_token_ids": [42],
+            "replacement_prompt_len": 7,
+        },
+    )
+
+    assert rebuilt["input_token_ids"] == [200, 201, 5, 42, 202, 1, 11]
+    assert rebuilt["num_input_tokens"] == 7
+
+
+def test_minicpmo_stage0_window_uses_accepted_output_not_async_sampler_history():
+    from vllm_omni.model_executor.models.minicpmo_4_5.duplex.stage0 import (
+        _MiniCPMO45Stage0SessionState,
+    )
+
+    runtime = _stage0_vision_runtime()
+    runtime._stage_audio_embeddings = lambda *args, **kwargs: torch.zeros((10, 2))
+    state = _MiniCPMO45Stage0SessionState(session_id="sid-accepted-window")
+    state.context_prefix_token_ids = [200] * 7
+    state.context_suffix_token_ids = [202]
+    state.context_token_ids = [*state.context_prefix_token_ids, 202]
+    state.context_prefix_embeds = [runtime._embed_token(token_id) for token_id in state.context_prefix_token_ids]
+    state.context_suffix_embeds = [runtime._embed_token(202)]
+    state.context_embeds = [*state.context_prefix_embeds, *state.context_suffix_embeds]
+    runtime._stage_prefill_embeddings_only(state, np.zeros(4, dtype=np.float32), seq=1)
+    for seq in (2, 3):
+        state.pending_window_generated_tokens = [3, 40, 41]
+        state.pending_terminator_token = 3
+        plan = {"completed_token_ids": []}
+        if seq == 3:
+            plan.update(replace=True, mode="context", drop_units=1, replacement_prompt_len=32)
+        result = runtime._stage_prefill_embeddings_only(
+            state, np.zeros(4, dtype=np.float32), seq=seq, stage0_window=plan
+        )
+
+    assert result["num_input_tokens"] == 32
+    assert [len(unit.token_ids) for unit in state.window_units] == [13]
+    assert len(state.pending_window_unit.token_ids) == 11
+    assert 40 not in result["input_token_ids"]
+    assert 41 not in result["input_token_ids"]
+
+
 def _stage0_vision_runtime():
     import torch
 

@@ -45,7 +45,10 @@ from vllm_omni.model_executor.models.minicpmo_4_5.duplex.data_plane import (
     MiniCPMO45DataPlaneContext,
     MiniCPMO45DataPlaneSession,
 )
-from vllm_omni.model_executor.models.minicpmo_4_5.duplex.policy import MiniCPMO45DuplexPolicy
+from vllm_omni.model_executor.models.minicpmo_4_5.duplex.policy import (
+    MiniCPMO45DuplexPolicy,
+    MiniCPMO45DuplexWindowConfig,
+)
 from vllm_omni.model_executor.models.minicpmo_4_5.duplex.session import (
     MiniCPMO45ServingSessionState,
 )
@@ -75,6 +78,11 @@ PRIVATE_RUNTIME_CONFIG_KEYS = frozenset(
         "ref_audio_format",
         "ref_audio_sample_rate_hz",
         "initial_user_text",
+        "duplex_window_config",
+        "duplex_window_prefix_tokens",
+        "duplex_window_suffix_token_ids",
+        "duplex_window_previous_marker_token_ids",
+        "duplex_window_special_token_ids",
     }
 )
 
@@ -194,8 +202,8 @@ def build_duplex_data_plane_prompt(
             token_budget = context_reserve + first_units * 12 - 1 + _duplex_vision_tokens(payload)
     if seq > 1 and duplex_payload_is_exact_chunks(payload):
         token_budget += 1
-    if final and duplex_payload_is_exact_chunks(payload):
-        token_budget += 12
+        # Serving already pads the final residual audio. Stage0 does not
+        # append another silent unit, so final must not reserve extra slots.
     extra_body = session_config.get("extra_body")
     raw_token_id = runtime_config.get("duplex_scheduler_token_id")
     try:
@@ -464,6 +472,16 @@ def _apply_first_append_context_tokens(
         return
     ref_tokens = MiniCPMO45DuplexPolicy.audio_token_count(ref_sample_count or 0)
     runtime_config["duplex_first_append_context_tokens"] = len(prefix_ids) + ref_tokens + len(suffix_ids)
+    runtime_config["duplex_window_prefix_tokens"] = len(prefix_ids) + ref_tokens
+    runtime_config["duplex_window_suffix_token_ids"] = [int(token_id) for token_id in suffix_ids]
+    marker_ids = tokenizer.encode("\n\nprevious: ", add_special_tokens=False)
+    runtime_config["duplex_window_previous_marker_token_ids"] = [int(token_id) for token_id in marker_ids]
+    runtime_config["duplex_window_special_token_ids"] = sorted(
+        MiniCPMO45DuplexPolicy.native_special_token_ids(
+            MiniCPMO45DuplexPolicy.token_ids_from_tokenizer(tokenizer),
+            tokenizer_special_ids=list(getattr(tokenizer, "all_special_ids", ()) or ()),
+        )
+    )
 
 
 def _apply_default_scheduler_policy(
@@ -645,6 +663,8 @@ class MiniCPMO45DuplexPlugin(DuplexModelPlugin):
                 code="unsupported_ref_audio_path",
             )
         runtime_config: dict[str, object] = {"instructions": config.instructions}
+        window_config = self._pop_window_config(extra_body) or MiniCPMO45DuplexWindowConfig()
+        runtime_config["duplex_window_config"] = window_config.as_dict()
         # ``duplex_initial_user_text`` is the older extra_body spelling and
         # still works; the session field is the framework-level one.
         initial_user_text = extra_body.pop("duplex_initial_user_text", None)
@@ -711,6 +731,17 @@ class MiniCPMO45DuplexPlugin(DuplexModelPlugin):
         current: Mapping[str, object],
     ) -> dict[str, object]:
         runtime_config = deepcopy(dict(current))
+        extra_body = dict(config.extra_body)
+        requested_window = self._pop_window_config(extra_body)
+        if requested_window is not None:
+            reject_changed_runtime_value(
+                requested_window.as_dict(),
+                runtime_config.get("duplex_window_config"),
+                message="sliding-window configuration cannot be changed after the session is created",
+                code="sliding_window_update_unsupported",
+                error_cls=MiniCPMO45ClientRuntimeConfigError,
+            )
+        config.extra_body = extra_body
         reject_changed_runtime_value(
             config.instructions,
             runtime_config.get("instructions"),
@@ -734,6 +765,23 @@ class MiniCPMO45DuplexPlugin(DuplexModelPlugin):
         stage_sampling["0"] = stage0
         runtime_config["duplex_stage_sampling_params"] = stage_sampling
         return runtime_config
+
+    @staticmethod
+    def _pop_window_config(extra_body: dict[str, object]) -> MiniCPMO45DuplexWindowConfig | None:
+        names = (
+            "sliding_window_mode",
+            "basic_window_high_tokens",
+            "basic_window_low_tokens",
+            "context_previous_max_tokens",
+            "context_max_units",
+        )
+        provided = {name: extra_body.pop(name) for name in names if name in extra_body}
+        if not provided:
+            return None
+        try:
+            return MiniCPMO45DuplexWindowConfig.from_mapping(provided)
+        except ValueError as exc:
+            raise MiniCPMO45ClientRuntimeConfigError(str(exc), code="invalid_sliding_window_config") from exc
 
     def data_plane_context(
         self,
