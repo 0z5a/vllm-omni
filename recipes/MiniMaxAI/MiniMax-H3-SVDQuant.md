@@ -77,7 +77,10 @@ Sample device-wide memory externally and report worker allocator peaks as
 separate measurements. A 96 GB card with a measured peak below 32 GiB is
 preliminary capacity evidence; it does not prove execution on the 32 GB card.
 
-Native fusion of the NVFP4 GEMM and rank correction remains owned by the
-independent FlashInfer optimization. This recipe retains the compatibility
-kernel registry path until that implementation has independent correctness
-and production-shape evidence.
+The exported checkpoint defaults to the compatibility kernel registry path.
+The opt-in `linear_backend: "flashinfer"` metadata entry uses the independently
+reviewed native fused rank correction through FlashInfer's public API. See
+[runtime support](../../docs/user_guide/quantization/svdquant.md#runtime-support)
+for API and shape requirements. Changing this entry changes the execution path,
+so repeat model correctness and E2E validation for that variant. The text encoder
+remains W4A16 and keeps its own compatibility metadata.
