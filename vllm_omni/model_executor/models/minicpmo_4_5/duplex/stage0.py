@@ -47,6 +47,7 @@ class _MiniCPMO45Stage0SessionState:
     context_suffix_embeds: list[Any] = field(default_factory=list)
     context_suffix_token_ids: list[int] = field(default_factory=list)
     window_units: list[_MiniCPMO45WindowUnit] = field(default_factory=list)
+    window_enabled: bool = False
     pending_window_unit: _MiniCPMO45WindowUnit | None = None
     pending_window_generated_tokens: list[int] = field(default_factory=list)
     current_turn_ended: bool = True
@@ -155,6 +156,11 @@ class MiniCPMO45Stage0DuplexRuntime:
         *,
         runtime_config: dict[str, object] | None = None,
     ) -> None:
+        window_config = (runtime_config or {}).get("duplex_window_config")
+        state.window_enabled = isinstance(window_config, dict) and window_config.get("sliding_window_mode", "off") in {
+            "basic",
+            "context",
+        }
         if not self._stage_runtime_ready():
             return
         self._require_special_token_ids()
@@ -321,7 +327,14 @@ class MiniCPMO45Stage0DuplexRuntime:
                 embed_parts.append(self._embed_token(self.unit_end_token_id))
                 token_ids.append(self.unit_end_token_id)
                 closure_token_ids.append(self.unit_end_token_id)
-                self._finalize_window_unit(state, closure_token_ids)
+                if units_built == 0:
+                    self._finalize_window_unit(state, closure_token_ids)
+                elif state.pending_window_unit is not None:
+                    # Internal processor chunks belong to this same append.
+                    state.pending_window_unit.embeds.extend(
+                        self._embed_token(token_id) for token_id in closure_token_ids
+                    )
+                    state.pending_window_unit.token_ids.extend(closure_token_ids)
             unit_embed_start = len(embed_parts)
             unit_token_start = len(token_ids)
             embed_parts.append(self._embed_token(self.unit_token_id))
@@ -350,10 +363,11 @@ class MiniCPMO45Stage0DuplexRuntime:
             state.audio_buffer = state.audio_buffer[consumed_samples:]
             state.audio_chunk_idx += 1
             units_built += 1
-            state.pending_window_unit = _MiniCPMO45WindowUnit(
-                embeds=list(embed_parts[unit_embed_start:]),
-                token_ids=list(token_ids[unit_token_start:]),
-            )
+            if state.window_enabled:
+                if state.pending_window_unit is None:
+                    state.pending_window_unit = _MiniCPMO45WindowUnit()
+                state.pending_window_unit.embeds.extend(embed_parts[unit_embed_start:])
+                state.pending_window_unit.token_ids.extend(token_ids[unit_token_start:])
             chunk_size = self._streaming_chunk_size(processor)
         # Match official streaming_prefill: per chunk feed ONLY <unit>+audio. The assistant
         # turn is opened once at session init; re-emitting the turn-open prefix per chunk
@@ -397,7 +411,8 @@ class MiniCPMO45Stage0DuplexRuntime:
         closure_token_ids: list[int],
     ) -> None:
         pending = state.pending_window_unit
-        if pending is None:
+        if not state.window_enabled or pending is None:
+            state.pending_window_unit = None
             state.pending_window_generated_tokens.clear()
             return
         generated = list(state.pending_window_generated_tokens)

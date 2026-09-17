@@ -21,6 +21,7 @@ async def run_window_turn(
     ref_audio: Path | None = None,
     repeats: int = 2,
     video_frames: list[str] | None = None,
+    buffered_flush: bool = False,
     timeout_s: float = 240.0,
 ) -> dict[str, object]:
     """Use aggressive limits to exercise multiple windows in one audio turn."""
@@ -52,8 +53,8 @@ async def run_window_turn(
         try:
             frames_sent = await client.stream_pcm(
                 pcm,
-                chunk_ms=200,
-                realtime=True,
+                chunk_ms=2500 if buffered_flush else 200,
+                realtime=not buffered_flush,
                 is_speech=True,
                 video_frames=video_frames,
             )

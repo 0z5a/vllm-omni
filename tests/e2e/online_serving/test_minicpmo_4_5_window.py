@@ -65,6 +65,24 @@ def test_window_continuous_input(omni_server, tmp_path, mode, camera):
         )
     )
     _assert_complete(result, require_audio=True)
-    assert result["input_seconds"] > 120
+    assert isinstance(result["input_seconds"], (int, float)) and result["input_seconds"] > 120
     if camera:
-        assert result["frames_sent"] >= 120
+        assert isinstance(result["frames_sent"], int) and result["frames_sent"] >= 120
+
+
+@hardware_test(res={"cuda": "H100", "npu": "A3"}, num_cards=1)
+@pytest.mark.parametrize("omni_server", SERVER_PARAMS, indirect=True)
+@pytest.mark.parametrize("mode", ["off", "basic", "context"])
+def test_window_buffered_flush(omni_server, mode):
+    # Burst appends cross processor chunk boundaries and leave a final tail.
+    result = asyncio.run(
+        run_window_turn(
+            url=realtime_url(omni_server),
+            model=omni_server.model,
+            input_wav=validated_input_wav(),
+            mode=mode,
+            ref_audio=resolve_ref_audio(),
+            buffered_flush=True,
+        )
+    )
+    _assert_complete(result, require_audio=True)
