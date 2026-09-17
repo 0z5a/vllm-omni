@@ -7,23 +7,21 @@ partitions the video tokens into 3D windows and attends only inside a window.
 The window size is normalised against a fixed 720p reference area, so raising the
 output resolution grows the *number* of windows, never their size.
 
-Ulysses redistributes the sequence and head dimensions around attention.
-For SeedVR2, window-aligned SP offers a different communication tradeoff: one
-hidden-state exchange per layout boundary versus Q/K/V and output exchanges
-for Ulysses. The actual performance crossover requires measurement.
+Ulysses sequence parallelism exists to make global attention tractable by
+all-to-all'ing the head dimension; with window-local attention there is nothing
+to rescue and two activation-sized all-to-alls per layer would be pure overhead.
 Window-aligned SP instead assigns **whole windows** to ranks:
 
 * every rank keeps **all** attention heads, so no head-count divisibility is
   required,
 * attention inside a layer needs **zero** communication,
-* regular and shifted layouts alternate at every layer, so the released
-  32-layer model has 31 inter-layer transitions, plus one text reduction per
-  layer and a final video gather. A transition can be a local permutation
-  when ownership does not change.
+* the only communication is the re-shard between consecutive layers whose window
+  layouts differ (regular <-> shifted), plus one small reduction per
+  text-producing layer.
 
 ## Window layouts
 
-`nadit.py` ports the reference windowing verbatim (Apache-2.0,
+`window_geometry.py` ports the reference windowing verbatim (Apache-2.0,
 ByteDance SeedVR2). For a post-patch token grid `(T, H, W)`:
 
 ```text
@@ -55,7 +53,7 @@ Consequences that matter (all verified against the reference):
 
 ## Planner
 
-`nadit.py` implements a deterministic LPT assignment:
+`window_sp.py` implements a deterministic LPT assignment:
 
 ```text
 windows sorted by (-video_token_count, original_window_id)
@@ -83,7 +81,7 @@ by each rank and `C[r, d]` the number of rows rank `d` needs from rank `r`:
   skips the collective alone.
 
 The runtime is a variable-split `torch.distributed.all_to_all_single` over an
-regular SP process group (`get_sp_group().device_group`), plus a local-permutation fast
+explicit process group (`window_parallel_size`), plus a local-permutation fast
 path when the whole group stays in place (which is the SP=1 case). The first
 version is deliberately synchronous: no extra streams, no per-layer
 `cuda.synchronize()` or barrier "fixups", and no hidden all-gather.
@@ -104,21 +102,15 @@ window contributes a zero tensor (with the *same dtype as its peers* -- a dtype
 mismatch changes the collective and deadlocks NCCL, which is why the empty-rank
 path is covered by a GPU test).
 
-## Existing SP configuration
+## Framework changes
 
-Configure `ulysses_degree=N` to create the existing N-rank SP group. Pass
-`DiffusionParallelConfig` to `SeedVR2NaDiT.build_runtime(parallel_config=...)`;
-the model validates the configuration and obtains `get_sp_group().device_group`.
-This adds no framework parallel option or group-construction branch.
-
-For SeedVR2 this selects **window-aligned Plan A**, not head-sharded Ulysses.
-Every rank retains all 20 attention heads, so SP=8 does not require the head
-count to divide by eight. The model has no `_sp_plan`, and its attention uses
-`skip_sequence_parallel=True`; generic sequence hooks and Ulysses attention
-exchanges are not installed. Reports name the actual execution path explicitly.
-
-SeedVR2 rejects ring, allgather, `advanced_uaa`, and `ulysses_a2a_permute`.
-Other diffusion models keep their existing Ulysses/Ring/AllGather behavior.
+Window-aligned SP is exposed as `window_parallel_size` in
+`DiffusionParallelConfig`. It is mutually exclusive with
+`ulysses_degree` / `ring_degree` / `allgather_degree`: the window group is the SP
+group itself and the Ulysses / Ring / AllGather subgroups are degenerate
+singletons, so no legacy accessor can mistake a window-SP run for a Ulysses run.
+Everything else is SeedVR2-local (planner, routing, model integration), matching
+the maintainer guidance on #7723 to keep the framework surface minimal.
 
 ## SeedVR2 integration
 
@@ -148,39 +140,25 @@ grouped-SDPA fallback for backends without a packed-varlen entry point).
 * The rotary span is `3 * (rope_dim // 3)` (126 of 128 channels for the 3B), so
   the last two channels pass through unrotated.
 
-## Checkpoint compatibility
+## Validation
 
-The parameter layout of the port mirrors the reference, with one explicit
-exception: the released checkpoint stores the per-block RoPE table as
-`blocks.<i>.attn.rope.rope.freqs`, while this port registers it as
-`blocks.<i>.attn.rope.freqs`. The validation loader normalizes exactly that
-suffix (and only that suffix); every other key must already match.
+| Layer | What it proves |
+|---|---|
+| CPU (`test_window_sp_plan.py`) | geometry parity against an independent windowing implementation, partition coverage, planner determinism/LPT oracle, A->B and B->A routing, round trips, empty ranks, metadata bounds, cache keys |
+| GPU transport (`window_sp_worker.py --case transport`) | the real `all_to_all_single` moves rows bit-exactly through all 31 schedule transitions at SP=2/4, including ranks without windows |
+| GPU toy block (`--case toy-block`) | four layers `A -> B -> A -> B` of joint video+text window attention plus the global text mean match a single-rank oracle to float64 round-off |
+| Real model (`--case seedvr2`) | the released 3B checkpoint: SP=N output matches the SP=1 output of the same port within the frozen fixture tolerance, with per-rank memory and timing recorded |
 
-> The validation loader explicitly normalizes the reference RoPE buffer suffix
-> from `.rope.rope.freqs` to `.rope.freqs`. Checkpoint validation fails on any
-> remaining missing or unexpected key after normalization.
-
-Normalization is restricted and collision-checked: a key that is already
-normalized is left untouched, and two source keys mapping onto the same target
-key raise instead of silently overwriting a tensor. Loading then fails on any
-remaining missing, unexpected or shape-mismatched key, so a checkpoint that does
-not match the port cannot reach inference. Full 32-layer loading is the
-acceptance path; truncating the block list is a development fixture and requires
-an explicit flag.
-
-The native serving loader applies the same suffix normalization and strict
-checkpoint check.
-
-## Integration limits
-
-The native serving pipeline passes its parallel configuration to the DiT runtime
-and returns restored video through the standard media path. The causal VAE can
-run replicated, tiled, or height-sharded across the window-SP group.
+`benchmarks/diffusion/benchmark_window_sp.py` reports the doc-level timing and
+traffic breakdown (plan build, transitions, all-to-all, text reduction, peak
+memory per rank).
 
 ## Limitations
 
-* Plan A re-shards the full activation at every layout boundary. Plan B halo
-  exchange is a follow-up with a separate crossover evaluation.
+* Plan A only: every layout boundary re-shards the full activation. Plan B
+  (halo exchange) is a follow-up and is expected to win at large sizes.
+* The SeedVR2 VAE and the serving surface are P0 scope (#7723); this change
+  carries the DiT and the SP path.
 * The packed-varlen attention kernel needs a backend that accepts
   `cu_seqlens`; the grouped-SDPA path is the portable fallback and is what the
   pinned L20 environment exercises.
