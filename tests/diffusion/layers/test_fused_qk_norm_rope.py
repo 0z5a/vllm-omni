@@ -468,3 +468,23 @@ def test_fused_ops_bitwise_under_torch_compile_and_cuda_graph():
         graph.replay()
         torch.accelerator.synchronize()
         check(static_out, expected)
+
+
+def test_pack_qk_norm_rope_table_identity_rows(monkeypatch):
+    """``identity_rows`` appends ``cos = 1, sin = 0`` rows after the rotated
+    rows (per batch element) and counts toward the token gate."""
+    from vllm_omni.diffusion.layers import fused_qk_norm_rope as mod
+
+    monkeypatch.setattr(mod, "fused_qk_norm_rope_available", lambda *a, **k: True)
+    monkeypatch.delenv("VLLM_OMNI_FUSED_QK_NORM_ROPE_MIN_TOKENS", raising=False)
+    cos, sin = torch.randn(5, 4), torch.randn(5, 4)
+    table = mod.pack_qk_norm_rope_table(cos, sin, 2, dtype=torch.bfloat16, min_tokens=0, identity_rows=3)
+    assert table is not None and table.shape == (2 * 8, 8) and table.dtype == torch.bfloat16
+    per_batch = table.view(2, 8, 8)
+    assert torch.equal(per_batch[0], per_batch[1])
+    assert torch.equal(per_batch[0, :5], torch.cat((cos, sin), dim=-1).to(torch.bfloat16))
+    assert torch.equal(per_batch[0, 5:, :4], torch.ones(3, 4, dtype=torch.bfloat16))
+    assert torch.equal(per_batch[0, 5:, 4:], torch.zeros(3, 4, dtype=torch.bfloat16))
+    # Identity rows count toward the gate: 2 * (5 + 3) = 16 tokens.
+    assert mod.pack_qk_norm_rope_table(cos, sin, 2, dtype=torch.bfloat16, min_tokens=17, identity_rows=3) is None
+    assert mod.pack_qk_norm_rope_table(cos, sin, 2, dtype=torch.bfloat16, min_tokens=16, identity_rows=3) is not None

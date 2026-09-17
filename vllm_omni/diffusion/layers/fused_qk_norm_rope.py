@@ -1124,16 +1124,22 @@ def pack_qk_norm_rope_table(
     activation_dtype: torch.dtype | None = None,
     head_dim: int | None = None,
     sequence_parallel_size: int | None = None,
+    identity_rows: int = 0,
 ) -> torch.Tensor | None:
     """Pack theta-width ``cos``/``sin`` ``[S, D/2]`` (shared by the batch) into
     the ``[B*S, D] = [cos | sin]`` table the fused ops index by flattened
-    token, in ``dtype``. Returns ``None`` — so every attention site keeps its
-    eager chain for that forward and nothing is allocated — when the fused
-    CUDA kernel would not run for activations of ``activation_dtype``
-    (defaults to ``dtype``) on this device/geometry, when ``B*S`` is below
-    the consumer's token gate (``fused_qk_norm_rope_min_tokens(min_tokens)``),
-    or under sequence parallelism (``sequence_parallel_size > 1``: RoPE is
-    then applied per stream/shard and the consumer keeps its eager chain)."""
+    token, in ``dtype``. ``identity_rows`` extra rows with the identity
+    rotation (``cos = 1``, ``sin = 0``, applied exactly by the kernels) are
+    appended after the ``S`` rotated rows, for a trailing stream whose tokens
+    are normalised but not rotated (HunyuanVideo's text tokens); ``S`` then
+    counts ``S + identity_rows`` positions. Returns ``None`` — so every
+    attention site keeps its eager chain for that forward and nothing is
+    allocated — when the fused CUDA kernel would not run for activations of
+    ``activation_dtype`` (defaults to ``dtype``) on this device/geometry, when
+    ``B*S`` is below the consumer's token gate
+    (``fused_qk_norm_rope_min_tokens(min_tokens)``), or under sequence
+    parallelism (``sequence_parallel_size > 1``: RoPE is then applied per
+    stream/shard and the consumer keeps its eager chain)."""
     if sequence_parallel_size is not None and sequence_parallel_size > 1:
         return None
     rotary_dim = 2 * cos.shape[-1]
@@ -1141,10 +1147,14 @@ def pack_qk_norm_rope_table(
         cos.device, activation_dtype or dtype, head_dim if head_dim is not None else rotary_dim, rotary_dim
     ):
         return None
-    tokens = batch_size * cos.shape[0]
+    tokens = batch_size * (cos.shape[0] + identity_rows)
     if tokens < fused_qk_norm_rope_min_tokens(min_tokens):
         return None
     table = torch.cat((cos, sin), dim=-1).to(dtype)
+    if identity_rows:
+        half = cos.shape[-1]
+        identity = torch.cat((table.new_ones((identity_rows, half)), table.new_zeros((identity_rows, half))), dim=-1)
+        table = torch.cat((table, identity), dim=0)
     if batch_size > 1:
         table = table.unsqueeze(0).expand(batch_size, -1, -1).reshape(tokens, -1)
     return table
