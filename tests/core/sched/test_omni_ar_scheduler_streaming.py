@@ -636,17 +636,17 @@ def test_stage0_window_uses_confirmed_span_and_terminator(cleared_outputs, in_fl
 def test_stage0_window_rebuild_that_overflows_max_model_len_finishes_the_session() -> None:
     """A rebuilt window prompt is bounded by the client's window settings, not
     by the model: a unit carrying camera frames is hundreds of tokens, and a
-    ``context`` window adds the ``previous`` region on top. When that exceeds
-    ``max_model_len`` the replacement branch must finish the session with the
-    same explicit overflow error as a plain extension, not hand an
-    over-long prompt to the worker."""
-    sched = _make_live_session_scheduler(max_model_len=25)
+    ``context`` window adds the ``previous`` region on top. The replacement
+    branch must therefore check ``replacement_prompt_len`` against
+    ``max_model_len - sample_room`` and finish the session with
+    ``context_length_exceeded``, exactly like a plain extension."""
+    sched = _make_live_session_scheduler(max_model_len=21)
     session = _make_request()
     session.prompt_token_ids = [0] * 9
     session._all_token_ids[:] = [0] * 9
+    session.num_prompt_tokens = 9
     session._output_token_ids[:] = [40]
     session._all_token_ids.append(40)
-    session.num_prompt_tokens = 9
     session.num_computed_tokens = 10
     session.num_output_placeholders = 0
     _park_session(sched, session)
@@ -656,15 +656,16 @@ def test_stage0_window_rebuild_that_overflows_max_model_len_finishes_the_session
     session._all_token_ids[:] = [*session.prompt_token_ids, 40]
     session.num_computed_tokens = 10
     session.num_in_flight_tokens = 0
+    sched.num_sampled_tokens_per_step = 1
+    # The replacement plan rebuilds 21 tokens (retained context plus the
+    # append) and one step samples one more, so 21 leaves no room.
     update = _make_minicpm_window_update(seq=2, mode="basic")
+    update.prompt_token_ids = [0] * 20
     original_prompt = list(session.prompt_token_ids)
 
     sched._update_request_as_session(session, update)
 
-    # The plan's own length (9 retained context + the 8-slot append + the 2
-    # closure tokens + the append's 6-token window = 25) is the projection,
-    # not the session prompt plus an extension.
-    assert update.model_intermediate_buffer["duplex"]["stage0_window"]["replacement_prompt_len"] == 25
+    assert update.model_intermediate_buffer["duplex"]["stage0_window"]["replacement_prompt_len"] == 21
     assert session.prompt_token_ids == original_prompt
     assert session.num_prompt_tokens == 9
     assert session.status == RequestStatus.FINISHED_ERROR
@@ -674,7 +675,7 @@ def test_stage0_window_rebuild_that_overflows_max_model_len_finishes_the_session
     client_index, reason = sched._streaming_context_overflow[session.request_id]
     assert client_index == session.client_index
     assert reason.startswith("context_length_exceeded: ")
-    assert "25 tokens" in reason and "max_model_len 25" in reason
+    assert "21 tokens" in reason and "max_model_len 21" in reason
 
     engine_core_outputs = _run_idle_step(sched)
 
@@ -688,7 +689,8 @@ def test_stage0_window_rebuild_that_leaves_room_to_sample_replaces_the_prompt() 
     """One slot above the plan fits: the replacement applies through the normal
     replacement path."""
     sched = _make_scheduler(stage_id=0)
-    sched.max_model_len = 26
+    sched.max_model_len = 25
+    sched.num_sampled_tokens_per_step = 1
     session = _make_request()
     session.prompt_token_ids = [0] * 9
     session._all_token_ids[:] = session.prompt_token_ids
@@ -698,12 +700,15 @@ def test_stage0_window_rebuild_that_leaves_room_to_sample_replaces_the_prompt() 
     session.num_output_placeholders = 0
     session.status = RequestStatus.WAITING_FOR_STREAMING_REQ
     update = _make_minicpm_window_update(seq=2, mode="basic")
+    update.prompt_token_ids = [0] * 20
 
     sched._update_request_as_session(session, update)
 
-    assert session.prompt_token_ids == [0] * 25
     assert update.model_intermediate_buffer["meta"]["replace_streaming_prompt"] is True
-    assert update.model_intermediate_buffer["duplex"]["stage0_window"]["replacement_prompt_len"] == 25
+    assert update.model_intermediate_buffer["duplex"]["stage0_window"]["replacement_prompt_len"] == 21
+    assert session.prompt_token_ids == [0] * 21
+    assert session.num_prompt_tokens == 21
+    assert session.num_computed_tokens == 0
     assert session.status == RequestStatus.WAITING
     sched._free_request_blocks.assert_called_once_with(session)
     assert not getattr(sched, "_streaming_context_overflow", {})
@@ -714,28 +719,46 @@ def test_stage0_window_open_start_zero_is_not_replaced_by_the_context_reserve() 
     fallback must be an explicit ``is None`` check: treating 0 as missing
     substitutes the context reserve, counts the suffix twice, and the worker's
     rebuild-length check raises on the first replacement."""
-    session = SimpleNamespace(num_prompt_tokens=9, _minicpmo45_window_open_start=0)
+    session = SimpleNamespace(
+        num_prompt_tokens=9,
+        _all_token_ids=[0] * 9 + [40],
+        num_computed_tokens=10,
+        num_output_placeholders=0,
+        _minicpmo45_window_open_start=0,
+    )
     update = _make_minicpm_window_update(seq=2, mode="basic")
+    update.prompt_token_ids = [0] * 21
 
     assert OmniARScheduler._prepare_minicpmo45_stage0_window(
         session, update, segment_output_ids=[40], completed_terminator=3
     )
 
-    assert session._minicpmo45_window_units == [{"length": 10, "generated_token_ids": [40]}]
-    assert update.model_intermediate_buffer["duplex"]["stage0_window"]["dropped_tokens"] == 10
+    # open_start stays 0, so the reported unit spans the whole 12-token
+    # boundary instead of the 9 the context reserve would fold in.
+    plan = update.model_intermediate_buffer["duplex"]["stage0_window"]
+    assert plan["dropped_tokens"] == 12
+    assert plan["replacement_prompt_len"] == 19
 
 
 def test_stage0_window_open_start_falls_back_to_the_context_reserve_when_unset() -> None:
-    session = SimpleNamespace(num_prompt_tokens=9)
+    session = SimpleNamespace(
+        num_prompt_tokens=9,
+        _all_token_ids=[0] * 9 + [40],
+        num_computed_tokens=10,
+        num_output_placeholders=0,
+    )
     update = _make_minicpm_window_update(seq=2, mode="basic")
+    update.prompt_token_ids = [0] * 21
 
     assert OmniARScheduler._prepare_minicpmo45_stage0_window(
         session, update, segment_output_ids=[40], completed_terminator=3
     )
 
-    # preserve_len 3 from duplex_first_append_context_tokens.
-    assert session._minicpmo45_window_units == [{"length": 8, "generated_token_ids": [40]}]
-    assert update.model_intermediate_buffer["duplex"]["stage0_window"]["dropped_tokens"] == 8
+    # fallback open_start is preserve_len 3 from duplex_first_append_context_tokens,
+    # so the unit is three tokens shorter.
+    plan = update.model_intermediate_buffer["duplex"]["stage0_window"]
+    assert plan["dropped_tokens"] == 9
+    assert plan["replacement_prompt_len"] == 22
 
 
 def test_explicit_streaming_payload_replaces_placeholder_prompt() -> None:
