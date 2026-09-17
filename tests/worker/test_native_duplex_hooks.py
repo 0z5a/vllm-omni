@@ -976,6 +976,7 @@ def test_minicpmo_stage0_context_window_inserts_previous_before_suffix():
             "mode": "context",
             "drop_units": 1,
             "previous_token_ids": [42],
+            "previous_marker_token_ids": [201, 5],
             "replacement_prompt_len": 7,
         },
     )

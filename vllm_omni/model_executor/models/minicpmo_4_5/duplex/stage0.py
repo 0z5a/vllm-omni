@@ -452,7 +452,11 @@ class MiniCPMO45Stage0DuplexRuntime:
             previous = stage0_window.get("previous_token_ids")
             previous_ids = [int(token_id) for token_id in previous] if isinstance(previous, list) else []
             if previous_ids:
-                marker_ids = self._encode_text("\n\nprevious: ")
+                # The plan carries the marker ids the scheduler sized the
+                # `previous` region from. Re-tokenizing here would be a second
+                # source of truth and could disagree with that length.
+                marker = stage0_window.get("previous_marker_token_ids")
+                marker_ids = [int(token_id) for token_id in marker] if isinstance(marker, list) else []
                 embeds.extend(self._embed_token(token_id) for token_id in [*marker_ids, *previous_ids])
                 token_ids.extend(marker_ids)
                 token_ids.extend(previous_ids)
