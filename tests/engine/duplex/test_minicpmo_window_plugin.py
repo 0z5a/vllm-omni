@@ -87,3 +87,31 @@ def test_first_and_final_append_reserve_exact_window_input(seq, samples, expecte
         final=final,
     )
     assert len(prompt["prompt_token_ids"]) == expected
+
+
+@pytest.mark.parametrize("seq", [1, 2, 3])
+def test_final_exact_chunk_append_reserves_one_unit_not_two(seq):
+    """A final append whose audio is already an exact number of chunks must
+    reserve exactly what Stage0 feeds: one unit per chunk (``<unit>`` plus its
+    audio) and the closure pair for every unit after the first. Serving pads
+    the final residual itself, so the old extra 12-slot silent-unit
+    reservation only put 12 pad positions ahead of the audio in the KV."""
+
+    def _budget(*, seq, final):
+        prompt = module.build_duplex_data_plane_prompt(
+            request_id="final-request",
+            fence=DuplexFence("sid", turn_id=1),
+            session_config={},
+            runtime_config={"duplex_first_append_context_tokens": 0},
+            seq=seq,
+            turn_seq=seq,
+            payload={
+                "audio": base64.b64encode(bytes(16000 * 4)).decode(),
+                "format": "pcm_f32le",
+                "sample_rate_hz": 16000,
+            },
+            final=final,
+        )
+        return len(prompt["prompt_token_ids"])
+
+    assert _budget(seq=seq, final=True) == _budget(seq=seq, final=False)
