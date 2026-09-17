@@ -66,6 +66,33 @@ def test_packed_table_uses_row_zero_like_rotary_embedding(monkeypatch):
 
 @pytest.mark.skipif(not torch.cuda.is_available(), reason="CUDA required")
 @pytest.mark.skipif(not HAS_TRITON, reason="Triton required")
+def test_packed_table_is_built_under_sequence_parallelism(monkeypatch):
+    """Sequence parallelism needs no special case: the refiner sites are not
+    parallelized, and at the unified site the packer runs after ``_sp_plan``
+    has sharded ``cos``/``sin``, so it sees this rank's shard — the rows the
+    eager chain would rotate this rank's tokens with."""
+    from vllm_omni.diffusion.data import OmniDiffusionConfig
+    from vllm_omni.diffusion.forward_context import set_forward_context
+    from vllm_omni.diffusion.models.z_image.z_image_transformer import _packed_qk_norm_rope_table
+
+    monkeypatch.delenv("VLLM_OMNI_FUSED_QK_NORM_ROPE_MIN_TOKENS", raising=False)
+    shard = 10  # what this rank holds after _sp_plan splits a 20-token sequence over 2 ranks
+    cos = torch.randn(3, shard, _HEAD_DIM // 2, device="cuda")
+    sin = torch.randn(3, shard, _HEAD_DIM // 2, device="cuda")
+
+    od_config = OmniDiffusionConfig(model=None, parallel_config={"ulysses_degree": 2})
+    assert od_config.parallel_config.sequence_parallel_size == 2
+    with set_forward_context(omni_diffusion_config=od_config):
+        table = _packed_qk_norm_rope_table(cos, sin, torch.bfloat16)
+
+    assert table is not None and table.shape == (3 * shard, _HEAD_DIM)
+    expected = torch.cat((cos[0], sin[0]), dim=-1).to(torch.bfloat16)
+    for b in range(3):
+        assert torch.equal(table[b * shard : (b + 1) * shard], expected)
+
+
+@pytest.mark.skipif(not torch.cuda.is_available(), reason="CUDA required")
+@pytest.mark.skipif(not HAS_TRITON, reason="Triton required")
 def test_z_image_attention_fused_matches_eager(_dist_env):
     from vllm_omni.diffusion.models.z_image.z_image_transformer import ZImageAttention, _packed_qk_norm_rope_table
 

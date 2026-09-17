@@ -631,11 +631,15 @@ def _packed_qk_norm_rope_table(cos: torch.Tensor, sin: torch.Tensor, dtype: torc
     ``[B*S, D]`` table. ``RotaryEmbedding`` applies ``cos[0]``/``sin[0]`` to
     every batch element (see ``_prepare_half_head_dim_cos_sin``), so the
     table repeats row 0 for the batch, in the activation dtype the eager
-    chain casts to. ``None`` under sequence parallelism (cos/sin are sharded
-    and the eager chain is kept) or below the token gate."""
-    od_config = get_forward_context().omni_diffusion_config if is_forward_context_available() else None
-    if od_config is not None and (od_config.parallel_config.sequence_parallel_size or 1) > 1:
-        return None
+    chain casts to. ``None`` below the token gate or on a device/dtype the
+    fused kernel cannot serve.
+
+    Sequence parallelism needs no special case. The refiner sites are not
+    parallelized at all (``_sp_plan`` shards only ``unified_prepare``'s
+    outputs), and at the unified site this runs *after* that sharding, so
+    ``cos``/``sin`` are already this rank's shard — the same coefficients the
+    eager chain would rotate with on this rank.
+    """
     return pack_qk_norm_rope_table(cos[0], sin[0], cos.shape[0], dtype=dtype, min_tokens=_FUSED_MIN_TOKENS)
 
 
