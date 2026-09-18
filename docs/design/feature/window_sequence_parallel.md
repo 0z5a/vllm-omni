@@ -177,6 +177,18 @@ same conversion.
 traffic breakdown (plan build, transitions, all-to-all, text reduction, peak
 memory per rank).
 
+## Integration limits
+
+`window_parallel_size > 1` is reserved for SeedVR2's model-level window-SP path
+in this change. It does not add SeedVR2 serving integration or a model-support
+rejection gate for other diffusion pipelines; other pipelines must leave this
+option at its default of 1. Fail-fast validation for unsupported pipelines is
+deferred to the SeedVR2 serving integration, where the model identity is known
+before expensive work starts.
+
+The default (`window_parallel_size == 1`) and every existing SP configuration are
+unchanged.
+
 ## Limitations
 
 * Plan A only: every layout boundary re-shards the full activation. Plan B
