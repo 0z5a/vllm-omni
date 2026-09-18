@@ -230,24 +230,89 @@ def run_toy_block(args: argparse.Namespace, rank: int, world_size: int) -> Repor
 # ---------------------------------------------------------------------------
 
 
-def _load_port_model(args: argparse.Namespace, device: torch.device, dtype: torch.dtype):
+#: The released checkpoint stores the RoPE table one module deeper than this
+#: port registers it.  The mapping is deliberately restricted to that suffix.
+ROPE_BUFFER_KEY_SUFFIX = ".rope.rope.freqs"
+ROPE_BUFFER_KEY_NORMALIZED = ".rope.freqs"
+
+
+def normalize_reference_state_dict(state: dict, *, num_layers: int | None = None):
+    """Normalize reference checkpoint keys into this port's layout.
+
+    Only the RoPE buffer suffix is rewritten; every other key must already match.
+    Returns ``(normalized_state, stats)`` and raises on a collision instead of
+    silently letting one tensor overwrite another.
+    """
+    normalized: dict = {}
+    stats = {"rope_buffer_keys_normalized": 0, "truncated_block_keys": 0}
+    for key, value in state.items():
+        new_key = key
+        if key.endswith(ROPE_BUFFER_KEY_SUFFIX):
+            new_key = key[: -len(ROPE_BUFFER_KEY_SUFFIX)] + ROPE_BUFFER_KEY_NORMALIZED
+            stats["rope_buffer_keys_normalized"] += 1
+        if num_layers is not None and new_key.startswith("blocks."):
+            index = int(new_key.split(".")[1])
+            if index >= num_layers:
+                stats["truncated_block_keys"] += 1
+                continue
+        if new_key in normalized:
+            raise RuntimeError(
+                f"checkpoint key collision after normalization: {new_key!r} produced by more than one source key"
+            )
+        normalized[new_key] = value
+    return normalized, stats
+
+
+def _load_port_model(
+    args: argparse.Namespace,
+    device: torch.device,
+    dtype: torch.dtype,
+    *,
+    model_factory=None,
+    state_loader=None,
+):
+    """Build the port, load the released checkpoint, and fail on any mismatch.
+
+    ``model_factory`` / ``state_loader`` exist so the checkpoint contract can be
+    unit-tested with a tiny fixture instead of a full 3B model.
+    """
     from safetensors.torch import load_file
 
     from vllm_omni.diffusion.models.seedvr2.nadit import SEEDVR2_3B_CONFIG, SeedVR2NaDiT
 
-    model_kwargs = dict(SEEDVR2_3B_CONFIG)
-    model_kwargs["num_layers"] = args.num_layers
-    model_kwargs["use_varlen_kernel"] = args.varlen
-    model = SeedVR2NaDiT(**model_kwargs)
-    state = load_file(args.ckpt)
-    remapped = {key.replace(".rope.rope.freqs", ".rope.freqs"): value for key, value in state.items()}
-    if args.num_layers != SEEDVR2_3B_CONFIG["num_layers"]:
-        remapped = {
-            k: v for k, v in remapped.items() if not k.startswith("blocks.") or int(k.split(".")[1]) < args.num_layers
-        }
-    missing, unexpected = model.load_state_dict(remapped, strict=False)
+    full_layers = int(SEEDVR2_3B_CONFIG["num_layers"])
+    truncated = args.num_layers != full_layers
+    if truncated and not getattr(args, "allow_truncated_layers", False):
+        raise RuntimeError(
+            f"--num-layers {args.num_layers} != {full_layers}: full-depth loading is the acceptance path. "
+            "Pass --allow-truncated-layers to load a development fixture instead."
+        )
+
+    if model_factory is None:
+
+        def model_factory():
+            model_kwargs = dict(SEEDVR2_3B_CONFIG)
+            model_kwargs["num_layers"] = args.num_layers
+            model_kwargs["use_varlen_kernel"] = args.varlen
+            return SeedVR2NaDiT(**model_kwargs)
+
+    if state_loader is None:
+
+        def state_loader(path: str) -> dict:
+            return load_file(path)
+
+    model = model_factory()
+    state = state_loader(args.ckpt)
+    normalized, stats = normalize_reference_state_dict(state, num_layers=args.num_layers if truncated else None)
+    missing, unexpected = model.load_state_dict(normalized, strict=False)
+    if missing or unexpected:
+        raise RuntimeError(
+            "checkpoint does not match the port: "
+            f"{len(missing)} missing key(s) {list(missing)[:5]}, "
+            f"{len(unexpected)} unexpected key(s) {list(unexpected)[:5]}"
+        )
     model = model.to(device=device, dtype=dtype).eval()
-    return model, missing, unexpected
+    return model, missing, unexpected, stats
 
 
 def run_seedvr2(args: argparse.Namespace, rank: int, world_size: int) -> Report:
@@ -257,9 +322,11 @@ def run_seedvr2(args: argparse.Namespace, rank: int, world_size: int) -> Report:
     device = torch.device("cuda", rank)
     dtype = getattr(torch, args.dtype)
 
-    model, missing, unexpected = _load_port_model(args, device, dtype)
+    model, missing, unexpected, load_stats = _load_port_model(args, device, dtype)
     report.metrics["missing_keys"] = len(missing)
     report.metrics["unexpected_keys"] = len(unexpected)
+    report.metrics["checkpoint_key_normalization"] = load_stats
+    report.metrics["checkpoint_layers"] = args.num_layers
 
     generator = torch.Generator(device="cpu").manual_seed(args.seed)
     frames, height, width = args.frames, args.height, args.width
@@ -416,6 +483,11 @@ def main() -> int:
     parser.add_argument("--dtype", default="float16", choices=("float16", "bfloat16", "float32"))
     parser.add_argument("--tolerance", default="2e-2,2e-2", help="atol,rtol for the seedvr2 case")
     parser.add_argument("--varlen", action="store_true", help="request the packed-varlen attention kernel")
+    parser.add_argument(
+        "--allow-truncated-layers",
+        action="store_true",
+        help="development only: load a checkpoint truncated to --num-layers instead of the full depth",
+    )
     parser.add_argument("--warmup", type=int, default=1, help="warmup iterations for the seedvr2 case")
     parser.add_argument("--iterations", type=int, default=3, help="measured iterations for the seedvr2 case")
     args = parser.parse_args()
