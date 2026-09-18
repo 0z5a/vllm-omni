@@ -1,11 +1,14 @@
 # SPDX-License-Identifier: Apache-2.0
 # SPDX-FileCopyrightText: Copyright contributors to the vLLM-Omni project
 
-"""Experimental horizontal fusion of Qwen's independent image/text streams.
+"""Experimental horizontal fusion of two independent image/text streams.
 
 Each stream keeps its own native FP32 LayerNorm with its original shape and
 epsilon. Only pointwise launches are shared. Outputs own independent storage;
 there is no concatenation, cached buffer or mutation of a caller input.
+
+Shared diffusion op; Qwen-Image is its current caller.
+
 """
 
 import os

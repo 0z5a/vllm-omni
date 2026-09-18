@@ -1,13 +1,16 @@
 # SPDX-License-Identifier: Apache-2.0
 # SPDX-FileCopyrightText: Copyright contributors to the vLLM-Omni project
 
-"""Qwen-Image's attention residual followed by non-affine AdaLayerNorm.
+"""Attention residual followed by non-affine AdaLayerNorm.
 
 Both the updated residual and the MLP input are live outputs. Two pointwise
 kernels fuse the residual/FP32 cast and the norm-output cast/modulation around
 PyTorch's native FP32 LayerNorm. Keeping the native reduction matters: even a
 single FP32 ULP can change BF16 rounding and accumulate across denoising steps.
 Every low precision operation retains its eager rounding boundary.
+
+Shared diffusion op; Qwen-Image is its current caller.
+
 """
 
 import os
