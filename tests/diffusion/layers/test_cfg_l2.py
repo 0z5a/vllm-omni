@@ -133,15 +133,16 @@ _SCALE_CACHE_PROBE = textwrap.dedent(
     import torch
 
     from vllm_omni.diffusion.layers.cfg_l2 import try_fused_cfg_l2
+    from vllm_omni.platforms import current_omni_platform
 
     root = os.environ["TRITON_CACHE_DIR"]
     p = torch.randn(1, 4096, 64, dtype=torch.bfloat16, device="cuda")
     n = torch.randn_like(p)
     counts = []
     for scale in (3.0, 4.0, 5.0, 4.0):
-        torch.cuda.synchronize()
+        current_omni_platform.synchronize()
         assert try_fused_cfg_l2(p, n, scale) is not None
-        torch.cuda.synchronize()
+        current_omni_platform.synchronize()
         counts.append(len(glob.glob(os.path.join(root, "*", "*.json"))))
     print("SCALE_CACHE_COUNTS", counts)
     assert counts[0] > 0, "no kernel was compiled"
