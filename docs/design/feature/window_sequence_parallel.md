@@ -140,6 +140,30 @@ grouped-SDPA fallback for backends without a packed-varlen entry point).
 * The rotary span is `3 * (rope_dim // 3)` (126 of 128 channels for the 3B), so
   the last two channels pass through unrotated.
 
+## Checkpoint compatibility
+
+The parameter layout of the port mirrors the reference, with one explicit
+exception: the released checkpoint stores the per-block RoPE table as
+`blocks.<i>.attn.rope.rope.freqs`, while this port registers it as
+`blocks.<i>.attn.rope.freqs`. The validation loader normalizes exactly that
+suffix (and only that suffix); every other key must already match.
+
+> The validation loader explicitly normalizes the reference RoPE buffer suffix
+> from `.rope.rope.freqs` to `.rope.freqs`. Checkpoint validation fails on any
+> remaining missing or unexpected key after normalization.
+
+Normalization is restricted and collision-checked: a key that is already
+normalized is left untouched, and two source keys mapping onto the same target
+key raise instead of silently overwriting a tensor. Loading then fails on any
+remaining missing, unexpected or shape-mismatched key, so a checkpoint that does
+not match the port cannot reach inference. Full 32-layer loading is the
+acceptance path; truncating the block list is a development fixture and requires
+an explicit flag.
+
+This section describes the validation loader only. It is not a statement that
+the serving loader (still to land with the SeedVR2 P0 integration) performs the
+same conversion.
+
 ## Validation
 
 | Layer | What it proves |

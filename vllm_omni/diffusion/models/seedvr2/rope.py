@@ -86,7 +86,10 @@ class NaMMRotaryEmbedding3d(nn.Module):
                 f"rotary_dim={rotary_dim} with num_axes={num_axes} gives an odd rotary span "
                 f"({self.rot_dim}); the reference pairs channels two at a time"
             )
-        # Registered so the checkpoint's per-block `rope.rope.freqs` buffer loads.
+        # Registered as `freqs`.  The released checkpoint stores this table one
+        # module deeper (`...attn.rope.rope.freqs`) than this port registers it, so
+        # the validation loader normalizes exactly that suffix; every other key
+        # must already match the port's parameter layout.
         self.register_buffer("freqs", lang_freqs(self.axis_dim, theta), persistent=True)
         self._axis_cache: dict[tuple, torch.Tensor] = {}
 
