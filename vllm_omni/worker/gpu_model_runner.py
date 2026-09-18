@@ -92,14 +92,6 @@ class OmniGPUModelRunner(GPUModelRunner):
         self.omni_prefix_cache = None
         self._sampled_token_ids_cpu_override = None
         self._omni_query_start_loc_model_kwarg = False
-        # vLLM unified XD-RoPE into M-RoPE (vllm-project/vllm#56078) and removed
-        # this runner attribute. Every read site below is a plain attribute
-        # access in a class that inherits this __init__, so a missing attribute
-        # aborts request admission before any model work runs. Keep the parent's
-        # value when the pinned vLLM still sets it, and default to the
-        # unified-M-RoPE value otherwise.
-        if not hasattr(self, "uses_xdrope_dim"):
-            self.uses_xdrope_dim = 0
 
     def _to_list(self, sampled_token_ids: torch.Tensor) -> list[list[int]]:
         override_fn = self._sampled_token_ids_cpu_override

@@ -554,15 +554,19 @@ class OmniARScheduler(OmniSchedulerMixin, VLLMScheduler):
             if not stopped and self._process_kv_transfer_trigger(request, new_token_ids):
                 stopped = True
 
-            if new_token_ids and not self._accept_structured_output_tokens(request, new_token_ids):
-                logger.error(
-                    "Unexpected: grammar rejected tokens %s for request %s. Terminating request.",
-                    new_token_ids,
-                    req_id,
-                )
-                request.status = RequestStatus.FINISHED_ERROR
-                request.resumable = False
-                stopped = True
+            if new_token_ids and self.structured_output_manager.should_advance(request):
+                struct_output_request = request.structured_output_request
+                assert struct_output_request is not None
+                assert struct_output_request.grammar is not None
+                if not struct_output_request.grammar.accept_tokens(req_id, new_token_ids):
+                    logger.error(
+                        "Unexpected: grammar rejected tokens %s for request %s. Terminating request.",
+                        new_token_ids,
+                        req_id,
+                    )
+                    request.status = RequestStatus.FINISHED_ERROR
+                    request.resumable = False
+                    stopped = True
 
             # Finalize prefill stats BEFORE stop handling (upstream v0.28
             # order): _free_request below releases the KV blocks, after which

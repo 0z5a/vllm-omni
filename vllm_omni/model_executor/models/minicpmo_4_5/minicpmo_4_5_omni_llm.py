@@ -1638,8 +1638,14 @@ class SiglipVisionTransformer(SiglipPreTrainedModel):
         # So when the `patch_attention_mask` is full of 1s (i.e. attending to the whole sequence),
         # avoiding passing the attention_mask, which is equivalent to attending to the full sequence
         if position_ids is not None:
-            # Capture callers prepare both position IDs and the attention mask
-            # outside the graph, including the all-valid (None) mask case.
+            # Capture callers prepare position IDs and the attention mask outside
+            # the graph, always as a 4-D mask (the all-valid case included). Both
+            # are required: this branch skips the mask rebuild below, so a caller
+            # that passed position_ids alone would silently attend to every
+            # padded patch instead of the item's own grid.
+            assert encoder_attention_mask is not None, (
+                "position_ids requires encoder_attention_mask; capture callers must prepare both"
+            )
             attention_mask = encoder_attention_mask
         elif not torch.any(~patch_attention_mask):
             attention_mask = None
