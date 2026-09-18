@@ -16,6 +16,7 @@ from torch._subclasses.fake_tensor import FakeTensorMode
 from tests.diffusion.layers import test_gated_residual_adaln as original_tests
 from tests.helpers.mark import hardware_test
 from vllm_omni.diffusion.layers import gated_residual_adaln as fusion
+from vllm_omni.diffusion.layers.qwen_select01_modulation import select01_modulation_native
 
 pytestmark = [pytest.mark.core_model, pytest.mark.diffusion]
 
@@ -107,7 +108,12 @@ def test_real_block_forward_sites_and_fallback(case):
     methods: list[ast.stmt] = [
         n for n in block.body if isinstance(n, ast.FunctionDef) and n.name in ("forward", "_modulate")
     ]
-    namespace = {"torch": torch, "Any": Any}
+    namespace = {
+        "torch": torch,
+        "Any": Any,
+        "can_use_qwen_select01_triton": lambda _: False,
+        "select01_modulation_native": select01_modulation_native,
+    }
     namespace.update(
         dict.fromkeys(
             ("try_paired_native_adaln", "try_paired_gated_residual_adaln", "try_paired_gated_residual"),
