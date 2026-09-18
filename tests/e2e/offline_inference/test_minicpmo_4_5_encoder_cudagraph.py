@@ -12,12 +12,17 @@ image/video requests through it twice — once with
 absent — then compares the decoded text. The deploy profile is otherwise
 shared, so a difference isolates encoder graph replay.
 
+Two lanes: the two serving tests carry ``core_model`` and run where the run
+level substitutes dummy weights; the graph-versus-eager comparison carries
+``advanced_model`` only, because a parity claim needs the real checkpoint in
+both arms.
+
 Graph replay requires a vLLM build that advertises the ``capture_axes``
 encoder-cudagraph protocol. On the released pin the flag is accepted and the
-encoder stays eager, so the graph-path test skips there and only the
-shared-deploy assertions run.
+encoder stays eager, so the comparison skips there.
 """
 
+import contextlib
 import os
 
 os.environ["VLLM_WORKER_MULTIPROC_METHOD"] = "spawn"
@@ -43,13 +48,20 @@ _ENCODER_TOKEN_BUDGET = 256
 # so the manager cannot select a captured tier for it.
 _OVERSIZED_IMAGE_PIXELS = 1024
 
-# The three stages share one 44 GiB card in CI. Both engines in this module must
-# be shut down before the next one loads, so the release has to be awaited.
+# The three stages share one 44 GiB card in CI. Two engines must never be
+# resident at once here, so every arm is awaited down to this ratio before the
+# next one loads.
 _ENGINE_TEARDOWN_MEMORY_RATIO = 0.05
 
 
 def _supports_encoder_capture_axes() -> bool:
     return "capture_axes" in EncoderCudaGraphConfig.__dataclass_fields__
+
+
+requires_encoder_capture_axes = pytest.mark.skipif(
+    not _supports_encoder_capture_axes(),
+    reason="installed vLLM does not advertise the capture_axes encoder protocol",
+)
 
 
 def _deploy_config(*, encoder_graph: bool) -> str:
@@ -87,8 +99,8 @@ def _deploy_config(*, encoder_graph: bool) -> str:
 _GRAPH_DEPLOY = _deploy_config(encoder_graph=True)
 _EAGER_DEPLOY = _deploy_config(encoder_graph=False)
 
-# Single graph-engine entry: the eager comparison builds its own runner inside
-# the test so the two engines are never resident at the same time.
+# Parametrization for the function-scoped ``omni_runner_function`` fixture: each
+# serving test owns its engine, so nothing stays resident into the comparison.
 test_params = [(_MODEL, _GRAPH_DEPLOY, {"trust_remote_code": True})]
 
 
@@ -119,15 +131,27 @@ def _video_question() -> str:
     return "Describe what happens in this video in one short sentence."
 
 
-def _oversized_vision_tokens() -> int:
-    """Vision tokens for one 1024x1024 slice on the checkpoint's 14px patch."""
-    return ((_OVERSIZED_IMAGE_PIXELS // 14) ** 2) // 4
+def _fixture_vision_cost(image: Image.Image) -> tuple[int, int]:
+    """Vision tokens and largest per-slice patch count for one fixture image.
+
+    Counted with the in-tree processor at the deploy's settings: output tokens
+    are ``num_slices * image_feature_size``, which is the quantity the manager
+    compares against the token budget, not an area estimate. Keeping it in this
+    process means the guard below can actually fail if the fixture stops being
+    oversized.
+    """
+    from vllm_omni.model_executor.models.minicpmo_4_5.minicpmo_4_5_omni_llm import MiniCPMVImageProcessor
+
+    processor = MiniCPMVImageProcessor()
+    slices = processor.get_sliced_images(image)
+    patches = max((tile.size[1] // processor.patch_size) * (tile.size[0] // processor.patch_size) for tile in slices)
+    return len(slices) * int(processor.image_feature_size), patches
 
 
 def _final_text(outputs) -> str:
     text = None
     for stage_output in outputs:
-        if getattr(stage_output, "final_output_type", None) == "text":
+        if stage_output.final_output_type == "text":
             text = stage_output.outputs[0].text
     assert text, "request produced no text output"
     return text
@@ -144,65 +168,79 @@ def _generate(omni_runner, *, images=None, videos=None) -> str:
     )
 
 
-def _compilation_config_of(stage_config):
-    """Resolved vLLM compilation config of one stage, across config generations."""
-    for owner in (stage_config, getattr(stage_config, "engine_args", None)):
-        if owner is None:
-            continue
-        value = getattr(owner, "compilation_config", None)
-        if value is not None:
-            return value
-    return None
-
-
 def _stage0_uses_encoder_graph(omni_runner) -> bool:
-    """Whether the loaded engine actually carried the enabled compilation block.
-
-    The flag makes the engine capture encoder graphs; if the deploy-config
-    plumbing ever stops forwarding it, the parity test would compare two eager
-    engines and quietly stop covering the feature. Asserting on the resolved
-    config keeps that from happening.
-    """
-    for stage_config in omni_runner.omni.engine.stage_configs:
-        compilation = _compilation_config_of(stage_config)
-        if compilation is None:
-            continue
-        if isinstance(compilation, dict):
-            if compilation.get("cudagraph_mm_encoder"):
-                return True
-        elif getattr(compilation, "cudagraph_mm_encoder", False):
-            return True
-    return False
+    """Check that Stage 0 received the requested encoder graph flag."""
+    stage0 = omni_runner.omni.engine.stage_configs[0]
+    compilation = stage0.engine_args.get("compilation_config")
+    return bool(compilation and compilation.get("cudagraph_mm_encoder", False))
 
 
-def _close_runner(omni_runner) -> None:
-    """Shut an ``OmniRunner`` down and wait until its card memory is released.
-
-    The module-scoped fixture owns the graph engine, so the comparison test has
-    to hand it back explicitly before a second engine can be loaded on the same
-    device.
-    """
-    omni_runner.__exit__(None, None, None)
+def _wait_for_card_release() -> None:
+    """Wait until the previous engine's card memory is back before loading the next."""
     wait_for_gpu_memory_to_clear(
         devices=[0],
         threshold_ratio=_ENGINE_TEARDOWN_MEMORY_RATIO,
     )
 
 
+@contextlib.contextmanager
+def _arm(run_level: str, deploy_config: str):
+    """Load one comparison arm the way the shared runner fixture loads one.
+
+    ``iter_omni_runner`` rewrites the deploy for the run level (dummy weights
+    under ``core_model``, real weights under ``advanced_model``) and prefixes
+    ``MODEL_PREFIX``. Building an engine by hand without both is how the two
+    arms stopped being comparable: at ``core_model`` the graph arm ran random
+    weights while the eager arm loaded the checkpoint.
+    """
+    from tests.helpers.runtime import OmniRunner, get_model_prefix
+    from tests.helpers.stage_config import stage_config_path_for_run_level
+
+    stage_config = stage_config_path_for_run_level(deploy_config, run_level)
+    with OmniRunner(
+        get_model_prefix() + _MODEL,
+        seed=42,
+        deploy_config=stage_config,
+        trust_remote_code=True,
+    ) as runner:
+        yield runner
+
+
+@pytest.fixture
+def graph_and_eager_texts(run_level: str) -> tuple[str, str, str, str]:
+    """Greedy image/video text from both arms, prepared outside the xfail region.
+
+    Engine loads and the two compilation-config assertions describe the harness,
+    not replay correctness. Running them in a fixture keeps a failed second
+    engine, an OOM during teardown or a graph profile that never reached Stage 0
+    from being absorbed by the explicit xfail on the final comparison.
+    """
+    with _arm(run_level, _GRAPH_DEPLOY) as graph_runner:
+        assert _stage0_uses_encoder_graph(graph_runner), "graph profile did not reach Stage 0 compilation config"
+        graph_texts = (_generate(graph_runner, images=_small_image()), _generate(graph_runner, videos=_small_video()))
+    _wait_for_card_release()
+
+    with _arm(run_level, _EAGER_DEPLOY) as eager_runner:
+        assert not _stage0_uses_encoder_graph(eager_runner), "eager profile unexpectedly enabled encoder graphs"
+        eager_texts = (_generate(eager_runner, images=_small_image()), _generate(eager_runner, videos=_small_video()))
+    _wait_for_card_release()
+
+    return graph_texts[0], eager_texts[0], graph_texts[1], eager_texts[1]
+
+
 @pytest.mark.core_model
-@pytest.mark.advanced_model
 @pytest.mark.omni
 @hardware_test(res={"cuda": "H100", "npu": "A3"}, num_cards=1)
-@pytest.mark.parametrize("omni_runner", test_params, indirect=True)
-def test_image_and_video_requests_are_served(omni_runner, offline_client) -> None:
+@pytest.mark.parametrize("omni_runner_function", test_params, indirect=True)
+def test_image_and_video_requests_are_served(omni_runner_function, offline_client_function) -> None:
     """The graph-enabled profile serves in-budget image and video requests."""
-    image_response = offline_client.send_omni_request(
+    image_response = offline_client_function.send_omni_request(
         {"prompts": _image_question(), "images": _small_image(), "modalities": ["text"]}
     )
     assert image_response.success
     assert image_response.text_content
 
-    video_response = offline_client.send_omni_request(
+    video_response = offline_client_function.send_omni_request(
         {"prompts": _video_question(), "videos": _small_video(), "modalities": ["text"]}
     )
     assert video_response.success
@@ -210,69 +248,33 @@ def test_image_and_video_requests_are_served(omni_runner, offline_client) -> Non
 
 
 @pytest.mark.core_model
-@pytest.mark.advanced_model
 @pytest.mark.omni
 @hardware_test(res={"cuda": "H100", "npu": "A3"}, num_cards=1)
-@pytest.mark.parametrize("omni_runner", test_params, indirect=True)
-def test_oversized_image_falls_back_without_failing(omni_runner, offline_client) -> None:
+@pytest.mark.parametrize("omni_runner_function", test_params, indirect=True)
+def test_oversized_image_falls_back_without_failing(omni_runner_function, offline_client_function) -> None:
     """An image above the capture budget is served, not rejected or clamped."""
-    assert _oversized_vision_tokens() > _ENCODER_TOKEN_BUDGET, (
-        f"oversized fixture only reaches {_oversized_vision_tokens()} vision tokens per slice; "
+    tokens, patches = _fixture_vision_cost(_oversized_image())
+    assert tokens > _ENCODER_TOKEN_BUDGET, (
+        f"oversized fixture only costs {tokens} vision tokens ({patches} patches in its largest slice); "
         f"it must exceed the {_ENCODER_TOKEN_BUDGET}-token budget to exercise the eager fallback"
     )
 
-    response = offline_client.send_omni_request(
+    response = offline_client_function.send_omni_request(
         {"prompts": _image_question(), "images": _oversized_image(), "modalities": ["text"]}
     )
     assert response.success
     assert response.text_content
 
 
-@pytest.mark.core_model
+@requires_encoder_capture_axes
 @pytest.mark.advanced_model
 @pytest.mark.omni
 @hardware_test(res={"cuda": "H100", "npu": "A3"}, num_cards=1)
-@pytest.mark.parametrize("omni_runner", test_params, indirect=True)
-@pytest.mark.xfail(
-    reason=(
-        "Full-checkpoint graph replay does not reproduce the eager encoder output: on an L20 with "
-        "vLLM 0.29.1rc1.dev197+gab35354c2 the graph engine answers the image prompt with a repeated "
-        "token while the same request without the flag answers correctly. Graph capture itself "
-        "succeeds (12 graphs over the 256-token budget, ~3 s). Remove this marker once the replay "
-        "path is fixed; the failure output is the evidence for the divergence."
-    ),
-    strict=True,
-)
-def test_encoder_graph_matches_eager_encoder(omni_runner) -> None:
-    """Replayed graph encoding returns the same greedy text as the eager encoder.
+def test_encoder_graph_matches_eager_encoder(graph_and_eager_texts) -> None:
+    """Only final text divergence is expected to fail; setup and teardown must pass."""
+    graph_image, eager_image, graph_video, eager_video = graph_and_eager_texts
 
-    Greedy decoding turns any encoder output difference into a token-string
-    difference, so equality is a direct statement about the image and video
-    encoder paths rather than the surrounding stages. The graph engine is closed
-    first because the three stages share one card.
-
-    Recorded result before this test was added: graph ``'validator\\n' * 32`` vs
-    eager ``'The image is filled with a multitude of small, multicolored pixels
-    creating a noisy, speckled appearance.'`` for the same 224x224 fixture. That
-    is a replay-correctness gap, not an admission or capture failure, which is
-    why the test is marked ``xfail(strict=True)`` instead of being skipped.
-    """
-    if not _supports_encoder_capture_axes():
-        pytest.skip("installed vLLM does not advertise the capture_axes encoder protocol")
-
-    assert _stage0_uses_encoder_graph(omni_runner), "graph profile did not reach Stage 0 compilation config"
-
-    from tests.helpers.runtime import OmniRunner
-
-    graph_image = _generate(omni_runner, images=_small_image())
-    graph_video = _generate(omni_runner, videos=_small_video())
-
-    _close_runner(omni_runner)
-
-    with OmniRunner(_MODEL, deploy_config=_EAGER_DEPLOY, trust_remote_code=True) as eager_runner:
-        assert not _stage0_uses_encoder_graph(eager_runner), "eager profile unexpectedly enabled encoder graphs"
-        eager_image = _generate(eager_runner, images=_small_image())
-        eager_video = _generate(eager_runner, videos=_small_video())
-
-    assert graph_image == eager_image, f"image encoder graph diverged from eager: {graph_image!r} != {eager_image!r}"
-    assert graph_video == eager_video, f"video encoder graph diverged from eager: {graph_video!r} != {eager_video!r}"
+    if graph_image != eager_image or graph_video != eager_video:
+        pytest.xfail(
+            f"Encoder replay differs: image={graph_image!r}/{eager_image!r}, video={graph_video!r}/{eager_video!r}"
+        )

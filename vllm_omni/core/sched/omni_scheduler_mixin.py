@@ -542,32 +542,6 @@ class OmniSchedulerMixin:
             new_prompt_len_snapshot=new_prompt_len_snapshot,
         )
 
-    def _accept_structured_output_tokens(self, request: Request, new_token_ids: list[int]) -> bool:
-        """Advance the request's grammar with just-sampled tokens.
-
-        Returns ``False`` when the grammar rejects the tokens, which the caller
-        turns into a terminal request error.
-
-        Newer vLLM moved both the reasoning-end decision and token acceptance
-        onto ``StructuredOutputManager.accept_tokens(request, token_ids)``,
-        which also owns the request's token history and constraint-start
-        bookkeeping. Older releases gate on ``should_advance`` and accept
-        through the per-request ``grammar``. Dispatch on the manager surface so
-        both layouts work; the manager form returns ``True`` when structured
-        output is disabled for the request.
-        """
-        manager = self.structured_output_manager
-        accept_tokens = getattr(manager, "accept_tokens", None)
-        if accept_tokens is not None:
-            return bool(accept_tokens(request, new_token_ids))
-        if not manager.should_advance(request):
-            return True
-        struct_output_request = request.structured_output_request
-        assert struct_output_request is not None
-        grammar = struct_output_request.grammar
-        assert grammar is not None
-        return bool(grammar.accept_tokens(request.request_id, new_token_ids))
-
     def _append_request_output(
         self,
         outputs: dict[int, list[EngineCoreOutput]],

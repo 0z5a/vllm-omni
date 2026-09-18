@@ -23,11 +23,12 @@ pytestmark = [pytest.mark.core_model, pytest.mark.gpu, pytest.mark.cuda]
 )
 @pytest.mark.skipif(not torch.cuda.is_available(), reason="Requires CUDA")
 @pytest.mark.parametrize("modality", ["image", "video"])
-def test_manager_graph_replay_matches_encoder_entry_point(modality: str, monkeypatch) -> None:
+@pytest.mark.parametrize("dtype, grid", [(torch.float32, (2, 3)), (torch.bfloat16, (32, 32))])
+def test_manager_graph_replay_matches_encoder_entry_point(modality: str, dtype, grid, monkeypatch) -> None:
     from vllm.v1.worker.gpu_model_runner import GPUModelRunner
 
     torch.manual_seed(42)
-    model = _EncoderModel().eval().cuda()
+    model = _EncoderModel().eval().cuda().to(dtype)
     mm_config = MultiModalConfig(
         media_io_kwargs={"video": {"num_frames": 2}}, limit_per_prompt={"image": 2, "video": 2, "audio": 2}
     )
@@ -54,7 +55,7 @@ def test_manager_graph_replay_matches_encoder_entry_point(modality: str, monkeyp
     runner.supports_mm_inputs = True
     runner.vllm_config = config
     runner.device = torch.device("cuda")
-    runner.dtype = torch.float32
+    runner.dtype = dtype
     manager = GPUModelRunner._create_encoder_cudagraph_manager(runner)
     assert manager is not None
     assert manager.model is serving_model
@@ -73,15 +74,21 @@ def test_manager_graph_replay_matches_encoder_entry_point(modality: str, monkeyp
             counts = (5, 3) if iteration % 2 else (2, 1)
             kwargs = {
                 prefix + "pixel_values": [
-                    [torch.randn(3, 2, 12, device="cuda") for _ in range(count)] for count in counts
+                    [torch.randn(3, 2, grid[0] * grid[1] * 2, device="cuda", dtype=dtype) for _ in range(count)]
+                    for count in counts
                 ],
-                prefix + "tgt_sizes": [torch.tensor([[2, 3]] * count) for count in counts],
+                prefix + "tgt_sizes": [torch.tensor([list(grid)] * count) for count in counts],
             }
             expected = model.get_multimodal_embeddings(**kwargs)
             actual = manager.execute(kwargs)
             assert len(actual) == len(expected) == 2
             for result, reference in zip(actual, expected):
-                torch.testing.assert_close(result, reference, atol=1e-5, rtol=1e-4)
+                torch.testing.assert_close(
+                    result,
+                    reference,
+                    atol=1e-2 if dtype == torch.bfloat16 else 1e-5,
+                    rtol=1e-2 if dtype == torch.bfloat16 else 1e-4,
+                )
         assert manager.get_cumulative_stats()["graph_hits"] == 16
         assert manager.get_cumulative_stats()["graph_misses"] == 0
         assert budgets_used == {16, 32}
@@ -89,13 +96,20 @@ def test_manager_graph_replay_matches_encoder_entry_point(modality: str, monkeyp
         # One item beyond the largest token budget must use the original
         # encoder and still preserve all slices/chunks and output ownership.
         oversized = {
-            prefix + "pixel_values": [[torch.randn(3, 2, 12, device="cuda") for _ in range(9)]],
-            prefix + "tgt_sizes": [torch.tensor([[2, 3]] * 9)],
+            prefix + "pixel_values": [
+                [torch.randn(3, 2, grid[0] * grid[1] * 2, device="cuda", dtype=dtype) for _ in range(9)]
+            ],
+            prefix + "tgt_sizes": [torch.tensor([list(grid)] * 9)],
         }
         expected = model.get_multimodal_embeddings(**oversized)
         actual = manager.execute(oversized)
         assert len(actual) == len(expected) == 1
-        torch.testing.assert_close(actual[0], expected[0], atol=1e-5, rtol=1e-4)
+        torch.testing.assert_close(
+            actual[0],
+            expected[0],
+            atol=1e-2 if dtype == torch.bfloat16 else 1e-5,
+            rtol=1e-2 if dtype == torch.bfloat16 else 1e-4,
+        )
         assert manager.get_cumulative_stats()["graph_hits"] == 16
         assert manager.get_cumulative_stats()["graph_misses"] == 1
         compilation.cudagraph_mm_encoder = False
