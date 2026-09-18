@@ -180,7 +180,6 @@ class SeedVR2WindowRuntime:
             planner_version=planner_version,
         )
         self._contexts: dict[WindowLayoutKey, LocalWindowContext] = {}
-        self._layouts: dict[WindowLayoutKey, WindowLayout] = {}
         self.stats: dict[str, int] = {
             "layout_transitions": 0,
             "network_transitions": 0,
@@ -192,12 +191,7 @@ class SeedVR2WindowRuntime:
 
     # -- layouts and contexts ---------------------------------------------
     def layout_for_layer(self, layer_index: int) -> WindowLayout:
-        layout = self.manager.layer_layout(layer_index)
-        self._layouts[layout.key] = layout
-        return layout
-
-    def global_window_count(self, layout: WindowLayout) -> int:
-        return layout.num_windows
+        return self.manager.layer_layout(layer_index)
 
     def context(self, layout: WindowLayout, device: torch.device | str) -> LocalWindowContext:
         ctx = self._contexts.get(layout.key)
@@ -206,7 +200,7 @@ class SeedVR2WindowRuntime:
             ctx = build_local_window_context(
                 rank_plan,
                 text_len=self.text_len,
-                global_windows=self.global_window_count(layout),
+                global_windows=layout.num_windows,
                 device=device,
             )
             self._contexts[layout.key] = ctx

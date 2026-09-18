@@ -158,3 +158,19 @@ def test_full_depth_is_required_unless_truncation_is_explicit():
     model, missing, unexpected, stats = _load(state, _args(num_layers=1, allow_truncated_layers=True))
     assert missing == [] and unexpected == []
     assert stats["truncated_block_keys"] == 3, "the dropped block's buffer + weight + bias must be reported"
+
+
+def test_worker_failure_exits_without_entering_another_collective(monkeypatch):
+    monkeypatch.setattr(sys, "argv", ["window_sp_worker", "--case", "transport", "--report-dir", "/unused"])
+    monkeypatch.setattr(worker.dist, "init_process_group", lambda **kwargs: None)
+
+    def fail(*args):
+        raise RuntimeError("worker failed")
+
+    def unexpected_barrier():
+        pytest.fail("failed worker entered a collective")
+
+    monkeypatch.setattr(worker, "run_transport", fail)
+    monkeypatch.setattr(worker.dist, "barrier", unexpected_barrier)
+    with pytest.raises(RuntimeError, match="worker failed"):
+        worker.main()

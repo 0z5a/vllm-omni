@@ -322,7 +322,7 @@ class NaSwinAttention(nn.Module):
         # (and the replicated text stream), which is silently wrong and differs
         # by SP degree.  Resolve the request against the selected backend once.
         requested_varlen = bool(use_varlen_kernel)
-        backend = getattr(self.attention, "attn_backend", None)
+        backend = self.attention.attn_backend
         supports_varlen = bool(backend is not None and backend.supports_multi_doc_packed_varlen())
         self.use_varlen_kernel = requested_varlen and supports_varlen
         self.attention_backend_name = backend.get_name() if backend is not None else None

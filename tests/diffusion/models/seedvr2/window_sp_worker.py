@@ -282,7 +282,7 @@ def _load_port_model(
 
     full_layers = int(SEEDVR2_3B_CONFIG["num_layers"])
     truncated = args.num_layers != full_layers
-    if truncated and not getattr(args, "allow_truncated_layers", False):
+    if truncated and not args.allow_truncated_layers:
         raise RuntimeError(
             f"--num-layers {args.num_layers} != {full_layers}: full-depth loading is the acceptance path. "
             "Pass --allow-truncated-layers to load a development fixture instead."
@@ -297,9 +297,7 @@ def _load_port_model(
             return SeedVR2NaDiT(**model_kwargs)
 
     if state_loader is None:
-
-        def state_loader(path: str) -> dict:
-            return load_file(path)
+        state_loader = load_file
 
     model = model_factory()
     state = state_loader(args.ckpt)
@@ -494,18 +492,13 @@ def main() -> int:
 
     rank = int(os.environ.get("RANK", "0"))
     world_size = int(os.environ.get("WORLD_SIZE", "1"))
-    if "TORCH_DISTRIBUTED_INIT_METHOD" not in os.environ:
-        pass
     dist.init_process_group(backend="nccl")
-    try:
-        if args.case == "transport":
-            report = run_transport(args, rank, world_size)
-        elif args.case == "toy-block":
-            report = run_toy_block(args, rank, world_size)
-        else:
-            report = run_seedvr2(args, rank, world_size)
-    except Exception as exc:  # noqa: BLE001 - report the failure instead of hanging peers
-        report = Report(case=args.case, world_size=world_size, rank=rank, status="error", error=repr(exc))
+    if args.case == "transport":
+        report = run_transport(args, rank, world_size)
+    elif args.case == "toy-block":
+        report = run_toy_block(args, rank, world_size)
+    else:
+        report = run_seedvr2(args, rank, world_size)
     report.write(Path(args.report_dir))
     dist.barrier()
     if rank == 0:
