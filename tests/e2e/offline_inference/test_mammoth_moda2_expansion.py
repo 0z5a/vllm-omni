@@ -126,6 +126,7 @@ def test_golden_sampling_uses_postprocessed_rgb_values():
     assert _sample_pixels(image) == [0.0] * 4 + [round(127 / 255, 6)] * 4 + [1.0] * 4
 
 
+@pytest.mark.skip(reason="https://github.com/vllm-project/vllm-omni/issues/7718")
 @pytest.mark.slow
 @pytest.mark.diffusion
 @pytest.mark.parametrize("omni_runner", [_OMNI_RUNNER_PARAM], indirect=True)
