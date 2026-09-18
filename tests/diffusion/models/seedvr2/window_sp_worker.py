@@ -317,7 +317,9 @@ def run_seedvr2(args: argparse.Namespace, rank: int, world_size: int) -> Report:
         world_size=world_size,
         rank=rank,
     )
+    model.reset_attention_stats()
     distributed, distributed_ms, distributed_p95, stats = measure(runtime)
+    attention = model.attention_path_summary()
 
     diff = (distributed.float() - single.float()).abs()
     ref_norm = torch.linalg.vector_norm(single.float()).clamp_min(1e-12)
@@ -377,7 +379,13 @@ def run_seedvr2(args: argparse.Namespace, rank: int, world_size: int) -> Report:
             "peak_allocated_bytes": int(peak),
             "peak_allocated_bytes_all_ranks": [int(p.item()) for p in peaks],
             "dtype": args.dtype,
-            "attention_path": "varlen" if args.varlen else "grouped_sdpa",
+            "attention_path_requested": "packed_varlen" if args.varlen else "grouped_sdpa",
+            "attention_layers_per_resolved_path": attention["layers_per_path"],
+            "attention_backend_names": attention["backend_names"],
+            "varlen_fallback_reasons": attention["varlen_fallback_reasons"],
+            "packed_varlen_calls": attention["packed_varlen_calls"],
+            "grouped_sdpa_calls": attention["grouped_sdpa_calls"],
+            "no_local_windows_calls": attention["no_local_windows_calls"],
         }
     )
     if not ok:
@@ -407,7 +415,7 @@ def main() -> int:
     parser.add_argument("--transport-features", type=int, default=8)
     parser.add_argument("--dtype", default="float16", choices=("float16", "bfloat16", "float32"))
     parser.add_argument("--tolerance", default="2e-2,2e-2", help="atol,rtol for the seedvr2 case")
-    parser.add_argument("--varlen", action="store_true", help="use the packed-varlen attention kernel")
+    parser.add_argument("--varlen", action="store_true", help="request the packed-varlen attention kernel")
     parser.add_argument("--warmup", type=int, default=1, help="warmup iterations for the seedvr2 case")
     parser.add_argument("--iterations", type=int, default=3, help="measured iterations for the seedvr2 case")
     args = parser.parse_args()
