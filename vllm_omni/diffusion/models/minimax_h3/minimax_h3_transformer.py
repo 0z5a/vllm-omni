@@ -55,8 +55,8 @@ from vllm_omni.diffusion.layers.rope import RotaryEmbedding
 from vllm_omni.diffusion.models.host_weight_contract import FinalLayoutModelContract
 from vllm_omni.platforms import current_omni_platform
 
-from .fasth3 import _resolve_native_target
 from .adaln_lookup import canonical_lookup_timesteps, lookup_timestep_indices
+from .fasth3 import _resolve_native_target
 
 if TYPE_CHECKING:
     from vllm.model_executor.layers.quantization.base_config import (

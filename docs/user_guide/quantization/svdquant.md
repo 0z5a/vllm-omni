@@ -53,7 +53,7 @@ contract.
 
 ## Low-memory candidate
 
-The [MiniMax-H3 low-memory recipe](../../../recipes/MiniMaxAI/MiniMax-H3-SVDQuant.md)
+The [MiniMax-H3 low-memory recipe](https://github.com/vllm-project/vllm-omni/blob/main/recipes/MiniMaxAI/MiniMax-H3-SVDQuant.md)
 exports a finite-schedule BF16 AdaLN table and an encoder-local NVFP4 W4A16
 checkpoint. W4A16 declares `activation_bits: 16` in the text encoder's own
 `config.json`; the transformer defaults to `activation_bits: 4`. A global

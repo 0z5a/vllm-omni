@@ -178,7 +178,7 @@ SVDQuant metadata keeps an ordinary encoder in BF16. CPU offload loads the
 packed checkpoint on CPU and stages each linear on the execution device for
 backend layout processing. The W4A16 implementation temporarily dequantizes
 one linear for BF16 GEMM; it does not claim a native fused weight-only kernel.
-See the [recipe](../../../recipes/MiniMaxAI/MiniMax-H3-SVDQuant.md) for schedule,
+See the [recipe](https://github.com/vllm-project/vllm-omni/blob/main/recipes/MiniMaxAI/MiniMax-H3-SVDQuant.md) for schedule,
 parallelism and validation limits.
 
 ## Platform and parallelism boundaries
