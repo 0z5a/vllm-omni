@@ -10,6 +10,7 @@ single FP32 ULP can change BF16 rounding and accumulate across denoising steps.
 Every low precision operation retains its eager rounding boundary.
 """
 
+import os
 from functools import cache
 
 import torch
@@ -82,10 +83,12 @@ if HAS_TRITON:
         gate_stride_b: tl.constexpr,
         block_size: tl.constexpr,
         cast_output: tl.constexpr,
+        tiles_per_row: tl.constexpr = 1,
     ):
-        row = tl.program_id(0).to(tl.int64)
+        pid = tl.program_id(0).to(tl.int64)
+        row = pid // tiles_per_row
         batch, token = row // seq_len, row % seq_len
-        d = tl.arange(0, block_size)
+        d = (pid % tiles_per_row) * block_size + tl.arange(0, block_size)
         mask = d < hidden_size
         dtype = x_ptr.dtype.element_ty
         x = tl.load(x_ptr + batch * x_stride_b + token * x_stride_s + d, mask, other=0).to(tl.float32)
@@ -112,10 +115,12 @@ if HAS_TRITON:
         scale_stride_b: tl.constexpr,
         shift_stride_b: tl.constexpr,
         block_size: tl.constexpr,
+        tiles_per_row: tl.constexpr = 1,
     ):
-        row = tl.program_id(0).to(tl.int64)
+        pid = tl.program_id(0).to(tl.int64)
+        row = pid // tiles_per_row
         batch = row // seq_len
-        d = tl.arange(0, block_size)
+        d = (pid % tiles_per_row) * block_size + tl.arange(0, block_size)
         mask = d < hidden_size
         dtype = out_ptr.dtype.element_ty
         normalized = tl.load(normalized_ptr + row * hidden_size + d, mask, other=0).to(dtype).to(tl.float32)
@@ -127,6 +132,110 @@ if HAS_TRITON:
         tl.store(out_ptr + row * hidden_size + d, y, mask)
 
 
+def _v2_enabled() -> bool:
+    # "norm2" isolates launch tiling from the additional caller sites.
+    # Neither mode is a measured default until the GPU acceptance matrix.
+    return os.environ.get("VLLM_OMNI_QWEN_ADALN_V2", "0") in ("1", "norm2")
+
+
+def _v2_sites_enabled() -> bool:
+    return os.environ.get("VLLM_OMNI_QWEN_ADALN_V2", "0") == "1"
+
+
+def _pointwise_config(b: int, s: int, d: int) -> tuple[int, int, int]:
+    # Pointwise work has no cross-column reduction. Splitting short text rows
+    # gives more CTAs than the former one-CTA-per-row / 8-warp launch.
+    # Values are candidates, not a hardware-independent speedup assertion.
+    block = 256 if b * s < 64 else 1024
+    return block, 4, (d + block - 1) // block
+
+
+def _supports_pointwise(x: torch.Tensor, branch: torch.Tensor | None, modulation: tuple[torch.Tensor, ...]) -> bool:
+    if (
+        not HAS_TRITON
+        or not current_platform.is_cuda()
+        or not x.is_cuda
+        or x.ndim != 3
+        or x.dtype not in (torch.float32, torch.bfloat16)
+        or x.numel() == 0
+        or not 0 < x.shape[-1] <= 8192
+    ):
+        return False
+    tensors = (x, *modulation) if branch is None else (x, branch, *modulation)
+    if any(t.device != x.device or t.dtype != x.dtype or t.layout != torch.strided for t in tensors):
+        return False
+    if torch.is_grad_enabled() and any(t.requires_grad for t in tensors):
+        return False
+    if x.stride(-1) != 1:
+        return False
+    if branch is not None and (branch.shape != x.shape or branch.stride(-1) != 1):
+        return False
+    b, _, d = x.shape
+    return all(t.shape == (b, 1, d) and t.stride(-1) == 1 for t in modulation)
+
+
+def _native_norm_boundary(x: torch.Tensor, eps: float) -> torch.Tensor:
+    if torch.compiler.is_compiling():
+        return torch.ops.vllm_omni.gated_residual_native_layer_norm(x, eps)
+    return _native_layer_norm(x, eps)
+
+
+def try_fused_native_adaln(
+    x: torch.Tensor, scale: torch.Tensor, shift: torch.Tensor, eps: float
+) -> torch.Tensor | None:
+    """Experimental non-affine norm1: native FP32 norm, fused cast/modulate."""
+    if not _v2_sites_enabled() or not _supports_pointwise(x, None, (scale, shift)):
+        return None
+    b, s, d = x.shape
+    normalized = _native_norm_boundary(x.float(), eps)
+    out = torch.empty(x.shape, device=x.device, dtype=x.dtype)
+    block, warps, tiles = _pointwise_config(b, s, d)
+    _cast_modulate_kernel[(b * s * tiles,)](
+        normalized,
+        scale,
+        shift,
+        out,
+        s,
+        d,
+        scale.stride(0),
+        shift.stride(0),
+        block,
+        tiles,
+        num_warps=warps,
+        enable_fp_fusion=False,
+    )
+    return out
+
+
+def try_fused_gated_residual(x: torch.Tensor, branch: torch.Tensor, gate: torch.Tensor) -> torch.Tensor | None:
+    """Experimental final MLP residual; uses the same eager-rounding kernel."""
+    if not _v2_sites_enabled() or not _supports_pointwise(x, branch, (gate,)):
+        return None
+    b, s, d = x.shape
+    out = torch.empty(x.shape, device=x.device, dtype=x.dtype)
+    block, warps, tiles = _pointwise_config(b, s, d)
+    _gated_residual_cast_kernel[(b * s * tiles,)](
+        x,
+        branch,
+        gate,
+        out,
+        out,
+        s,
+        d,
+        x.stride(0),
+        x.stride(1),
+        branch.stride(0),
+        branch.stride(1),
+        gate.stride(0),
+        block,
+        False,
+        tiles,
+        num_warps=warps,
+        enable_fp_fusion=False,
+    )
+    return out
+
+
 @cache
 def _is_benchmarked_device(device_index: int) -> bool:
     return current_platform.get_device_name(device_index) == "NVIDIA A100-SXM4-40GB"
@@ -136,7 +245,7 @@ def _has_measured_speedup(residual: torch.Tensor, branch: torch.Tensor) -> bool:
     # The local probe used sliced attention output; the E2E run used contiguous
     # output at the same three sequence lengths.
     # Keep other layouts and compiled execution on the caller's original layers.
-    if torch.compiler.is_compiling():
+    if os.environ.get("VLLM_OMNI_QWEN_ADALN_V2") == "off" or torch.compiler.is_compiling():
         return False
     b, s, d = residual.shape
     return (
@@ -160,45 +269,29 @@ def try_fused_gated_residual_adaln(
 ) -> tuple[torch.Tensor, torch.Tensor] | None:
     """Return two new outputs, or None so the caller uses its original layers.
 
-    Enables only measured A100 BF16 [1,S,3072] layouts at S=12/29/4096.
-    The kernels support broader shapes for direct correctness testing, but
-    unmeasured layouts and compilation retain the caller's original layers.
+    By default enables measured A100 BF16 [1,S,3072] layouts at S=12/29/4096.
+    The explicit local v2 switch selects broader layouts and tiled launches
+    for evaluation; otherwise unmeasured layouts/compilation use the caller.
     Modulation is per-batch [B,1,D] (including chunk/unsqueeze batch gaps).
     Autograd retains the caller's original expression. Two pointwise Triton
     kernels surround native FP32 LayerNorm; torch.compile preserves that
     reduction through a functional custom op. There is no single-kernel
     reduction fast path or error-catching fallback after selection.
     """
-    if (
-        not HAS_TRITON
-        or not current_platform.is_cuda()
-        or not residual.is_cuda
-        or residual.ndim != 3
-        or residual.dtype not in (torch.float32, torch.bfloat16)
-        or residual.numel() == 0
-        or not 0 < residual.shape[-1] <= 8192
-    ):
+    if not _supports_pointwise(residual, branch, (gate, scale, shift)):
         return None
-    if branch.shape != residual.shape:
+    if not _v2_enabled() and not _has_measured_speedup(residual, branch):
         return None
     b, s, d = residual.shape
-    tensors = (residual, branch, gate, scale, shift)
-    if any(t.device != residual.device or t.dtype != residual.dtype or t.layout != torch.strided for t in tensors):
-        return None
-    if torch.is_grad_enabled() and any(t.requires_grad for t in tensors):
-        return None
-    if residual.stride(-1) != 1 or branch.stride(-1) != 1:
-        return None
-    if any(t.shape != (b, 1, d) or t.stride(-1) != 1 for t in (gate, scale, shift)):
-        return None
-    if not _has_measured_speedup(residual, branch):
-        return None
     r = torch.empty(residual.shape, device=residual.device, dtype=residual.dtype)
     norm_input = torch.empty_like(r, dtype=torch.float32) if residual.dtype != torch.float32 else r
     y = torch.empty_like(r)
     block_size = triton.next_power_of_2(d)
     num_warps = 4 if d <= 2048 else 8
-    _gated_residual_cast_kernel[(b * s,)](
+    tiles = 1
+    if _v2_enabled():
+        block_size, num_warps, tiles = _pointwise_config(b, s, d)
+    _gated_residual_cast_kernel[(b * s * tiles,)](
         residual,
         branch,
         gate,
@@ -213,14 +306,12 @@ def try_fused_gated_residual_adaln(
         gate.stride(0),
         block_size,
         residual.dtype != torch.float32,
+        tiles,
         num_warps=num_warps,
         enable_fp_fusion=False,
     )
-    if torch.compiler.is_compiling():
-        normalized = torch.ops.vllm_omni.gated_residual_native_layer_norm(norm_input, eps)
-    else:
-        normalized = _native_layer_norm(norm_input, eps)
-    _cast_modulate_kernel[(b * s,)](
+    normalized = _native_norm_boundary(norm_input, eps)
+    _cast_modulate_kernel[(b * s * tiles,)](
         normalized,
         scale,
         shift,
@@ -230,6 +321,7 @@ def try_fused_gated_residual_adaln(
         scale.stride(0),
         shift.stride(0),
         block_size,
+        tiles,
         num_warps=num_warps,
         enable_fp_fusion=False,
     )

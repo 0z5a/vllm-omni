@@ -25,7 +25,8 @@ def kernel_correctness(monkeypatch):
 @pytest.mark.cpu
 @pytest.mark.parametrize("seq_len", [12, 29, 4096])
 @pytest.mark.parametrize(
-    "case", ["contiguous", "sliced", "other_gpu", "fp32", "batch", "sequence", "stride", "compile", "grad"]
+    "case",
+    ["contiguous", "sliced", "other_gpu", "fp32", "batch", "sequence", "stride", "compile", "grad", "native_off"],
 )
 def test_performance_dispatch(monkeypatch, seq_len, case):
     # CPU FakeTensors keep metadata operations independent of a CUDA build.
@@ -33,6 +34,8 @@ def test_performance_dispatch(monkeypatch, seq_len, case):
     # and production selection logic execute unchanged.
     monkeypatch.setattr(torch.Tensor, "is_cuda", property(lambda self: True))
     calls = []
+    if case == "native_off":
+        monkeypatch.setenv("VLLM_OMNI_QWEN_ADALN_V2", "off")
 
     class Kernel:
         def __getitem__(self, grid):
