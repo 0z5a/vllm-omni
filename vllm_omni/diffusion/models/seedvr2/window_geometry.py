@@ -140,11 +140,6 @@ def get_window_op(name: str) -> Callable[[Size3, Size3], WindowSlices]:
         raise ValueError(f"Unknown windowing method: {name}") from None
 
 
-def layer_window_method(layer_index: int, methods: tuple[str, ...] = DEFAULT_WINDOW_METHODS) -> str:
-    """Window method used by ``layer_index`` (reference alternates per layer)."""
-    return methods[layer_index % len(methods)]
-
-
 def window_layout_geometry(size: Size3, window_method: str, window: Size3 = DEFAULT_WINDOW):
     """Build the CPU geometry (offsets, canonical ids, shapes) of one layout.
 

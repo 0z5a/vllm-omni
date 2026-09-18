@@ -34,7 +34,6 @@ from collections.abc import Sequence
 import torch
 import torch.nn.functional as F
 from torch import nn
-
 from vllm.logger import init_logger
 
 from vllm_omni.diffusion.attention.backends.abstract import AttentionMetadata
@@ -50,6 +49,7 @@ from vllm_omni.diffusion.models.seedvr2.window_geometry import (
     DEFAULT_WINDOW,
     DEFAULT_WINDOW_METHODS,
 )
+from vllm_omni.diffusion.models.seedvr2.window_sp import global_window_mean
 
 logger = init_logger(__name__)
 
@@ -331,9 +331,7 @@ class NaSwinAttention(nn.Module):
         if requested_varlen and not supports_varlen:
             backend_name = self.attention_backend_name or "custom_attention"
             # Stable message without a layer id: 32 layers must warn once.
-            self.varlen_fallback_reason = (
-                f"backend {backend_name} does not support multi-document packed varlen"
-            )
+            self.varlen_fallback_reason = f"backend {backend_name} does not support multi-document packed varlen"
             logger.warning_once(
                 "SeedVR2: attention backend %s does not support multi-document packed varlen; "
                 "using grouped window SDPA.",
@@ -405,7 +403,8 @@ class NaSwinAttention(nn.Module):
         if runtime is not None:
             txt_out = runtime.reduce_text(local_text_sum, ctx.global_windows).to(vid.dtype)
         else:
-            txt_out = (local_text_sum.to(torch.float32) / float(max(ctx.global_windows, 1))).to(vid.dtype)
+            # Same reduction as the runtime path, without a collective.
+            txt_out = global_window_mean(local_text_sum, ctx.global_windows, group=None, dtype=vid.dtype)
 
         return self.proj_out(vid_out, txt_out)
 
