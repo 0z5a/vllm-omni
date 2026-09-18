@@ -5,9 +5,11 @@
 
 Collectives, head-count selection, and sequence splits remain in ``ulysses``.
 The CUDA copies preserve element bit patterns and allocate contiguous outputs.
-Only padded FP32/BF16 inference inputs are accelerated; the original view/copy
+Only measured BF16 A100 layouts are accelerated; the original view/copy
 sequence handles all other inputs, including autograd and no-padding cases.
 """
+
+from functools import cache
 
 import torch
 import torch.nn.functional as F
@@ -83,6 +85,42 @@ def _can_fuse(x: torch.Tensor) -> bool:
     )
 
 
+@cache
+def _is_benchmarked_device(device_index: int) -> bool:
+    return current_platform.get_device_name(device_index) == "NVIDIA A100-SXM4-40GB"
+
+
+def _pack_has_measured_speedup(x: torch.Tensor, world_size: int, padded_heads: int) -> bool:
+    # All six local-copy cases improved on both A100s in seven paired blocks.
+    # Compilation has correctness coverage but no independent timing evidence.
+    if torch.compiler.is_compiling():
+        return False
+    b, s, h, d = x.shape
+    return (
+        x.dtype == torch.bfloat16
+        and b == 1
+        and s in (2048, 2136)
+        and d == 120
+        and world_size == 2
+        and (h, padded_heads) in ((21, 24), (7, 8))
+        and x.is_contiguous()
+        and _is_benchmarked_device(x.device.index)
+    )
+
+
+def _unpack_has_measured_speedup(x: torch.Tensor, world_size: int, seq_len: int, heads: int) -> bool:
+    if torch.compiler.is_compiling():
+        return False
+    return (
+        x.dtype == torch.bfloat16
+        and world_size == 2
+        and seq_len in (2048, 2136)
+        and heads == 21
+        and x.shape == (2 * seq_len, 1, 12, 120)
+        and _is_benchmarked_device(x.device.index)
+    )
+
+
 def pad_pack_heads(x: torch.Tensor, world_size: int, padded_heads: int) -> torch.Tensor:
     """Map [B,S,H,D] to contiguous [U*S,B,Hpad/U,D], padding heads with zero.
 
@@ -92,7 +130,7 @@ def pad_pack_heads(x: torch.Tensor, world_size: int, padded_heads: int) -> torch
     """
     b, s, h, d = x.shape
     local_h = padded_heads // world_size
-    if padded_heads > h and world_size > 1 and _can_fuse(x):
+    if padded_heads > h and world_size > 1 and _can_fuse(x) and _pack_has_measured_speedup(x, world_size, padded_heads):
         out = torch.empty((world_size * s, b, local_h, d), device=x.device, dtype=x.dtype)
         _pad_pack_kernel[(triton.cdiv(out.numel(), 1024),)](
             x,
@@ -129,6 +167,7 @@ def unpack_unpad_heads(
         and b * local_seq_len > 1
         and x.is_contiguous()
         and _can_fuse(x)
+        and _unpack_has_measured_speedup(x, world_size, local_seq_len, original_heads)
     ):
         out = torch.empty((b, local_seq_len, original_heads, d), device=x.device, dtype=x.dtype)
         _unpack_unpad_kernel[(triton.cdiv(out.numel(), 1024),)](
