@@ -33,7 +33,8 @@ from vllm_omni.diffusion.models.seedvr2.window_sp import (
     WindowLayout,
     WindowLayoutKey,
     WindowLayoutManager,
-    to_cu_seqlens,
+    global_window_mean,
+    joint_cu_seqlens,
 )
 
 
@@ -85,12 +86,12 @@ def build_local_window_context(
 
     if num_windows:
         lengths = (video_cu_seqlens[1:] - video_cu_seqlens[:-1]).to(torch.int64)
-        joint_offsets = torch.cumsum(lengths + int(text_len), dim=0)
-        joint_cu = to_cu_seqlens(
-            torch.cat([torch.zeros(1, dtype=torch.int64, device=device), joint_offsets]),
-            context="seedvr2 joint window packing",
-        )
-        base = joint_offsets - (lengths + int(text_len))
+        # The joint offsets come from the shared helper; the packing and unpacking
+        # indices below are derived from exactly the same values.
+        joint_cu = joint_cu_seqlens(video_cu_seqlens, text_len)
+        window_joint_lengths = lengths + int(text_len)
+        joint_offsets = torch.cumsum(window_joint_lengths, dim=0)
+        base = joint_offsets - window_joint_lengths
         joint_pieces = []
         vid_pieces = []
         txt_pieces = []
@@ -108,7 +109,8 @@ def build_local_window_context(
         vid_src = torch.cat(vid_pieces) if vid_pieces else torch.empty(0, dtype=torch.int64, device=device)
         txt_src = torch.cat(txt_pieces) if txt_pieces else torch.empty(0, dtype=torch.int64, device=device)
     else:
-        joint_cu = to_cu_seqlens(torch.zeros(1, dtype=torch.int64, device=device), context="empty window rank")
+        # Empty rank: the same helper must produce a device-local int32 ``[0]``.
+        joint_cu = joint_cu_seqlens(video_cu_seqlens, text_len)
         joint_order = torch.empty(0, dtype=torch.int64, device=device)
         vid_src = torch.empty(0, dtype=torch.int64, device=device)
         txt_src = torch.empty(0, dtype=torch.int64, device=device)
@@ -272,26 +274,43 @@ class SeedVR2WindowRuntime:
         return self.manager.transitions
 
     # -- text reduction ----------------------------------------------------
+    def collective_group(self) -> dist.ProcessGroup | None:
+        """Group for the text reduction, or ``None`` for a local mean.
+
+        ``world_size == 1`` is the local case.  A multi-rank runtime without a
+        usable group is rejected rather than silently degrading to a rank-local
+        mean, which would produce a different text state.
+        """
+        if self.world_size == 1:
+            return None
+        if self.group is None:
+            raise RuntimeError("window-SP with world_size > 1 requires a process group for the text reduction")
+        if dist.get_world_size(self.group) != self.world_size:
+            raise RuntimeError(
+                f"window-SP group size {dist.get_world_size(self.group)} does not match world_size {self.world_size}"
+            )
+        return self.group
+
     def reduce_text(self, local_window_sum: torch.Tensor, global_windows: int) -> torch.Tensor:
-        """Global window mean of the per-window text attention outputs."""
+        """Global window mean of the per-window text attention outputs.
+
+        Shape adaptation and the runtime statistics live here; the arithmetic and
+        the collective live in :func:`global_window_mean`, which the tests and the
+        single-rank attention path use as well.
+        """
         if local_window_sum.numel() == 0:
             local_window_sum = torch.zeros(
                 (self.text_len,) + local_window_sum.shape[1:],
                 dtype=local_window_sum.dtype,
                 device=local_window_sum.device,
             )
-        # Low-precision streams accumulate in fp32 (the reference averages the
-        # attention output directly); float64 fixtures keep their own precision.
-        acc_dtype = (
-            torch.float32 if local_window_sum.dtype in (torch.float16, torch.bfloat16) else local_window_sum.dtype
-        )
-        total = local_window_sum.to(acc_dtype).clone()
-        if self.world_size > 1 and self.group is not None:
-            dist.all_reduce(total, op=dist.ReduceOp.SUM, group=self.group)
-            self.stats["text_all_reduces"] += 1
-        else:
+        group = self.collective_group()
+        reduced = global_window_mean(local_window_sum, global_windows, group=group)
+        if group is None:
             self.stats["fused_text_mean_calls"] += 1
-        return total / float(global_windows)
+        else:
+            self.stats["text_all_reduces"] += 1
+        return reduced
 
     def current_device(self) -> torch.device | None:
         return self.manager._device  # noqa: SLF001 - single internal owner

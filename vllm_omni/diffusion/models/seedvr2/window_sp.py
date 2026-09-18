@@ -319,17 +319,27 @@ def to_cu_seqlens(offsets: torch.Tensor, *, context: str = "") -> torch.Tensor:
 
 
 def joint_cu_seqlens(video_cu_seqlens: torch.Tensor, text_len: int) -> torch.Tensor:
-    """``[W_r + 1]`` joint (video + replicated text) offsets for local attention.
+    """``[W + 1]`` int32 joint (video + replicated text) offsets for local attention.
 
     ``video_cu_seqlens`` describes video packing only and must not be used
-    directly as joint Q/K offsets.
+    directly as joint Q/K offsets.  The offsets are accumulated in int64 on the
+    input's device and converted to int32 only after validation, so CUDA
+    metadata never round-trips through the host and an overflow is caught before
+    a wrapped offset can be produced.  ``text_len`` may be 0; an input of ``[0]``
+    (a rank without windows) yields ``[0]``.
     """
     if text_len < 0:
         raise ValueError(f"text_len must be >= 0, got {text_len}")
-    video_cu_seqlens = video_cu_seqlens.to(torch.int64)
-    num_windows = int(video_cu_seqlens.numel()) - 1
-    joint = video_cu_seqlens + torch.arange(num_windows + 1, dtype=torch.int64) * int(text_len)
-    return to_cu_seqlens(joint, context="joint video+text packing")
+    video = video_cu_seqlens.to(torch.int64)
+    if video.numel() == 0:
+        raise ValueError("video_cu_seqlens must contain at least the leading zero")
+    if bool((video[0] != 0).item()):
+        raise ValueError(f"video_cu_seqlens must start at 0, got {int(video[0])}")
+    if bool((video[1:] < video[:-1]).any().item()):
+        raise ValueError("video_cu_seqlens must be non-decreasing")
+    windows = video.numel() - 1
+    text_offsets = torch.arange(windows + 1, device=video.device, dtype=torch.int64) * int(text_len)
+    return to_cu_seqlens(video + text_offsets, context="joint video+text packing")
 
 
 # =============================================================================
@@ -570,19 +580,6 @@ class WindowPlanCache:
 # =============================================================================
 
 
-def materialize_rank_window_plan(plan: RankWindowPlan, *, device: torch.device | str) -> RankWindowPlan:
-    """Move a CPU rank plan to the device that will execute local attention."""
-    device = torch.device(device)
-    return RankWindowPlan(
-        layout_key=plan.layout_key,
-        rank=plan.rank,
-        window_ids=plan.window_ids.to(device, non_blocking=True),
-        global_token_ids=plan.global_token_ids.to(device, non_blocking=True),
-        video_cu_seqlens=plan.video_cu_seqlens.to(device, non_blocking=True),
-        window_shapes=plan.window_shapes.to(device, non_blocking=True),
-    )
-
-
 def materialize_redistribution_plan(
     plan: WindowRedistributionPlan, *, device: torch.device | str
 ) -> DeviceWindowRedistributionPlan:
@@ -646,24 +643,39 @@ def redistribute_window_rows(
     return recv
 
 
+def reduction_dtype(dtype: torch.dtype) -> torch.dtype:
+    """Accumulator dtype for a window reduction (fp16/bf16 reduce in fp32)."""
+    return torch.float32 if dtype in (torch.float16, torch.bfloat16) else dtype
+
+
 def global_window_mean(
     local_window_sum: torch.Tensor,
     global_window_count: int,
     *,
-    group: dist.ProcessGroup,
+    group: dist.ProcessGroup | None = None,
     dtype: torch.dtype | None = None,
 ) -> torch.Tensor:
     """Reference text reduction: ``(sum over all windows) / global_window_count``.
 
     Every rank contributes the *sum* of its own windows' text attention output
-    (a zero tensor on ranks without windows), one SUM all-reduce is issued on
-    the window-SP group, and all ranks divide by the global window count.  This
-    is neither a token-weighted mean nor a mean of rank means.
+    (a zero tensor on ranks without windows) and all ranks divide by the global
+    window count.  This is neither a token-weighted mean nor a mean of rank
+    means.
+
+    ``group=None`` means *local* reduction: no collective is issued, and ``None``
+    is never forwarded to ``all_reduce`` (which would silently use the default
+    process group).  fp16/bf16 inputs are accumulated in fp32, fp32/fp64 keep
+    their own precision, the caller's tensor is not modified, and ``dtype`` is
+    applied only after the reduction and the division.
     """
     if global_window_count <= 0:
         raise ValueError(f"global_window_count must be positive, got {global_window_count}")
-    total = local_window_sum.to(torch.float32).clone()
-    dist.all_reduce(total, op=dist.ReduceOp.SUM, group=group)
+    accumulate = reduction_dtype(local_window_sum.dtype)
+    if group is None:
+        total = local_window_sum.to(accumulate)
+    else:
+        total = local_window_sum.to(accumulate).clone()
+        dist.all_reduce(total, op=dist.ReduceOp.SUM, group=group)
     total = total / float(global_window_count)
     return total.to(dtype) if dtype is not None else total
 
@@ -751,10 +763,6 @@ class WindowLayoutManager:
         assignment = assignment or self.assignment(layout)
         return self.cache.rank_plan(layout, assignment, rank)
 
-    def all_rank_plans(self, layout: WindowLayout) -> tuple[RankWindowPlan, ...]:
-        assignment = self.assignment(layout)
-        return tuple(self.rank_plan_for(layout, r, assignment) for r in range(self.world_size))
-
     # -- transitions -------------------------------------------------------
     def device_plan(self, src_layout: WindowLayout, dst_layout: WindowLayout) -> DeviceWindowRedistributionPlan:
         key = (src_layout.key, dst_layout.key)
@@ -801,14 +809,3 @@ class WindowLayoutManager:
                 return hidden
         self.transitions += 1
         return redistribute_window_rows(hidden, plan, group=self.group)
-
-    # -- output reconstruction --------------------------------------------
-    def canonical_reconstruction_indices(self, layout: WindowLayout) -> torch.Tensor:
-        """Indices that map rank-local rows back to canonical token order.
-
-        Only valid for the rank that owns the full token range (SP = 1 or the
-        root-gather path); for multi-rank reconstruction the caller gathers
-        rank rows first and then applies the inverse permutation of the
-        concatenated layout.
-        """
-        return torch.argsort(layout.window_token_ids)
