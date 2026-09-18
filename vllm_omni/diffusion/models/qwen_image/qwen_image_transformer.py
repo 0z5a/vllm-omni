@@ -893,8 +893,8 @@ class QwenImageTransformerBlock(nn.Module):
         # QwenAttnProcessor2_0 returns (img_output, txt_output) when encoder_hidden_states is provided
         img_attn_output, txt_attn_output = attn_output
 
-        # Ordinary T2I can fuse the attention residual producer with norm2.
-        # Indexed Edit modulation and other unsupported inputs keep the layers.
+        # Ordinary T2I fuses residual/cast and norm2 modulation around native
+        # LayerNorm. Indexed Edit and other unsupported inputs keep the layers.
         img_scale2, img_shift2, img_gate2 = self._modulate(img_mod2, modulate_index)
         img_fused = None
         if modulate_index is None and not self.zero_cond_t:

@@ -3,15 +3,41 @@
 
 """Qwen-Image's attention residual followed by non-affine AdaLayerNorm.
 
-Both the updated residual and the MLP input are live outputs. FP32 reduction
-matches the layer's ``layer_norm(x.float()).to(x.dtype)`` contract. Low precision
-multiplication, residual addition, norm output, ``1 + scale``, modulation
-multiplication, and shift addition each retain their eager rounding boundary.
+Both the updated residual and the MLP input are live outputs. Two pointwise
+kernels fuse the residual/FP32 cast and the norm-output cast/modulation around
+PyTorch's native FP32 LayerNorm. Keeping the native reduction matters: even a
+single FP32 ULP can change BF16 rounding and accumulate across denoising steps.
+Every low precision operation retains its eager rounding boundary.
 """
 
 import torch
+import torch.nn.functional as F
+from torch.library import Library
 from vllm.platforms import current_platform
 from vllm.triton_utils import HAS_TRITON, tl, triton
+from vllm.utils.torch_utils import direct_register_custom_op
+
+
+def _native_layer_norm(x: torch.Tensor, eps: float) -> torch.Tensor:
+    return F.layer_norm(x, (x.shape[-1],), eps=eps)
+
+
+def _native_layer_norm_fake(x: torch.Tensor, eps: float) -> torch.Tensor:
+    return torch.empty_like(x)
+
+
+# A compile boundary prevents Inductor from replacing the native reduction with
+# a different summation order. The pointwise Triton launches remain traceable.
+_OMNI_OP_LIB = Library("vllm_omni", "FRAGMENT")
+if not hasattr(torch.ops.vllm_omni, "gated_residual_native_layer_norm"):
+    direct_register_custom_op(
+        op_name="gated_residual_native_layer_norm",
+        op_func=_native_layer_norm,
+        fake_impl=_native_layer_norm_fake,
+        mutates_args=[],
+        target_lib=_OMNI_OP_LIB,
+    )
+
 
 if HAS_TRITON:
     # Explicit PTX keeps both rounding and subnormals. CUDA libdevice rn
@@ -20,17 +46,6 @@ if HAS_TRITON:
     def _add_rn(x, y):
         return tl.inline_asm_elementwise(
             "add.rn.f32 $0, $1, $2;",
-            constraints="=f,f,f",
-            args=[x, y],
-            dtype=tl.float32,
-            is_pure=True,
-            pack=1,
-        )
-
-    @triton.jit
-    def _sub_rn(x, y):
-        return tl.inline_asm_elementwise(
-            "sub.rn.f32 $0, $1, $2;",
             constraints="=f,f,f",
             args=[x, y],
             dtype=tl.float32,
@@ -50,14 +65,12 @@ if HAS_TRITON:
         )
 
     @triton.jit
-    def _gated_residual_adaln_kernel(
+    def _gated_residual_cast_kernel(
         x_ptr,
         branch_ptr,
         gate_ptr,
-        scale_ptr,
-        shift_ptr,
         residual_out_ptr,
-        modulated_out_ptr,
+        norm_input_ptr,
         seq_len: tl.constexpr,
         hidden_size: tl.constexpr,
         x_stride_b: tl.constexpr,
@@ -65,10 +78,8 @@ if HAS_TRITON:
         branch_stride_b: tl.constexpr,
         branch_stride_s: tl.constexpr,
         gate_stride_b: tl.constexpr,
-        scale_stride_b: tl.constexpr,
-        shift_stride_b: tl.constexpr,
-        eps: tl.constexpr,
         block_size: tl.constexpr,
+        cast_output: tl.constexpr,
     ):
         row = tl.program_id(0).to(tl.int64)
         batch, token = row // seq_len, row % seq_len
@@ -84,19 +95,34 @@ if HAS_TRITON:
         # options and drops enable_fp_fusion=False.
         product = _mul_rn(gate, branch).to(dtype).to(tl.float32)
         residual = _add_rn(x, product).to(dtype)
-        r = residual.to(tl.float32)
-        mean = tl.sum(tl.where(mask, r, 0), 0) / hidden_size
-        centered = _sub_rn(r, mean)
-        variance = tl.sum(tl.where(mask, _mul_rn(centered, centered), 0), 0) / hidden_size
-        inv_std = tl.rsqrt(_add_rn(variance, tl.full((), eps, tl.float32)))
-        normalized = _mul_rn(centered, inv_std).to(dtype).to(tl.float32)
+        tl.store(residual_out_ptr + row * hidden_size + d, residual, mask)
+        if cast_output:
+            tl.store(norm_input_ptr + row * hidden_size + d, residual.to(tl.float32), mask)
+
+    @triton.jit
+    def _cast_modulate_kernel(
+        normalized_ptr,
+        scale_ptr,
+        shift_ptr,
+        out_ptr,
+        seq_len: tl.constexpr,
+        hidden_size: tl.constexpr,
+        scale_stride_b: tl.constexpr,
+        shift_stride_b: tl.constexpr,
+        block_size: tl.constexpr,
+    ):
+        row = tl.program_id(0).to(tl.int64)
+        batch = row // seq_len
+        d = tl.arange(0, block_size)
+        mask = d < hidden_size
+        dtype = out_ptr.dtype.element_ty
+        normalized = tl.load(normalized_ptr + row * hidden_size + d, mask, other=0).to(dtype).to(tl.float32)
         scale = tl.load(scale_ptr + batch * scale_stride_b + d, mask, other=0).to(tl.float32)
         shift = tl.load(shift_ptr + batch * shift_stride_b + d, mask, other=0).to(tl.float32)
         factor = _add_rn(tl.full((), 1.0, tl.float32), scale).to(dtype).to(tl.float32)
         modulated = _mul_rn(normalized, factor).to(dtype).to(tl.float32)
         y = _add_rn(modulated, shift).to(dtype)
-        tl.store(residual_out_ptr + row * hidden_size + d, residual, mask)
-        tl.store(modulated_out_ptr + row * hidden_size + d, y, mask)
+        tl.store(out_ptr + row * hidden_size + d, y, mask)
 
 
 def try_fused_gated_residual_adaln(
@@ -111,9 +137,10 @@ def try_fused_gated_residual_adaln(
 
     Supports CUDA FP32/BF16 [B,S,D] rows with unit channel stride, D <= 8192,
     and per-batch [B,1,D] modulation (including chunk/unsqueeze batch gaps).
-    Autograd retains the caller's original expression; torch.compile can trace
-    the functional Triton launch without an opaque custom-op boundary.
-    This helper never catches errors after selecting its supported kernel.
+    Autograd retains the caller's original expression. Two pointwise Triton
+    kernels surround native FP32 LayerNorm; torch.compile preserves that
+    reduction through a functional custom op. There is no single-kernel
+    reduction fast path or error-catching fallback after selection.
     """
     if (
         not HAS_TRITON
@@ -138,15 +165,16 @@ def try_fused_gated_residual_adaln(
     if any(t.shape != (b, 1, d) or t.stride(-1) != 1 for t in (gate, scale, shift)):
         return None
     r = torch.empty(residual.shape, device=residual.device, dtype=residual.dtype)
+    norm_input = torch.empty_like(r, dtype=torch.float32) if residual.dtype != torch.float32 else r
     y = torch.empty_like(r)
-    _gated_residual_adaln_kernel[(b * s,)](
+    block_size = triton.next_power_of_2(d)
+    num_warps = 4 if d <= 2048 else 8
+    _gated_residual_cast_kernel[(b * s,)](
         residual,
         branch,
         gate,
-        scale,
-        shift,
         r,
-        y,
+        norm_input,
         s,
         d,
         residual.stride(0),
@@ -154,11 +182,26 @@ def try_fused_gated_residual_adaln(
         branch.stride(0),
         branch.stride(1),
         gate.stride(0),
+        block_size,
+        residual.dtype != torch.float32,
+        num_warps=num_warps,
+        enable_fp_fusion=False,
+    )
+    if torch.compiler.is_compiling():
+        normalized = torch.ops.vllm_omni.gated_residual_native_layer_norm(norm_input, eps)
+    else:
+        normalized = _native_layer_norm(norm_input, eps)
+    _cast_modulate_kernel[(b * s,)](
+        normalized,
+        scale,
+        shift,
+        y,
+        s,
+        d,
         scale.stride(0),
         shift.stride(0),
-        eps,
-        triton.next_power_of_2(d),
-        num_warps=4 if d <= 2048 else 8,
+        block_size,
+        num_warps=num_warps,
         enable_fp_fusion=False,
     )
     return r, y
