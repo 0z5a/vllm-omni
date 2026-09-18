@@ -35,6 +35,8 @@ import torch
 import torch.nn.functional as F
 from torch import nn
 
+from vllm.logger import init_logger
+
 from vllm_omni.diffusion.attention.backends.abstract import AttentionMetadata
 from vllm_omni.diffusion.attention.layer import Attention
 from vllm_omni.diffusion.models.seedvr2.na_ops import (
@@ -48,6 +50,8 @@ from vllm_omni.diffusion.models.seedvr2.window_geometry import (
     DEFAULT_WINDOW,
     DEFAULT_WINDOW_METHODS,
 )
+
+logger = init_logger(__name__)
 
 # Reference checkpoint hyper-parameters for the released 3B model.
 SEEDVR2_3B_CONFIG: dict = {
@@ -313,7 +317,29 @@ class NaSwinAttention(nn.Module):
             role="self",
             skip_sequence_parallel=True,
         )
-        self.use_varlen_kernel = bool(use_varlen_kernel)
+        # ``use_varlen_kernel`` is a request, not a capability proof: a backend
+        # that ignores ``cu_seqlens`` would attend across every local window
+        # (and the replicated text stream), which is silently wrong and differs
+        # by SP degree.  Resolve the request against the selected backend once.
+        requested_varlen = bool(use_varlen_kernel)
+        backend = getattr(self.attention, "attn_backend", None)
+        supports_varlen = bool(backend is not None and backend.supports_multi_doc_packed_varlen())
+        self.use_varlen_kernel = requested_varlen and supports_varlen
+        self.attention_backend_name = backend.get_name() if backend is not None else None
+        self.attention_path = "packed_varlen" if self.use_varlen_kernel else "grouped_sdpa"
+        self.varlen_fallback_reason: str | None = None
+        if requested_varlen and not supports_varlen:
+            backend_name = self.attention_backend_name or "custom_attention"
+            # Stable message without a layer id: 32 layers must warn once.
+            self.varlen_fallback_reason = (
+                f"backend {backend_name} does not support multi-document packed varlen"
+            )
+            logger.warning_once(
+                "SeedVR2: attention backend %s does not support multi-document packed varlen; "
+                "using grouped window SDPA.",
+                backend_name,
+            )
+        self.attention_stats = {"packed_varlen_calls": 0, "grouped_sdpa_calls": 0, "no_local_windows_calls": 0}
 
     def _split_heads(self, qkv: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
         return qkv.view(qkv.shape[0], 3, self.heads, self.head_dim).unbind(1)
@@ -344,6 +370,13 @@ class NaSwinAttention(nn.Module):
         joint_q = pack_joint_windows(vid_q, txt_q, ctx)
         joint_k = pack_joint_windows(vid_k, txt_k, ctx)
         joint_v = pack_joint_windows(vid_v, txt_v, ctx)
+
+        if not ctx.local_windows:
+            self.attention_stats["no_local_windows_calls"] += 1
+        elif self.use_varlen_kernel:
+            self.attention_stats["packed_varlen_calls"] += 1
+        else:
+            self.attention_stats["grouped_sdpa_calls"] += 1
 
         if self.use_varlen_kernel and ctx.local_windows:
             metadata = AttentionMetadata(
@@ -626,6 +659,34 @@ class SeedVR2NaDiT(nn.Module):
         vid_hidden = self._output_projection(vid_hidden, emb)
         vid_hidden = runtime.to_canonical_rows(vid_hidden, runtime.layout_for_layer(self.num_layers - 1))
         return NaDiTOutput(vid_sample=unpatchify(vid_hidden, token_grid, self.patch_size))
+
+    # -- attention path reporting -----------------------------------------
+    def attention_path_summary(self) -> dict:
+        """Requested vs resolved attention path, backends and per-path call counts."""
+        layers_per_path: dict[str, int] = {}
+        backends: set[str] = set()
+        fallbacks: set[str] = set()
+        stats = {"packed_varlen_calls": 0, "grouped_sdpa_calls": 0, "no_local_windows_calls": 0}
+        for block in self.blocks:
+            attn = block.attn
+            layers_per_path[attn.attention_path] = layers_per_path.get(attn.attention_path, 0) + 1
+            if attn.attention_backend_name:
+                backends.add(attn.attention_backend_name)
+            if attn.varlen_fallback_reason:
+                fallbacks.add(attn.varlen_fallback_reason)
+            for key, value in attn.attention_stats.items():
+                stats[key] += value
+        return {
+            "layers_per_path": layers_per_path,
+            "backend_names": sorted(backends),
+            "varlen_fallback_reasons": sorted(fallbacks),
+            **stats,
+        }
+
+    def reset_attention_stats(self) -> None:
+        for block in self.blocks:
+            for key in block.attn.attention_stats:
+                block.attn.attention_stats[key] = 0
 
     # -- internals ---------------------------------------------------------
     def _output_projection(self, vid_hidden: torch.Tensor, emb: torch.Tensor) -> torch.Tensor:
