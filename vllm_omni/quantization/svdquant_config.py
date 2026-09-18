@@ -53,6 +53,13 @@ logger = init_logger(__name__)
 
 _SUPPORTED_CAPABILITIES = {(10, 0), (10, 3), (12, 0)}
 _NATIVE_BACKENDS = ("cutlass", "cute-dsl", "cute-dsl-unfused", "auto")
+# Geometries whose fused native epilogue is slower than the compatibility path.
+# Measured on SM120 (RTX 5090), median of 50 CUDA-event iterations against the
+# same BF16 reference: the native path is 17-35% faster on the other production
+# shapes and 10.3% slower for K=14336 / N=5376 at M=32768, so that geometry
+# keeps the compatibility implementation. ``native_fallback_shapes: []`` in the
+# serialized quantization config disables the fallback.
+_NATIVE_FALLBACK_SHAPES = ((14336, 5376),)
 _COMPATIBLE_NVFP4_KERNELS = (
     CutlassNvFp4LinearKernel,
     FbgemmNvFp4LinearKernel,
@@ -119,6 +126,22 @@ def _default_native_backend(capability: DeviceCapability) -> str:
     return "cute-dsl" if capability.major == 12 else "cutlass"
 
 
+def _parse_shapes(shapes: list[list[int]]) -> tuple[tuple[int, int], ...]:
+    """Validate a serialized list of ``[input_size, output_size]`` pairs."""
+    parsed: list[tuple[int, int]] = []
+    for entry in shapes:
+        if (
+            not isinstance(entry, (list, tuple))
+            or len(entry) != 2
+            or any(not isinstance(value, int) or isinstance(value, bool) or value <= 0 for value in entry)
+        ):
+            raise ValueError(
+                f"SVDQuant native_fallback_shapes entries must be [input_size, output_size]; got {entry!r}"
+            )
+        parsed.append((int(entry[0]), int(entry[1])))
+    return tuple(parsed)
+
+
 class DiffusionSVDQuantConfig(QuantizationConfig):
     """Configuration for serialized NVFP4 W4A4 plus low-rank correction."""
 
@@ -134,6 +157,7 @@ class DiffusionSVDQuantConfig(QuantizationConfig):
         linear_backend: str = "compatibility",
         native_backend: str | None = None,
         native_enable_pdl: bool | None = None,
+        native_fallback_shapes: list[list[int]] | None = None,
     ) -> None:
         super().__init__()
         if rank <= 0:
@@ -158,6 +182,11 @@ class DiffusionSVDQuantConfig(QuantizationConfig):
             raise ValueError("SVDQuant native_enable_pdl must be a bool or None")
         if linear_backend != "flashinfer" and (native_backend is not None or native_enable_pdl is not None):
             raise ValueError("native_backend and native_enable_pdl require linear_backend='flashinfer'")
+        if native_fallback_shapes is not None and linear_backend != "flashinfer":
+            raise ValueError("native_fallback_shapes requires linear_backend='flashinfer'")
+        self.native_fallback_shapes = (
+            _NATIVE_FALLBACK_SHAPES if native_fallback_shapes is None else _parse_shapes(native_fallback_shapes)
+        )
         self.native_backend = native_backend
         self.native_enable_pdl = native_enable_pdl
         self.linear_backend = linear_backend
@@ -168,7 +197,8 @@ class DiffusionSVDQuantConfig(QuantizationConfig):
         return (
             f"DiffusionSVDQuantConfig(rank={self.rank}, precision={self.precision!r}, "
             f"activation_bits={self.activation_bits}, linear_backend={self.linear_backend!r}, "
-            f"native_backend={self.native_backend!r}, native_enable_pdl={self.native_enable_pdl!r})"
+            f"native_backend={self.native_backend!r}, native_enable_pdl={self.native_enable_pdl!r}, "
+            f"native_fallback_shapes={list(self.native_fallback_shapes)!r})"
         )
 
     @classmethod
@@ -198,7 +228,12 @@ class DiffusionSVDQuantConfig(QuantizationConfig):
             linear_backend=config.get("linear_backend", "compatibility"),
             native_backend=config.get("native_backend"),
             native_enable_pdl=config.get("native_enable_pdl"),
+            native_fallback_shapes=config.get("native_fallback_shapes"),
         )
+
+    def native_falls_back(self, input_size: int, output_size: int) -> bool:
+        """True when this geometry keeps the compatibility implementation."""
+        return (input_size, output_size) in self.native_fallback_shapes
 
     def get_quant_method(
         self,
@@ -364,7 +399,7 @@ class DiffusionSVDQuantLinearMethod(LinearMethodBase):
         layer.output_size_per_partition = output_size_per_partition
 
     def process_weights_after_loading(self, layer: torch.nn.Module) -> None:
-        """Adapt the canonical row-major checkpoint to vLLM's NVFP4 ABI."""
+        """Route the loaded weights to the configured execution path."""
         if self.quant_config.activation_bits == 16:
             # Keep packed checkpoint weights resident. The reference W4A16
             # path materializes only the current linear's dense weight.
@@ -373,8 +408,19 @@ class DiffusionSVDQuantLinearMethod(LinearMethodBase):
             )
             return
         if self.quant_config.linear_backend == "flashinfer":
-            self._prepare_native_weights(layer)
-            return
+            n, packed_k = layer.qweight.shape
+            if not self.quant_config.native_falls_back(packed_k * 2, n):
+                self._prepare_native_weights(layer)
+                return
+            logger.info_once(
+                "SVDQuant native backend skipped for %sx%s: this geometry keeps the compatibility path.",
+                n,
+                packed_k * 2,
+            )
+        self._prepare_compatibility_weights(layer)
+
+    def _prepare_compatibility_weights(self, layer: torch.nn.Module) -> None:
+        """Adapt the canonical row-major checkpoint to vLLM's NVFP4 ABI."""
         qweight = layer.qweight
         wscales = layer.wscales
         del layer.qweight

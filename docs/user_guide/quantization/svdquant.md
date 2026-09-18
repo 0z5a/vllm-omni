@@ -58,6 +58,21 @@ W4A4, rank 32/64/96/128, N and K divisible by 128, and finite positive smoothing
 and output scales. Unsupported contracts fail explicitly; choose compatibility
 for those checkpoints. Inspect the installed API as well as its package version.
 
+Two optional keys tune the native path; both default to the previous
+behaviour, so existing checkpoints are unaffected:
+
+| Key | Meaning |
+| --- | --- |
+| `native_backend` | `"cutlass"`, `"cute-dsl"`, `"cute-dsl-unfused"` or `"auto"`; `null` keeps the architecture default (`"cute-dsl"` on SM120). On SM120 only the architecture default is currently executable: FlashInfer's `nvfp4_quantize_smooth` rejects `"cutlass"` for capability 120, and `"auto"` measured slower than `"cute-dsl"` on every production shape. |
+| `native_enable_pdl` | Forwarded to FlashInfer's `enable_pdl`. Measured on SM120: up to 35% faster on the latency-bound small-M shapes, neutral at large M. |
+| `native_fallback_shapes` | List of `[input_size, output_size]` pairs that keep the compatibility implementation. Defaults to the geometry measured slower with fusion (`[[14336, 5376]]`); set `[]` to disable. |
+
+Timed single-operator comparison (median of 50 CUDA-event iterations on SM120,
+each variant verified to < 0.01 relative error against the same BF16
+reference): the fused native path is 17-35% faster than compatibility on five of
+six production shapes and 10.3% slower for K=14336 / N=5376 at M=32768, which is
+why that geometry defaults to the fallback.
+
 The loader retains the canonical packed residual, interleaves its block scales,
 and compensates the native up projection for scalar and output channel scales.
 The down projection continues to consume the original input. Native and

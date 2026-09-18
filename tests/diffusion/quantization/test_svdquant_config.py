@@ -144,3 +144,86 @@ def test_active_linear_uses_svdquant_method(
     method = config.get_quant_method(linear, "blocks.0.attn.out_proj")
 
     assert isinstance(method, DiffusionSVDQuantLinearMethod)
+
+def test_native_options_default_to_previous_behaviour() -> None:
+    config = DiffusionSVDQuantConfig(activation_bits=4, linear_backend="flashinfer")
+
+    # Unset means "keep the library/architecture default", so an existing
+    # checkpoint behaves exactly as before these options existed.
+    assert config.native_backend is None
+    assert config.native_enable_pdl is None
+    # The measured-slow geometry keeps the compatibility implementation by
+    # default; an empty list in the checkpoint config disables the fallback.
+    assert config.native_falls_back(14336, 5376)
+    assert not config.native_falls_back(5376, 21504)
+    assert not DiffusionSVDQuantConfig(
+        activation_bits=4, linear_backend="flashinfer", native_fallback_shapes=[]
+    ).native_falls_back(14336, 5376)
+
+
+def test_native_options_round_trip_through_the_serialized_config() -> None:
+    config = DiffusionSVDQuantConfig.from_config(
+        {
+            "quant_method": "svdquant",
+            "rank": 32,
+            "precision": "nvfp4",
+            "activation_bits": 4,
+            "linear_backend": "flashinfer",
+            "native_backend": "cute-dsl",
+            "native_enable_pdl": True,
+            "native_fallback_shapes": [[14336, 5376]],
+        }
+    )
+
+    assert config.native_backend == "cute-dsl"
+    assert config.native_enable_pdl is True
+    assert config.native_falls_back(14336, 5376)
+
+
+@pytest.mark.parametrize(
+    ("kwargs", "message"),
+    [
+        ({"native_backend": "cute-dsl"}, "require linear_backend"),
+        ({"native_enable_pdl": True}, "require linear_backend"),
+        ({"native_fallback_shapes": [[14336, 5376]]}, "requires linear_backend"),
+        ({"native_backend": "triton"}, "native_backend must be one of"),
+        ({"native_enable_pdl": 1}, "must be a bool or None"),
+        ({"native_fallback_shapes": [[14336]]}, "must be \\[input_size, output_size\\]"),
+        ({"native_fallback_shapes": [[14336, -1]]}, "must be \\[input_size, output_size\\]"),
+    ],
+)
+def test_native_options_reject_invalid_combinations(kwargs: dict[str, object], message: str) -> None:
+    with pytest.raises(ValueError, match=message):
+        DiffusionSVDQuantConfig(activation_bits=4, linear_backend="flashinfer", **kwargs)
+
+
+def test_native_routing_falls_back_for_the_measured_slow_geometry(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(svdquant_config, "_assert_supported", lambda: None)
+    calls: list[str] = []
+
+    def fake_compatibility(self, layer: torch.nn.Module) -> None:
+        calls.append("compatibility")
+
+    def fake_native(self, layer: torch.nn.Module) -> None:
+        calls.append("native")
+
+    monkeypatch.setattr(DiffusionSVDQuantLinearMethod, "_prepare_compatibility_weights", fake_compatibility)
+    monkeypatch.setattr(DiffusionSVDQuantLinearMethod, "_prepare_native_weights", fake_native)
+
+    def routed_path(input_size: int, output_size: int, **kwargs: object) -> str:
+        method = DiffusionSVDQuantLinearMethod(
+            DiffusionSVDQuantConfig(activation_bits=4, linear_backend="flashinfer", **kwargs)
+        )
+        layer = torch.nn.Module()
+        layer.qweight = torch.nn.Parameter(
+            torch.zeros(output_size, input_size // 2, dtype=torch.int8), requires_grad=False
+        )
+        calls.clear()
+        method.process_weights_after_loading(layer)
+        return calls[-1]
+
+    assert routed_path(14336, 5376) == "compatibility"
+    assert routed_path(5376, 21504) == "native"
+    assert routed_path(14336, 5376, native_fallback_shapes=[]) == "native"
