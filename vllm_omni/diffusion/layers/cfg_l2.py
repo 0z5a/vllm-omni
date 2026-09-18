@@ -6,6 +6,13 @@
 Preserve the eager rounding of difference, scale, sum, both norms, norm ratio,
 and final multiplication. In particular zero norms retain NaN/Inf behavior;
 there is no epsilon, clamp, or standard-deviation rescale.
+
+Ownership: this is a shared diffusion layer, not a Qwen-local helper. It lives
+with the other fused ops in ``vllm_omni.diffusion.layers`` and imports nothing
+from ``vllm_omni.diffusion.models``; ``QwenImagePipeline`` is only its first
+caller, and the dispatch in the pipeline (not the module) decides who enables
+it. Moving the fused ops into a ``layers/ops`` subpackage is a packaging change
+for the R1 migration, not part of this change.
 """
 
 import torch
@@ -71,7 +78,7 @@ if HAS_TRITON:
         positive_stride_s: tl.constexpr,
         negative_stride_b: tl.constexpr,
         negative_stride_s: tl.constexpr,
-        guidance_scale: tl.constexpr,
+        guidance_scale,
         block_d: tl.constexpr,
         block_rows: tl.constexpr,
     ):
@@ -91,7 +98,9 @@ if HAS_TRITON:
             other=0,
         ).to(tl.float32)
         diff = _sub_rn(p, n).to(dtype).to(tl.float32)
-        scaled = _mul_rn(tl.full((), guidance_scale, tl.float32), diff).to(dtype).to(tl.float32)
+        # Inductor tracing requires a tensor operand for the inline multiply.
+        scale_t = tl.full((1, 1), guidance_scale, tl.float32)
+        scaled = _mul_rn(scale_t, diff).to(dtype).to(tl.float32)
         combined = _add_rn(n, scaled).to(dtype).to(tl.float32)
         p_sum = tl.sum(tl.where(d[None, :] < hidden_size, _mul_rn(p, p), 0), 1)
         c_sum = tl.sum(tl.where(d[None, :] < hidden_size, _mul_rn(combined, combined), 0), 1)
@@ -115,6 +124,9 @@ def try_fused_cfg_l2(
     Autograd keeps the model's original implementation; torch.compile traces
     the functional Triton launch.
     The helper has no collective or model state and does not mutate inputs.
+    ``guidance_scale`` is a runtime kernel argument rather than a compile-time
+    constant, so request-level scales share one compiled binary and one Triton
+    cache entry instead of paying a cold compile per new value.
     """
     if (
         not HAS_TRITON
@@ -147,7 +159,9 @@ def try_fused_cfg_l2(
         positive.stride(1),
         negative.stride(0),
         negative.stride(1),
-        guidance_scale,
+        # Runtime FP32 scalar: one compiled kernel serves every scale, and a
+        # float argument cannot pick up Triton's int-value specialisations.
+        float(guidance_scale),
         triton.next_power_of_2(d),
         rows_per_program,
         num_warps=4 if d <= 2048 else 8,

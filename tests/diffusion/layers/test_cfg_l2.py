@@ -1,6 +1,11 @@
 # SPDX-License-Identifier: Apache-2.0
 # SPDX-FileCopyrightText: Copyright contributors to the vLLM-Omni project
 
+import os
+import subprocess
+import sys
+import textwrap
+
 import pytest
 import torch
 
@@ -115,3 +120,46 @@ def test_cuda_graph():
     p.add_(0.25)
     graph.replay()
     torch.testing.assert_close(out, _reference(p, n, 4.0), rtol=0.016, atol=0.015625)
+
+
+# A fresh ``TRITON_CACHE_DIR`` is the only reliable way to observe compilation:
+# the in-process JIT cache is already warm by the time this test runs, and
+# Triton's on-disk cache is what a cold request actually pays for.
+_SCALE_CACHE_PROBE = textwrap.dedent(
+    """
+    import glob
+    import os
+
+    import torch
+
+    from vllm_omni.diffusion.layers.cfg_l2 import try_fused_cfg_l2
+
+    root = os.environ["TRITON_CACHE_DIR"]
+    p = torch.randn(1, 4096, 64, dtype=torch.bfloat16, device="cuda")
+    n = torch.randn_like(p)
+    counts = []
+    for scale in (3.0, 4.0, 5.0, 4.0):
+        torch.cuda.synchronize()
+        assert try_fused_cfg_l2(p, n, scale) is not None
+        torch.cuda.synchronize()
+        counts.append(len(glob.glob(os.path.join(root, "*", "*.json"))))
+    print("SCALE_CACHE_COUNTS", counts)
+    assert counts[0] > 0, "no kernel was compiled"
+    assert len(set(counts)) == 1, f"a new scale value compiled a separate kernel: {counts}"
+    """
+)
+
+
+@hardware_test(res={"cuda": "L4"})
+def test_new_scale_values_share_one_compiled_kernel(tmp_path):
+    """New request scales reuse the first scale's compiled kernel."""
+    env = {**os.environ, "TRITON_CACHE_DIR": str(tmp_path / "triton")}
+    completed = subprocess.run(
+        [sys.executable, "-c", _SCALE_CACHE_PROBE],
+        env=env,
+        capture_output=True,
+        text=True,
+        timeout=600,
+        check=False,
+    )
+    assert completed.returncode == 0, completed.stdout + completed.stderr
