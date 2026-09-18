@@ -66,7 +66,7 @@ class StubAttention(torch.nn.Module):
     """Replaces the shared ``Attention`` layer; records how it was driven."""
 
     backend_cls: type[_Backend] = UnsupportedBackend
-    instances: list["StubAttention"] = []
+    instances: list[StubAttention] = []
 
     def __init__(self, **kwargs) -> None:
         super().__init__()
