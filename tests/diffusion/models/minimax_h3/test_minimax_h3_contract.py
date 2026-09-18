@@ -352,6 +352,8 @@ def test_pipeline_loads_task_selected_components_with_encoder_ownership(
             "audio_vae",
         ):
             (tmp_path / partition_name / component).mkdir()
+        (tmp_path / partition_name / "text_encoder").mkdir()
+        (tmp_path / partition_name / "text_encoder" / "config.json").write_text("{}")
 
     created: dict[str, list[Any]] = {"dit": [], "video_vae": [], "audio_vae": [], "text_encoder": []}
     component_options = {}
@@ -2851,7 +2853,7 @@ def test_decode_to_mp4_batches_consumer_transfers(monkeypatch):
     from vllm_omni.diffusion.models.minimax_h3 import pipeline_minimax_h3 as mod
 
     class FakeEncoder:
-        instances = []
+        instances: list["FakeEncoder"] = []
 
         def __init__(self, **kwargs):
             self.pushes = []
@@ -2908,7 +2910,7 @@ def test_request_video_codec_options_reach_the_preencoded_mp4_encoder(monkeypatc
     from vllm_omni.diffusion.models.minimax_h3 import pipeline_minimax_h3 as mod
 
     class FakeEncoder:
-        instances = []
+        instances: list["FakeEncoder"] = []
 
         def __init__(self, **kwargs):
             self.kwargs = kwargs
