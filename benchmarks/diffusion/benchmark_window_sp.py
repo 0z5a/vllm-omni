@@ -89,6 +89,11 @@ def run_degree(args: argparse.Namespace, sp_size: int) -> dict:
         "per_rank_tokens": rank_zero.get("per_rank_tokens"),
         "max_abs_error": max(entry.get("max_abs_error", 0.0) for entry in report.values()),
         "rel_l2_max": max(entry.get("rel_l2", 0.0) for entry in report.values()),
+        "attention_layers_per_resolved_path": rank_zero.get("attention_layers_per_resolved_path"),
+        "attention_backend_names": rank_zero.get("attention_backend_names"),
+        "varlen_fallback_reasons": rank_zero.get("varlen_fallback_reasons"),
+        "packed_varlen_calls": rank_zero.get("packed_varlen_calls"),
+        "grouped_sdpa_calls": rank_zero.get("grouped_sdpa_calls"),
     }
 
 
@@ -124,7 +129,7 @@ def main() -> int:
             "dtype": args.dtype,
             "checkpoint": args.ckpt,
             "seed": args.seed,
-            "attention_path": "varlen" if args.varlen else "grouped_sdpa",
+            "attention_path_requested": "packed_varlen" if args.varlen else "grouped_sdpa",
             "warmup": args.warmup,
             "iterations": args.iterations,
         },
