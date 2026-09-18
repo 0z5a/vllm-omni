@@ -290,3 +290,14 @@ def test_pair_compile_and_graph(monkeypatch):
         graph.replay()
         torch.accelerator.synchronize()
         torch.testing.assert_close(actual, _reference(left, right), atol=0, rtol=0)
+
+
+@hardware_test(res={"cuda": "L4"})
+def test_pair_compile_with_changing_stream_lengths(monkeypatch):
+    monkeypatch.setenv("VLLM_OMNI_QWEN_ADALN_PAIR", "1")
+    compiled = torch.compile(_call, fullgraph=True, dynamic=True)
+    with torch.inference_mode():
+        for image, text in ((4096, 12), (4096, 29), (129, 29)):
+            left = _inputs(1, image, 3072, torch.bfloat16, "cuda", 2)
+            right = _inputs(1, text, 3072, torch.bfloat16, "cuda", 2)
+            torch.testing.assert_close(compiled(left, right), _reference(left, right), atol=0, rtol=0)
