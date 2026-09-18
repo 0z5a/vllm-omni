@@ -1,14 +1,74 @@
 # SPDX-License-Identifier: Apache-2.0
 # SPDX-FileCopyrightText: Copyright contributors to the vLLM-Omni project
 
+from types import SimpleNamespace
+
 import pytest
 import torch
+from torch._subclasses.fake_tensor import FakeTensorMode
 
 from tests.helpers.mark import hardware_test
+from vllm_omni.diffusion.layers import gated_residual_adaln as fusion
 from vllm_omni.diffusion.layers.adalayernorm import AdaLayerNorm
 from vllm_omni.diffusion.layers.gated_residual_adaln import try_fused_gated_residual_adaln
 
 pytestmark = [pytest.mark.core_model, pytest.mark.diffusion]
+
+
+@pytest.fixture
+def kernel_correctness(monkeypatch):
+    # Preserve broad kernel/rounding coverage without enabling unmeasured
+    # layouts or CI GPUs in the production dispatcher.
+    monkeypatch.setattr(fusion, "_has_measured_speedup", lambda *args: True)
+
+
+@pytest.mark.cpu
+@pytest.mark.parametrize("seq_len", [12, 29, 4096])
+@pytest.mark.parametrize(
+    "case", ["contiguous", "sliced", "other_gpu", "fp32", "batch", "sequence", "stride", "compile", "grad"]
+)
+def test_performance_dispatch(monkeypatch, seq_len, case):
+    # CPU FakeTensors keep metadata operations independent of a CUDA build.
+    # Only availability and the device name are simulated; tensor layout ops
+    # and production selection logic execute unchanged.
+    monkeypatch.setattr(torch.Tensor, "is_cuda", property(lambda self: True))
+    calls = []
+
+    class Kernel:
+        def __getitem__(self, grid):
+            return lambda *args, **kwargs: calls.append(grid)
+
+    monkeypatch.setattr(fusion, "HAS_TRITON", True)
+    monkeypatch.setattr(fusion, "triton", SimpleNamespace(next_power_of_2=lambda n: 1 << (n - 1).bit_length()))
+    monkeypatch.setattr(fusion.current_platform, "is_cuda", lambda: True)
+    monkeypatch.setattr(
+        fusion.current_platform,
+        "get_device_name",
+        lambda index: "NVIDIA H100 80GB HBM3" if case == "other_gpu" else "NVIDIA A100-SXM4-40GB",
+    )
+    monkeypatch.setattr(torch.compiler, "is_compiling", lambda: case == "compile")
+    monkeypatch.setattr(fusion, "_gated_residual_cast_kernel", Kernel(), raising=False)
+    monkeypatch.setattr(fusion, "_cast_modulate_kernel", Kernel(), raising=False)
+    fusion._is_benchmarked_device.cache_clear()
+    try:
+        with FakeTensorMode():
+            b = 2 if case == "batch" else 1
+            s = 17 if case == "sequence" else seq_len
+            d = 3072
+            dtype = torch.float32 if case == "fp32" else torch.bfloat16
+            residual = torch.empty(b, s, d, dtype=dtype, device="cpu", requires_grad=case == "grad")
+            stride_factor = 3 if case == "stride" else 2 if case == "sliced" else 1
+            branch = torch.empty(b, s, stride_factor * d, dtype=dtype, device="cpu")[..., :d]
+            modulation = torch.empty(b, 6 * d, dtype=dtype, device="cpu")
+            gate, scale, shift = [t.unsqueeze(1) for t in modulation.chunk(6, -1)[:3]]
+            result = try_fused_gated_residual_adaln(residual, branch, gate, scale, shift, 1e-6)
+            enabled = case in ("contiguous", "sliced")
+            assert (result is not None) == enabled
+            assert len(calls) == 2 * enabled
+            if result is not None:
+                assert all(t.shape == residual.shape and t.dtype == dtype and t.is_contiguous() for t in result)
+    finally:
+        fusion._is_benchmarked_device.cache_clear()
 
 
 def _inputs(b, s, d, dtype, device, seed=7382):
@@ -60,14 +120,14 @@ def test_cpu_declines_without_mutation():
 @hardware_test(res={"cuda": "L4"})
 @pytest.mark.parametrize("dtype", [torch.float32, torch.bfloat16])
 @pytest.mark.parametrize("b,s,d", [(1, 1, 3072), (2, 3, 3072), (2, 129, 3072), (2, 5, 257), (1, 7, 8192)])
-def test_two_outputs_and_strided_modulation(dtype, b, s, d):
+def test_two_outputs_and_strided_modulation(dtype, b, s, d, kernel_correctness):
     _checked_call(_inputs(b, s, d, dtype, "cuda"))
 
 
 @hardware_test(res={"cuda": "L4"})
 @pytest.mark.parametrize("seed", [142, 143, 144])
 @pytest.mark.parametrize("seq_len", [12, 29, 4096])
-def test_qwen_layer_norm_rounding(seed, seq_len):
+def test_qwen_layer_norm_rounding(seed, seq_len, kernel_correctness):
     # Qwen T2I's image/text shapes. The former two-pass Triton reduction
     # differed from native LayerNorm by one FP32 ULP, occasionally crossing a
     # BF16 midpoint. Small tensors with a one-BF16-ULP tolerance missed it.
@@ -85,7 +145,7 @@ def test_qwen_layer_norm_rounding(seed, seq_len):
 @pytest.mark.parametrize(
     "case", ["zero_gate", "minus_one_scale", "constant", "tiny_variance", "small", "large", "nan", "inf"]
 )
-def test_numerical_boundaries(dtype, case):
+def test_numerical_boundaries(dtype, case, kernel_correctness):
     inputs = _inputs(2, 3, 3072, dtype, "cuda")
     residual, branch, gate, scale, shift = inputs
     if case == "zero_gate":
@@ -112,7 +172,7 @@ def test_numerical_boundaries(dtype, case):
 
 @hardware_test(res={"cuda": "L4"})
 @pytest.mark.parametrize("dtype", [torch.float32, torch.bfloat16])
-def test_fallback_and_compile(dtype):
+def test_fallback_and_compile(dtype, kernel_correctness):
     inputs = _inputs(2, 3, 3072, dtype, "cuda")
     r, branch, gate, scale, shift = inputs
     assert try_fused_gated_residual_adaln(r.requires_grad_(), branch, gate, scale, shift, 1e-6) is None
@@ -143,7 +203,7 @@ def test_fallback_and_compile(dtype):
 
 
 @hardware_test(res={"cuda": "L4"})
-def test_cuda_graph_replays_new_inputs():
+def test_cuda_graph_replays_new_inputs(kernel_correctness):
     inputs = _inputs(2, 5, 3072, torch.bfloat16, "cuda")
     stream = torch.cuda.Stream()
     stream.wait_stream(torch.cuda.current_stream())
