@@ -9,7 +9,7 @@ output resolution grows the *number* of windows, never their size.
 
 Ulysses sequence parallelism exists to make global attention tractable by
 all-to-all'ing the head dimension; with window-local attention there is nothing
-to rescue and two activation-sized all-to-alls per layer would be pure overhead.
+to rescue and two activation-sized all-to-all exchanges per layer would be pure overhead.
 Window-aligned SP instead assigns **whole windows** to ranks:
 
 * every rank keeps **all** attention heads, so no head-count divisibility is
