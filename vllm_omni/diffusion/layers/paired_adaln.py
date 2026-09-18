@@ -27,7 +27,14 @@ if HAS_TRITON:
 
     @triton.jit
     def _cast_input_tile(x, out, offset: tl.constexpr, spec: tl.constexpr):
-        s, d, stride_b, stride_s, block, tiles = spec
+        # Tuple unpacking lowers through tensor conversion in Triton 3.7.
+        # Keep every piece of launch metadata explicitly compile-time.
+        s: tl.constexpr = spec[0]
+        d: tl.constexpr = spec[1]
+        stride_b: tl.constexpr = spec[2]
+        stride_s: tl.constexpr = spec[3]
+        block: tl.constexpr = spec[4]
+        tiles: tl.constexpr = spec[5]
         pid = tl.program_id(0).to(tl.int64) - offset
         row = pid // tiles
         col = pid % tiles * block + tl.arange(0, block)
@@ -59,43 +66,41 @@ if HAS_TRITON:
         cast_output: tl.constexpr,
     ):
         if tl.program_id(0) < split:
-            s, d, xb, xs, bb, bs, gb, block, tiles = spec0
             _gated_residual_cast_kernel(
                 x0,
                 branch0,
                 gate0,
                 out0,
                 norm0,
-                s,
-                d,
-                xb,
-                xs,
-                bb,
-                bs,
-                gb,
-                block,
+                spec0[0],
+                spec0[1],
+                spec0[2],
+                spec0[3],
+                spec0[4],
+                spec0[5],
+                spec0[6],
+                spec0[7],
                 cast_output,
-                tiles,
+                spec0[8],
                 0,
             )
         else:
-            s, d, xb, xs, bb, bs, gb, block, tiles = spec1
             _gated_residual_cast_kernel(
                 x1,
                 branch1,
                 gate1,
                 out1,
                 norm1,
-                s,
-                d,
-                xb,
-                xs,
-                bb,
-                bs,
-                gb,
-                block,
+                spec1[0],
+                spec1[1],
+                spec1[2],
+                spec1[3],
+                spec1[4],
+                spec1[5],
+                spec1[6],
+                spec1[7],
                 cast_output,
-                tiles,
+                spec1[8],
                 split,
             )
 
@@ -114,11 +119,13 @@ if HAS_TRITON:
         spec1: tl.constexpr,
     ):
         if tl.program_id(0) < split:
-            s, d, scale_b, shift_b, block, tiles = spec0
-            _cast_modulate_kernel(norm0, scale0, shift0, out0, s, d, scale_b, shift_b, block, tiles, 0)
+            _cast_modulate_kernel(
+                norm0, scale0, shift0, out0, spec0[0], spec0[1], spec0[2], spec0[3], spec0[4], spec0[5], 0
+            )
         else:
-            s, d, scale_b, shift_b, block, tiles = spec1
-            _cast_modulate_kernel(norm1, scale1, shift1, out1, s, d, scale_b, shift_b, block, tiles, split)
+            _cast_modulate_kernel(
+                norm1, scale1, shift1, out1, spec1[0], spec1[1], spec1[2], spec1[3], spec1[4], spec1[5], split
+            )
 
 
 def _supports_pair(x0, x1, branch0, branch1, modulation0, modulation1) -> bool:
