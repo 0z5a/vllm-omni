@@ -1,0 +1,11 @@
+# HSDP × DBCache validation preparation
+
+All arms use immutable runtime `698f716`, the existing ZImage checkpoint at revision `f332072aa78be7aecdf3ee76d5c247082da564a6`, BF16 eager execution and Ulysses degree two on physical GPUs 2/3. Only HSDP and DBCache are varied. No production implementation is changed.
+
+The installed Cache-DiT ZImage adapter selects Pattern 3 over `transformer.layers`. Its cached wrapper executes the first block on every step; remaining blocks are skipped when the residual cache is reused. The probe observes that wrapper directly, compares first/middle block execution counts with actual cached-step history, records residual tensor shapes/dtypes/DTensor status, checks empty buffers and zero counters at each request entry, and confirms sharded parameters for HSDP arms. Diagnostic requests are excluded from timings. Cross-rank cached-step agreement and output comparisons remain analysis gates.
+
+The single tested strategy is DBCache with Fn=1, Bn=0, warmup=2, residual threshold=0.24, maximum consecutive cached steps=3, no TaylorSeer and no SCM. These settings do not guarantee a cache hit; actual hits are required before claiming cache compatibility. Separate `max_cached_steps=0` probes cover the forced no-hit path.
+
+Prepared order: base/cache/HSDP/both, then both/HSDP/cache/base, followed by cache/both diagnostic requests and cache/both forced-no-hit requests. Each timed arm has two warmups and five samples at 512², 768×512, and the original 512² prompt again; each request uses nine steps and seed 142. Raw PNGs, wall times and GPU telemetry are retained. A shared checkpoint is reused, never deleted by this task.
+
+Ruff and shell syntax checks pass. Full-model execution, actual cache hits, lifecycle assertions and speed/quality comparisons remain unverified. CPU imports pass. The installed real Pattern-3 wrapper passes six CPU request cases: three changing shapes with six cache hits each (first block 9 calls, middle block 3), and three forced-no-hit cases (both blocks 9 calls); output values and request-entry resets pass. This is instrumentation evidence, not full-model or distributed compatibility. A separate controller waits for the Helios/GLM controller and successful GLM completion before running this queue.
