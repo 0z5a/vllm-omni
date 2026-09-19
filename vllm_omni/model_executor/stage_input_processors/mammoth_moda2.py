@@ -1,6 +1,5 @@
 # SPDX-License-Identifier: Apache-2.0
 # SPDX-FileCopyrightText: Copyright contributors to the vLLM-Omni project
-
 """Stage input processor for MammothModa2 (AR -> diffusion)."""
 
 from collections.abc import Mapping
@@ -76,8 +75,16 @@ def ar2diffusion(
         "height": height,
         "width": width,
         "additional_information": {
+            # Keep #7102's compact BF16/FP16 payload across the EngineCore
+            # boundary. The diffusion pipeline casts only after selecting the
+            # text/image condition rows.
             "full_hidden_states": full_hidden_states.contiguous(),
             "full_token_ids": full_token_ids,
             "answer_start_index": len(prompt_token_ids),
+            **{
+                key: additional[key]
+                for key in ("text_guidance_scale", "num_inference_steps", "cfg_range")
+                if key in additional
+            },
         },
     }
