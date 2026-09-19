@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: Apache-2.0
-# SPDX-FileCopyrightText: Copyright contributors to the vLLM project
+# SPDX-FileCopyrightText: Copyright contributors to the vLLM-Omni project
 # Adapted from: https://github.com/huggingface/diffusers/blob/main/src/diffusers/pipelines/ernie_image/pipeline_ernie_image.py
 
 import json
@@ -9,7 +9,6 @@ from collections.abc import Callable, Iterable
 import torch
 import torch.nn as nn
 from diffusers.image_processor import VaeImageProcessor
-from diffusers.models.autoencoders.autoencoder_kl_flux2 import AutoencoderKLFlux2
 from diffusers.schedulers.scheduling_flow_match_euler_discrete import (
     FlowMatchEulerDiscreteScheduler,
 )
@@ -18,6 +17,7 @@ from transformers import AutoModel, AutoModelForCausalLM, AutoTokenizer
 from vllm.logger import init_logger
 
 from vllm_omni.diffusion.data import DiffusionOutput, OmniDiffusionConfig
+from vllm_omni.diffusion.distributed.autoencoders.autoencoder_kl_flux2 import DistributedAutoencoderKLFlux2
 from vllm_omni.diffusion.distributed.cfg_parallel import CFGParallelMixin
 from vllm_omni.diffusion.distributed.utils import get_local_device
 from vllm_omni.diffusion.model_loader.diffusers_loader import DiffusersPipelineLoader
@@ -115,7 +115,7 @@ class ErnieImagePipeline(
             local_files_only=local_files_only,
         )
 
-        self.vae = AutoencoderKLFlux2.from_pretrained(
+        self.vae = DistributedAutoencoderKLFlux2.from_pretrained(
             model,
             subfolder="vae",
             torch_dtype=od_config.dtype,
