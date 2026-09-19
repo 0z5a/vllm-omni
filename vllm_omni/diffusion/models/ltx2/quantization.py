@@ -12,7 +12,7 @@ from vllm.utils.torch_utils import set_default_torch_dtype
 from vllm_omni.quantization import ComponentQuantizationConfig
 
 
-def prepare_gemma3_fp8(encoder: nn.Module, quant_config: QuantizationConfig | None) -> int:
+def prepare_gemma3_fp8(encoder: nn.Module, quant_config: QuantizationConfig | None, device: torch.device) -> int:
     """Convert Gemma3 text projections; leave vision and output head unchanged."""
     if not isinstance(quant_config, ComponentQuantizationConfig):
         return 0
@@ -35,7 +35,7 @@ def prepare_gemma3_fp8(encoder: nn.Module, quant_config: QuantizationConfig | No
         dtype = layer.weight.dtype
         if dtype not in (torch.bfloat16, torch.float16):
             raise ValueError("LTX text_encoder FP8 requires BF16 or FP16 weights.")
-        with torch.device(layer.weight.device), set_default_torch_dtype(dtype):
+        with torch.device(device), set_default_torch_dtype(dtype):
             replacement = ReplicatedLinear(
                 layer.in_features,
                 layer.out_features,
@@ -52,6 +52,7 @@ def prepare_gemma3_fp8(encoder: nn.Module, quant_config: QuantizationConfig | No
             replacement.weight.weight_loader(replacement.weight, layer.weight)
             if layer.bias is not None:
                 replacement.bias.weight_loader(replacement.bias, layer.bias)
+        replacement.to(layer.weight.device)
         replacement.train(layer.training)
         parent, _, child = name.rpartition(".")
         setattr(layers.get_submodule(parent), child, replacement)

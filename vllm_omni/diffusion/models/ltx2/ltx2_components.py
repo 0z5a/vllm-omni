@@ -673,7 +673,7 @@ def initialize_pipeline_components(pipeline: Any, od_config: Any) -> None:
             dtype=dtype,
             revision=revision,
         )
-    prepare_gemma3_fp8(pipeline.text_encoder, od_config.quantization_config)
+    prepare_gemma3_fp8(pipeline.text_encoder, od_config.quantization_config, pipeline.device)
     pipeline.connectors = _load_component(
         LTX2TextConnectors,
         model,
