@@ -1,8 +1,9 @@
 # SPDX-License-Identifier: Apache-2.0
-# SPDX-FileCopyrightText: Copyright contributors to the vLLM project
+# SPDX-FileCopyrightText: Copyright contributors to the vLLM-Omni project
 
 import math
-from typing import Any
+from collections.abc import Callable
+from typing import Any, Protocol
 
 import torch
 from diffusers.models.autoencoders import AutoencoderKL as Diffusers_AutoencoderKL
@@ -20,19 +21,115 @@ from vllm_omni.diffusion.distributed.autoencoders.distributed_vae_executor impor
 logger = init_logger(__name__)
 
 
+class _KLConfig(Protocol):
+    block_out_channels: tuple[int, ...]
+    use_post_quant_conv: bool
+
+
 # We use base class because some model re-implement AutoencoderKL, but split is share.
 class DistributedAutoencoderKL_base(DistributedVaeMixin):
+    # Attributes supplied by the Diffusers KL and Flux2 autoencoders.
+    tile_sample_min_size: int
+    tile_latent_min_size: int
+    tile_overlap_factor: float
+    use_tiling: bool
+    dtype: torch.dtype
+    encoder: torch.nn.Module
+    quant_conv: torch.nn.Module | None
+    post_quant_conv: torch.nn.Module
+    decoder: torch.nn.Module
+    config: _KLConfig
+    blend_v: Callable[[torch.Tensor, torch.Tensor, int], torch.Tensor]
+    blend_h: Callable[[torch.Tensor, torch.Tensor, int], torch.Tensor]
+    _tiled_encode: Callable[[torch.Tensor], torch.Tensor]
+
     @classmethod
     def from_pretrained(cls, *args: Any, **kwargs: Any):
-        model = super().from_pretrained(*args, **kwargs)
+        # The next class is supplied by the concrete cooperative-MRO wrapper.
+        model = super().from_pretrained(*args, **kwargs)  # type: ignore[misc]
         model.init_distributed()
         return model
 
     @classmethod
     def from_config(cls, *args: Any, **kwargs: Any):
-        model = super().from_config(*args, **kwargs)
+        # The next class is supplied by the concrete cooperative-MRO wrapper.
+        model = super().from_config(*args, **kwargs)  # type: ignore[misc]
         model.init_distributed()
         return model
+
+    def encode_tile_split(self, x: torch.Tensor) -> tuple[list[TileTask], GridSpec]:
+        _, _, height, width = x.shape
+        overlap_size = int(self.tile_sample_min_size * (1 - self.tile_overlap_factor))
+        blend_extent = int(self.tile_latent_min_size * self.tile_overlap_factor)
+        row_limit = self.tile_latent_min_size - blend_extent
+
+        tiletask_list: list[TileTask] = []
+        for i in range(0, height, overlap_size):
+            for j in range(0, width, overlap_size):
+                tile = x[:, :, i : i + self.tile_sample_min_size, j : j + self.tile_sample_min_size]
+                tiletask_list.append(
+                    TileTask(
+                        len(tiletask_list),
+                        (i // overlap_size, j // overlap_size),
+                        tile,
+                        workload=tile.shape[2] * tile.shape[3],
+                    )
+                )
+
+        grid_spec = GridSpec(
+            split_dims=(2, 3),
+            grid_shape=(tiletask_list[-1].grid_coord[0] + 1, tiletask_list[-1].grid_coord[1] + 1),
+            tile_spec={
+                "blend_extent": blend_extent,
+                "row_limit": row_limit,
+            },
+            output_dtype=self.dtype,
+        )
+        return tiletask_list, grid_spec
+
+    def encode_tile_exec(self, task: TileTask) -> torch.Tensor:
+        tile = self.encoder(task.tensor)
+        if self.quant_conv is not None:
+            tile = self.quant_conv(tile)
+        return tile
+
+    def encode_tile_merge(
+        self, coord_tensor_map: dict[tuple[int, ...], torch.Tensor], grid_spec: GridSpec
+    ) -> torch.Tensor:
+        grid_h, grid_w = grid_spec.grid_shape
+        result_rows = []
+        for i in range(grid_h):
+            result_row = []
+            for j in range(grid_w):
+                tile = coord_tensor_map[(i, j)]
+                if i > 0:
+                    tile = self.blend_v(coord_tensor_map[(i - 1, j)], tile, grid_spec.tile_spec["blend_extent"])
+                if j > 0:
+                    tile = self.blend_h(coord_tensor_map[(i, j - 1)], tile, grid_spec.tile_spec["blend_extent"])
+                result_row.append(tile[:, :, : grid_spec.tile_spec["row_limit"], : grid_spec.tile_spec["row_limit"]])
+            result_rows.append(torch.cat(result_row, dim=-1))
+        return torch.cat(result_rows, dim=-2)
+
+    def _encode(self, x: torch.Tensor) -> torch.Tensor:
+        _, _, height, width = x.shape
+        if self.use_tiling and (width > self.tile_sample_min_size or height > self.tile_sample_min_size):
+            if self.is_distributed_enabled():
+                logger.debug("Encode running with distributed executor")
+                return self.distributed_executor.execute(
+                    x,
+                    DistributedOperator(
+                        split=self.encode_tile_split,
+                        exec=self.encode_tile_exec,
+                        merge=self.encode_tile_merge,
+                    ),
+                    broadcast_result=True,
+                )
+            return self._tiled_encode(x)
+
+        enc = self.encoder(x)
+        if self.quant_conv is not None:
+            enc = self.quant_conv(enc)
+        return enc
 
     def tile_split(self, z: torch.Tensor) -> tuple[list[TileTask], GridSpec]:
         # mostly copy from AutoencoderKL
@@ -42,7 +139,7 @@ class DistributedAutoencoderKL_base(DistributedVaeMixin):
 
         # Split z into overlapping 64x64 tiles and decode them separately.
         # The tiles have an overlap to avoid seams between tiles.
-        tiletask_list = []
+        tiletask_list: list[TileTask] = []
         for i in range(0, z.shape[2], overlap_size):
             for j in range(0, z.shape[3], overlap_size):
                 tile = z[:, :, i : i + self.tile_latent_min_size, j : j + self.tile_latent_min_size]
@@ -106,7 +203,7 @@ class DistributedAutoencoderKL_base(DistributedVaeMixin):
             if max_parallel_size % rows == 0:
                 grid_rows, grid_cols = rows, max_parallel_size // rows
                 break
-        tiletask_list = []
+        tiletask_list: list[TileTask] = []
         halo_size = dict()
         for i in range(grid_rows):
             for j in range(grid_cols):
@@ -186,7 +283,8 @@ class DistributedAutoencoderKL_base(DistributedVaeMixin):
     # support the patch split strategy, we override decode instead.
     def decode(self, z: torch.Tensor, return_dict: bool = True, *args: Any, **kwargs: Any):
         if not self.is_distributed_enabled():
-            return super().decode(z, return_dict=return_dict, *args, **kwargs)
+            kwargs["return_dict"] = return_dict
+            return super().decode(z, *args, **kwargs)  # type: ignore[misc]
 
         split, exec, merge = self._strategy_select(z)
 
@@ -203,7 +301,8 @@ class DistributedAutoencoderKL_base(DistributedVaeMixin):
 
             return DecoderOutput(sample=result)
         else:
-            return super().decode(z, return_dict=return_dict, *args, **kwargs)
+            kwargs["return_dict"] = return_dict
+            return super().decode(z, *args, **kwargs)  # type: ignore[misc]
 
 
 class DistributedAutoencoderKL(DistributedAutoencoderKL_base, Diffusers_AutoencoderKL):
