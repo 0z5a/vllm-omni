@@ -353,7 +353,10 @@ def parse_args() -> argparse.Namespace:
         "--profiler-config",
         type=parse_profiler_config,
         default=None,
-        help='JSON profiler config for torch/cuda profiling, e.g. \'{"profiler":"torch","torch_profiler_dir":"./perf"}\'.',
+        help=(
+            "JSON profiler config for torch/cuda profiling, e.g. "
+            '\'{"profiler":"torch","torch_profiler_dir":"./perf"}\'.'
+        ),
     )
     parser.add_argument(
         "--log-stats",
