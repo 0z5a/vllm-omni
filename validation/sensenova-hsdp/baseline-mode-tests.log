@@ -1,0 +1,129 @@
+F.F.                                                                     [100%]
+=================================== FAILURES ===================================
+_____________ test_preserves_runner_execution_mode[forward-False] ______________
+
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x72a5bec3a6c0>
+inference_mode = False, entrypoint = 'forward'
+
+    @pytest.mark.parametrize("inference_mode", [False, True])
+    @pytest.mark.parametrize("entrypoint", ["forward", "text"])
+    def test_preserves_runner_execution_mode(monkeypatch: pytest.MonkeyPatch, inference_mode: bool, entrypoint: str):
+        """HSDP needs version counters; native execution keeps its inference mode."""
+        pipeline = object.__new__(SenseNovaU1Pipeline)
+        torch.nn.Module.__init__(pipeline)
+    
+        class ContextObservedError(Exception):
+            pass
+    
+        def observe_context() -> None:
+            assert not torch.is_grad_enabled()
+            assert torch.is_inference_mode_enabled() is inference_mode
+            raise ContextObservedError
+    
+        class Parameters:
+            @property
+            def extra_args(self):
+                observe_context()
+    
+        monkeypatch.setattr(pipeline, "_is_warmup_request", lambda request: False)
+        monkeypatch.setattr(pipeline, "_parse_request", lambda request: observe_context())
+        with torch.inference_mode(inference_mode), pytest.raises(ContextObservedError):
+            if entrypoint == "forward":
+>               pipeline.forward(None)
+
+/home/kxqandccx/omni-1217-20260919/sensenova-hsdp-validation/test_sensenova_u1_hsdp.py:36: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+/home/kxqandccx/vllm-omni-7753-hidream-20260918/venv/lib/python3.12/site-packages/torch/utils/_contextlib.py:124: in decorate_context
+    return func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^
+0z5a-compat-698f716/vllm_omni/diffusion/models/sensenova_u1/pipeline_sensenova_u1.py:1300: in forward
+    p = self._parse_request(req)
+        ^^^^^^^^^^^^^^^^^^^^^^^^
+/home/kxqandccx/omni-1217-20260919/sensenova-hsdp-validation/test_sensenova_u1_hsdp.py:33: in <lambda>
+    monkeypatch.setattr(pipeline, "_parse_request", lambda request: observe_context())
+                                                                    ^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+    def observe_context() -> None:
+        assert not torch.is_grad_enabled()
+>       assert torch.is_inference_mode_enabled() is inference_mode
+E       assert True is False
+E        +  where True = <built-in function is_inference_mode_enabled>()
+E        +    where <built-in function is_inference_mode_enabled> = torch.is_inference_mode_enabled
+
+/home/kxqandccx/omni-1217-20260919/sensenova-hsdp-validation/test_sensenova_u1_hsdp.py:24: AssertionError
+_______________ test_preserves_runner_execution_mode[text-False] _______________
+
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x72a5bec3b0b0>
+inference_mode = False, entrypoint = 'text'
+
+    @pytest.mark.parametrize("inference_mode", [False, True])
+    @pytest.mark.parametrize("entrypoint", ["forward", "text"])
+    def test_preserves_runner_execution_mode(monkeypatch: pytest.MonkeyPatch, inference_mode: bool, entrypoint: str):
+        """HSDP needs version counters; native execution keeps its inference mode."""
+        pipeline = object.__new__(SenseNovaU1Pipeline)
+        torch.nn.Module.__init__(pipeline)
+    
+        class ContextObservedError(Exception):
+            pass
+    
+        def observe_context() -> None:
+            assert not torch.is_grad_enabled()
+            assert torch.is_inference_mode_enabled() is inference_mode
+            raise ContextObservedError
+    
+        class Parameters:
+            @property
+            def extra_args(self):
+                observe_context()
+    
+        monkeypatch.setattr(pipeline, "_is_warmup_request", lambda request: False)
+        monkeypatch.setattr(pipeline, "_parse_request", lambda request: observe_context())
+        with torch.inference_mode(inference_mode), pytest.raises(ContextObservedError):
+            if entrypoint == "forward":
+                pipeline.forward(None)
+            else:
+>               pipeline._forward_text(Parameters(), None)
+
+/home/kxqandccx/omni-1217-20260919/sensenova-hsdp-validation/test_sensenova_u1_hsdp.py:38: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+/home/kxqandccx/vllm-omni-7753-hidream-20260918/venv/lib/python3.12/site-packages/torch/utils/_contextlib.py:124: in decorate_context
+    return func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^
+0z5a-compat-698f716/vllm_omni/diffusion/models/sensenova_u1/pipeline_sensenova_u1.py:923: in _forward_text
+    extra_args = p.extra_args
+                 ^^^^^^^^^^^^
+/home/kxqandccx/omni-1217-20260919/sensenova-hsdp-validation/test_sensenova_u1_hsdp.py:30: in extra_args
+    observe_context()
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+    def observe_context() -> None:
+        assert not torch.is_grad_enabled()
+>       assert torch.is_inference_mode_enabled() is inference_mode
+E       assert True is False
+E        +  where True = <built-in function is_inference_mode_enabled>()
+E        +    where <built-in function is_inference_mode_enabled> = torch.is_inference_mode_enabled
+
+/home/kxqandccx/omni-1217-20260919/sensenova-hsdp-validation/test_sensenova_u1_hsdp.py:24: AssertionError
+=============================== warnings summary ===============================
+../../home/kxqandccx/vllm-omni-7753-hidream-20260918/venv/lib/python3.12/site-packages/torch/jit/_script.py:365: 14 warnings
+  /home/kxqandccx/vllm-omni-7753-hidream-20260918/venv/lib/python3.12/site-packages/torch/jit/_script.py:365: DeprecationWarning: `torch.jit.script_method` is deprecated. Please switch to `torch.compile` or `torch.export`.
+    warnings.warn(
+
+../../home/kxqandccx/omni-1217-20260919/sensenova-hsdp-validation/test_sensenova_u1_hsdp.py:9
+  /home/kxqandccx/omni-1217-20260919/sensenova-hsdp-validation/test_sensenova_u1_hsdp.py:9: PytestUnknownMarkWarning: Unknown pytest.mark.core_model - is this a typo?  You can register custom marks to avoid this warning - for details, see https://docs.pytest.org/en/stable/how-to/mark.html
+    pytestmark = [pytest.mark.core_model, pytest.mark.diffusion, pytest.mark.cpu]
+
+../../home/kxqandccx/omni-1217-20260919/sensenova-hsdp-validation/test_sensenova_u1_hsdp.py:9
+  /home/kxqandccx/omni-1217-20260919/sensenova-hsdp-validation/test_sensenova_u1_hsdp.py:9: PytestUnknownMarkWarning: Unknown pytest.mark.diffusion - is this a typo?  You can register custom marks to avoid this warning - for details, see https://docs.pytest.org/en/stable/how-to/mark.html
+    pytestmark = [pytest.mark.core_model, pytest.mark.diffusion, pytest.mark.cpu]
+
+../../home/kxqandccx/omni-1217-20260919/sensenova-hsdp-validation/test_sensenova_u1_hsdp.py:9
+  /home/kxqandccx/omni-1217-20260919/sensenova-hsdp-validation/test_sensenova_u1_hsdp.py:9: PytestUnknownMarkWarning: Unknown pytest.mark.cpu - is this a typo?  You can register custom marks to avoid this warning - for details, see https://docs.pytest.org/en/stable/how-to/mark.html
+    pytestmark = [pytest.mark.core_model, pytest.mark.diffusion, pytest.mark.cpu]
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ============================
+FAILED ../../home/kxqandccx/omni-1217-20260919/sensenova-hsdp-validation/test_sensenova_u1_hsdp.py::test_preserves_runner_execution_mode[forward-False]
+FAILED ../../home/kxqandccx/omni-1217-20260919/sensenova-hsdp-validation/test_sensenova_u1_hsdp.py::test_preserves_runner_execution_mode[text-False]
+2 failed, 2 passed, 17 warnings in 11.60s

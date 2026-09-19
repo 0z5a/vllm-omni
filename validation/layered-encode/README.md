@@ -21,3 +21,5 @@ The Gloo probe uses real collectives and the real distributed executor with a te
 | Raw-image layered generation latency | Pending | Pending | Pending |
 
 Real-weight two-rank CUDA parity, complete layered output correctness and E2E speed remain pending. The current evidence does not establish these claims.
+
+The fresh-process E2E driver is prepared and deployed, with the same TP2, BF16, eager execution, native tiled/sliced decode and 50 denoising steps in both variants. It covers two/four RGBA layers, square/rectangular inputs, 640/1024 resolution buckets and a repeated first request; all layer images and raw input hashes are saved. Four arms run A/P/P/A, each with two warmups and five measurements per case. The CUDA component check precedes this queue. Syntax, Ruff and target-environment import checks passed; the GPU queue has not started. Candidate source is an immutable `698f716` archive plus the complete three-file `58dfc80` delta.

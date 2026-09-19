@@ -1,0 +1,30 @@
+INFO 09-20 03:18:45 [patch.py:252] NVFP4 W4A4 weight_scale NaN-clamp: installed.
+INFO 09-20 03:18:45 [patch.py:252] NVFP4 W4A4 weight_scale NaN-clamp: installed.
+INFO 09-20 03:18:45 [patch.py:503] inductor factorable-divisibility patch: installed.
+INFO 09-20 03:18:45 [patch.py:503] inductor factorable-divisibility patch: installed.
+INFO 09-20 03:18:45 [patch.py:568] [cumem-cuda] CuMemAllocator._python_free_callback patched: asleep guard extended to all platforms.
+INFO 09-20 03:18:45 [patch.py:568] [cumem-cuda] CuMemAllocator._python_free_callback patched: asleep guard extended to all platforms.
+INFO 09-20 03:18:46 [parallel_state.py:785] sequence_parallel_size is not provided, using 2
+INFO 09-20 03:18:46 [parallel_state.py:785] sequence_parallel_size is not provided, using 2
+INFO 09-20 03:18:46 [parallel_state.py:610] Building SP subgroups from explicit sp_group_ranks (sp_size=2, ulysses=2, ring=1, use_ulysses_low=True).
+INFO 09-20 03:18:46 [parallel_state.py:610] Building SP subgroups from explicit sp_group_ranks (sp_size=2, ulysses=2, ring=1, use_ulysses_low=True).
+INFO 09-20 03:18:46 [parallel_state.py:652] SP group details for rank 1: sp_group=[0, 1], ulysses_group=[0, 1], ring_group=[1]
+INFO 09-20 03:18:46 [parallel_state.py:652] SP group details for rank 0: sp_group=[0, 1], ulysses_group=[0, 1], ring_group=[0]
+INFO 09-20 03:18:48 [autoencoder_kl_flux2.py:103] Decode run with distributed executor, split strategy is patch
+INFO 09-20 03:18:48 [autoencoder_kl_flux2.py:103] Decode run with distributed executor, split strategy is patch
+{"model": "ernie", "latent_shape": [1, 32, 64, 64], "max_abs": 0.076171875, "mean_abs": 0.0034693926572799683, "relative_l2": 0.02359631471335888, "strategy": "patch"}
+INFO 09-20 03:18:49 [autoencoder_kl_flux2.py:103] Decode run with distributed executor, split strategy is tile
+INFO 09-20 03:18:49 [autoencoder_kl_flux2.py:103] Decode run with distributed executor, split strategy is tile
+{"model": "ernie", "latent_shape": [1, 32, 128, 144], "max_abs": 0.0, "mean_abs": 0.0, "relative_l2": 0.0, "strategy": "tile"}
+INFO 09-20 03:18:49 [autoencoder_kl_flux2.py:103] Decode run with distributed executor, split strategy is patch
+INFO 09-20 03:18:49 [autoencoder_kl_flux2.py:103] Decode run with distributed executor, split strategy is patch
+{"model": "ernie", "latent_shape": [1, 32, 64, 64], "max_abs": 0.0679931640625, "mean_abs": 0.003864867612719536, "relative_l2": 0.026430103927850723, "strategy": "patch"}
+INFO 09-20 03:18:50 [autoencoder_kl.py:195] Decode run with distributed executor, split strategy is patch
+INFO 09-20 03:18:50 [autoencoder_kl.py:195] Decode run with distributed executor, split strategy is patch
+{"model": "omnigen2", "latent_shape": [1, 16, 64, 64], "max_abs": 0.056640625, "mean_abs": 0.002245423849672079, "relative_l2": 0.012503532692790031, "strategy": "patch"}
+INFO 09-20 03:18:50 [autoencoder_kl.py:195] Decode run with distributed executor, split strategy is tile
+INFO 09-20 03:18:50 [autoencoder_kl.py:195] Decode run with distributed executor, split strategy is tile
+INFO 09-20 03:18:51 [autoencoder_kl.py:195] Decode run with distributed executor, split strategy is patch
+{"model": "omnigen2", "latent_shape": [1, 16, 128, 144], "max_abs": 0.0, "mean_abs": 0.0, "relative_l2": 0.0, "strategy": "tile"}
+INFO 09-20 03:18:51 [autoencoder_kl.py:195] Decode run with distributed executor, split strategy is patch
+{"model": "omnigen2", "latent_shape": [1, 16, 64, 64], "max_abs": 0.086669921875, "mean_abs": 0.002722647041082382, "relative_l2": 0.01489229779690504, "strategy": "patch"}
