@@ -1,0 +1,430 @@
+diff --git a/tests/diffusion/cache/test_teacache_extractors.py b/tests/diffusion/cache/test_teacache_extractors.py
+index 55b92b8..967acda 100644
+--- a/tests/diffusion/cache/test_teacache_extractors.py
++++ b/tests/diffusion/cache/test_teacache_extractors.py
+@@ -28,7 +28,9 @@ import torch
+ import torch.nn as nn
+ 
+ from tests.helpers.mark import hardware_test
++from vllm_omni.diffusion.cache.teacache.config import _MODEL_COEFFICIENTS, TeaCacheConfig
+ from vllm_omni.diffusion.cache.teacache.extractors import (
++    extract_hidream_image_context,
+     extract_flux2_context,
+     extract_flux2_klein_context,
+     extract_flux_context,
+@@ -952,3 +954,177 @@ class TestMiniMaxH3Extractor(BaseExtractorTest):
+ 
+         with pytest.raises(ValueError, match="Module must have blocks"):
+             extract_minimax_h3_context(invalid_module, **_minimax_h3_sample_kwargs())
++
++
++@pytest.mark.cpu
++@pytest.mark.cache
++class TestHiDreamExtractor:
++    """Test extract_hidream_image_context function."""
++
++    TRANSFORMER_TYPE = "HiDreamImageTransformer2DModel"
++    BATCH_SIZE = 1
++    HIDDEN_SIZE = 8
++    PATCH_TOKENS = 4
++    PATCH_DIM = 16
++    TEXT_LEN = 3
++
++    def test_bootstrap_coefficients_exist(self):
++        assert self.TRANSFORMER_TYPE in _MODEL_COEFFICIENTS
++        config = TeaCacheConfig(transformer_type=self.TRANSFORMER_TYPE)
++        assert len(config.coefficients) == 5
++
++    @pytest.fixture
++    def hidream_module(self):
++        batch_size = self.BATCH_SIZE
++        hidden_size = self.HIDDEN_SIZE
++        patch_tokens = self.PATCH_TOKENS
++        patch_dim = self.PATCH_DIM
++        text_len = self.TEXT_LEN
++
++        module = Mock()
++        module.training = False
++        module.llama_layers = [0, 1]
++        module.caption_projection = [
++            Mock(side_effect=lambda x: x),
++            Mock(side_effect=lambda x: x),
++            Mock(side_effect=lambda x: x),
++        ]
++        module.patchify = Mock(
++            return_value=(
++                torch.randn(batch_size, patch_tokens, patch_dim),
++                torch.ones(batch_size, patch_tokens),
++                torch.tensor([[2, 2]], dtype=torch.int64),
++                torch.zeros(batch_size, patch_tokens, 3),
++            )
++        )
++        module.x_embedder = Mock(side_effect=lambda x: torch.randn(batch_size, patch_tokens, hidden_size))
++        module.t_embedder = Mock(return_value=torch.randn(batch_size, hidden_size))
++        module.p_embedder = Mock(return_value=torch.randn(batch_size, hidden_size))
++        module.pe_embedder = Mock(
++            side_effect=lambda ids: torch.randn(
++                ids.shape[0],
++                ids.shape[1],
++                2,
++                2,
++                hidden_size,
++            ),
++        )
++
++        inner_block = Mock()
++        inner_block.adaLN_modulation = Mock(
++            return_value=torch.randn(batch_size, hidden_size * 12),
++        )
++        inner_block.norm1_i = Mock(return_value=torch.randn(batch_size, patch_tokens, hidden_size))
++
++        double_block = Mock(
++            side_effect=lambda hidden_states, hidden_states_masks, encoder_hidden_states, temb, image_rotary_emb: (
++                hidden_states + 0.1,
++                encoder_hidden_states[:, : text_len * 2, :],
++            )
++        )
++        double_block.block = inner_block
++        module.double_stream_blocks = [double_block]
++        module.single_stream_blocks = [Mock(side_effect=lambda **kwargs: kwargs["hidden_states"] + 0.2)]
++        module.final_layer = Mock(side_effect=lambda h, temb: h)
++        module.unpatchify = Mock(return_value=torch.randn(batch_size, 4, 8, 8))
++        return module
++
++    @pytest.fixture
++    def sample_inputs(self):
++        batch_size = self.BATCH_SIZE
++        hidden_size = self.HIDDEN_SIZE
++        text_len = self.TEXT_LEN
++        return {
++            "hidden_states": torch.randn(batch_size, 4, 8, 8),
++            "timesteps": torch.tensor([10]),
++            "encoder_hidden_states_t5": torch.randn(batch_size, text_len, hidden_size),
++            "encoder_hidden_states_llama3": [
++                torch.randn(batch_size, text_len, hidden_size),
++                torch.randn(batch_size, text_len, hidden_size),
++            ],
++            "pooled_embeds": torch.randn(batch_size, hidden_size),
++            "return_dict": False,
++        }
++
++    def test_modulated_input_shape(self, hidream_module, sample_inputs):
++        """Test that modulated_input matches HiDream t_embedder output shape."""
++        context = extract_hidream_image_context(hidream_module, **sample_inputs)
++        context.validate()
++
++        assert context.modulated_input.shape == (self.BATCH_SIZE, self.HIDDEN_SIZE)
++
++    def test_run_transformer_blocks_callable(self, hidream_module, sample_inputs):
++        """Test that run_transformer_blocks is callable."""
++        context = extract_hidream_image_context(hidream_module, **sample_inputs)
++        assert callable(context.run_transformer_blocks)
++
++    def test_postprocess_callable(self, hidream_module, sample_inputs):
++        """Test that postprocess is callable."""
++        context = extract_hidream_image_context(hidream_module, **sample_inputs)
++        assert callable(context.postprocess)
++
++    def test_postprocess_output_shape(self, hidream_module, sample_inputs):
++        """Test that postprocess returns unpatchified latents."""
++        context = extract_hidream_image_context(hidream_module, **sample_inputs)
++        output = context.postprocess(context.run_transformer_blocks()[0])
++
++        assert isinstance(output, tuple)
++        assert output[0].shape == (self.BATCH_SIZE, 4, 8, 8)
++
++    def test_postprocess_return_tuple_when_return_dict_false(self, hidream_module, sample_inputs):
++        """Test that postprocess honors return_dict=False."""
++        context = extract_hidream_image_context(hidream_module, **sample_inputs)
++        output = context.postprocess(context.hidden_states)
++
++        assert isinstance(output, tuple)
++        assert len(output) == 1
++        assert isinstance(output[0], torch.Tensor)
++
++    def test_postprocess_return_dict_when_return_dict_true(self, hidream_module, sample_inputs):
++        """Test that postprocess returns Transformer2DModelOutput when return_dict=True."""
++        from diffusers.models.modeling_outputs import Transformer2DModelOutput
++
++        inputs = sample_inputs.copy()
++        inputs["return_dict"] = True
++        context = extract_hidream_image_context(hidream_module, **inputs)
++        output = context.postprocess(context.hidden_states)
++
++        assert isinstance(output, Transformer2DModelOutput)
++        assert isinstance(output.sample, torch.Tensor)
++
++    def test_deprecated_encoder_hidden_states_kwarg(self, hidream_module, sample_inputs):
++        """Test deprecated bundled encoder_hidden_states kwarg is unpacked."""
++        inputs = sample_inputs.copy()
++        inputs.pop("encoder_hidden_states_t5")
++        inputs.pop("encoder_hidden_states_llama3")
++        inputs["encoder_hidden_states"] = [
++            sample_inputs["encoder_hidden_states_t5"],
++            sample_inputs["encoder_hidden_states_llama3"],
++        ]
++
++        context = extract_hidream_image_context(hidream_module, **inputs)
++        context.validate()
++
++    def test_pre_patchified_inputs_require_img_ids(self, hidream_module, sample_inputs):
++        """Test pre-patchified inputs require img_ids and img_sizes."""
++        inputs = sample_inputs.copy()
++        inputs["hidden_states"] = torch.randn(self.BATCH_SIZE, self.PATCH_TOKENS, self.PATCH_DIM)
++        inputs["hidden_states_masks"] = torch.ones(self.BATCH_SIZE, self.PATCH_TOKENS)
++
++        with pytest.raises(ValueError, match="img_ids.*img_sizes"):
++            extract_hidream_image_context(hidream_module, **inputs)
++
++    def test_pre_patchified_inputs_require_3d_hidden_states(self, hidream_module, sample_inputs):
++        """Test pre-patchified inputs require 3D hidden_states, matching forward()."""
++        inputs = sample_inputs.copy()
++        inputs["hidden_states_masks"] = torch.ones(self.BATCH_SIZE, self.PATCH_TOKENS)
++        inputs["img_ids"] = torch.zeros(self.BATCH_SIZE, self.PATCH_TOKENS, 3)
++        inputs["img_sizes"] = [(2, 2)]
++
++        with pytest.raises(ValueError, match="3D tensors"):
++            extract_hidream_image_context(hidream_module, **inputs)
++
++    def test_encoder_hidden_states_is_none(self, hidream_module, sample_inputs):
++        """HiDream keeps text conditioning inside block closures, not CacheContext."""
++        context = extract_hidream_image_context(hidream_module, **sample_inputs)
++        assert context.encoder_hidden_states is None
+diff --git a/vllm_omni/diffusion/cache/teacache/config.py b/vllm_omni/diffusion/cache/teacache/config.py
+index b83f600..ff8105e 100644
+--- a/vllm_omni/diffusion/cache/teacache/config.py
++++ b/vllm_omni/diffusion/cache/teacache/config.py
+@@ -7,6 +7,15 @@ from dataclasses import dataclass
+ # These coefficients account for model-specific characteristics in how embeddings change
+ # Source: TeaCache paper and ComfyUI-TeaCache empirical tuning
+ _MODEL_COEFFICIENTS = {
++    # HiDream-I1-Full transformer coefficients (TeaCache4HiDream-I1 reference)
++    "HiDreamImageTransformer2DModel": [
++        -3.13605009e04,
++        -7.12425503e02,
++        4.91363285e01,
++        8.26515490e00,
++        1.08053901e-01,
++    ],
++
+     # FLUX transformer coefficients from TeaCache paper
+     "FluxTransformer2DModel": [
+         4.98651651e02,
+diff --git a/vllm_omni/diffusion/cache/teacache/extractors.py b/vllm_omni/diffusion/cache/teacache/extractors.py
+index a7539b3..5aae7eb 100644
+--- a/vllm_omni/diffusion/cache/teacache/extractors.py
++++ b/vllm_omni/diffusion/cache/teacache/extractors.py
+@@ -1190,6 +1190,205 @@ def extract_flux_context(
+     )
+ 
+ 
++def _prepare_hidream_teacache_state(
++    module: nn.Module,
++    hidden_states: torch.Tensor,
++    timesteps: torch.Tensor,
++    encoder_hidden_states_t5: torch.Tensor,
++    encoder_hidden_states_llama3: torch.Tensor,
++    pooled_embeds: torch.Tensor,
++    img_ids: torch.Tensor | None,
++    img_sizes: list[tuple[int, int]] | None,
++    hidden_states_masks: torch.Tensor | None,
++) -> dict[str, Any]:
++    """Mirror HiDreamImageTransformer2DModel preprocessing for TeaCache."""
++    batch_size = hidden_states.shape[0]
++    hidden_states_type = hidden_states.dtype
++
++    if hidden_states_masks is None:
++        hidden_states, hidden_states_masks, img_sizes, img_ids = module.patchify(hidden_states)
++
++    hidden_states = module.x_embedder(hidden_states)
++
++    timesteps = module.t_embedder(timesteps, hidden_states_type)
++    p_embedder = module.p_embedder(pooled_embeds)
++    temb = timesteps + p_embedder
++
++    encoder_hidden_states = [encoder_hidden_states_llama3[k] for k in module.llama_layers]
++    if module.caption_projection is not None:
++        new_encoder_hidden_states = []
++        for i, enc_hidden_state in enumerate(encoder_hidden_states):
++            enc_hidden_state = module.caption_projection[i](enc_hidden_state)
++            enc_hidden_state = enc_hidden_state.view(batch_size, -1, hidden_states.shape[-1])
++            new_encoder_hidden_states.append(enc_hidden_state)
++        encoder_hidden_states = new_encoder_hidden_states
++        encoder_hidden_states_t5 = module.caption_projection[-1](encoder_hidden_states_t5)
++        encoder_hidden_states_t5 = encoder_hidden_states_t5.view(batch_size, -1, hidden_states.shape[-1])
++        encoder_hidden_states.append(encoder_hidden_states_t5)
++
++    txt_ids = torch.zeros(
++        batch_size,
++        encoder_hidden_states[-1].shape[1] + encoder_hidden_states[-2].shape[1] + encoder_hidden_states[0].shape[1],
++        3,
++        device=img_ids.device,
++        dtype=img_ids.dtype,
++    )
++    image_rotary_emb = module.pe_embedder(img_ids)
++    text_rotary_emb = module.pe_embedder(txt_ids)
++    concat_rotary_emb = (
++        torch.cat([image_rotary_emb[..., 0, 0], text_rotary_emb[..., 0, 0]], dim=1),
++        torch.cat([image_rotary_emb[..., 1, 0], text_rotary_emb[..., 1, 0]], dim=1),
++    )
++
++    # Match TeaCache4HiDream-I1: use t_embedder output as the cache similarity signal.
++    modulated_input = timesteps
++
++    return {
++        "hidden_states": hidden_states,
++        "hidden_states_masks": hidden_states_masks,
++        "img_sizes": img_sizes,
++        "encoder_hidden_states": encoder_hidden_states,
++        "temb": temb,
++        "concat_rotary_emb": concat_rotary_emb,
++        "modulated_input": modulated_input,
++    }
++
++
++def _run_hidream_transformer_blocks(
++    module: nn.Module,
++    hidden_states: torch.Tensor,
++    hidden_states_masks: torch.Tensor | None,
++    encoder_hidden_states: list[torch.Tensor],
++    temb: torch.Tensor,
++    concat_rotary_emb: tuple[torch.Tensor, torch.Tensor],
++) -> torch.Tensor:
++    """Execute HiDream double-stream and single-stream blocks."""
++    block_id = 0
++    initial_encoder_hidden_states = torch.cat([encoder_hidden_states[-1], encoder_hidden_states[-2]], dim=1)
++    initial_encoder_hidden_states_seq_len = initial_encoder_hidden_states.shape[1]
++    batch_size = hidden_states.shape[0]
++
++    for block in module.double_stream_blocks:
++        cur_llama31_encoder_hidden_states = encoder_hidden_states[block_id]
++        cur_encoder_hidden_states = torch.cat(
++            [initial_encoder_hidden_states, cur_llama31_encoder_hidden_states],
++            dim=1,
++        )
++        hidden_states, initial_encoder_hidden_states = block(
++            hidden_states=hidden_states,
++            hidden_states_masks=hidden_states_masks,
++            encoder_hidden_states=cur_encoder_hidden_states,
++            temb=temb,
++            image_rotary_emb=concat_rotary_emb,
++        )
++        initial_encoder_hidden_states = initial_encoder_hidden_states[:, :initial_encoder_hidden_states_seq_len]
++        block_id += 1
++
++    image_tokens_seq_len = hidden_states.shape[1]
++    hidden_states = torch.cat([hidden_states, initial_encoder_hidden_states], dim=1)
++    hidden_states_seq_len = hidden_states.shape[1]
++    if hidden_states_masks is not None:
++        encoder_attention_mask_ones = torch.ones(
++            (batch_size, initial_encoder_hidden_states.shape[1] + cur_llama31_encoder_hidden_states.shape[1]),
++            device=hidden_states_masks.device,
++            dtype=hidden_states_masks.dtype,
++        )
++        hidden_states_masks = torch.cat([hidden_states_masks, encoder_attention_mask_ones], dim=1)
++
++    for block in module.single_stream_blocks:
++        cur_llama31_encoder_hidden_states = encoder_hidden_states[block_id]
++        hidden_states = torch.cat([hidden_states, cur_llama31_encoder_hidden_states], dim=1)
++        hidden_states = block(
++            hidden_states=hidden_states,
++            hidden_states_masks=hidden_states_masks,
++            encoder_hidden_states=None,
++            temb=temb,
++            image_rotary_emb=concat_rotary_emb,
++        )
++        hidden_states = hidden_states[:, :hidden_states_seq_len]
++        block_id += 1
++
++    return hidden_states[:, :image_tokens_seq_len, ...]
++
++
++def extract_hidream_image_context(
++    module: nn.Module,
++    hidden_states: torch.Tensor,
++    timesteps: torch.Tensor | None = None,
++    encoder_hidden_states_t5: torch.Tensor | None = None,
++    encoder_hidden_states_llama3: torch.Tensor | None = None,
++    pooled_embeds: torch.Tensor | None = None,
++    img_ids: torch.Tensor | None = None,
++    img_sizes: list[tuple[int, int]] | None = None,
++    hidden_states_masks: torch.Tensor | None = None,
++    **kwargs: Any,
++) -> CacheContext:
++    """Extract cache context for HiDreamImageTransformer2DModel."""
++    from diffusers.models.modeling_outputs import Transformer2DModelOutput
++
++    encoder_hidden_states = kwargs.get("encoder_hidden_states", None)
++    if encoder_hidden_states is not None:
++        encoder_hidden_states_t5 = encoder_hidden_states[0]
++        encoder_hidden_states_llama3 = encoder_hidden_states[1]
++
++    if hidden_states_masks is not None and (img_ids is None or img_sizes is None):
++        raise ValueError("if `hidden_states_masks` is passed, `img_ids` and `img_sizes` must also be passed.")
++    elif hidden_states_masks is not None and hidden_states.ndim != 3:
++        raise ValueError(
++            "if `hidden_states_masks` is passed, `hidden_states` must be a 3D tensors with shape"
++            "(batch_size, patch_height * patch_width, patch_size * patch_size * channels)"
++        )
++
++    state = _prepare_hidream_teacache_state(
++        module,
++        hidden_states,
++        timesteps,
++        encoder_hidden_states_t5,
++        encoder_hidden_states_llama3,
++        pooled_embeds,
++        img_ids,
++        img_sizes,
++        hidden_states_masks,
++    )
++    hidden_states = state["hidden_states"]
++    hidden_states_masks = state["hidden_states_masks"]
++    img_sizes = state["img_sizes"]
++    encoder_hidden_states = state["encoder_hidden_states"]
++    temb = state["temb"]
++    concat_rotary_emb = state["concat_rotary_emb"]
++    modulated_input = state["modulated_input"]
++
++    def run_transformer_blocks() -> tuple[torch.Tensor, ...]:
++        output = _run_hidream_transformer_blocks(
++            module,
++            hidden_states,
++            hidden_states_masks,
++            encoder_hidden_states,
++            temb,
++            concat_rotary_emb,
++        )
++        return (output,)
++
++    return_dict = kwargs.get("return_dict", True)
++
++    def postprocess(h: torch.Tensor) -> Any:
++        output = module.final_layer(h, temb)
++        output = module.unpatchify(output, img_sizes, module.training)
++        if not return_dict:
++            return (output,)
++        return Transformer2DModelOutput(sample=output)
++
++    return CacheContext(
++        modulated_input=modulated_input,
++        hidden_states=hidden_states,
++        encoder_hidden_states=None,
++        temb=temb,
++        run_transformer_blocks=run_transformer_blocks,
++        postprocess=postprocess,
++    )
++
++
++
+ def extract_sensenova_u1_context(
+     module: nn.Module,
+     input_ids: torch.Tensor | None = None,
+@@ -1556,6 +1755,7 @@ EXTRACTOR_REGISTRY: dict[str, Callable] = {
+     "Flux2Transformer2DModel": extract_flux2_context,
+     "LongCatImageTransformer2DModel": extract_longcat_context,
+     "FluxTransformer2DModel": extract_flux_context,
++    "HiDreamImageTransformer2DModel": extract_hidream_image_context,
+     "SenseNovaU1ForCausalLM": extract_sensenova_u1_context,
+     "MiniMaxH3DiTModel": extract_minimax_h3_context,
+     # Future models:

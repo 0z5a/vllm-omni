@@ -1,0 +1,15 @@
+{
+  "5408": {
+    "tests/diffusion/cache/test_teacache_extractors.py": "d3fad91c3ef49a5ef1da16e2f79dbc5900ceb9f431bf3a4b45d9577f9cfbf1de",
+    "vllm_omni/diffusion/cache/teacache/config.py": "eb2acc81e9e8b9471c41ed05de97ba00dd65df2caea06dbb4bfbf528e1361fa1",
+    "vllm_omni/diffusion/cache/teacache/extractors.py": "187ba43f6fa0a04802b22bc71fa564641d042bb1f25e49bd3d8cf4579b2303c9"
+  },
+  "5409": {
+    "vllm_omni/diffusion/models/hidream_image/pipeline_hidream_image.py": "511e248384c4a49e2fa7388ec621b7ade50897a613eb840fe4d81abb6ba49b31",
+    "tests/diffusion/models/hidream_image/test_hidream_pipeline.py": "2f3e571cc34575d4aa18f88f9b8bd81e9108746f4a0746500e830a306f71b22a"
+  },
+  "5410": {
+    "vllm_omni/diffusion/models/hidream_image/hidream_image_transformer.py": "bd30131ef47468731df973858c2027494ed699db5129e0129c26f69df9858ba2",
+    "tests/diffusion/models/hidream_image/test_hidream_transformer_hsdp.py": "1a59ac49b5add272af94c19d7f8b6f5ca7e83eeb0096c6de9bfc272547cd9772"
+  }
+}
