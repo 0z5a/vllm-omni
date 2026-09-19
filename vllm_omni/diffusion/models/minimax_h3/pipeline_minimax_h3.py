@@ -259,6 +259,7 @@ _MINIMAX_H3_DENOISE_INPUT_KEYS = (
     "audio_condition_lengths",
     "keyframe_frame_indices",
     "pad_seq_len",
+    "locked_audio_rows",
 )
 
 # ``StepRequestState.extra`` keys owned by the step-execution path.
@@ -1469,6 +1470,7 @@ class MiniMaxH3Pipeline(
         audio_condition_lengths: list[int] | None = None,
         keyframe_frame_indices: list[int] | None = None,
         pad_seq_len: int | None = None,
+        locked_audio_rows: torch.Tensor | None = None,
     ) -> dict[str, Any]:
         """Build the packed layout, initial rows, anchors, and sigma schedules.
 
@@ -1555,6 +1557,13 @@ class MiniMaxH3Pipeline(
             )
             full_video[branch.update_mask] = initial_video
             initial_video = full_video
+
+        if locked_audio_rows is not None:
+            expected = (2 * audio_t, 32)
+            if tuple(locked_audio_rows.shape) != expected:
+                raise OmniClientError(f"MiniMax H3 driving audio rows must have shape {expected}")
+            branch.locked_audio_rows = locked_audio_rows.to(device=self.device, dtype=torch.float32)
+            initial_audio = branch.locked_audio_rows.cpu().clone()
 
         audio_anchor = audio_condition
         if audio_anchor is not None:
@@ -1659,6 +1668,7 @@ class MiniMaxH3Pipeline(
         audio_condition_lengths: list[int] | None = None,
         keyframe_frame_indices: list[int] | None = None,
         pad_seq_len: int | None = None,
+        locked_audio_rows: torch.Tensor | None = None,
     ) -> tuple[torch.Tensor, torch.Tensor]:
         inputs = self._build_denoise_inputs(
             task=task,
@@ -1683,6 +1693,7 @@ class MiniMaxH3Pipeline(
             audio_condition_lengths=audio_condition_lengths,
             keyframe_frame_indices=keyframe_frame_indices,
             pad_seq_len=pad_seq_len,
+            locked_audio_rows=locked_audio_rows,
         )
         branch = inputs["branch"]
         transformer = self._transformer_for_task(task)
@@ -2099,6 +2110,22 @@ class MiniMaxH3Pipeline(
 
         visual_shapes = list(conditioning.visual_condition_shapes) or None
         audio_lengths = list(conditioning.audio_condition_lengths) or None
+        audio_condition = conditioning.audio_condition
+        locked_audio_rows = None
+        if extra.get("audio_mode", "native") == "lock_source":
+            if audio_condition is None or not audio_lengths:
+                raise OmniClientError("MiniMax H3 lock_source requires encoded driving audio")
+            drive_t = audio_lengths[-1]
+            drive = audio_condition[-2 * drive_t :].reshape(2, drive_t, 32)
+            # Pad/crop each stereo channel independently; flattening first would
+            # shift the right channel when the source and target lengths differ.
+            fitted = drive.new_zeros((2, conditioning.audio_t, 32))
+            count = min(drive_t, conditioning.audio_t)
+            fitted[:, :count] = drive[:, :count]
+            locked_audio_rows = fitted.reshape(-1, 32).to(device=self.device)
+            audio_condition = audio_condition[: -2 * drive_t]
+            audio_condition = audio_condition if audio_condition.numel() else None
+            audio_lengths = audio_lengths[:-1] or None
 
         base_schedule, num_steps = self._resolve_sigma_positions(task, sampling)
         quality_plan = self._quality_policy.resolve(
@@ -2124,15 +2151,12 @@ class MiniMaxH3Pipeline(
                 else None
             ),
             "visual_condition_shape": visual_shapes[0] if visual_shapes and len(visual_shapes) == 1 else None,
-            "audio_condition": (
-                conditioning.audio_condition.to(device=self.device)
-                if conditioning.audio_condition is not None
-                else None
-            ),
+            "audio_condition": (audio_condition.to(device=self.device) if audio_condition is not None else None),
             "ref_audio_t": audio_lengths[0] if audio_lengths and len(audio_lengths) == 1 else None,
             "ref_blocks": list(conditioning.ref_blocks) or None,
             "visual_condition_shapes": visual_shapes,
             "audio_condition_lengths": audio_lengths,
+            "locked_audio_rows": locked_audio_rows,
             "keyframe_frame_indices": list(conditioning.keyframe_frame_indices) or None,
             "pad_seq_len": _resolve_pad_seq_len(extra.get("pad_seq_len")),
             "seed": int(sampling.seed if sampling.seed is not None else 42),
@@ -2479,7 +2503,7 @@ class MiniMaxH3Pipeline(
             sigma_next=schedule["sigma_audio_next"],
         )
         audio_rows = audio_rows.clone()
-        audio_rows[audio_update] = new_audio
+        audio_rows[audio_update] = new_audio if branch.locked_audio_rows is None else branch.locked_audio_rows
         if audio_anchor is not None:
             audio_rows[~audio_update] = audio_anchor  # per-step audio ref reset
 

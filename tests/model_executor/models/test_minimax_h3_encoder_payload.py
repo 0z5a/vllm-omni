@@ -404,3 +404,30 @@ def test_encoder_releases_workspace_after_cpu_payload(monkeypatch) -> None:
     assert empty_cache_calls == 1
     assert output.multimodal_outputs is not None
     assert output.multimodal_outputs["embed"]["embedding"][0].device.type == "cpu"
+
+
+def test_driving_audio_is_not_a_short_reference_and_survives_stage_transport():
+    from vllm_omni.model_executor.models.minimax_h3 import encoder_processing as processing
+
+    sampling = SimpleNamespace(
+        width=64,
+        height=64,
+        fps=24,
+        extra_args={
+            "task": "t2va",
+            "aspect_ratio": "1:1",
+            "duration": 75,
+            "long_video": True,
+            "audio_mode": "lock_source",
+        },
+    )
+    prepared = processing.prepare_encoder_inputs(
+        {"prompt": "A singer", "multi_modal_data": {"audio": (torch.zeros(75 * 800), 800)}}, sampling
+    )
+    media = MiniMaxH3EncoderMediaInput.from_mm_tensors(prepared.media.to_mm_tensors(), prepared.media.to_metadata())
+    assert media.audio_mode == "lock_source"
+    assert prepared.condition_labels == []
+    audio_vae = SimpleNamespace(encode_waveform=lambda *_: (torch.ones(6000, 32), 3000))
+    conditioning = processing.encode_media(media, video_vae=None, audio_vae=audio_vae, emit_conditioning=True)
+    assert conditioning.audio_condition_lengths == (3000,)
+    assert conditioning.ref_blocks == ()

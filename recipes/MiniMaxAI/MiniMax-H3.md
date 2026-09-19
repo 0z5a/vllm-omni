@@ -825,7 +825,7 @@ at most 15 seconds combined.
 | FL2VA | first image, last image, or ordered first+last images | at most 2 images; `frame_indices` is `[0]`, `[-1]`, or `[0,-1]` |
 | Ref2VA | image-only, image+image, image+video, video+audio, and mixed image/video/audio | images ≤9, videos ≤3, audios ≤3, total references ≤12; audio requires a visual reference |
 
-The H3 output contract is 4–15 seconds at 24 FPS, stereo 32 kHz audio, and a
+The default H3 output contract is 4–15 seconds at 24 FPS, stereo 32 kHz audio, and a
 32-pixel canvas multiple. T2VA requires one named output ratio from `21:9`,
 `16:9`, `4:3`, `1:1`, `3:4`, or `9:16`. FL2VA always follows the first input
 image's ratio and ignores a generic `aspect_ratio` override. Ref2VA defaults to
@@ -835,6 +835,53 @@ default. `short_edge` controls the 768-pixel canvas and must be `768`.
 `seed + output_index`. The asynchronous endpoint returns all
 outputs; the synchronous raw-MP4 endpoint returns the first output when more
 than one is requested.
+
+## Long video and driving audio
+
+Set `extra_params.long_video=true` to opt into durations above 15 seconds.
+This samples one full-length audio/video latent, retaining the native `17n+5`
+video-frame grid, `5n+2` video-latent grid, and 40 Hz audio latents. It does not
+join independently generated clips or reuse a short clip in a loop. A request
+for 75 seconds becomes 1,807 frames (75.292 seconds at 24 FPS). Attention cost
+and activation memory grow with the full sequence length; start with a smaller
+canvas when validating a long request. Reference-video and reference-audio
+limits remain unchanged.
+
+Use `audio_mode=lock_source` with one `audio_reference` to drive generation
+with a soundtrack, rather than treating it as a short reference. The encoder
+places that waveform in the target audio latent, crops or zero-pads its two
+channels independently to the output duration, and keeps those rows clean
+(timestep 1) throughout sampling. This mode does not insert an `<Audio 1>`
+reference tag. It supports request and step execution; the default `native`
+mode continues generating audio normally. Returned audio is the audio VAE's
+reconstruction, not a byte-for-byte copy of the input recording.
+
+Against a Ref2VA server, using the same asset-server setup as above:
+
+```bash
+curl --fail-with-body -sS -X POST "${API_URL}" \
+  -F 'prompt=<prompt.txt' \
+  -F 'width=960' -F 'height=544' -F 'fps=24' \
+  -F 'num_inference_steps=50' -F 'flow_shift=12' -F 'seed=19960422' \
+  -F 'extra_params={"task":"ref2va","duration":75,"long_video":true,"audio_mode":"lock_source","audio_flow_shift":3,"preencode_mp4":true,"preencode_batch_frames":17}' \
+  -F "input_reference=@${REF_IMAGE};type=image/png" \
+  -F "audio_reference={\"audio_url\":\"${AUDIO_URL}\"}" \
+  -o long-video.mp4
+```
+
+`preencode_mp4` decodes and muxes temporal chunks on the worker, avoiding a
+full decoded long video in the API process. It does not reduce the denoiser's
+sequence length. For Turbo adapters, use the matching adapter's step count
+and flow shift from the Turbo table below.
+
+The [RunningHub workflow](https://www.runninghub.cn/post/2100530217365364737/)
+uses T8's `MiniMaxH3AudioConditioningT8`, a full-length latent, and
+`MiniMaxH3DualClockSamplerT8`; its `remix_source` strength is zero, equivalent
+to source locking. This differs from rolling-overlap continuation nodes.
+See [T8 conditioning](https://github.com/T8mars/comfyui-minimax-h3-audio-T8)
+and [ComfyUI H3 masking](https://github.com/Comfy-Org/ComfyUI/blob/master/comfy/ldm/minimax/model.py).
+The workflow's custom Dasiwa weights, Sol attention, and T8-specific LoRA are
+not supplied by this feature.
 
 ## Request-scoped quality
 
