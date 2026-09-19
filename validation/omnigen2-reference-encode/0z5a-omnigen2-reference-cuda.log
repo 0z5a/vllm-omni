@@ -1,0 +1,22 @@
+INFO 09-20 02:11:09 [patch.py:252] NVFP4 W4A4 weight_scale NaN-clamp: installed.
+INFO 09-20 02:11:09 [patch.py:252] NVFP4 W4A4 weight_scale NaN-clamp: installed.
+INFO 09-20 02:11:10 [patch.py:503] inductor factorable-divisibility patch: installed.
+INFO 09-20 02:11:10 [patch.py:503] inductor factorable-divisibility patch: installed.
+INFO 09-20 02:11:10 [patch.py:568] [cumem-cuda] CuMemAllocator._python_free_callback patched: asleep guard extended to all platforms.
+INFO 09-20 02:11:10 [patch.py:568] [cumem-cuda] CuMemAllocator._python_free_callback patched: asleep guard extended to all platforms.
+INFO 09-20 02:11:11 [omnigen2_transformer.py:124] Patched vllm._custom_ops.cutlass_scaled_mm with CUTLASS-padded FP8 variant (avoids slow Triton fallback for non-%%16 dimensions)
+INFO 09-20 02:11:11 [omnigen2_transformer.py:124] Patched vllm._custom_ops.cutlass_scaled_mm with CUTLASS-padded FP8 variant (avoids slow Triton fallback for non-%%16 dimensions)
+INFO 09-20 02:11:11 [parallel_state.py:785] sequence_parallel_size is not provided, using 2
+INFO 09-20 02:11:11 [parallel_state.py:785] sequence_parallel_size is not provided, using 2
+INFO 09-20 02:11:11 [parallel_state.py:610] Building SP subgroups from explicit sp_group_ranks (sp_size=2, ulysses=2, ring=1, use_ulysses_low=True).
+INFO 09-20 02:11:11 [parallel_state.py:610] Building SP subgroups from explicit sp_group_ranks (sp_size=2, ulysses=2, ring=1, use_ulysses_low=True).
+INFO 09-20 02:11:11 [parallel_state.py:652] SP group details for rank 0: sp_group=[0, 1], ulysses_group=[0, 1], ring_group=[0]
+INFO 09-20 02:11:11 [parallel_state.py:652] SP group details for rank 1: sp_group=[0, 1], ulysses_group=[0, 1], ring_group=[1]
+{"rank": 0, "image_shapes": [[512, 512]], "exact": true, "rng_equal": true}
+{"rank": 1, "image_shapes": [[512, 512]], "exact": true, "rng_equal": true}
+{"rank": 1, "image_shapes": [[512, 768], [768, 512]], "exact": true, "rng_equal": true}
+{"rank": 0, "image_shapes": [[512, 768], [768, 512]], "exact": true, "rng_equal": true}
+{"rank": 0, "image_shapes": [[512, 512], [384, 768], [768, 384]], "exact": true, "rng_equal": true}
+{"rank": 1, "image_shapes": [[512, 512], [384, 768], [768, 384]], "exact": true, "rng_equal": true}
+{"rank": 0, "image_shapes": [[512, 512]], "exact": true, "rng_equal": true}
+{"rank": 1, "image_shapes": [[512, 512]], "exact": true, "rng_equal": true}
