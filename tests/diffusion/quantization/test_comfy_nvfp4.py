@@ -85,3 +85,45 @@ def test_tensor_parallel_is_rejected_before_allocating():
 def test_factory_routes_explicit_checkpoint_layers():
     config = build_quant_config({"method": "comfy_nvfp4", "quantized_layers": ["transformer_blocks.0.attn.to_qkv"]})
     assert isinstance(config, ComfyNvfp4Config)
+
+
+def test_prepare_tool_round_trips_serialized_storage(tmp_path, monkeypatch):
+    import json
+    import runpy
+    from pathlib import Path
+
+    from safetensors.torch import load_file, save_file
+
+    base = tmp_path / "base"
+    (base / "transformer").mkdir(parents=True)
+    (base / "transformer/config.json").write_text("{}")
+    (base / "model_index.json").write_text('{"_class_name":"Flux2Pipeline"}')
+    layer = "double_blocks.0.img_attn.qkv"
+    tensors = {
+        layer + ".weight": torch.arange(256).reshape(16, 16).to(torch.uint8),
+        layer + ".weight_scale": torch.ones(16, 2).to(torch.float8_e4m3fn),
+        layer + ".weight_scale_2": torch.tensor(0.125),
+        layer + ".input_scale": torch.tensor(0.25),
+        "final_layer.adaLN_modulation.1.weight": torch.arange(32).reshape(8, 4).to(torch.bfloat16),
+    }
+    checkpoint = tmp_path / "source.safetensors"
+    save_file(
+        tensors,
+        checkpoint,
+        metadata={
+            "_quantization_metadata": json.dumps({"layers": {layer: {"format": "nvfp4"}}}),
+        },
+    )
+    output = tmp_path / "prepared"
+    monkeypatch.setattr(
+        "sys.argv", ["prepare", "--base-model", str(base), "--checkpoint", str(checkpoint), "--output", str(output)]
+    )
+    runpy.run_path(str(Path(__file__).resolve().parents[3] / "tools/prepare_flux2_nvfp4.py"), run_name="__main__")
+    result = load_file(output / "transformer/diffusion_pytorch_model.safetensors")
+    for name, tensor in tensors.items():
+        target, expected = map_bfl_weight(name, tensor)
+        assert result[target].dtype == expected.dtype
+        assert torch.equal(result[target].reshape(-1).view(torch.uint8), expected.reshape(-1).view(torch.uint8))
+    config = json.loads((output / "transformer/quantization_config.json").read_text())
+    assert config["quantized_layers"] == ["transformer_blocks.0.attn.to_qkv"]
+    assert (output / "model_index.json").resolve() == (base / "model_index.json")
