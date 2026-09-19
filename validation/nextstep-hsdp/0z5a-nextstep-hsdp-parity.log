@@ -1,0 +1,32 @@
+INFO 09-20 02:24:40 [patch.py:252] NVFP4 W4A4 weight_scale NaN-clamp: installed.
+INFO 09-20 02:24:40 [patch.py:252] NVFP4 W4A4 weight_scale NaN-clamp: installed.
+INFO 09-20 02:24:40 [patch.py:503] inductor factorable-divisibility patch: installed.
+INFO 09-20 02:24:40 [patch.py:568] [cumem-cuda] CuMemAllocator._python_free_callback patched: asleep guard extended to all platforms.
+INFO 09-20 02:24:40 [patch.py:503] inductor factorable-divisibility patch: installed.
+INFO 09-20 02:24:40 [patch.py:568] [cumem-cuda] CuMemAllocator._python_free_callback patched: asleep guard extended to all platforms.
+INFO 09-20 02:24:42 [scheduler.py:277] Chunked prefill is enabled with max_num_batched_tokens=2048.
+INFO 09-20 02:24:42 [kernel.py:369] Final IR op priority after setting platform defaults: IrOpPriorityConfig(rms_norm=['native'], fused_add_rms_norm=['native'])
+INFO 09-20 02:24:42 [scheduler.py:277] Chunked prefill is enabled with max_num_batched_tokens=2048.
+INFO 09-20 02:24:42 [kernel.py:369] Final IR op priority after setting platform defaults: IrOpPriorityConfig(rms_norm=['native'], fused_add_rms_norm=['native'])
+INFO 09-20 02:24:42 [parallel_state.py:785] sequence_parallel_size is not provided, using 1
+INFO 09-20 02:24:42 [parallel_state.py:785] sequence_parallel_size is not provided, using 1
+INFO 09-20 02:24:42 [parallel_state.py:610] Building SP subgroups from explicit sp_group_ranks (sp_size=1, ulysses=1, ring=1, use_ulysses_low=True).
+INFO 09-20 02:24:42 [parallel_state.py:610] Building SP subgroups from explicit sp_group_ranks (sp_size=1, ulysses=1, ring=1, use_ulysses_low=True).
+INFO 09-20 02:24:42 [parallel_state.py:652] SP group details for rank 1: sp_group=[1], ulysses_group=[1], ring_group=[1]
+INFO 09-20 02:24:42 [parallel_state.py:652] SP group details for rank 0: sp_group=[0], ulysses_group=[0], ring_group=[0]
+INFO 09-20 02:24:42 [hsdp.py:129] HSDP Inference (FSDP2): replicate_size=1, shard_size=2, world_size=2, rank=1
+INFO 09-20 02:24:42 [hsdp.py:129] HSDP Inference (FSDP2): replicate_size=1, shard_size=2, world_size=2, rank=0
+INFO 09-20 02:24:42 [hsdp.py:286] Sharded 6 modules + root (ignored_params=0)
+INFO 09-20 02:24:42 [hsdp.py:240] HSDP applied to model: FSDPNextStepModel
+INFO 09-20 02:24:42 [hsdp.py:286] Sharded 6 modules + root (ignored_params=0)
+INFO 09-20 02:24:42 [hsdp.py:240] HSDP applied to model: FSDPNextStepModel
+[transformers] `get_max_cache_shape` is deprecated, and will be removed in version 5.16. Please use `get_max_length` instead
+[transformers] `get_max_cache_shape` is deprecated, and will be removed in version 5.16. Please use `get_max_length` instead
+{"rank": 1, "prefix_length": 4, "cfg_mult": 1, "decode_steps": 3, "exact": true, "rng_equal": true}
+{"rank": 0, "prefix_length": 4, "cfg_mult": 1, "decode_steps": 3, "exact": true, "rng_equal": true}
+{"rank": 1, "prefix_length": 7, "cfg_mult": 2, "decode_steps": 3, "exact": true, "rng_equal": true}
+{"rank": 0, "prefix_length": 7, "cfg_mult": 2, "decode_steps": 3, "exact": true, "rng_equal": true}
+{"rank": 1, "prefix_length": 6, "cfg_mult": 3, "decode_steps": 3, "exact": true, "rng_equal": true}
+{"rank": 0, "prefix_length": 6, "cfg_mult": 3, "decode_steps": 3, "exact": true, "rng_equal": true}
+{"rank": 0, "prefix_length": 4, "cfg_mult": 1, "decode_steps": 3, "exact": true, "rng_equal": true}
+{"rank": 1, "prefix_length": 4, "cfg_mult": 1, "decode_steps": 3, "exact": true, "rng_equal": true}

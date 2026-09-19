@@ -1,0 +1,125 @@
+INFO 09-20 02:22:15 [patch.py:252] NVFP4 W4A4 weight_scale NaN-clamp: installed.
+INFO 09-20 02:22:15 [patch.py:252] NVFP4 W4A4 weight_scale NaN-clamp: installed.
+INFO 09-20 02:22:15 [patch.py:503] inductor factorable-divisibility patch: installed.
+INFO 09-20 02:22:15 [patch.py:568] [cumem-cuda] CuMemAllocator._python_free_callback patched: asleep guard extended to all platforms.
+INFO 09-20 02:22:15 [patch.py:503] inductor factorable-divisibility patch: installed.
+INFO 09-20 02:22:15 [patch.py:568] [cumem-cuda] CuMemAllocator._python_free_callback patched: asleep guard extended to all platforms.
+INFO 09-20 02:22:17 [scheduler.py:277] Chunked prefill is enabled with max_num_batched_tokens=2048.
+INFO 09-20 02:22:17 [kernel.py:369] Final IR op priority after setting platform defaults: IrOpPriorityConfig(rms_norm=['native'], fused_add_rms_norm=['native'])
+INFO 09-20 02:22:17 [scheduler.py:277] Chunked prefill is enabled with max_num_batched_tokens=2048.
+INFO 09-20 02:22:17 [kernel.py:369] Final IR op priority after setting platform defaults: IrOpPriorityConfig(rms_norm=['native'], fused_add_rms_norm=['native'])
+INFO 09-20 02:22:17 [parallel_state.py:785] sequence_parallel_size is not provided, using 1
+INFO 09-20 02:22:17 [parallel_state.py:785] sequence_parallel_size is not provided, using 1
+INFO 09-20 02:22:17 [parallel_state.py:610] Building SP subgroups from explicit sp_group_ranks (sp_size=1, ulysses=1, ring=1, use_ulysses_low=True).
+INFO 09-20 02:22:17 [parallel_state.py:610] Building SP subgroups from explicit sp_group_ranks (sp_size=1, ulysses=1, ring=1, use_ulysses_low=True).
+INFO 09-20 02:22:17 [parallel_state.py:652] SP group details for rank 0: sp_group=[0], ulysses_group=[0], ring_group=[0]
+INFO 09-20 02:22:17 [parallel_state.py:652] SP group details for rank 1: sp_group=[1], ulysses_group=[1], ring_group=[1]
+INFO 09-20 02:22:17 [hsdp.py:129] HSDP Inference (FSDP2): replicate_size=1, shard_size=2, world_size=2, rank=0
+INFO 09-20 02:22:17 [hsdp.py:129] HSDP Inference (FSDP2): replicate_size=1, shard_size=2, world_size=2, rank=1
+INFO 09-20 02:22:17 [hsdp.py:286] Sharded 6 modules + root (ignored_params=0)
+INFO 09-20 02:22:17 [hsdp.py:240] HSDP applied to model: FSDPNextStepModel
+INFO 09-20 02:22:17 [hsdp.py:286] Sharded 6 modules + root (ignored_params=0)
+INFO 09-20 02:22:17 [hsdp.py:240] HSDP applied to model: FSDPNextStepModel
+[rank1]: Traceback (most recent call last):
+[rank1]:   File "/dev/shm/0z5a-nextstep-hsdp-parity.py", line 66, in <module>
+[rank1]:     main()
+[rank1]:   File "/dev/shm/0z5a-nextstep-hsdp-parity.py", line 41, in main
+[rank1]:     actual = model(inputs_embeds=model.prepare_inputs_embeds(ids), attention_mask=mask, use_cache=True)
+[rank1]:              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[rank1]:   File "/home/kxqandccx/vllm-omni-7753-hidream-20260918/venv/lib/python3.12/site-packages/torch/nn/modules/module.py", line 1778, in _wrapped_call_impl
+[rank1]:     return self._call_impl(*args, **kwargs)
+[rank1]:            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[rank1]:   File "/home/kxqandccx/vllm-omni-7753-hidream-20260918/venv/lib/python3.12/site-packages/torch/nn/modules/module.py", line 1884, in _call_impl
+[rank1]:     return inner()
+[rank1]:            ^^^^^^^
+[rank1]:   File "/home/kxqandccx/vllm-omni-7753-hidream-20260918/venv/lib/python3.12/site-packages/torch/nn/modules/module.py", line 1811, in inner
+[rank1]:     args_kwargs_result = hook(self, args, kwargs)  # type: ignore[misc]
+[rank1]:                          ^^^^^^^^^^^^^^^^^^^^^^^^
+[rank1]:   File "/home/kxqandccx/vllm-omni-7753-hidream-20260918/venv/lib/python3.12/site-packages/torch/distributed/fsdp/_fully_shard/_fsdp_common.py", line 30, in wrapper
+[rank1]:     return torch._dynamo.disable(
+[rank1]:            ^^^^^^^^^^^^^^^^^^^^^^
+[rank1]:   File "/home/kxqandccx/vllm-omni-7753-hidream-20260918/venv/lib/python3.12/site-packages/torch/_dynamo/eval_frame.py", line 1446, in _fn
+[rank1]:     return fn(*args, **kwargs)
+[rank1]:            ^^^^^^^^^^^^^^^^^^^
+[rank1]:   File "/home/kxqandccx/vllm-omni-7753-hidream-20260918/venv/lib/python3.12/site-packages/torch/distributed/fsdp/_fully_shard/_fsdp_state.py", line 311, in _pre_forward
+[rank1]:     args, kwargs = self._root_pre_forward(module, args, kwargs)
+[rank1]:                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[rank1]:   File "/home/kxqandccx/vllm-omni-7753-hidream-20260918/venv/lib/python3.12/site-packages/torch/distributed/fsdp/_fully_shard/_fsdp_state.py", line 140, in _root_pre_forward
+[rank1]:     self._lazy_init()
+[rank1]:   File "/home/kxqandccx/vllm-omni-7753-hidream-20260918/venv/lib/python3.12/site-packages/torch/distributed/fsdp/_fully_shard/_fsdp_state.py", line 192, in _lazy_init
+[rank1]:     raise RuntimeError(
+[rank1]: RuntimeError: FSDP state has already been lazily initialized for embed_tokens
+[rank1]: FSDP requires running forward through the root module first
+[rank0]: Traceback (most recent call last):
+[rank0]:   File "/dev/shm/0z5a-nextstep-hsdp-parity.py", line 66, in <module>
+[rank0]:     main()
+[rank0]:   File "/dev/shm/0z5a-nextstep-hsdp-parity.py", line 41, in main
+[rank0]:     actual = model(inputs_embeds=model.prepare_inputs_embeds(ids), attention_mask=mask, use_cache=True)
+[rank0]:              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[rank0]:   File "/home/kxqandccx/vllm-omni-7753-hidream-20260918/venv/lib/python3.12/site-packages/torch/nn/modules/module.py", line 1778, in _wrapped_call_impl
+[rank0]:     return self._call_impl(*args, **kwargs)
+[rank0]:            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[rank0]:   File "/home/kxqandccx/vllm-omni-7753-hidream-20260918/venv/lib/python3.12/site-packages/torch/nn/modules/module.py", line 1884, in _call_impl
+[rank0]:     return inner()
+[rank0]:            ^^^^^^^
+[rank0]:   File "/home/kxqandccx/vllm-omni-7753-hidream-20260918/venv/lib/python3.12/site-packages/torch/nn/modules/module.py", line 1811, in inner
+[rank0]:     args_kwargs_result = hook(self, args, kwargs)  # type: ignore[misc]
+[rank0]:                          ^^^^^^^^^^^^^^^^^^^^^^^^
+[rank0]:   File "/home/kxqandccx/vllm-omni-7753-hidream-20260918/venv/lib/python3.12/site-packages/torch/distributed/fsdp/_fully_shard/_fsdp_common.py", line 30, in wrapper
+[rank0]:     return torch._dynamo.disable(
+[rank0]:            ^^^^^^^^^^^^^^^^^^^^^^
+[rank0]:   File "/home/kxqandccx/vllm-omni-7753-hidream-20260918/venv/lib/python3.12/site-packages/torch/_dynamo/eval_frame.py", line 1446, in _fn
+[rank0]:     return fn(*args, **kwargs)
+[rank0]:            ^^^^^^^^^^^^^^^^^^^
+[rank0]:   File "/home/kxqandccx/vllm-omni-7753-hidream-20260918/venv/lib/python3.12/site-packages/torch/distributed/fsdp/_fully_shard/_fsdp_state.py", line 311, in _pre_forward
+[rank0]:     args, kwargs = self._root_pre_forward(module, args, kwargs)
+[rank0]:                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[rank0]:   File "/home/kxqandccx/vllm-omni-7753-hidream-20260918/venv/lib/python3.12/site-packages/torch/distributed/fsdp/_fully_shard/_fsdp_state.py", line 140, in _root_pre_forward
+[rank0]:     self._lazy_init()
+[rank0]:   File "/home/kxqandccx/vllm-omni-7753-hidream-20260918/venv/lib/python3.12/site-packages/torch/distributed/fsdp/_fully_shard/_fsdp_state.py", line 192, in _lazy_init
+[rank0]:     raise RuntimeError(
+[rank0]: RuntimeError: FSDP state has already been lazily initialized for embed_tokens
+[rank0]: FSDP requires running forward through the root module first
+[rank0]:[W920 02:22:23.195878592 ProcessGroupNCCL.cpp:1624] Warning: WARNING: destroy_process_group() was not called before program exit, which can leak resources. For more info, please see https://pytorch.org/docs/stable/distributed.html#shutdown (function operator())
+[rank1]:[W920 02:22:23.278523155 ProcessGroupNCCL.cpp:1624] Warning: WARNING: destroy_process_group() was not called before program exit, which can leak resources. For more info, please see https://pytorch.org/docs/stable/distributed.html#shutdown (function operator())
+W0920 02:22:24.915000 3135845 torch/distributed/elastic/multiprocessing/api.py:1028] Sending process 3135885 closing signal SIGTERM
+E0920 02:22:25.132000 3135845 torch/distributed/elastic/multiprocessing/api.py:1002] failed (exitcode: 1) local_rank: 0 (pid: 3135884) of binary: /home/kxqandccx/vllm-omni-7753-hidream-20260918/venv/bin/python
+Traceback (most recent call last):
+  File "<frozen runpy>", line 198, in _run_module_as_main
+  File "<frozen runpy>", line 88, in _run_code
+  File "/home/kxqandccx/vllm-omni-7753-hidream-20260918/venv/lib/python3.12/site-packages/torch/distributed/run.py", line 1032, in <module>
+    main()
+  File "/home/kxqandccx/vllm-omni-7753-hidream-20260918/venv/lib/python3.12/site-packages/torch/distributed/elastic/multiprocessing/errors/__init__.py", line 367, in wrapper
+    return f(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^
+  File "/home/kxqandccx/vllm-omni-7753-hidream-20260918/venv/lib/python3.12/site-packages/torch/distributed/run.py", line 1028, in main
+    run(args)
+  File "/home/kxqandccx/vllm-omni-7753-hidream-20260918/venv/lib/python3.12/site-packages/torch/distributed/run.py", line 1019, in run
+    elastic_launch(
+  File "/home/kxqandccx/vllm-omni-7753-hidream-20260918/venv/lib/python3.12/site-packages/torch/distributed/launcher/api.py", line 194, in __call__
+    return launch_agent(
+           ^^^^^^^^^^^^^
+  File "/home/kxqandccx/vllm-omni-7753-hidream-20260918/venv/lib/python3.12/site-packages/torch/distributed/launcher/api.py", line 383, in launch_agent
+    raise ChildFailedError(
+torch.distributed.elastic.multiprocessing.errors.ChildFailedError: 
+============================================================
+/dev/shm/0z5a-nextstep-hsdp-parity.py FAILED
+------------------------------------------------------------
+Failures:
+[1]:
+  time      : 2026-09-20_02:22:25
+  host      : jk01.taila15469.ts.net
+  rank      : 1 (local_rank: 1)
+  exitcode  : -15 (pid: 3135885)  (SIGTERM)
+  error_file: <N/A>
+  traceback : Signal 15 (SIGTERM) received by PID 3135885
+------------------------------------------------------------
+Root Cause (first observed failure):
+[0]:
+  time      : 2026-09-20_02:22:24
+  host      : jk01.taila15469.ts.net
+  rank      : 0 (local_rank: 0)
+  exitcode  : 1 (pid: 3135884) 
+  error_file: <N/A>
+  traceback : To enable traceback see: https://pytorch.org/docs/stable/elastic/errors.html
+============================================================

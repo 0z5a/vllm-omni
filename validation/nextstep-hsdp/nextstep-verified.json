@@ -1,0 +1,86 @@
+{
+  "repo": "stepfun-ai/NextStep-1.1",
+  "revision": "05486ff90769ad32109d219fd4659d41671a770a",
+  "files": [
+    {
+      "name": "model-00001-of-00013.safetensors",
+      "size_bytes": 4750149864,
+      "tensor_count": 21,
+      "index_keys_match": true
+    },
+    {
+      "name": "model-00002-of-00013.safetensors",
+      "size_bytes": 4970575328,
+      "tensor_count": 52,
+      "index_keys_match": true
+    },
+    {
+      "name": "model-00003-of-00013.safetensors",
+      "size_bytes": 4939106192,
+      "tensor_count": 56,
+      "index_keys_match": true
+    },
+    {
+      "name": "model-00004-of-00013.safetensors",
+      "size_bytes": 4970575376,
+      "tensor_count": 52,
+      "index_keys_match": true
+    },
+    {
+      "name": "model-00005-of-00013.safetensors",
+      "size_bytes": 4939106232,
+      "tensor_count": 56,
+      "index_keys_match": true
+    },
+    {
+      "name": "model-00006-of-00013.safetensors",
+      "size_bytes": 4970575376,
+      "tensor_count": 52,
+      "index_keys_match": true
+    },
+    {
+      "name": "model-00007-of-00013.safetensors",
+      "size_bytes": 4939106232,
+      "tensor_count": 56,
+      "index_keys_match": true
+    },
+    {
+      "name": "model-00008-of-00013.safetensors",
+      "size_bytes": 4970575376,
+      "tensor_count": 52,
+      "index_keys_match": true
+    },
+    {
+      "name": "model-00009-of-00013.safetensors",
+      "size_bytes": 4939106232,
+      "tensor_count": 56,
+      "index_keys_match": true
+    },
+    {
+      "name": "model-00010-of-00013.safetensors",
+      "size_bytes": 4970575376,
+      "tensor_count": 52,
+      "index_keys_match": true
+    },
+    {
+      "name": "model-00011-of-00013.safetensors",
+      "size_bytes": 4939106232,
+      "tensor_count": 56,
+      "index_keys_match": true
+    },
+    {
+      "name": "model-00012-of-00013.safetensors",
+      "size_bytes": 4996864632,
+      "tensor_count": 44,
+      "index_keys_match": true
+    },
+    {
+      "name": "model-00013-of-00013.safetensors",
+      "size_bytes": 519909336,
+      "tensor_count": 86,
+      "index_keys_match": true
+    }
+  ],
+  "vae_checkpoint_bytes": 335365010,
+  "validation": "All 13 safetensors headers readable and keys exactly match pinned index; VAE file present, not deserialized here."
+}
