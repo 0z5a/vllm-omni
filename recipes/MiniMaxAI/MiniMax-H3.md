@@ -927,6 +927,16 @@ For the default windows starting at frames 0, 255, 510, the added positions are
 The shifted layout is constructed once per window and then used by all denoising
 steps and sequence-parallel ranks; no RoPE-frequency scaling is applied.
 
+For a narrative with different scenes, pass `continuation_prompts` as a JSON
+list containing exactly one non-empty prompt string per planned window (seven
+strings for the default 75-second request). These prompts are independently
+encoded with the same reference assets and selected in window order. Shot times
+inside each prompt describe that local window, including its hidden overlap.
+This option requires a local text encoder; external-encoder stage execution is
+not supported. Media positions use one shared origin after the longest encoded
+text prefix, so different prompt lengths do not shift the global AV clock.
+Without this list, the request's single prompt is reused as before.
+
 The cumulative latent is decoded once after all windows. Denoising memory is
 bounded by the window, while cumulative latent storage still grows with duration.
 This follows the [ComfyUI latent-tail continuation algorithm](https://github.com/ttulttul/ComfyUI-Minimax-H3-Continuation).

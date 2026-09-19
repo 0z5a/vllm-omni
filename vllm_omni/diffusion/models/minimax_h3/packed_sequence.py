@@ -347,6 +347,7 @@ def minimax_h3_packed_sequence_ref2va_blocks(
     audio_channel: int = 2,
     seq_len: int | None = None,
     temporal_offset: float = 0.0,
+    media_time_origin: int | None = None,
 ) -> dict[str, object]:
     """General ref2va-family packed layout.
 
@@ -369,6 +370,8 @@ def minimax_h3_packed_sequence_ref2va_blocks(
     """
     if not math.isfinite(temporal_offset) or temporal_offset < 0:
         raise ValueError("temporal_offset must be finite and non-negative")
+    if media_time_origin is not None and media_time_origin < text_len:
+        raise ValueError("media_time_origin must follow the text prefix")
     if not isinstance(ref_blocks, Sequence) or isinstance(ref_blocks, (str, bytes)):
         raise ValueError("ref_blocks must be a sequence")
 
@@ -499,7 +502,7 @@ def minimax_h3_packed_sequence_ref2va_blocks(
     hh, ww = torch.meshgrid(h_grid, w_grid, indexing="ij")
     target_frame = torch.stack([hh.reshape(-1), ww.reshape(-1)], dim=-1)
 
-    t_cursor = float(text_len)
+    t_cursor = float(text_len if media_time_origin is None else media_time_origin)
     for item in block_slices:
         kind = str(item["kind"])
         if kind == "image":

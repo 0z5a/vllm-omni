@@ -14,15 +14,22 @@ from vllm_omni.errors import OmniClientError
 pytestmark = [pytest.mark.core_model, pytest.mark.cpu, pytest.mark.diffusion]
 
 
+@pytest.mark.parametrize("vary_prompts", [False, True])
 @pytest.mark.parametrize("total,window", [(1807, 277), (1807, 243), (124, 277)])
-def test_continuation_retains_prefix_and_global_stereo_timeline(total, window):
+def test_continuation_retains_prefix_and_global_stereo_timeline(total, window, vary_prompts):
     audio_t = round(total * 40 / 24)
     source = torch.arange(2 * audio_t * 32).reshape(2, audio_t, 32).float()
     calls = []
+    plan = plan_continuation_windows(total, window, 22)
+    texts = [(torch.full((3 + i, 8), float(i)), torch.ones(3 + i, dtype=torch.long)) for i in range(len(plan))]
 
     def sample(**kw):
         calls.append(kw)
         t = kw["latent_t"]
+        if vary_prompts:
+            assert kw["text_embeddings"] is texts[len(calls) - 1][0]
+            assert kw["text_tags"] is texts[len(calls) - 1][1]
+            assert kw["media_time_origin"] == len(texts[-1][0])
         # Different constants expose replacement of an old prefix or an
         # accidental append of the hidden overlap.
         video = torch.full((1, 24, t, 2, 2), float(len(calls)))
@@ -40,7 +47,9 @@ def test_continuation_retains_prefix_and_global_stereo_timeline(total, window):
         audio_t=audio_t,
         locked_audio_rows=source.reshape(-1, 32),
     )
-    video, audio = diffuse_continuation(sample, kwargs, window_frames=window, overlap_frames=22)
+    video, audio = diffuse_continuation(
+        sample, kwargs, window_frames=window, overlap_frames=22, text_conditioning=texts if vary_prompts else None
+    )
     torch.testing.assert_close(audio, source.permute(0, 2, 1))
     plan = plan_continuation_windows(total, window, 22)
     assert [call["temporal_offset"] for call in calls] == pytest.approx([part.start * 40 / 24 for part in plan])
@@ -131,3 +140,21 @@ def test_long_ref2va_defaults_to_continuation_with_explicit_full_opt_out():
         resolve_continuation({"long_video": True, "long_video_mode": "full"}, task="ref2va", step_execution=False)
         is None
     )
+
+
+def test_different_chunk_prompt_lengths_keep_the_same_media_clock():
+    kwargs = dict(
+        latent_t=7,
+        latent_h=4,
+        latent_w=4,
+        audio_t=37,
+        ref_blocks=[{"kind": "image", "latent_h": 4, "latent_w": 4}],
+        media_time_origin=20,
+    )
+    first = minimax_h3_packed_sequence_ref2va_blocks(text_len=3, **kwargs)
+    second = minimax_h3_packed_sequence_ref2va_blocks(text_len=15, temporal_offset=425, **kwargs)
+    for key, mask in (("img_pos", "update_mask"), ("audio_pos", "audio_update_mask")):
+        a = first["img_position_ids"][first[key][first[mask]]]
+        b = second["img_position_ids"][second[key][second[mask]]]
+        torch.testing.assert_close(b[:, 0] - a[:, 0], torch.full_like(a[:, 0], 425))
+        torch.testing.assert_close(b[:, 1:], a[:, 1:])

@@ -99,7 +99,7 @@ from .condition_noise import (
     minimax_h3_audio_cond_noise_aug_rows,
     minimax_h3_imgvid_cond_noise_aug_rows,
 )
-from .continuation import diffuse_continuation, resolve_continuation
+from .continuation import diffuse_continuation, plan_continuation_windows, resolve_continuation
 from .denoise_loop import (
     MiniMaxH3DenoiseBranch,
     minimax_h3_denoise_loop,
@@ -1473,6 +1473,7 @@ class MiniMaxH3Pipeline(
         pad_seq_len: int | None = None,
         locked_audio_rows: torch.Tensor | None = None,
         temporal_offset: float = 0.0,
+        media_time_origin: int | None = None,
     ) -> dict[str, Any]:
         """Build the packed layout, initial rows, anchors, and sigma schedules.
 
@@ -1504,6 +1505,7 @@ class MiniMaxH3Pipeline(
                 ref_blocks=ref_blocks,
                 seq_len=pad_seq_len,
                 temporal_offset=temporal_offset,
+                media_time_origin=media_time_origin,
             )
         else:
             packed = minimax_h3_packed_sequence(
@@ -1673,6 +1675,7 @@ class MiniMaxH3Pipeline(
         pad_seq_len: int | None = None,
         locked_audio_rows: torch.Tensor | None = None,
         temporal_offset: float = 0.0,
+        media_time_origin: int | None = None,
     ) -> tuple[torch.Tensor, torch.Tensor]:
         inputs = self._build_denoise_inputs(
             task=task,
@@ -1699,6 +1702,7 @@ class MiniMaxH3Pipeline(
             pad_seq_len=pad_seq_len,
             locked_audio_rows=locked_audio_rows,
             temporal_offset=temporal_offset,
+            media_time_origin=media_time_origin,
         )
         branch = inputs["branch"]
         transformer = self._transformer_for_task(task)
@@ -2051,7 +2055,40 @@ class MiniMaxH3Pipeline(
             )
         else:
             conditioning = self._extract_encoder_conditioning(raw_prompt)
-        return self._prepare_encoder_conditioning_inputs(conditioning, sampling)
+        context = self._prepare_encoder_conditioning_inputs(conditioning, sampling)
+        prompts = (getattr(sampling, "extra_args", None) or {}).get("continuation_prompts")
+        if prompts is not None:
+            if context["continuation"] is None or not self.load_text_encoder:
+                raise OmniClientError("continuation_prompts requires continuation mode with a local text encoder")
+            window, overlap = context["continuation"]
+            count = len(plan_continuation_windows(context["num_frames"], window, overlap))
+            if (
+                not isinstance(prompts, list)
+                or len(prompts) != count
+                or any(not isinstance(prompt, str) or not prompt.strip() for prompt in prompts)
+            ):
+                raise OmniClientError(f"continuation_prompts must contain exactly {count} non-empty strings")
+            _, rank, _ = _dit_rank_world()
+            prepared = None
+            error = None
+            if rank == 0:
+                try:
+                    prepared = prepare_encoder_inputs(
+                        raw_prompt,
+                        sampling,
+                        task=context["task"],
+                        prepared_reference_videos=self._extract_prepared_reference_videos(raw_prompt),
+                    )
+                except Exception as exc:
+                    error = exc
+            _broadcast_rank0_exception(error)
+            # Request-owned embeddings: no cross-request cache or mutable model state.
+            window_text = []
+            for index, prompt in enumerate(prompts):
+                logger.info("MiniMax H3 encoding continuation prompt %d/%d", index + 1, count)
+                window_text.append(self.encode_prompt(replace(prepared, prompt=prompt) if rank == 0 else None))
+            context["continuation_text_conditioning"] = window_text
+        return context
 
     @staticmethod
     def _extract_encoder_conditioning(prompt: Any) -> MiniMaxH3EncoderConditioning:
@@ -2213,7 +2250,11 @@ class MiniMaxH3Pipeline(
             else:
                 window_frames, overlap_frames = context["continuation"]
                 video_latent, audio_latent = diffuse_continuation(
-                    self.diffuse, output_kwargs, window_frames=window_frames, overlap_frames=overlap_frames
+                    self.diffuse,
+                    output_kwargs,
+                    window_frames=window_frames,
+                    overlap_frames=overlap_frames,
+                    text_conditioning=context.get("continuation_text_conditioning"),
                 )
             if context["preencode_mp4"]:
                 videos.append(

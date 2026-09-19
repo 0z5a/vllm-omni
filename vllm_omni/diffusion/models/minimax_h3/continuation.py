@@ -8,7 +8,7 @@ https://github.com/ttulttul/ComfyUI-Minimax-H3-Continuation
 
 from __future__ import annotations
 
-from collections.abc import Callable, Mapping
+from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass
 from typing import Any
 
@@ -88,6 +88,7 @@ def diffuse_continuation(
     *,
     window_frames: int,
     overlap_frames: int,
+    text_conditioning: Sequence[tuple[torch.Tensor, torch.Tensor]] | None = None,
 ) -> tuple[torch.Tensor, torch.Tensor]:
     """Denoise fresh windows; retain old latents and append only new suffixes.
 
@@ -98,6 +99,11 @@ def diffuse_continuation(
     before RoPE is evaluated; text and static image references remain fixed.
     """
     windows = plan_continuation_windows(kwargs["num_frames"], window_frames, overlap_frames)
+    if text_conditioning is not None and len(text_conditioning) != len(windows):
+        raise OmniClientError("MiniMax H3 requires one text conditioning per continuation window")
+    # Different prompts have different prefix lengths. Keep the media clock
+    # anchored after the longest prefix so text length cannot shift AV time.
+    media_time_origin = max(item[0].shape[0] for item in text_conditioning) if text_conditioning else None
     source_rows = kwargs.get("locked_audio_rows")
     source = None if source_rows is None else source_rows.reshape(2, kwargs["audio_t"], 32)
     video = audio = None
@@ -111,6 +117,9 @@ def diffuse_continuation(
             # Keep fractional RoPE units; audio slice indices alone are rounded.
             "temporal_offset": window.start * (40.0 / 24.0),
         }
+        if text_conditioning is not None:
+            args["text_embeddings"], args["text_tags"] = text_conditioning[index]
+            args["media_time_origin"] = media_time_origin
         if source is not None:
             args["locked_audio_rows"] = source[:, window.audio_start : window.audio_end].reshape(-1, 32)
         overlap_v = _video_t(window.overlap) if window.overlap else 0
