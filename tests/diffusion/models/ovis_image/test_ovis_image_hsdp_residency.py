@@ -20,7 +20,7 @@ def test_request_residency_reshards_before_leaving_denoising(fail: bool) -> None
     pipeline.od_config = Mock(spec=OmniDiffusionConfig, additional_config={"hsdp_reshard_after_forward": False})
     root = Mock(spec=FSDPModule)
     block = Mock(spec=FSDPModule)
-    root.modules.return_value = [root, block]
+    root.modules = Mock(return_value=[root, block])
     pipeline.transformer = root
     events = Mock()
     events.attach_mock(root, "root")
