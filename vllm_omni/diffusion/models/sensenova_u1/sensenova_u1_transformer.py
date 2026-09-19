@@ -751,7 +751,14 @@ class SenseNovaU1Model(nn.Module):
 # ---------------------------------------------------------------------------
 
 
+def _is_sensenova_decoder_layer(name: str, module: nn.Module) -> bool:
+    return isinstance(module, SenseNovaU1DecoderLayer)
+
+
 class SenseNovaU1ForCausalLM(nn.Module):
+    # Root forward covers embedding-only, AR logits and denoising entry points.
+    _hsdp_shard_conditions = [_is_sensenova_decoder_layer]
+
     def __init__(self, config, quant_config=None, prefix: str = ""):
         super().__init__()
         self.config = config

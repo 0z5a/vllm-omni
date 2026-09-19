@@ -917,7 +917,7 @@ class SenseNovaU1Pipeline(
             prompt = "<image>\n" + prompt
         return system_prompt + f"<|im_start|>user\n{prompt}<|im_end|>\n<|im_start|>assistant\n"
 
-    @torch.inference_mode()
+    @torch.no_grad()
     def _forward_text(self, p, input_images) -> DiffusionOutput:
         """Text output path for text2text and img2text."""
         extra_args = p.extra_args
@@ -1293,7 +1293,7 @@ class SenseNovaU1Pipeline(
         except Exception as exc:  # pragma: no cover - warmup is best effort
             logger.warning("Autoregressive decode warmup skipped: %s", exc)
 
-    @torch.inference_mode()
+    @torch.no_grad()
     def forward(self, req: DiffusionRequestBatch) -> DiffusionOutput:
         if self._is_warmup_request(req):
             self._warm_ar_decode()
