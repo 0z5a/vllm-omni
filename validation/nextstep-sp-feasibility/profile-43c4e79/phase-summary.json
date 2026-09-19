@@ -1,0 +1,668 @@
+[
+  {
+    "rank": 0,
+    "request": 0,
+    "phase": "startup",
+    "warmup": true,
+    "seconds": {
+      "prefill": 4.125039,
+      "decode": 46.18533299999993,
+      "flow_head": 5.031784000000002,
+      "vae": 0.188245
+    },
+    "fraction": {
+      "prefill": 0.07428433661049927,
+      "decode": 0.8317125784847111,
+      "flow_head": 0.09061313999875506,
+      "vae": 0.003389944906034448
+    },
+    "profiled_total_seconds": 55.530400999999934,
+    "shapes": [
+      {
+        "profile_rank": 0,
+        "call": 0,
+        "query_shape": [
+          1,
+          9
+        ],
+        "kv_before": 0,
+        "mask_shape": [
+          1,
+          9
+        ],
+        "cache_capacity": 1033
+      },
+      {
+        "profile_rank": 0,
+        "call": 1,
+        "query_shape": [
+          1,
+          1,
+          5120
+        ],
+        "kv_before": 9,
+        "mask_shape": [
+          1,
+          10
+        ],
+        "cache_capacity": 1033
+      },
+      {
+        "profile_rank": 0,
+        "call": 256,
+        "query_shape": [
+          1,
+          1,
+          5120
+        ],
+        "kv_before": 264,
+        "mask_shape": [
+          1,
+          265
+        ],
+        "cache_capacity": 1033
+      },
+      {
+        "profile_rank": 0,
+        "call": 512,
+        "query_shape": [
+          1,
+          1,
+          5120
+        ],
+        "kv_before": 520,
+        "mask_shape": [
+          1,
+          521
+        ],
+        "cache_capacity": 1033
+      },
+      {
+        "profile_rank": 0,
+        "call": 768,
+        "query_shape": [
+          1,
+          1,
+          5120
+        ],
+        "kv_before": 776,
+        "mask_shape": [
+          1,
+          777
+        ],
+        "cache_capacity": 1033
+      },
+      {
+        "profile_rank": 0,
+        "call": 1024,
+        "query_shape": [
+          1,
+          1,
+          5120
+        ],
+        "kv_before": 1032,
+        "mask_shape": [
+          1,
+          1033
+        ],
+        "cache_capacity": 1033
+      }
+    ],
+    "ideal_prefill_only_speedup_bound": 1.0802453059274246
+  },
+  {
+    "rank": 0,
+    "request": 1,
+    "phase": "warmup",
+    "warmup": true,
+    "seconds": {
+      "prefill": 0.124518,
+      "decode": 45.09219799999996,
+      "flow_head": 51.045213999999994,
+      "vae": 0.046561
+    },
+    "fraction": {
+      "prefill": 0.0012929078080976273,
+      "decode": 0.46820584074980454,
+      "flow_head": 0.5300177945888491,
+      "vae": 0.0004834568532487963
+    },
+    "profiled_total_seconds": 96.30849099999995,
+    "shapes": [
+      {
+        "profile_rank": 0,
+        "call": 0,
+        "query_shape": [
+          2,
+          24
+        ],
+        "kv_before": 0,
+        "mask_shape": [
+          2,
+          24
+        ],
+        "cache_capacity": 1048
+      },
+      {
+        "profile_rank": 0,
+        "call": 1,
+        "query_shape": [
+          2,
+          1,
+          5120
+        ],
+        "kv_before": 24,
+        "mask_shape": [
+          2,
+          25
+        ],
+        "cache_capacity": 1048
+      },
+      {
+        "profile_rank": 0,
+        "call": 256,
+        "query_shape": [
+          2,
+          1,
+          5120
+        ],
+        "kv_before": 279,
+        "mask_shape": [
+          2,
+          280
+        ],
+        "cache_capacity": 1048
+      },
+      {
+        "profile_rank": 0,
+        "call": 512,
+        "query_shape": [
+          2,
+          1,
+          5120
+        ],
+        "kv_before": 535,
+        "mask_shape": [
+          2,
+          536
+        ],
+        "cache_capacity": 1048
+      },
+      {
+        "profile_rank": 0,
+        "call": 768,
+        "query_shape": [
+          2,
+          1,
+          5120
+        ],
+        "kv_before": 791,
+        "mask_shape": [
+          2,
+          792
+        ],
+        "cache_capacity": 1048
+      },
+      {
+        "profile_rank": 0,
+        "call": 1024,
+        "query_shape": [
+          2,
+          1,
+          5120
+        ],
+        "kv_before": 1047,
+        "mask_shape": [
+          2,
+          1048
+        ],
+        "cache_capacity": 1048
+      }
+    ],
+    "ideal_prefill_only_speedup_bound": 1.001294581582734
+  },
+  {
+    "rank": 0,
+    "request": 2,
+    "phase": "diagnostic",
+    "warmup": false,
+    "seconds": {
+      "prefill": 0.053191,
+      "decode": 44.75912300000005,
+      "flow_head": 50.76509799999994,
+      "vae": 0.046581
+    },
+    "fraction": {
+      "prefill": 0.0005562516093633531,
+      "decode": 0.46807418928845673,
+      "flow_head": 0.5308824324037582,
+      "vae": 0.0004871266984218072
+    },
+    "profiled_total_seconds": 95.62399299999998,
+    "shapes": [
+      {
+        "profile_rank": 0,
+        "call": 0,
+        "query_shape": [
+          2,
+          24
+        ],
+        "kv_before": 0,
+        "mask_shape": [
+          2,
+          24
+        ],
+        "cache_capacity": 1048
+      },
+      {
+        "profile_rank": 0,
+        "call": 1,
+        "query_shape": [
+          2,
+          1,
+          5120
+        ],
+        "kv_before": 24,
+        "mask_shape": [
+          2,
+          25
+        ],
+        "cache_capacity": 1048
+      },
+      {
+        "profile_rank": 0,
+        "call": 256,
+        "query_shape": [
+          2,
+          1,
+          5120
+        ],
+        "kv_before": 279,
+        "mask_shape": [
+          2,
+          280
+        ],
+        "cache_capacity": 1048
+      },
+      {
+        "profile_rank": 0,
+        "call": 512,
+        "query_shape": [
+          2,
+          1,
+          5120
+        ],
+        "kv_before": 535,
+        "mask_shape": [
+          2,
+          536
+        ],
+        "cache_capacity": 1048
+      },
+      {
+        "profile_rank": 0,
+        "call": 768,
+        "query_shape": [
+          2,
+          1,
+          5120
+        ],
+        "kv_before": 791,
+        "mask_shape": [
+          2,
+          792
+        ],
+        "cache_capacity": 1048
+      },
+      {
+        "profile_rank": 0,
+        "call": 1024,
+        "query_shape": [
+          2,
+          1,
+          5120
+        ],
+        "kv_before": 1047,
+        "mask_shape": [
+          2,
+          1048
+        ],
+        "cache_capacity": 1048
+      }
+    ],
+    "ideal_prefill_only_speedup_bound": 1.0005565611974252
+  },
+  {
+    "rank": 1,
+    "request": 0,
+    "phase": "startup",
+    "warmup": true,
+    "seconds": {
+      "prefill": 4.125449,
+      "decode": 46.189791000000014,
+      "flow_head": 5.032569000000007,
+      "vae": 0.188069
+    },
+    "fraction": {
+      "prefill": 0.0742843932349462,
+      "decode": 0.8317108266479553,
+      "flow_head": 0.09061833865307764,
+      "vae": 0.0033864414640207884
+    },
+    "profiled_total_seconds": 55.535878000000025,
+    "shapes": [
+      {
+        "profile_rank": 1,
+        "call": 0,
+        "query_shape": [
+          1,
+          9
+        ],
+        "kv_before": 0,
+        "mask_shape": [
+          1,
+          9
+        ],
+        "cache_capacity": 1033
+      },
+      {
+        "profile_rank": 1,
+        "call": 1,
+        "query_shape": [
+          1,
+          1,
+          5120
+        ],
+        "kv_before": 9,
+        "mask_shape": [
+          1,
+          10
+        ],
+        "cache_capacity": 1033
+      },
+      {
+        "profile_rank": 1,
+        "call": 256,
+        "query_shape": [
+          1,
+          1,
+          5120
+        ],
+        "kv_before": 264,
+        "mask_shape": [
+          1,
+          265
+        ],
+        "cache_capacity": 1033
+      },
+      {
+        "profile_rank": 1,
+        "call": 512,
+        "query_shape": [
+          1,
+          1,
+          5120
+        ],
+        "kv_before": 520,
+        "mask_shape": [
+          1,
+          521
+        ],
+        "cache_capacity": 1033
+      },
+      {
+        "profile_rank": 1,
+        "call": 768,
+        "query_shape": [
+          1,
+          1,
+          5120
+        ],
+        "kv_before": 776,
+        "mask_shape": [
+          1,
+          777
+        ],
+        "cache_capacity": 1033
+      },
+      {
+        "profile_rank": 1,
+        "call": 1024,
+        "query_shape": [
+          1,
+          1,
+          5120
+        ],
+        "kv_before": 1032,
+        "mask_shape": [
+          1,
+          1033
+        ],
+        "cache_capacity": 1033
+      }
+    ],
+    "ideal_prefill_only_speedup_bound": 1.08024537200419
+  },
+  {
+    "rank": 1,
+    "request": 1,
+    "phase": "warmup",
+    "warmup": true,
+    "seconds": {
+      "prefill": 0.124509,
+      "decode": 44.739956000000014,
+      "flow_head": 51.40315700000011,
+      "vae": 0.046582
+    },
+    "fraction": {
+      "prefill": 0.001292737673458837,
+      "decode": 0.4645208509432311,
+      "flow_head": 0.5337027651705457,
+      "vae": 0.00048364621276421424
+    },
+    "profiled_total_seconds": 96.31420400000013,
+    "shapes": [
+      {
+        "profile_rank": 1,
+        "call": 0,
+        "query_shape": [
+          2,
+          24
+        ],
+        "kv_before": 0,
+        "mask_shape": [
+          2,
+          24
+        ],
+        "cache_capacity": 1048
+      },
+      {
+        "profile_rank": 1,
+        "call": 1,
+        "query_shape": [
+          2,
+          1,
+          5120
+        ],
+        "kv_before": 24,
+        "mask_shape": [
+          2,
+          25
+        ],
+        "cache_capacity": 1048
+      },
+      {
+        "profile_rank": 1,
+        "call": 256,
+        "query_shape": [
+          2,
+          1,
+          5120
+        ],
+        "kv_before": 279,
+        "mask_shape": [
+          2,
+          280
+        ],
+        "cache_capacity": 1048
+      },
+      {
+        "profile_rank": 1,
+        "call": 512,
+        "query_shape": [
+          2,
+          1,
+          5120
+        ],
+        "kv_before": 535,
+        "mask_shape": [
+          2,
+          536
+        ],
+        "cache_capacity": 1048
+      },
+      {
+        "profile_rank": 1,
+        "call": 768,
+        "query_shape": [
+          2,
+          1,
+          5120
+        ],
+        "kv_before": 791,
+        "mask_shape": [
+          2,
+          792
+        ],
+        "cache_capacity": 1048
+      },
+      {
+        "profile_rank": 1,
+        "call": 1024,
+        "query_shape": [
+          2,
+          1,
+          5120
+        ],
+        "kv_before": 1047,
+        "mask_shape": [
+          2,
+          1048
+        ],
+        "cache_capacity": 1048
+      }
+    ],
+    "ideal_prefill_only_speedup_bound": 1.001294411007333
+  },
+  {
+    "rank": 1,
+    "request": 2,
+    "phase": "diagnostic",
+    "warmup": false,
+    "seconds": {
+      "prefill": 0.053477,
+      "decode": 44.024192000000106,
+      "flow_head": 51.498393000000036,
+      "vae": 0.046604
+    },
+    "fraction": {
+      "prefill": 0.0005592502513995992,
+      "decode": 0.46039494443712786,
+      "flow_head": 0.5385584313242213,
+      "vae": 0.0004873739872510972
+    },
+    "profiled_total_seconds": 95.62266600000015,
+    "shapes": [
+      {
+        "profile_rank": 1,
+        "call": 0,
+        "query_shape": [
+          2,
+          24
+        ],
+        "kv_before": 0,
+        "mask_shape": [
+          2,
+          24
+        ],
+        "cache_capacity": 1048
+      },
+      {
+        "profile_rank": 1,
+        "call": 1,
+        "query_shape": [
+          2,
+          1,
+          5120
+        ],
+        "kv_before": 24,
+        "mask_shape": [
+          2,
+          25
+        ],
+        "cache_capacity": 1048
+      },
+      {
+        "profile_rank": 1,
+        "call": 256,
+        "query_shape": [
+          2,
+          1,
+          5120
+        ],
+        "kv_before": 279,
+        "mask_shape": [
+          2,
+          280
+        ],
+        "cache_capacity": 1048
+      },
+      {
+        "profile_rank": 1,
+        "call": 512,
+        "query_shape": [
+          2,
+          1,
+          5120
+        ],
+        "kv_before": 535,
+        "mask_shape": [
+          2,
+          536
+        ],
+        "cache_capacity": 1048
+      },
+      {
+        "profile_rank": 1,
+        "call": 768,
+        "query_shape": [
+          2,
+          1,
+          5120
+        ],
+        "kv_before": 791,
+        "mask_shape": [
+          2,
+          792
+        ],
+        "cache_capacity": 1048
+      },
+      {
+        "profile_rank": 1,
+        "call": 1024,
+        "query_shape": [
+          2,
+          1,
+          5120
+        ],
+        "kv_before": 1047,
+        "mask_shape": [
+          2,
+          1048
+        ],
+        "cache_capacity": 1048
+      }
+    ],
+    "ideal_prefill_only_speedup_bound": 1.0005595631872528
+  }
+]
