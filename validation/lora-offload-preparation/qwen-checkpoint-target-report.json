@@ -1,0 +1,9 @@
+[
+  {
+    "adapter": "edit-r1",
+    "logical_targets": 480,
+    "tensor_shapes_checked": 960,
+    "all_checkpoint_targets_exist": true,
+    "all_shapes_match": true
+  }
+]

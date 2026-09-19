@@ -1,0 +1,13 @@
+{
+  "source": "c01457badf7a093d0b04ed6eeaaffccbcb756c84",
+  "remote": "/dev/shm/0z5a-qwen-lora-admission",
+  "files": {
+    "vllm_omni/diffusion/models/qwen_image/lora.py": "318044327d1242f1ca6b4a953d36705df29ce7dc5f5ebee7c52c3e7f5cd16196",
+    "vllm_omni/diffusion/models/qwen_image/pipeline_qwen_image.py": "d951f00118045379cefdc3ec4546e81996b2569baeac63efac639ed7d7268eba",
+    "vllm_omni/diffusion/models/qwen_image/pipeline_qwen_image_edit.py": "4831e6a9b41703fc86d349c1bf3357e13f7c5115a425dd7cf3e3fdf49664fc45",
+    "vllm_omni/diffusion/models/qwen_image/pipeline_qwen_image_edit_plus.py": "da0ab6be2b9b86d876aae401ecef552e0d90bf6db5d34c20102b38b84700c5bb",
+    "vllm_omni/diffusion/models/qwen_image/pipeline_qwen_image_layered.py": "4a6883abeffb4fccde99f4179beaf20c4a72cf391f5b05a0c69821b3ea3415ce",
+    "tests/diffusion/models/qwen_image/test_qwen_image_lora.py": "f4cac7dc61d45b13e876446317b9299746177f3aaaad23e04c191f55aeca7be6"
+  },
+  "all_remote_hashes_match": true
+}
