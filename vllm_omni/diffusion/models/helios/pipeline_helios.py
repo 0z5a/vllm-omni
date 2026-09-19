@@ -28,6 +28,7 @@ from vllm_omni.diffusion.interaction.mixin import InteractionMixin
 from vllm_omni.diffusion.interaction.types import ChunkMediaSpec
 from vllm_omni.diffusion.model_loader.diffusers_loader import DiffusersPipelineLoader
 from vllm_omni.diffusion.models.helios.helios_transformer import HeliosTransformer3DModel
+from vllm_omni.diffusion.models.helios.quantization import prepare_helios_text_encoder_fp8
 from vllm_omni.diffusion.models.helios.scheduling_helios import HeliosScheduler
 from vllm_omni.diffusion.models.interface import SupportsComponentDiscovery
 from vllm_omni.diffusion.models.progress_bar import ProgressBarMixin
@@ -35,6 +36,7 @@ from vllm_omni.diffusion.profiler.diffusion_pipeline_profiler import DiffusionPi
 from vllm_omni.diffusion.request import OmniDiffusionRequest
 from vllm_omni.diffusion.worker.request_batch import DiffusionRequestBatch
 from vllm_omni.platforms import current_omni_platform
+from vllm_omni.quantization import resolve_component_quant_config
 
 if TYPE_CHECKING:
     from vllm.model_executor.layers.quantization.base_config import QuantizationConfig
@@ -127,7 +129,7 @@ def create_transformer_from_config(
                 val = tuple(val)
             kwargs[key] = val
 
-    return HeliosTransformer3DModel(quant_config=quant_config, **kwargs)
+    return HeliosTransformer3DModel(quant_config=resolve_component_quant_config(quant_config, "transformer"), **kwargs)
 
 
 def get_helios_post_process_func(
@@ -214,6 +216,7 @@ class HeliosPipeline(
         self.text_encoder = UMT5EncoderModel.from_pretrained(
             model, subfolder="text_encoder", config=text_enc_cfg, torch_dtype=dtype, local_files_only=local_files_only
         ).to(self.device)
+        prepare_helios_text_encoder_fp8(self.text_encoder, od_config.quantization_config, self.device)
         self.vae = AutoencoderKLWan.from_pretrained(
             model, subfolder="vae", torch_dtype=torch.float32, local_files_only=local_files_only
         ).to(self.device)
