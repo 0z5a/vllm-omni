@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: Apache-2.0
 # SPDX-FileCopyrightText: Copyright contributors to the vLLM-Omni project
-"""Bounded H3 windows with synchronized latent-tail guides and global AV timing.
+"""Bounded H3 windows with synchronized latent-tail guides and global AV RoPE positions.
 
 The guide/discard/append algorithm follows ComfyUI-Minimax-H3-Continuation:
 https://github.com/ttulttul/ComfyUI-Minimax-H3-Continuation
@@ -50,7 +50,8 @@ class ContinuationWindow:
 
 
 def resolve_continuation(extra: Mapping[str, Any], *, task: str, step_execution: bool) -> tuple[int, int] | None:
-    mode = extra.get("long_video_mode", "full")
+    default_mode = "continuation" if extra.get("long_video") and task == "ref2va" else "full"
+    mode = extra.get("long_video_mode", default_mode)
     if mode == "full":
         return None
     if mode != "continuation":
@@ -93,6 +94,8 @@ def diffuse_continuation(
     Guides are extra condition rows sharing the new target's temporal origin,
     not a masked target prefix. Audio boundaries refer to the cumulative frame
     timeline, preventing per-window rounding from accumulating A/V drift.
+    Each window shifts temporal media positions onto that same global timeline
+    before RoPE is evaluated; text and static image references remain fixed.
     """
     windows = plan_continuation_windows(kwargs["num_frames"], window_frames, overlap_frames)
     source_rows = kwargs.get("locked_audio_rows")
@@ -105,6 +108,8 @@ def diffuse_continuation(
             "num_frames": frames,
             "latent_t": _video_t(frames),
             "audio_t": window.audio_end - window.audio_start,
+            # Keep fractional RoPE units; audio slice indices alone are rounded.
+            "temporal_offset": window.start * (40.0 / 24.0),
         }
         if source is not None:
             args["locked_audio_rows"] = source[:, window.audio_start : window.audio_end].reshape(-1, 32)
@@ -131,12 +136,13 @@ def diffuse_continuation(
                 },
             ]
         logger.info(
-            "MiniMax H3 continuation window %d/%d: frames [%d, %d), hidden overlap %d",
+            "MiniMax H3 continuation window %d/%d: frames [%d, %d), hidden overlap %d, temporal offset %.6f",
             index + 1,
             len(windows),
             window.start,
             window.end,
             window.overlap,
+            args["temporal_offset"],
         )
         sampled_video, sampled_audio = diffuse(**args)
         video = sampled_video if video is None else torch.cat((video, sampled_video[:, :, overlap_v:]), dim=2)

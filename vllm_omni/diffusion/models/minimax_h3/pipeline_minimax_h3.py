@@ -1472,6 +1472,7 @@ class MiniMaxH3Pipeline(
         keyframe_frame_indices: list[int] | None = None,
         pad_seq_len: int | None = None,
         locked_audio_rows: torch.Tensor | None = None,
+        temporal_offset: float = 0.0,
     ) -> dict[str, Any]:
         """Build the packed layout, initial rows, anchors, and sigma schedules.
 
@@ -1502,6 +1503,7 @@ class MiniMaxH3Pipeline(
                 audio_t=audio_t,
                 ref_blocks=ref_blocks,
                 seq_len=pad_seq_len,
+                temporal_offset=temporal_offset,
             )
         else:
             packed = minimax_h3_packed_sequence(
@@ -1670,6 +1672,7 @@ class MiniMaxH3Pipeline(
         keyframe_frame_indices: list[int] | None = None,
         pad_seq_len: int | None = None,
         locked_audio_rows: torch.Tensor | None = None,
+        temporal_offset: float = 0.0,
     ) -> tuple[torch.Tensor, torch.Tensor]:
         inputs = self._build_denoise_inputs(
             task=task,
@@ -1695,6 +1698,7 @@ class MiniMaxH3Pipeline(
             keyframe_frame_indices=keyframe_frame_indices,
             pad_seq_len=pad_seq_len,
             locked_audio_rows=locked_audio_rows,
+            temporal_offset=temporal_offset,
         )
         branch = inputs["branch"]
         transformer = self._transformer_for_task(task)

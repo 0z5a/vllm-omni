@@ -14,6 +14,7 @@ Builder rules:
 
 from __future__ import annotations
 
+import math
 from collections.abc import Mapping, Sequence
 
 import numpy as np
@@ -345,6 +346,7 @@ def minimax_h3_packed_sequence_ref2va_blocks(
     ref_blocks: Sequence[Mapping[str, object]],
     audio_channel: int = 2,
     seq_len: int | None = None,
+    temporal_offset: float = 0.0,
 ) -> dict[str, object]:
     """General ref2va-family packed layout.
 
@@ -360,7 +362,13 @@ def minimax_h3_packed_sequence_ref2va_blocks(
     rows; both share the same temporal origin and advance by the longer of the
     audio and video spans. Standalone audio advances the target origin by its
     own T, and image blocks advance it by one integer slot.
+
+    ``temporal_offset`` is the window origin in 40-Hz RoPE units. It shifts
+    target AV, reference AV and latent guides together, leaving text, static
+    images, padding and all spatial coordinates unchanged.
     """
+    if not math.isfinite(temporal_offset) or temporal_offset < 0:
+        raise ValueError("temporal_offset must be finite and non-negative")
     if not isinstance(ref_blocks, Sequence) or isinstance(ref_blocks, (str, bytes)):
         raise ValueError("ref_blocks must be a sequence")
 
@@ -597,6 +605,13 @@ def minimax_h3_packed_sequence_ref2va_blocks(
     video_g[:, :, 0] = _video_t_grid(latent_t, t_cursor)[:, None]
     video_g[:, :, 1:] = target_frame[None]
     g[video_sl] = video_g.reshape(-1, 3)
+
+    if temporal_offset:
+        g[audio_mask, 0] += temporal_offset
+        g[video_sl, 0] += temporal_offset
+        for item in block_slices:
+            if item["kind"] in ("video", "video_audio", "latent_guide"):
+                g[item["visual_sl"], 0] += temporal_offset
 
     target_img_pos = _range_for_slice(video_sl)
     target_audio_pos = _range_for_slice(audio_sl)

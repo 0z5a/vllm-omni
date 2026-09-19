@@ -43,6 +43,7 @@ def test_continuation_retains_prefix_and_global_stereo_timeline(total, window):
     video, audio = diffuse_continuation(sample, kwargs, window_frames=window, overlap_frames=22)
     torch.testing.assert_close(audio, source.permute(0, 2, 1))
     plan = plan_continuation_windows(total, window, 22)
+    assert [call["temporal_offset"] for call in calls] == pytest.approx([part.start * 40 / 24 for part in plan])
     offset = 0
     for i, part in enumerate(plan):
         new_frames = part.end - part.start - part.overlap
@@ -52,8 +53,10 @@ def test_continuation_retains_prefix_and_global_stereo_timeline(total, window):
     assert offset == video.shape[2] == kwargs["latent_t"]
 
 
-def test_latent_guide_shares_target_clock_and_remains_condition_only():
+@pytest.mark.parametrize("temporal_offset", [0.0, 425.0, 221 * 40 / 24])
+def test_latent_guide_shares_target_clock_and_remains_condition_only(temporal_offset):
     packed = minimax_h3_packed_sequence_ref2va_blocks(
+        temporal_offset=temporal_offset,
         text_len=3,
         latent_t=12,
         latent_h=4,
@@ -73,7 +76,9 @@ def test_latent_guide_shares_target_clock_and_remains_condition_only():
     guide_audio = audio[~packed["audio_update_mask"]].reshape(2, 37)
     target_audio = audio[packed["audio_update_mask"]].reshape(2, 68)
     torch.testing.assert_close(pos[guide_audio], pos[target_audio[:, :37]])
-    assert pos[target[0], 0] == 4  # text + original image, without a guide time shift
+    assert pos[target[0], 0] == pytest.approx(4 + temporal_offset)
+    torch.testing.assert_close(pos[:3, 0], torch.arange(3, dtype=torch.float64))
+    assert torch.all(pos[3:7, 0] == 3)  # static reference image stays fixed
 
 
 @pytest.mark.parametrize(
@@ -89,3 +94,40 @@ def test_latent_guide_shares_target_clock_and_remains_condition_only():
 def test_invalid_continuation_options(extra, step):
     with pytest.raises(OmniClientError):
         resolve_continuation(extra, task="ref2va", step_execution=step)
+
+
+def test_global_offset_moves_temporal_references_but_not_images_or_padding():
+    kwargs = dict(
+        text_len=3,
+        latent_t=12,
+        latent_h=4,
+        latent_w=4,
+        audio_t=68,
+        ref_blocks=[
+            {"kind": "image", "latent_h": 4, "latent_w": 4},
+            {"kind": "audio", "ref_audio_t": 3},
+            {"kind": "video_audio", "ref_audio_t": 2, "latent_t": 2, "latent_h": 4, "latent_w": 4},
+            {"kind": "image", "latent_h": 4, "latent_w": 4},
+            {"kind": "latent_guide", "ref_audio_t": 37, "latent_t": 7, "latent_h": 4, "latent_w": 4},
+        ],
+    )
+    base = minimax_h3_packed_sequence_ref2va_blocks(**kwargs)
+    shifted = minimax_h3_packed_sequence_ref2va_blocks(**kwargs, temporal_offset=425.0)
+    moving = base["image_mask"] | base["audio_mask"]
+    moving[3:7] = False  # first static image
+    moving[25:29] = False  # static image after temporal references
+    delta = shifted["img_position_ids"] - base["img_position_ids"]
+    torch.testing.assert_close(delta[:, 0], moving.double() * 425)
+    assert torch.count_nonzero(delta[:, 1:]) == 0
+    for key, value in base.items():
+        if isinstance(value, torch.Tensor) and key != "img_position_ids":
+            torch.testing.assert_close(shifted[key], value)
+
+
+def test_long_ref2va_defaults_to_continuation_with_explicit_full_opt_out():
+    assert resolve_continuation({"long_video": True}, task="ref2va", step_execution=False) == (277, 22)
+    assert resolve_continuation({}, task="ref2va", step_execution=False) is None
+    assert (
+        resolve_continuation({"long_video": True, "long_video_mode": "full"}, task="ref2va", step_execution=False)
+        is None
+    )

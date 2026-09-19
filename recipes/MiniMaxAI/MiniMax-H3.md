@@ -839,13 +839,14 @@ than one is requested.
 ## Long video and driving audio
 
 Set `extra_params.long_video=true` to opt into durations above 15 seconds.
-This samples one full-length audio/video latent, retaining the native `17n+5`
-video-frame grid, `5n+2` video-latent grid, and 40 Hz audio latents. It does not
-join independently generated clips or reuse a short clip in a loop. A request
-for 75 seconds becomes 1,807 frames (75.292 seconds at 24 FPS). Attention cost
-and activation memory grow with the full sequence length; start with a smaller
-canvas when validating a long request. Reference-video and reference-audio
-limits remain unchanged.
+Ref2VA long-video requests now default to latent continuation with global
+temporal RoPE positions (A+B), described below. Set `long_video_mode=full`
+explicitly to sample the entire target latent at once for comparison. Both modes
+retain the native `17n+5` video-frame grid, `5n+2` video-latent grid, and 40 Hz
+audio latents. A request for 75 seconds becomes 1,807 frames (75.292 seconds at
+24 FPS). In full mode, attention cost and activation memory grow with the full
+sequence length. Reference-video and reference-audio limits remain unchanged.
+Other task types retain full-mode behavior.
 
 Use `audio_mode=lock_source` with one `audio_reference` to drive generation
 with a soundtrack, rather than treating it as a short reference. The encoder
@@ -883,12 +884,13 @@ and [ComfyUI H3 masking](https://github.com/Comfy-Org/ComfyUI/blob/master/comfy/
 The workflow's custom Dasiwa weights, Sol attention, and T8-specific LoRA are
 not supplied by this feature.
 
-### Latent-tail continuation
+### Latent-tail continuation with global temporal positions (A+B)
 
-For bounded denoising windows, add `long_video_mode=continuation` to the
-long-video request above. This experimental mode currently supports Ref2VA
-request execution with uncached denoising (`quality=lossless`); step execution
-is rejected. The default `full` mode still samples the entire target at once.
+`long_video=true` selects this mode by default for Ref2VA. It can also be selected
+explicitly with `long_video_mode=continuation`. This experimental mode supports
+Ref2VA request execution with uncached denoising (`quality=lossless`); step
+execution is rejected. Use `long_video_mode=full` explicitly for whole-target
+sampling, including long requests that require step execution.
 
 ```json
 {
@@ -914,10 +916,22 @@ must be 107..345 frames and larger than the overlap. A final window may be short
 Audio boundaries are rounded on the cumulative 24 FPS / 40 Hz timeline to avoid
 drift; a locked driving track is sliced separately for each stereo channel.
 
+Before RoPE evaluation, every window adds `start_frame * 40 / 24` to the temporal
+position IDs of its target audio/video, reference audio/video, and latent-tail
+guides. The start includes the overlap (not just the newly appended frames).
+Text, static image references, spatial coordinates, and padding remain unchanged.
+Offsets retain fractional precision independently of rounded audio slice indices.
+For the default windows starting at frames 0, 255, 510, the added positions are
+0, 425, 850. This follows the media-only global-offset convention in
+[LongMedia temporal positioning](https://github.com/vizart-vj/ComfyUI-MiniMax-H3-LongMedia/blob/main/temporal_positioning.py).
+The shifted layout is constructed once per window and then used by all denoising
+steps and sequence-parallel ranks; no RoPE-frequency scaling is applied.
+
 The cumulative latent is decoded once after all windows. Denoising memory is
 bounded by the window, while cumulative latent storage still grows with duration.
 This follows the [ComfyUI latent-tail continuation algorithm](https://github.com/ttulttul/ComfyUI-Minimax-H3-Continuation).
-It does not guarantee seamless cuts or adherence to absolute shot timestamps in
+Global positions can still exceed the model's trained temporal range. This
+mode does not guarantee seamless cuts or adherence to absolute shot timestamps in
 a repeated prompt. For comparison, keep the model, seed, prompt, source media,
 steps, shifts, and output size fixed, changing only `long_video_mode`.
 
