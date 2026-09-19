@@ -1,0 +1,48 @@
+[
+  {
+    "number": 3549,
+    "url": "https://github.com/vllm-project/vllm-omni/pull/3549",
+    "author": "HIT-Felix",
+    "state": "open",
+    "head_sha": "1eeb8fb01f942352bf1f9631652188cbf4ba7e46",
+    "files": [
+      "tests/model_executor/stage_input_processors/test_glm_image.py",
+      "tests/test_config_factory.py",
+      "vllm_omni/config/pipeline_registry.py",
+      "vllm_omni/config/stage_config.py",
+      "vllm_omni/deploy/glm_image_vae_split.yaml",
+      "vllm_omni/diffusion/data.py",
+      "vllm_omni/diffusion/models/glm_image/pipeline_glm_image.py",
+      "vllm_omni/model_executor/models/glm_image/pipeline.py",
+      "vllm_omni/model_executor/stage_input_processors/glm_image.py"
+    ]
+  },
+  {
+    "number": 4933,
+    "url": "https://github.com/vllm-project/vllm-omni/pull/4933",
+    "author": "abtonmoy",
+    "state": "open",
+    "head_sha": "37e4407dcf10d49ab9215dfd4a545fb9f014b5c4",
+    "files": [
+      "docs/user_guide/diffusion_features.md",
+      "tests/diffusion/distributed/test_autoencoder_kl_qwenimage_encode.py",
+      "vllm_omni/diffusion/distributed/autoencoders/autoencoder_kl_qwenimage.py",
+      "vllm_omni/diffusion/models/qwen_image/pipeline_qwen_image_edit.py",
+      "vllm_omni/diffusion/models/qwen_image/pipeline_qwen_image_edit_plus.py"
+    ]
+  },
+  {
+    "number": 4831,
+    "url": "https://github.com/vllm-project/vllm-omni/pull/4831",
+    "author": "abtonmoy",
+    "state": "open",
+    "head_sha": "21cf0c9f6b283fa4880e46dadb41401430b578e2",
+    "files": [
+      "docs/design/feature/vae_parallel.md",
+      "docs/user_guide/diffusion_features.md",
+      "tests/diffusion/distributed/test_autoencoder_kl_ltx2_encode.py",
+      "tests/e2e/online_serving/test_ltx25.py",
+      "vllm_omni/diffusion/distributed/autoencoders/autoencoder_kl_ltx2.py"
+    ]
+  }
+]

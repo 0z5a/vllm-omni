@@ -1,0 +1,59 @@
+{
+  "total_comments_read": 93,
+  "selected_comments": [
+    {
+      "url": "https://github.com/vllm-project/vllm-omni/issues/1217#issuecomment-4156077498",
+      "author": "yuanheng-zhao",
+      "updated_at": "2026-03-30T15:47:01Z",
+      "body": "@wtomin I could add and validate cpu offloading support for any image-gen models that have not been taken: `Nextstep_1`, `GLM-Image`, `SD3.5`, `Ovis-Image`, `LongCat-Image`, `MammothModa2` . Most of them share similar pattern to support."
+    },
+    {
+      "url": "https://github.com/vllm-project/vllm-omni/issues/1217#issuecomment-4159711802",
+      "author": "fhfuih",
+      "updated_at": "2026-03-31T04:02:16Z",
+      "body": "> > Yes, this is not supported really, but the test case can pass after the parameter is added.\n> \n> It sounds like a bug to me. [@fhfuih](https://github.com/fhfuih) What do you think?\n\nI confirm that both FLUX.2-dev and NextStep-1.1 has the same behavior. \n\n> Maybe it can be eventually solved by Pipeline Parameter Validation as planned in the Q2 roadmap\n\n#2189 . I think before this RFC is implemented, we can keep the current behavior for now. After all, the current UX design seems to warn & tolerate unsupported feature/input. When the user asks for CFG parallel but provide no negative prompt, there is also only a warning"
+    },
+    {
+      "url": "https://github.com/vllm-project/vllm-omni/issues/1217#issuecomment-4168694478",
+      "author": "JasonJ2021",
+      "updated_at": "2026-04-01T09:15:30Z",
+      "body": "I want to add cache-dit support for Helios, please assign it to me @wtomin "
+    },
+    {
+      "url": "https://github.com/vllm-project/vllm-omni/issues/1217#issuecomment-4260282894",
+      "author": "fywc",
+      "updated_at": "2026-04-16T13:06:40Z",
+      "body": "I want to add HSDP for LTX-2\uff0cthanks @wtomin "
+    },
+    {
+      "url": "https://github.com/vllm-project/vllm-omni/issues/1217#issuecomment-4328609325",
+      "author": "yuanheng-zhao",
+      "updated_at": "2026-04-27T16:17:11Z",
+      "body": "Hey @wtomin , I'd like to support quantization of video gen models for LTX-2 and DreamID-Omni"
+    },
+    {
+      "url": "https://github.com/vllm-project/vllm-omni/issues/1217#issuecomment-4350161896",
+      "author": "lishunyang12",
+      "updated_at": "2026-04-30T06:27:14Z",
+      "body": "Thanks everyone for the recent claims and PRs \u2014 table refreshed. Recap of what changed:\n\n**ImageGen**\n- @lsyyysky \u2014 Bagel HSDP `\u23f3#3150`; CPU Offload (Layerwise) `\u23f3#2734`. VAE-Patch-Parallel rows already show your claim and remain tracked.\n- @nuclearwu \u2014 FLUX.2-dev Cache-DiT moved to `\u2705#1814`; FP8 quant `\u23f3#2517`.\n- @ischencheng \u2014 HunyuanImage3 HSDP (P0) marked under your name.\n- @xldeng-chn \u2014 HunyuanImage3 CPU Offload (Layerwise) marked under your name.\n- @MoveCloudROY \u2014 LongCat-Image HSDP marked under your name. Comment here if you'd like to take `LongCat-Image-Edit` too and I'll mirror it.\n- @yuanheng-zhao \u2014 GLM-Image and MammothModa2 CPU Offload (Layerwise) marked under your name. The other models you mentioned (Nextstep_1, SD3.5, Ovis-Image, LongCat-Image) are already `\u2705#2339`.\n- @yangjianjuan \u2014 OmniGen2 SP / HSDP / CPU Offload marked under your name. Heads up: same SP caveat as Ovis-Image \u2014 please confirm `OmniGen2Transformer2DModel` actually exercises SP (has `_sp_plan` or manual implementation), not just that the test passes with the flag.\n- @zzhuoxin1508 \u2014 OmniGen2 TP marked under your name; please claim before coding next time per the earlier reminder.\n- Quantization rows updated to \u23f3: LongCat-Image / LongCat-Image-Edit `\u23f3#2633`, Qwen-Image-Edit / Qwen-Image-Edit-2509 `\u23f3#2608`.\n\n**VideoGen**\n- @yuanheng-zhao \u2014 LTX-2 and DreamID-Omni quantization marked under your name.\n- HunyuanVideo-1.5 row: TeaCache `\u23f3#2682`, SP `\u23f3#2444`.\n\n**AudioGen**\n- @sphinxkkkbc \u2014 Stable-Audio-Open CPU Offload (Layerwise) `\u23f3#2909`; VAE-Patch-Parallel Decode marked under your name.\n- @fywc \u2014 Stable-Audio-Open HSDP marked under your name (LTX-2 HSDP was already there).\n\n**Deferred to table-owner**\n- @hsliuustc0106 / @ayushag-nv \u2014 DMD distill is a new feature column rather than a row update; leaving the schema change to @wtomin.\n- @alex-jw-brooks \u2014 the FLUX.2 dev/klein consolidation proposal would restructure two rows; deferring to @wtomin for the call before I touch the table.\n"
+    },
+    {
+      "url": "https://github.com/vllm-project/vllm-omni/issues/1217#issuecomment-4561352157",
+      "author": "yuanheng-zhao",
+      "updated_at": "2026-05-28T06:26:54Z",
+      "body": "@wtomin LTX-2 online fp8/int8 quantization supported in https://github.com/vllm-project/vllm-omni/pull/3700\nDreamID-Omni online fp8/int8 quantization supported in https://github.com/vllm-project/vllm-omni/pull/3902"
+    },
+    {
+      "url": "https://github.com/vllm-project/vllm-omni/issues/1217#issuecomment-4648074990",
+      "author": "Sendoh-code",
+      "updated_at": "2026-06-08T10:46:32Z",
+      "body": "Hi @wtomin , I'd like to add `Cache-DiT` for `Hidream-I1-Full` and `TeaCache` for `LTX-2.3` model, can you assign these to me? Thanks!"
+    },
+    {
+      "url": "https://github.com/vllm-project/vllm-omni/issues/1217#issuecomment-4669658185",
+      "author": "fywc",
+      "updated_at": "2026-06-10T11:28:35Z",
+      "body": "Hi @wtomin , HSDP support for LTX-2 has been completed.  https://github.com/vllm-project/vllm-omni/pull/2899"
+    }
+  ]
+}
