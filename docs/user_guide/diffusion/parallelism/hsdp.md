@@ -113,15 +113,17 @@ omni = Omni(
         hsdp_shard_size=2,
     ),
     additional_config={"hsdp_reshard_after_forward": False},
+    enforce_eager=True,
 )
 ```
 
 This performs one weight all-gather per block per request instead of repeating
 it at every denoising step. Parameters return to their sharded form before VAE
 decode, including when denoising raises an exception. Each GPU must have room
-for the full transformer during denoising; this option does **not** preserve
+for the full transformer plus local shards during denoising; this option does **not** preserve
 the active-request memory savings of blockwise HSDP. The default remains
 `True`, which reshards after every block forward.
+This mode has been validated with eager execution.
 
 ## Example Script
 
