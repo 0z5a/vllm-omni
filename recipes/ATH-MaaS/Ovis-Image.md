@@ -77,9 +77,10 @@ PY
 
 The official checkpoint at revision `41be1c5821a92c970d63d7eb595a2fd3fe32b22e`
 completed the comparison above on one L20 and on two L20s with CFG parallelism.
-All 196 decoder projections used FP8; DiT and VAE parameters remained BF16.
+The rank-0 snapshot verified 196 FP8 decoder projections and BF16 DiT/VAE
+parameters. Memory figures below report rank 0, not the maximum across ranks.
 
-| Configuration | BF16 peak allocated per worker | FP8 peak allocated per worker |
+| Configuration | BF16 rank-0 peak allocated | FP8 rank-0 peak allocated |
 | --- | --- | --- |
 | 1×L20 | 18.008 GiB | 16.690 GiB |
 | 2×L20, CFG=2 | 17.999 GiB | 16.680 GiB |
