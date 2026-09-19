@@ -1,0 +1,130 @@
+F.F.                                                                     [100%]
+=================================== FAILURES ===================================
+_ test_tiled_encode_preserves_posterior_and_rng[False-AutoencoderKL-DistributedAutoencoderKL] _
+
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x766de3622750>
+native_cls = <class 'diffusers.models.autoencoders.autoencoder_kl.AutoencoderKL'>
+distributed_cls = <class 'vllm_omni.diffusion.distributed.autoencoders.autoencoder_kl.DistributedAutoencoderKL'>
+use_quant_conv = False
+
+    @pytest.mark.parametrize(
+        ("native_cls", "distributed_cls"),
+        [(AutoencoderKL, DistributedAutoencoderKL), (AutoencoderKLFlux2, DistributedAutoencoderKLFlux2)],
+    )
+    @pytest.mark.parametrize("use_quant_conv", [False, True])
+    def test_tiled_encode_preserves_posterior_and_rng(monkeypatch, native_cls, distributed_cls, use_quant_conv):
+        config = dict(
+            in_channels=3,
+            out_channels=3,
+            down_block_types=("DownEncoderBlock2D", "DownEncoderBlock2D"),
+            up_block_types=("UpDecoderBlock2D", "UpDecoderBlock2D"),
+            block_out_channels=(8, 8),
+            layers_per_block=1,
+            latent_channels=4,
+            norm_num_groups=4,
+            sample_size=16,
+            use_quant_conv=use_quant_conv,
+        )
+        torch.manual_seed(7)
+        native = native_cls(**config).eval()
+        candidate = distributed_cls(**config).eval()
+        candidate.load_state_dict(native.state_dict())
+        native.enable_tiling()
+        candidate.enable_tiling()
+        executor = LocalTileExecutor()
+        monkeypatch.setattr(candidate, "is_distributed_enabled", lambda: True)
+        monkeypatch.setattr(candidate, "distributed_executor", executor, raising=False)
+        with torch.inference_mode():
+            for height, width in ((16, 16), (24, 32), (32, 24), (16, 16)):
+                image = torch.randn(2, 3, height, width)
+                rng_before = torch.random.get_rng_state()
+                expected = native.encode(image).latent_dist
+                actual = candidate.encode(image).latent_dist
+                assert torch.equal(torch.random.get_rng_state(), rng_before)
+                torch.testing.assert_close(actual.parameters, expected.parameters, rtol=0, atol=0)
+                torch.testing.assert_close(actual.mode(), expected.mode(), rtol=0, atol=0)
+                torch.testing.assert_close(
+                    actual.sample(generator=torch.Generator().manual_seed(42)),
+                    expected.sample(generator=torch.Generator().manual_seed(42)),
+                    rtol=0,
+                    atol=0,
+                )
+>       assert executor.calls == 2
+E       assert 0 == 2
+E        +  where 0 = <test_kl_vae_encode.LocalTileExecutor object at 0x766de36229f0>.calls
+
+tests/diffusion/distributed/test_kl_vae_encode.py:73: AssertionError
+---------------------------- Captured stdout setup -----------------------------
+INFO 09-20 01:49:24 [scheduler.py:277] Chunked prefill is enabled with max_num_batched_tokens=2048.
+INFO 09-20 01:49:24 [kernel.py:369] Final IR op priority after setting platform defaults: IrOpPriorityConfig(rms_norm=['native'], fused_add_rms_norm=['native'])
+--- Running test: test_tiled_encode_preserves_posterior_and_rng[False-AutoencoderKL-DistributedAutoencoderKL]
+------------------------------ Captured log setup ------------------------------
+INFO     vllm.config.scheduler:scheduler.py:277 Chunked prefill is enabled with max_num_batched_tokens=2048.
+INFO     vllm.config.kernel:kernel.py:369 Final IR op priority after setting platform defaults: IrOpPriorityConfig(rms_norm=['native'], fused_add_rms_norm=['native'])
+_ test_tiled_encode_preserves_posterior_and_rng[True-AutoencoderKL-DistributedAutoencoderKL] _
+
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x766de3627f20>
+native_cls = <class 'diffusers.models.autoencoders.autoencoder_kl.AutoencoderKL'>
+distributed_cls = <class 'vllm_omni.diffusion.distributed.autoencoders.autoencoder_kl.DistributedAutoencoderKL'>
+use_quant_conv = True
+
+    @pytest.mark.parametrize(
+        ("native_cls", "distributed_cls"),
+        [(AutoencoderKL, DistributedAutoencoderKL), (AutoencoderKLFlux2, DistributedAutoencoderKLFlux2)],
+    )
+    @pytest.mark.parametrize("use_quant_conv", [False, True])
+    def test_tiled_encode_preserves_posterior_and_rng(monkeypatch, native_cls, distributed_cls, use_quant_conv):
+        config = dict(
+            in_channels=3,
+            out_channels=3,
+            down_block_types=("DownEncoderBlock2D", "DownEncoderBlock2D"),
+            up_block_types=("UpDecoderBlock2D", "UpDecoderBlock2D"),
+            block_out_channels=(8, 8),
+            layers_per_block=1,
+            latent_channels=4,
+            norm_num_groups=4,
+            sample_size=16,
+            use_quant_conv=use_quant_conv,
+        )
+        torch.manual_seed(7)
+        native = native_cls(**config).eval()
+        candidate = distributed_cls(**config).eval()
+        candidate.load_state_dict(native.state_dict())
+        native.enable_tiling()
+        candidate.enable_tiling()
+        executor = LocalTileExecutor()
+        monkeypatch.setattr(candidate, "is_distributed_enabled", lambda: True)
+        monkeypatch.setattr(candidate, "distributed_executor", executor, raising=False)
+        with torch.inference_mode():
+            for height, width in ((16, 16), (24, 32), (32, 24), (16, 16)):
+                image = torch.randn(2, 3, height, width)
+                rng_before = torch.random.get_rng_state()
+                expected = native.encode(image).latent_dist
+                actual = candidate.encode(image).latent_dist
+                assert torch.equal(torch.random.get_rng_state(), rng_before)
+                torch.testing.assert_close(actual.parameters, expected.parameters, rtol=0, atol=0)
+                torch.testing.assert_close(actual.mode(), expected.mode(), rtol=0, atol=0)
+                torch.testing.assert_close(
+                    actual.sample(generator=torch.Generator().manual_seed(42)),
+                    expected.sample(generator=torch.Generator().manual_seed(42)),
+                    rtol=0,
+                    atol=0,
+                )
+>       assert executor.calls == 2
+E       assert 0 == 2
+E        +  where 0 = <test_kl_vae_encode.LocalTileExecutor object at 0x766de3626870>.calls
+
+tests/diffusion/distributed/test_kl_vae_encode.py:73: AssertionError
+---------------------------- Captured stdout setup -----------------------------
+--- Running test: test_tiled_encode_preserves_posterior_and_rng[True-AutoencoderKL-DistributedAutoencoderKL]
+=============================== warnings summary ===============================
+../../../home/kxqandccx/vllm-omni-7753-hidream-20260918/venv/lib/python3.12/site-packages/torch/jit/_script.py:365: 14 warnings
+  /home/kxqandccx/vllm-omni-7753-hidream-20260918/venv/lib/python3.12/site-packages/torch/jit/_script.py:365: DeprecationWarning: `torch.jit.script_method` is deprecated. Please switch to `torch.compile` or `torch.export`.
+    warnings.warn(
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+--- Running Summary
+=========================== short test summary info ============================
+FAILED tests/diffusion/distributed/test_kl_vae_encode.py::test_tiled_encode_preserves_posterior_and_rng[False-AutoencoderKL-DistributedAutoencoderKL]
+FAILED tests/diffusion/distributed/test_kl_vae_encode.py::test_tiled_encode_preserves_posterior_and_rng[True-AutoencoderKL-DistributedAutoencoderKL]
+2 failed, 2 passed, 14 warnings in 1.36s

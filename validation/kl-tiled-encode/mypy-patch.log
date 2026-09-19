@@ -1,0 +1,17 @@
+Run mypy for Python 3.10.................................................Failed
+- hook id: mypy-3.10
+- exit code: 1
+
+vllm_omni/diffusion/distributed/autoencoders/autoencoder_kl.py:40: error: "from_pretrained" undefined in superclass  [misc]
+vllm_omni/diffusion/distributed/autoencoders/autoencoder_kl.py:46: error: "from_config" undefined in superclass  [misc]
+vllm_omni/diffusion/distributed/autoencoders/autoencoder_kl.py:159: error: "DistributedAutoencoderKL_base" has no attribute "config"  [attr-defined]
+vllm_omni/diffusion/distributed/autoencoders/autoencoder_kl.py:160: error: "DistributedAutoencoderKL_base" has no attribute "post_quant_conv"; maybe "quant_conv"?  [attr-defined]
+vllm_omni/diffusion/distributed/autoencoders/autoencoder_kl.py:161: error: "DistributedAutoencoderKL_base" has no attribute "decoder"; maybe "decode" or "encoder"?  [attr-defined]
+vllm_omni/diffusion/distributed/autoencoders/autoencoder_kl.py:188: error: "DistributedAutoencoderKL_base" has no attribute "config"  [attr-defined]
+vllm_omni/diffusion/distributed/autoencoders/autoencoder_kl.py:276: error: "decode" undefined in superclass  [misc]
+vllm_omni/diffusion/distributed/autoencoders/autoencoder_kl.py:293: error: "decode" undefined in superclass  [misc]
+vllm_omni/diffusion/distributed/autoencoders/autoencoder_kl_flux2.py:21: error: "decode" of "DistributedAutoencoderKL_base" gets multiple values for keyword argument "return_dict"  [misc]
+vllm_omni/diffusion/distributed/autoencoders/autoencoder_kl_flux2.py:40: error: "decode" of "DistributedAutoencoderKL_base" gets multiple values for keyword argument "return_dict"  [misc]
+Found 10 errors in 2 files (checked 2 source files)
+$ mypy --python-version 3.10
+

@@ -1,0 +1,31 @@
+Run mypy for Python 3.10.................................................Failed
+- hook id: mypy-3.10
+- exit code: 1
+
+vllm_omni/diffusion/distributed/autoencoders/autoencoder_kl.py:27: error: "from_pretrained" undefined in superclass  [misc]
+vllm_omni/diffusion/distributed/autoencoders/autoencoder_kl.py:33: error: "from_config" undefined in superclass  [misc]
+vllm_omni/diffusion/distributed/autoencoders/autoencoder_kl.py:39: error: "DistributedAutoencoderKL_base" has no attribute "tile_latent_min_size"  [attr-defined]
+vllm_omni/diffusion/distributed/autoencoders/autoencoder_kl.py:39: error: "DistributedAutoencoderKL_base" has no attribute "tile_overlap_factor"  [attr-defined]
+vllm_omni/diffusion/distributed/autoencoders/autoencoder_kl.py:40: error: "DistributedAutoencoderKL_base" has no attribute "tile_sample_min_size"  [attr-defined]
+vllm_omni/diffusion/distributed/autoencoders/autoencoder_kl.py:40: error: "DistributedAutoencoderKL_base" has no attribute "tile_overlap_factor"  [attr-defined]
+vllm_omni/diffusion/distributed/autoencoders/autoencoder_kl.py:41: error: "DistributedAutoencoderKL_base" has no attribute "tile_sample_min_size"  [attr-defined]
+vllm_omni/diffusion/distributed/autoencoders/autoencoder_kl.py:45: error: Need type annotation for "tiletask_list" (hint: "tiletask_list: list[<type>] = ...")  [var-annotated]
+vllm_omni/diffusion/distributed/autoencoders/autoencoder_kl.py:48: error: "DistributedAutoencoderKL_base" has no attribute "tile_latent_min_size"  [attr-defined]
+vllm_omni/diffusion/distributed/autoencoders/autoencoder_kl.py:72: error: "DistributedAutoencoderKL_base" has no attribute "config"  [attr-defined]
+vllm_omni/diffusion/distributed/autoencoders/autoencoder_kl.py:73: error: "DistributedAutoencoderKL_base" has no attribute "post_quant_conv"  [attr-defined]
+vllm_omni/diffusion/distributed/autoencoders/autoencoder_kl.py:74: error: "DistributedAutoencoderKL_base" has no attribute "decoder"; maybe "decode"?  [attr-defined]
+vllm_omni/diffusion/distributed/autoencoders/autoencoder_kl.py:87: error: "DistributedAutoencoderKL_base" has no attribute "blend_v"  [attr-defined]
+vllm_omni/diffusion/distributed/autoencoders/autoencoder_kl.py:89: error: "DistributedAutoencoderKL_base" has no attribute "blend_h"  [attr-defined]
+vllm_omni/diffusion/distributed/autoencoders/autoencoder_kl.py:97: error: "DistributedAutoencoderKL_base" has no attribute "tile_latent_min_size"  [attr-defined]
+vllm_omni/diffusion/distributed/autoencoders/autoencoder_kl.py:97: error: "DistributedAutoencoderKL_base" has no attribute "tile_overlap_factor"  [attr-defined]
+vllm_omni/diffusion/distributed/autoencoders/autoencoder_kl.py:101: error: "DistributedAutoencoderKL_base" has no attribute "config"  [attr-defined]
+vllm_omni/diffusion/distributed/autoencoders/autoencoder_kl.py:109: error: Need type annotation for "tiletask_list" (hint: "tiletask_list: list[<type>] = ...")  [var-annotated]
+vllm_omni/diffusion/distributed/autoencoders/autoencoder_kl.py:142: error: "DistributedAutoencoderKL_base" has no attribute "dtype"  [attr-defined]
+vllm_omni/diffusion/distributed/autoencoders/autoencoder_kl.py:189: error: "decode" undefined in superclass  [misc]
+vllm_omni/diffusion/distributed/autoencoders/autoencoder_kl.py:206: error: "decode" undefined in superclass  [misc]
+vllm_omni/diffusion/distributed/autoencoders/autoencoder_kl_flux2.py:27: error: Need type annotation for "tiletask_list" (hint: "tiletask_list: list[<type>] = ...")  [var-annotated]
+vllm_omni/diffusion/distributed/autoencoders/autoencoder_kl_flux2.py:97: error: "decode" of "DistributedAutoencoderKL_base" gets multiple values for keyword argument "return_dict"  [misc]
+vllm_omni/diffusion/distributed/autoencoders/autoencoder_kl_flux2.py:116: error: "decode" of "DistributedAutoencoderKL_base" gets multiple values for keyword argument "return_dict"  [misc]
+Found 24 errors in 2 files (checked 2 source files)
+$ mypy --python-version 3.10
+
