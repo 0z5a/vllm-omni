@@ -7,11 +7,12 @@ export CUDA_VISIBLE_DEVICES=2,3 OMP_NUM_THREADS=4 HF_HUB_OFFLINE=1 TOKENIZERS_PA
 export PYTHONPATH=/dev/shm/0z5a-qwen-edit-4933
 "$python_bin" -m torch.distributed.run --standalone --nproc-per-node=2 "$run_root/qwen_edit_cuda_parity.py" > "$run_root/cuda-parity.log" 2>&1
 for model in qwen-image-edit qwen-image-edit-2509; do
-    for arm in A0 P0 P1 A1; do
+    for arm in A0 P0 P1 A1 A-probe P-probe; do
         flags=()
-        export PYTHONPATH=/dev/shm/0z5a-compat-698f716
+        if [[ $arm == *-probe ]]; then flags+=(--probe); fi
+        export PYTHONPATH="/dev/shm/0z5a-compat-698f716:$run_root"
         if [[ $arm == P* ]]; then
-            export PYTHONPATH=/dev/shm/0z5a-qwen-edit-4933
+            export PYTHONPATH="/dev/shm/0z5a-qwen-edit-4933:$run_root"
             flags+=(--parallel-vae)
         fi
         if [[ $model == qwen-image-edit-2509 ]]; then flags+=(--plus); fi
@@ -23,7 +24,7 @@ for model in qwen-image-edit qwen-image-edit-2509; do
         nvidia-smi pmon -i 2,3 -s um -d 1 > "$out/process-utilization.txt" &
         process_monitor_pid=$!
         trap 'kill "$monitor_pid" "$process_monitor_pid" 2>/dev/null || true' EXIT
-        cd "$PYTHONPATH"
+        cd "${PYTHONPATH%%:*}"
         timeout --kill-after=30s 14400 "$python_bin" "$run_root/qwen_edit_benchmark.py" \
             --model "$root/models/$model" --output "$out" "${flags[@]}" > "$out/run.log" 2>&1
         kill "$monitor_pid" "$process_monitor_pid"

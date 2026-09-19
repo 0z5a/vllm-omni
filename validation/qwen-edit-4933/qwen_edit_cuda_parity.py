@@ -7,6 +7,7 @@ from pathlib import Path
 import torch
 import torch.distributed as dist
 from diffusers.models.autoencoders import AutoencoderKLQwenImage
+
 from vllm_omni.diffusion.distributed.autoencoders.autoencoder_kl_qwenimage import DistributedAutoencoderKLQwenImage
 from vllm_omni.diffusion.distributed.parallel_state import init_distributed_environment, initialize_model_parallel
 
@@ -65,7 +66,7 @@ def main() -> None:
                     flush=True,
                 )
         del native, candidate, pixels, expected, actual, latent, reference_image, decoded
-        torch.cuda.empty_cache()
+        torch.accelerator.empty_cache()
     dist.destroy_process_group()
 
 

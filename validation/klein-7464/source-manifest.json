@@ -1,0 +1,11 @@
+{
+  "base_sha": "698f7160125d3071b8c0eef69b1b03fa8dfba766",
+  "pr": "https://github.com/vllm-project/vllm-omni/pull/7464",
+  "pr_sha": "159202d6cff497b1c9e82e4d08a116dcee2f20c1",
+  "author": "kuafou",
+  "files": {
+    "vllm_omni/diffusion/models/flux2_klein/pipeline_flux2_klein.py": "53ba528595348b12aa891135942ffe7ef81bb99d6c2482751d11b3be3e8a7165",
+    "tests/diffusion/models/flux2/test_flux2_klein_distributed_vae.py": "3ee30aa5f02365d055d03f653abff54455f2d8a3bbfe61aeaa3a188cbbbac8ba"
+  },
+  "adaptation": "Patch applied cleanly; no implementation changes."
+}

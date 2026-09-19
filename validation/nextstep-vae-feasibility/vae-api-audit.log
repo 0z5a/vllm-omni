@@ -1,0 +1,6 @@
+W0920 05:23:17.230000 107584 torch/utils/cpp_extension.py:178] No CUDA runtime is found, using CUDA_HOME='/usr/local/cuda'
+INFO 09-20 05:23:19 [patch.py:252] NVFP4 W4A4 weight_scale NaN-clamp: installed.
+INFO 09-20 05:23:19 [patch.py:503] inductor factorable-divisibility patch: installed.
+INFO 09-20 05:23:19 [patch.py:568] [cumem-cuda] CuMemAllocator._python_free_callback patched: asleep guard extended to all platforms.
+{"latent_shape": [1, 16, 16, 24], "output_shape": [1, 3, 128, 192], "dtype": "torch.float32", "tile_flag_changes_output": false, "checkpoint_keys_match": true, "halo_latents": 6, "halo_max_abs": 0.17568491399288177, "halo_mean_abs": 0.012598906643688679, "halo_relative_l2": 0.053787726908922195, "native_sha256": "ecf4fc13b53aee2064b62167131cc90117b7cd01242a14bf490f6bb0bd6dc60f", "claim": "CPU API audit; naive patch decoding is an approximation, not native tiling"}
+{"latent_shape": [2, 16, 32, 48], "output_shape": [2, 3, 256, 384], "dtype": "torch.float32", "tile_flag_changes_output": false, "checkpoint_keys_match": true, "halo_latents": 12, "halo_max_abs": 0.19644343852996826, "halo_mean_abs": 0.0080233383923769, "halo_relative_l2": 0.028853410854935646, "native_sha256": "a7a37c48c8fdc91f56b40e3cf0f4f19e0b859641d203a42bafffde34e8a54507", "claim": "CPU API audit; naive patch decoding is an approximation, not native tiling"}

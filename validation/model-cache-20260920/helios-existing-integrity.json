@@ -1,0 +1,37 @@
+{
+  "root": "/home/kxqandccx/vllm-omni-7452-7506-20260915/0z5a/quant-three-20260920/helios/model",
+  "safetensors_files": 12,
+  "bytes": 80481086028,
+  "file_bytes": {
+    "transformer/diffusion_pytorch_model-00006-of-00006.safetensors": 7691262792,
+    "transformer/diffusion_pytorch_model-00003-of-00006.safetensors": 9944020376,
+    "transformer/diffusion_pytorch_model-00004-of-00006.safetensors": 9839059792,
+    "transformer/diffusion_pytorch_model-00005-of-00006.safetensors": 9839059792,
+    "transformer/diffusion_pytorch_model-00002-of-00006.safetensors": 9943937952,
+    "transformer/diffusion_pytorch_model-00001-of-00006.safetensors": 9992481688,
+    "vae/diffusion_pytorch_model.safetensors": 507591892,
+    "text_encoder/model-00003-of-00005.safetensors": 4966309504,
+    "text_encoder/model-00002-of-00005.safetensors": 4899225672,
+    "text_encoder/model-00001-of-00005.safetensors": 4972389712,
+    "text_encoder/model-00004-of-00005.safetensors": 4999880704,
+    "text_encoder/model-00005-of-00005.safetensors": 2885866152
+  },
+  "tensor_keys": {
+    "transformer/diffusion_pytorch_model-00006-of-00006.safetensors": 147,
+    "transformer/diffusion_pytorch_model-00003-of-00006.safetensors": 195,
+    "transformer/diffusion_pytorch_model-00004-of-00006.safetensors": 189,
+    "transformer/diffusion_pytorch_model-00005-of-00006.safetensors": 189,
+    "transformer/diffusion_pytorch_model-00002-of-00006.safetensors": 191,
+    "transformer/diffusion_pytorch_model-00001-of-00006.safetensors": 190,
+    "vae/diffusion_pytorch_model.safetensors": 194,
+    "text_encoder/model-00003-of-00005.safetensors": 62,
+    "text_encoder/model-00002-of-00005.safetensors": 66,
+    "text_encoder/model-00001-of-00005.safetensors": 11,
+    "text_encoder/model-00004-of-00005.safetensors": 65,
+    "text_encoder/model-00005-of-00005.safetensors": 38
+  },
+  "metadata_revisions": [
+    "b991c0379a018f4de3227d95468237f56066f5bb"
+  ],
+  "incomplete_files": []
+}

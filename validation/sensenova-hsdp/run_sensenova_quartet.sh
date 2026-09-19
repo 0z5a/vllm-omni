@@ -1,10 +1,12 @@
 #!/usr/bin/env bash
 set -euo pipefail
 root=/home/kxqandccx/omni-1217-20260919
-run_root="$root/sensenova-hsdp-validation/u15"
-model=/home/kxqandccx/sensenova-7598-20260917/models/SenseNova-U1.5-8B-MoT
 python_bin=/home/kxqandccx/vllm-omni-7753-hidream-20260918/venv/bin/python
 export OMP_NUM_THREADS=4 HF_HUB_OFFLINE=1 TOKENIZERS_PARALLELISM=false
+for variant in u15 u1; do
+    run_root="$root/sensenova-hsdp-validation/$variant"
+    model=/home/kxqandccx/sensenova-7598-20260917/models/SenseNova-U1.5-8B-MoT
+    if [[ $variant == u1 ]]; then model="$root/models/sensenova-u1"; fi
 for arm in A0 P0 P1 A1; do
     export CUDA_VISIBLE_DEVICES=2 PYTHONPATH=/dev/shm/0z5a-rope-broadcast
     flags=()
@@ -28,3 +30,4 @@ for arm in A0 P0 P1 A1; do
     printf 'complete\n' > "$out/status"
 done
 printf 'complete\n' > "$run_root/quartet.status"
+done

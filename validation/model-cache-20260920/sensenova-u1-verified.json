@@ -1,0 +1,40 @@
+{
+  "repo": "SenseNova/SenseNova-U1-8B-MoT",
+  "revision": "bfa9b436503cb8aed4f2bc60e3236710cc77468d",
+  "shards": {
+    "model-00001-of-00008.safetensors": {
+      "bytes": 4937383712,
+      "tensor_keys": 129
+    },
+    "model-00002-of-00008.safetensors": {
+      "bytes": 4999870648,
+      "tensor_keys": 178
+    },
+    "model-00003-of-00008.safetensors": {
+      "bytes": 4932725608,
+      "tensor_keys": 159
+    },
+    "model-00004-of-00008.safetensors": {
+      "bytes": 4999868056,
+      "tensor_keys": 165
+    },
+    "model-00005-of-00008.safetensors": {
+      "bytes": 4932728352,
+      "tensor_keys": 172
+    },
+    "model-00006-of-00008.safetensors": {
+      "bytes": 4932725624,
+      "tensor_keys": 159
+    },
+    "model-00007-of-00008.safetensors": {
+      "bytes": 3959659416,
+      "tensor_keys": 137
+    },
+    "model-00008-of-00008.safetensors": {
+      "bytes": 1409869776,
+      "tensor_keys": 17
+    }
+  },
+  "indexed_tensors": 1116,
+  "safetensors_bytes": 35104831192
+}
