@@ -52,13 +52,16 @@ def accept_structured_output_tokens(
     """Support both manager APIs without requiring scheduler stubs to bind a helper."""
     if hasattr(type(manager), "accept_tokens"):
         return bool(manager.accept_tokens(request, new_token_ids))
-    if not manager.should_advance(request):
+    if not manager.should_advance(request, new_token_ids=new_token_ids):
+        return True
+    grammar_token_ids = manager.trim_reasoning_for_advance(request, new_token_ids)
+    if not grammar_token_ids:
         return True
     struct_output_request = request.structured_output_request
     assert struct_output_request is not None
     grammar = struct_output_request.grammar
     assert grammar is not None
-    return bool(grammar.accept_tokens(request.request_id, new_token_ids))
+    return bool(grammar.accept_tokens(request.request_id, grammar_token_ids))
 
 
 _STATS_INTERVAL_S = 1.0
