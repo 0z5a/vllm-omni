@@ -86,7 +86,7 @@ All 196 decoder projections used FP8; DiT and VAE parameters remained BF16.
 
 Three prompt pairs retained the requested objects, counts and OPEN text; paired
 image SSIM was 0.9667, 0.6998 and 0.9380. The storefront sign layout changed.
-Single-card and CFG-parallel ONGs matched exactly within each precision mode.
+Single-card and CFG-parallel PNG files matched exactly within each precision mode.
 These samples establish smoke coverage, not general quality equivalence.
 
 The text encoder was slower with FP8 at this request size. Shared GPU workloads
