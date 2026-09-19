@@ -26,6 +26,7 @@ def main() -> None:
         model=args.model,
         parallel_config=DiffusionParallelConfig(
             ulysses_degree=2,
+            ulysses_mode="advanced_uaa",
             vae_patch_parallel_size=2 if args.parallel_vae else 1,
         ),
         vae_use_tiling=True,
@@ -63,6 +64,7 @@ def main() -> None:
                     "pid": os.getpid(),
                     "parallel_vae": args.parallel_vae,
                     "ulysses_degree": 2,
+                    "ulysses_mode": "advanced_uaa",
                     "width": width,
                     "height": height,
                     "iteration": iteration,

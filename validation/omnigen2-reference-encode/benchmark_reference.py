@@ -28,6 +28,7 @@ def main() -> None:
         model=args.model,
         parallel_config=DiffusionParallelConfig(
             ulysses_degree=2,
+            ulysses_mode="advanced_uaa",
             vae_patch_parallel_size=2,
         ),
         vae_use_tiling=True,
@@ -77,6 +78,7 @@ def main() -> None:
                     "reference_count": reference_count,
                     "reference_sha256": [hashlib.sha256(image.tobytes()).hexdigest() for image in references[:reference_count]],
                     "ulysses_degree": 2,
+                    "ulysses_mode": "advanced_uaa",
                     "width": width,
                     "height": height,
                     "iteration": iteration,

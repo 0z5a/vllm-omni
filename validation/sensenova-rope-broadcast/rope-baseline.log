@@ -1,0 +1,168 @@
+FFF...FFF...                                                             [100%]
+=================================== FAILURES ===================================
+___________ test_fused_qk_norm_rope_batched[dtype0-1e-05-1e-05-1-1] ____________
+
+seq_len = 1, rope_batch = 1, dtype = torch.float32, atol = 1e-05, rtol = 1e-05
+
+    @triton_available
+    @pytest.mark.parametrize("seq_len", [1, 7, 32])
+    @pytest.mark.parametrize("rope_batch", [1, 2])
+    @pytest.mark.parametrize(
+        ("dtype", "atol", "rtol"),
+        [(torch.float32, 1e-5, 1e-5), (torch.bfloat16, 3e-2, 3e-2)],
+    )
+    def test_fused_qk_norm_rope_batched(seq_len: int, rope_batch: int, dtype: torch.dtype, atol: float, rtol: float):
+        data = make_input(seq_len, dtype=dtype, device=DEVICE, seed=SEED, batch_size=2, rope_batch=rope_batch)
+        ref_q, ref_k = reference_kernel(*data.args())
+        out_q, out_k = triton_qk_norm_rope(*data.args(), EPS)
+    
+>       torch.testing.assert_close(out_q, ref_q, atol=atol, rtol=rtol)
+E       AssertionError: Tensor-likes are not close!
+E       
+E       Mismatched elements: 4096 / 8192 (50.0%)
+E       Greatest absolute difference: 11.842370986938477 at index (1, 5, 0, 88) (up to 1e-05 allowed)
+E       Greatest relative difference: 1.0 at index (1, 0, 0, 0) (up to 1e-05 allowed)
+
+/home/kxqandccx/omni-1217-20260919/sensenova-hsdp-validation/test_rope_broadcast.py:250: AssertionError
+___________ test_fused_qk_norm_rope_batched[dtype0-1e-05-1e-05-1-7] ____________
+
+seq_len = 7, rope_batch = 1, dtype = torch.float32, atol = 1e-05, rtol = 1e-05
+
+    @triton_available
+    @pytest.mark.parametrize("seq_len", [1, 7, 32])
+    @pytest.mark.parametrize("rope_batch", [1, 2])
+    @pytest.mark.parametrize(
+        ("dtype", "atol", "rtol"),
+        [(torch.float32, 1e-5, 1e-5), (torch.bfloat16, 3e-2, 3e-2)],
+    )
+    def test_fused_qk_norm_rope_batched(seq_len: int, rope_batch: int, dtype: torch.dtype, atol: float, rtol: float):
+        data = make_input(seq_len, dtype=dtype, device=DEVICE, seed=SEED, batch_size=2, rope_batch=rope_batch)
+        ref_q, ref_k = reference_kernel(*data.args())
+        out_q, out_k = triton_qk_norm_rope(*data.args(), EPS)
+    
+>       torch.testing.assert_close(out_q, ref_q, atol=atol, rtol=rtol)
+E       AssertionError: Tensor-likes are not close!
+E       
+E       Mismatched elements: 28672 / 57344 (50.0%)
+E       Greatest absolute difference: 28.096906661987305 at index (1, 11, 6, 82) (up to 1e-05 allowed)
+E       Greatest relative difference: 10384.9228515625 at index (1, 12, 6, 13) (up to 1e-05 allowed)
+
+/home/kxqandccx/omni-1217-20260919/sensenova-hsdp-validation/test_rope_broadcast.py:250: AssertionError
+___________ test_fused_qk_norm_rope_batched[dtype0-1e-05-1e-05-1-32] ___________
+
+seq_len = 32, rope_batch = 1, dtype = torch.float32, atol = 1e-05, rtol = 1e-05
+
+    @triton_available
+    @pytest.mark.parametrize("seq_len", [1, 7, 32])
+    @pytest.mark.parametrize("rope_batch", [1, 2])
+    @pytest.mark.parametrize(
+        ("dtype", "atol", "rtol"),
+        [(torch.float32, 1e-5, 1e-5), (torch.bfloat16, 3e-2, 3e-2)],
+    )
+    def test_fused_qk_norm_rope_batched(seq_len: int, rope_batch: int, dtype: torch.dtype, atol: float, rtol: float):
+        data = make_input(seq_len, dtype=dtype, device=DEVICE, seed=SEED, batch_size=2, rope_batch=rope_batch)
+        ref_q, ref_k = reference_kernel(*data.args())
+        out_q, out_k = triton_qk_norm_rope(*data.args(), EPS)
+    
+>       torch.testing.assert_close(out_q, ref_q, atol=atol, rtol=rtol)
+E       AssertionError: Tensor-likes are not close!
+E       
+E       Mismatched elements: 131071 / 262144 (50.0%)
+E       Greatest absolute difference: 47.189125061035156 at index (1, 14, 18, 120) (up to 1e-05 allowed)
+E       Greatest relative difference: 371021.46875 at index (1, 8, 16, 18) (up to 1e-05 allowed)
+
+/home/kxqandccx/omni-1217-20260919/sensenova-hsdp-validation/test_rope_broadcast.py:250: AssertionError
+____________ test_fused_qk_norm_rope_batched[dtype1-0.03-0.03-1-1] _____________
+
+seq_len = 1, rope_batch = 1, dtype = torch.bfloat16, atol = 0.03, rtol = 0.03
+
+    @triton_available
+    @pytest.mark.parametrize("seq_len", [1, 7, 32])
+    @pytest.mark.parametrize("rope_batch", [1, 2])
+    @pytest.mark.parametrize(
+        ("dtype", "atol", "rtol"),
+        [(torch.float32, 1e-5, 1e-5), (torch.bfloat16, 3e-2, 3e-2)],
+    )
+    def test_fused_qk_norm_rope_batched(seq_len: int, rope_batch: int, dtype: torch.dtype, atol: float, rtol: float):
+        data = make_input(seq_len, dtype=dtype, device=DEVICE, seed=SEED, batch_size=2, rope_batch=rope_batch)
+        ref_q, ref_k = reference_kernel(*data.args())
+        out_q, out_k = triton_qk_norm_rope(*data.args(), EPS)
+    
+>       torch.testing.assert_close(out_q, ref_q, atol=atol, rtol=rtol)
+E       AssertionError: Tensor-likes are not close!
+E       
+E       Mismatched elements: 3961 / 8192 (48.4%)
+E       Greatest absolute difference: nan at index (1, 0, 0, 34) (up to 0.03 allowed)
+E       Greatest relative difference: nan at index (1, 0, 0, 34) (up to 0.03 allowed)
+
+/home/kxqandccx/omni-1217-20260919/sensenova-hsdp-validation/test_rope_broadcast.py:250: AssertionError
+____________ test_fused_qk_norm_rope_batched[dtype1-0.03-0.03-1-7] _____________
+
+seq_len = 7, rope_batch = 1, dtype = torch.bfloat16, atol = 0.03, rtol = 0.03
+
+    @triton_available
+    @pytest.mark.parametrize("seq_len", [1, 7, 32])
+    @pytest.mark.parametrize("rope_batch", [1, 2])
+    @pytest.mark.parametrize(
+        ("dtype", "atol", "rtol"),
+        [(torch.float32, 1e-5, 1e-5), (torch.bfloat16, 3e-2, 3e-2)],
+    )
+    def test_fused_qk_norm_rope_batched(seq_len: int, rope_batch: int, dtype: torch.dtype, atol: float, rtol: float):
+        data = make_input(seq_len, dtype=dtype, device=DEVICE, seed=SEED, batch_size=2, rope_batch=rope_batch)
+        ref_q, ref_k = reference_kernel(*data.args())
+        out_q, out_k = triton_qk_norm_rope(*data.args(), EPS)
+    
+>       torch.testing.assert_close(out_q, ref_q, atol=atol, rtol=rtol)
+E       AssertionError: Tensor-likes are not close!
+E       
+E       Mismatched elements: 27057 / 57344 (47.2%)
+E       Greatest absolute difference: 25.0 at index (1, 12, 0, 24) (up to 0.03 allowed)
+E       Greatest relative difference: inf at index (1, 4, 1, 78) (up to 0.03 allowed)
+
+/home/kxqandccx/omni-1217-20260919/sensenova-hsdp-validation/test_rope_broadcast.py:250: AssertionError
+____________ test_fused_qk_norm_rope_batched[dtype1-0.03-0.03-1-32] ____________
+
+seq_len = 32, rope_batch = 1, dtype = torch.bfloat16, atol = 0.03, rtol = 0.03
+
+    @triton_available
+    @pytest.mark.parametrize("seq_len", [1, 7, 32])
+    @pytest.mark.parametrize("rope_batch", [1, 2])
+    @pytest.mark.parametrize(
+        ("dtype", "atol", "rtol"),
+        [(torch.float32, 1e-5, 1e-5), (torch.bfloat16, 3e-2, 3e-2)],
+    )
+    def test_fused_qk_norm_rope_batched(seq_len: int, rope_batch: int, dtype: torch.dtype, atol: float, rtol: float):
+        data = make_input(seq_len, dtype=dtype, device=DEVICE, seed=SEED, batch_size=2, rope_batch=rope_batch)
+        ref_q, ref_k = reference_kernel(*data.args())
+        out_q, out_k = triton_qk_norm_rope(*data.args(), EPS)
+    
+>       torch.testing.assert_close(out_q, ref_q, atol=atol, rtol=rtol)
+E       AssertionError: Tensor-likes are not close!
+E       
+E       Mismatched elements: 123453 / 262144 (47.1%)
+E       Greatest absolute difference: nan at index (1, 0, 13, 34) (up to 0.03 allowed)
+E       Greatest relative difference: nan at index (1, 0, 13, 34) (up to 0.03 allowed)
+
+/home/kxqandccx/omni-1217-20260919/sensenova-hsdp-validation/test_rope_broadcast.py:250: AssertionError
+=============================== warnings summary ===============================
+../../../home/kxqandccx/omni-1217-20260919/sensenova-hsdp-validation/test_rope_broadcast.py:19
+  /home/kxqandccx/omni-1217-20260919/sensenova-hsdp-validation/test_rope_broadcast.py:19: PytestUnknownMarkWarning: Unknown pytest.mark.core_model - is this a typo?  You can register custom marks to avoid this warning - for details, see https://docs.pytest.org/en/stable/how-to/mark.html
+    pytest.mark.core_model,
+
+../../../home/kxqandccx/omni-1217-20260919/sensenova-hsdp-validation/test_rope_broadcast.py:20
+  /home/kxqandccx/omni-1217-20260919/sensenova-hsdp-validation/test_rope_broadcast.py:20: PytestUnknownMarkWarning: Unknown pytest.mark.cuda - is this a typo?  You can register custom marks to avoid this warning - for details, see https://docs.pytest.org/en/stable/how-to/mark.html
+    pytest.mark.cuda,
+
+../../../home/kxqandccx/vllm-omni-7753-hidream-20260918/venv/lib/python3.12/site-packages/torch/jit/_script.py:365: 14 warnings
+  /home/kxqandccx/vllm-omni-7753-hidream-20260918/venv/lib/python3.12/site-packages/torch/jit/_script.py:365: DeprecationWarning: `torch.jit.script_method` is deprecated. Please switch to `torch.compile` or `torch.export`.
+    warnings.warn(
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ============================
+FAILED ../../../home/kxqandccx/omni-1217-20260919/sensenova-hsdp-validation/test_rope_broadcast.py::test_fused_qk_norm_rope_batched[dtype0-1e-05-1e-05-1-1]
+FAILED ../../../home/kxqandccx/omni-1217-20260919/sensenova-hsdp-validation/test_rope_broadcast.py::test_fused_qk_norm_rope_batched[dtype0-1e-05-1e-05-1-7]
+FAILED ../../../home/kxqandccx/omni-1217-20260919/sensenova-hsdp-validation/test_rope_broadcast.py::test_fused_qk_norm_rope_batched[dtype0-1e-05-1e-05-1-32]
+FAILED ../../../home/kxqandccx/omni-1217-20260919/sensenova-hsdp-validation/test_rope_broadcast.py::test_fused_qk_norm_rope_batched[dtype1-0.03-0.03-1-1]
+FAILED ../../../home/kxqandccx/omni-1217-20260919/sensenova-hsdp-validation/test_rope_broadcast.py::test_fused_qk_norm_rope_batched[dtype1-0.03-0.03-1-7]
+FAILED ../../../home/kxqandccx/omni-1217-20260919/sensenova-hsdp-validation/test_rope_broadcast.py::test_fused_qk_norm_rope_batched[dtype1-0.03-0.03-1-32]
+6 failed, 6 passed, 32 deselected, 16 warnings in 13.07s

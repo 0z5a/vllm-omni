@@ -1,0 +1,18 @@
+INFO 09-20 04:15:41 [patch.py:252] NVFP4 W4A4 weight_scale NaN-clamp: installed.
+INFO 09-20 04:15:42 [patch.py:252] NVFP4 W4A4 weight_scale NaN-clamp: installed.
+INFO 09-20 04:15:42 [patch.py:503] inductor factorable-divisibility patch: installed.
+INFO 09-20 04:15:42 [patch.py:568] [cumem-cuda] CuMemAllocator._python_free_callback patched: asleep guard extended to all platforms.
+INFO 09-20 04:15:42 [patch.py:503] inductor factorable-divisibility patch: installed.
+INFO 09-20 04:15:42 [patch.py:568] [cumem-cuda] CuMemAllocator._python_free_callback patched: asleep guard extended to all platforms.
+INFO 09-20 04:15:44 [parallel_state.py:785] sequence_parallel_size is not provided, using 2
+INFO 09-20 04:15:44 [parallel_state.py:785] sequence_parallel_size is not provided, using 2
+INFO 09-20 04:15:44 [parallel_state.py:610] Building SP subgroups from explicit sp_group_ranks (sp_size=2, ulysses=2, ring=1, use_ulysses_low=True).
+INFO 09-20 04:15:44 [parallel_state.py:610] Building SP subgroups from explicit sp_group_ranks (sp_size=2, ulysses=2, ring=1, use_ulysses_low=True).
+INFO 09-20 04:15:44 [parallel_state.py:652] SP group details for rank 1: sp_group=[0, 1], ulysses_group=[0, 1], ring_group=[1]
+INFO 09-20 04:15:44 [parallel_state.py:652] SP group details for rank 0: sp_group=[0, 1], ulysses_group=[0, 1], ring_group=[0]
+{"rank": 0, "shape": [1, 4, 1, 320, 448], "exact": true, "rng_unchanged": true}
+{"rank": 1, "shape": [1, 4, 1, 320, 448], "exact": true, "rng_unchanged": true}
+{"rank": 0, "shape": [2, 4, 5, 448, 320], "exact": true, "rng_unchanged": true}
+{"rank": 1, "shape": [2, 4, 5, 448, 320], "exact": true, "rng_unchanged": true}
+{"rank": 0, "shape": [1, 4, 1, 320, 448], "exact": true, "rng_unchanged": true}
+{"rank": 1, "shape": [1, 4, 1, 320, 448], "exact": true, "rng_unchanged": true}

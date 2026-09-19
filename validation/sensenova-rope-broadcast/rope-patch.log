@@ -1,0 +1,16 @@
+............................................                             [100%]
+=============================== warnings summary ===============================
+../../../home/kxqandccx/omni-1217-20260919/sensenova-hsdp-validation/test_rope_broadcast.py:19
+  /home/kxqandccx/omni-1217-20260919/sensenova-hsdp-validation/test_rope_broadcast.py:19: PytestUnknownMarkWarning: Unknown pytest.mark.core_model - is this a typo?  You can register custom marks to avoid this warning - for details, see https://docs.pytest.org/en/stable/how-to/mark.html
+    pytest.mark.core_model,
+
+../../../home/kxqandccx/omni-1217-20260919/sensenova-hsdp-validation/test_rope_broadcast.py:20
+  /home/kxqandccx/omni-1217-20260919/sensenova-hsdp-validation/test_rope_broadcast.py:20: PytestUnknownMarkWarning: Unknown pytest.mark.cuda - is this a typo?  You can register custom marks to avoid this warning - for details, see https://docs.pytest.org/en/stable/how-to/mark.html
+    pytest.mark.cuda,
+
+../../../home/kxqandccx/vllm-omni-7753-hidream-20260918/venv/lib/python3.12/site-packages/torch/jit/_script.py:365: 14 warnings
+  /home/kxqandccx/vllm-omni-7753-hidream-20260918/venv/lib/python3.12/site-packages/torch/jit/_script.py:365: DeprecationWarning: `torch.jit.script_method` is deprecated. Please switch to `torch.compile` or `torch.export`.
+    warnings.warn(
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+44 passed, 16 warnings in 18.06s
