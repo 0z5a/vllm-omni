@@ -1,0 +1,335 @@
+.FF.FF                                                                   [100%]
+=================================== FAILURES ===================================
+_________________ test_forward_preserves_latent_grid[1-32-48] __________________
+
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x738f9033a210>
+height = 32, width = 48, batch = 1
+
+    @pytest.mark.parametrize("height,width", [(32, 32), (32, 48), (48, 32)])
+    @pytest.mark.parametrize("batch", [1, 2])
+    def test_forward_preserves_latent_grid(monkeypatch, height, width, batch):
+        pipeline = object.__new__(pipeline_module.NextStep11Pipeline)
+        torch.nn.Module.__init__(pipeline)
+        pipeline._NextStep11Pipeline__device = torch.device("cpu")
+        pipeline.config = SimpleNamespace(use_gen_pos_embed=False)
+        pipeline.down_factor = 16
+        pipeline.scaling_factor = 2.0
+        pipeline.shift_factor = 0.25
+        grid = SimpleNamespace(config=SimpleNamespace(latent_channels=2, latent_patch_size=2))
+        expected = torch.arange(batch * 2 * (height // 8) * (width // 8), dtype=torch.float32)
+        expected = expected.reshape(batch, 2, height // 8, width // 8)
+        tokens = NextStepModel.patchify(grid, expected)
+        pipeline.model = Mock(
+            return_value=SimpleNamespace(last_hidden_state=torch.zeros(batch, 1, 4), past_key_values=None)
+        )
+        pipeline.model.forward_model.return_value = pipeline.model.return_value
+        pipeline.model.unpatchify = MethodType(NextStepModel.unpatchify, grid)
+        pipeline.tokenizer = Mock(
+            bos_token=None,
+            return_value=SimpleNamespace(
+                input_ids=torch.ones(batch, 2, dtype=torch.long), attention_mask=torch.ones(batch, 2, dtype=torch.long)
+            ),
+        )
+        pipeline._check_input = Mock(return_value=(["teapot"], None))
+        pipeline._build_captions = Mock(return_value=(["teapot"] * batch, None, 1, 1.0))
+        pipeline._add_prefix_ids = lambda _hw, ids, mask: (ids, mask)
+        pipeline.decoding = Mock(return_value=tokens)
+        pipeline.vae = SimpleNamespace(dtype=torch.float32, decode=lambda latent: SimpleNamespace(sample=latent))
+        monkeypatch.setattr(pipeline_module, "StaticCache", lambda **_kwargs: None)
+        params = OmniDiffusionSamplingParams(
+            height=height, width=width, guidance_scale=1.0, num_outputs_per_prompt=batch, seed=None
+        )
+>       output = pipeline.forward(SimpleNamespace(prompts=["teapot"], sampling_params=params))
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/diffusion/models/nextstep_1_1/test_nextstep_rectangular.py:51: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+/home/kxqandccx/vllm-omni-7753-hidream-20260918/venv/lib/python3.12/site-packages/torch/utils/_contextlib.py:124: in decorate_context
+    return func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^
+vllm_omni/diffusion/models/nextstep_1_1/pipeline_nextstep_1_1.py:707: in forward
+    latents = self.model.unpatchify(tokens)
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = namespace(config=namespace(latent_channels=2, latent_patch_size=2))
+x = tensor([[[ 0.,  1.,  6.,  7., 24., 25., 30., 31.],
+         [ 2.,  3.,  8.,  9., 26., 27., 32., 33.],
+         [ 4.,  ...37., 42., 43.],
+         [14., 15., 20., 21., 38., 39., 44., 45.],
+         [16., 17., 22., 23., 40., 41., 46., 47.]]])
+h = None, w = None
+
+    def unpatchify(
+        self,
+        x: torch.Tensor,
+        h: int | None = None,
+        w: int | None = None,
+    ) -> torch.Tensor:
+        bsz = x.shape[0]
+        p = self.config.latent_patch_size
+        c = self.config.latent_channels
+        if h is None and w is None:
+            h_ = w_ = int(x.shape[1] ** 0.5)
+        else:
+            h_, w_ = h, w
+>       assert h_ * w_ == x.shape[1], f"Invalid sequence length {x.shape[1]}."
+               ^^^^^^^^^^^^^^^^^^^^^
+E       AssertionError: Invalid sequence length 6.
+
+vllm_omni/diffusion/models/nextstep_1_1/modeling_nextstep.py:196: AssertionError
+---------------------------- Captured stdout setup -----------------------------
+--- Running test: test_forward_preserves_latent_grid[1-32-48]
+_________________ test_forward_preserves_latent_grid[1-48-32] __________________
+
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x738f9018a600>
+height = 48, width = 32, batch = 1
+
+    @pytest.mark.parametrize("height,width", [(32, 32), (32, 48), (48, 32)])
+    @pytest.mark.parametrize("batch", [1, 2])
+    def test_forward_preserves_latent_grid(monkeypatch, height, width, batch):
+        pipeline = object.__new__(pipeline_module.NextStep11Pipeline)
+        torch.nn.Module.__init__(pipeline)
+        pipeline._NextStep11Pipeline__device = torch.device("cpu")
+        pipeline.config = SimpleNamespace(use_gen_pos_embed=False)
+        pipeline.down_factor = 16
+        pipeline.scaling_factor = 2.0
+        pipeline.shift_factor = 0.25
+        grid = SimpleNamespace(config=SimpleNamespace(latent_channels=2, latent_patch_size=2))
+        expected = torch.arange(batch * 2 * (height // 8) * (width // 8), dtype=torch.float32)
+        expected = expected.reshape(batch, 2, height // 8, width // 8)
+        tokens = NextStepModel.patchify(grid, expected)
+        pipeline.model = Mock(
+            return_value=SimpleNamespace(last_hidden_state=torch.zeros(batch, 1, 4), past_key_values=None)
+        )
+        pipeline.model.forward_model.return_value = pipeline.model.return_value
+        pipeline.model.unpatchify = MethodType(NextStepModel.unpatchify, grid)
+        pipeline.tokenizer = Mock(
+            bos_token=None,
+            return_value=SimpleNamespace(
+                input_ids=torch.ones(batch, 2, dtype=torch.long), attention_mask=torch.ones(batch, 2, dtype=torch.long)
+            ),
+        )
+        pipeline._check_input = Mock(return_value=(["teapot"], None))
+        pipeline._build_captions = Mock(return_value=(["teapot"] * batch, None, 1, 1.0))
+        pipeline._add_prefix_ids = lambda _hw, ids, mask: (ids, mask)
+        pipeline.decoding = Mock(return_value=tokens)
+        pipeline.vae = SimpleNamespace(dtype=torch.float32, decode=lambda latent: SimpleNamespace(sample=latent))
+        monkeypatch.setattr(pipeline_module, "StaticCache", lambda **_kwargs: None)
+        params = OmniDiffusionSamplingParams(
+            height=height, width=width, guidance_scale=1.0, num_outputs_per_prompt=batch, seed=None
+        )
+>       output = pipeline.forward(SimpleNamespace(prompts=["teapot"], sampling_params=params))
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/diffusion/models/nextstep_1_1/test_nextstep_rectangular.py:51: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+/home/kxqandccx/vllm-omni-7753-hidream-20260918/venv/lib/python3.12/site-packages/torch/utils/_contextlib.py:124: in decorate_context
+    return func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^
+vllm_omni/diffusion/models/nextstep_1_1/pipeline_nextstep_1_1.py:707: in forward
+    latents = self.model.unpatchify(tokens)
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = namespace(config=namespace(latent_channels=2, latent_patch_size=2))
+x = tensor([[[ 0.,  1.,  4.,  5., 24., 25., 28., 29.],
+         [ 2.,  3.,  6.,  7., 26., 27., 30., 31.],
+         [ 8.,  ...35., 38., 39.],
+         [16., 17., 20., 21., 40., 41., 44., 45.],
+         [18., 19., 22., 23., 42., 43., 46., 47.]]])
+h = None, w = None
+
+    def unpatchify(
+        self,
+        x: torch.Tensor,
+        h: int | None = None,
+        w: int | None = None,
+    ) -> torch.Tensor:
+        bsz = x.shape[0]
+        p = self.config.latent_patch_size
+        c = self.config.latent_channels
+        if h is None and w is None:
+            h_ = w_ = int(x.shape[1] ** 0.5)
+        else:
+            h_, w_ = h, w
+>       assert h_ * w_ == x.shape[1], f"Invalid sequence length {x.shape[1]}."
+               ^^^^^^^^^^^^^^^^^^^^^
+E       AssertionError: Invalid sequence length 6.
+
+vllm_omni/diffusion/models/nextstep_1_1/modeling_nextstep.py:196: AssertionError
+---------------------------- Captured stdout setup -----------------------------
+--- Running test: test_forward_preserves_latent_grid[1-48-32]
+_________________ test_forward_preserves_latent_grid[2-32-48] __________________
+
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x738f90189d00>
+height = 32, width = 48, batch = 2
+
+    @pytest.mark.parametrize("height,width", [(32, 32), (32, 48), (48, 32)])
+    @pytest.mark.parametrize("batch", [1, 2])
+    def test_forward_preserves_latent_grid(monkeypatch, height, width, batch):
+        pipeline = object.__new__(pipeline_module.NextStep11Pipeline)
+        torch.nn.Module.__init__(pipeline)
+        pipeline._NextStep11Pipeline__device = torch.device("cpu")
+        pipeline.config = SimpleNamespace(use_gen_pos_embed=False)
+        pipeline.down_factor = 16
+        pipeline.scaling_factor = 2.0
+        pipeline.shift_factor = 0.25
+        grid = SimpleNamespace(config=SimpleNamespace(latent_channels=2, latent_patch_size=2))
+        expected = torch.arange(batch * 2 * (height // 8) * (width // 8), dtype=torch.float32)
+        expected = expected.reshape(batch, 2, height // 8, width // 8)
+        tokens = NextStepModel.patchify(grid, expected)
+        pipeline.model = Mock(
+            return_value=SimpleNamespace(last_hidden_state=torch.zeros(batch, 1, 4), past_key_values=None)
+        )
+        pipeline.model.forward_model.return_value = pipeline.model.return_value
+        pipeline.model.unpatchify = MethodType(NextStepModel.unpatchify, grid)
+        pipeline.tokenizer = Mock(
+            bos_token=None,
+            return_value=SimpleNamespace(
+                input_ids=torch.ones(batch, 2, dtype=torch.long), attention_mask=torch.ones(batch, 2, dtype=torch.long)
+            ),
+        )
+        pipeline._check_input = Mock(return_value=(["teapot"], None))
+        pipeline._build_captions = Mock(return_value=(["teapot"] * batch, None, 1, 1.0))
+        pipeline._add_prefix_ids = lambda _hw, ids, mask: (ids, mask)
+        pipeline.decoding = Mock(return_value=tokens)
+        pipeline.vae = SimpleNamespace(dtype=torch.float32, decode=lambda latent: SimpleNamespace(sample=latent))
+        monkeypatch.setattr(pipeline_module, "StaticCache", lambda **_kwargs: None)
+        params = OmniDiffusionSamplingParams(
+            height=height, width=width, guidance_scale=1.0, num_outputs_per_prompt=batch, seed=None
+        )
+>       output = pipeline.forward(SimpleNamespace(prompts=["teapot"], sampling_params=params))
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/diffusion/models/nextstep_1_1/test_nextstep_rectangular.py:51: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+/home/kxqandccx/vllm-omni-7753-hidream-20260918/venv/lib/python3.12/site-packages/torch/utils/_contextlib.py:124: in decorate_context
+    return func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^
+vllm_omni/diffusion/models/nextstep_1_1/pipeline_nextstep_1_1.py:707: in forward
+    latents = self.model.unpatchify(tokens)
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = namespace(config=namespace(latent_channels=2, latent_patch_size=2))
+x = tensor([[[ 0.,  1.,  6.,  7., 24., 25., 30., 31.],
+         [ 2.,  3.,  8.,  9., 26., 27., 32., 33.],
+         [ 4.,  ...85., 90., 91.],
+         [62., 63., 68., 69., 86., 87., 92., 93.],
+         [64., 65., 70., 71., 88., 89., 94., 95.]]])
+h = None, w = None
+
+    def unpatchify(
+        self,
+        x: torch.Tensor,
+        h: int | None = None,
+        w: int | None = None,
+    ) -> torch.Tensor:
+        bsz = x.shape[0]
+        p = self.config.latent_patch_size
+        c = self.config.latent_channels
+        if h is None and w is None:
+            h_ = w_ = int(x.shape[1] ** 0.5)
+        else:
+            h_, w_ = h, w
+>       assert h_ * w_ == x.shape[1], f"Invalid sequence length {x.shape[1]}."
+               ^^^^^^^^^^^^^^^^^^^^^
+E       AssertionError: Invalid sequence length 6.
+
+vllm_omni/diffusion/models/nextstep_1_1/modeling_nextstep.py:196: AssertionError
+---------------------------- Captured stdout setup -----------------------------
+--- Running test: test_forward_preserves_latent_grid[2-32-48]
+_________________ test_forward_preserves_latent_grid[2-48-32] __________________
+
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x738f9033b740>
+height = 48, width = 32, batch = 2
+
+    @pytest.mark.parametrize("height,width", [(32, 32), (32, 48), (48, 32)])
+    @pytest.mark.parametrize("batch", [1, 2])
+    def test_forward_preserves_latent_grid(monkeypatch, height, width, batch):
+        pipeline = object.__new__(pipeline_module.NextStep11Pipeline)
+        torch.nn.Module.__init__(pipeline)
+        pipeline._NextStep11Pipeline__device = torch.device("cpu")
+        pipeline.config = SimpleNamespace(use_gen_pos_embed=False)
+        pipeline.down_factor = 16
+        pipeline.scaling_factor = 2.0
+        pipeline.shift_factor = 0.25
+        grid = SimpleNamespace(config=SimpleNamespace(latent_channels=2, latent_patch_size=2))
+        expected = torch.arange(batch * 2 * (height // 8) * (width // 8), dtype=torch.float32)
+        expected = expected.reshape(batch, 2, height // 8, width // 8)
+        tokens = NextStepModel.patchify(grid, expected)
+        pipeline.model = Mock(
+            return_value=SimpleNamespace(last_hidden_state=torch.zeros(batch, 1, 4), past_key_values=None)
+        )
+        pipeline.model.forward_model.return_value = pipeline.model.return_value
+        pipeline.model.unpatchify = MethodType(NextStepModel.unpatchify, grid)
+        pipeline.tokenizer = Mock(
+            bos_token=None,
+            return_value=SimpleNamespace(
+                input_ids=torch.ones(batch, 2, dtype=torch.long), attention_mask=torch.ones(batch, 2, dtype=torch.long)
+            ),
+        )
+        pipeline._check_input = Mock(return_value=(["teapot"], None))
+        pipeline._build_captions = Mock(return_value=(["teapot"] * batch, None, 1, 1.0))
+        pipeline._add_prefix_ids = lambda _hw, ids, mask: (ids, mask)
+        pipeline.decoding = Mock(return_value=tokens)
+        pipeline.vae = SimpleNamespace(dtype=torch.float32, decode=lambda latent: SimpleNamespace(sample=latent))
+        monkeypatch.setattr(pipeline_module, "StaticCache", lambda **_kwargs: None)
+        params = OmniDiffusionSamplingParams(
+            height=height, width=width, guidance_scale=1.0, num_outputs_per_prompt=batch, seed=None
+        )
+>       output = pipeline.forward(SimpleNamespace(prompts=["teapot"], sampling_params=params))
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/diffusion/models/nextstep_1_1/test_nextstep_rectangular.py:51: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+/home/kxqandccx/vllm-omni-7753-hidream-20260918/venv/lib/python3.12/site-packages/torch/utils/_contextlib.py:124: in decorate_context
+    return func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^
+vllm_omni/diffusion/models/nextstep_1_1/pipeline_nextstep_1_1.py:707: in forward
+    latents = self.model.unpatchify(tokens)
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = namespace(config=namespace(latent_channels=2, latent_patch_size=2))
+x = tensor([[[ 0.,  1.,  4.,  5., 24., 25., 28., 29.],
+         [ 2.,  3.,  6.,  7., 26., 27., 30., 31.],
+         [ 8.,  ...83., 86., 87.],
+         [64., 65., 68., 69., 88., 89., 92., 93.],
+         [66., 67., 70., 71., 90., 91., 94., 95.]]])
+h = None, w = None
+
+    def unpatchify(
+        self,
+        x: torch.Tensor,
+        h: int | None = None,
+        w: int | None = None,
+    ) -> torch.Tensor:
+        bsz = x.shape[0]
+        p = self.config.latent_patch_size
+        c = self.config.latent_channels
+        if h is None and w is None:
+            h_ = w_ = int(x.shape[1] ** 0.5)
+        else:
+            h_, w_ = h, w
+>       assert h_ * w_ == x.shape[1], f"Invalid sequence length {x.shape[1]}."
+               ^^^^^^^^^^^^^^^^^^^^^
+E       AssertionError: Invalid sequence length 6.
+
+vllm_omni/diffusion/models/nextstep_1_1/modeling_nextstep.py:196: AssertionError
+---------------------------- Captured stdout setup -----------------------------
+--- Running test: test_forward_preserves_latent_grid[2-48-32]
+=============================== warnings summary ===============================
+../../../home/kxqandccx/vllm-omni-7753-hidream-20260918/venv/lib/python3.12/site-packages/torch/jit/_script.py:365: 14 warnings
+  /home/kxqandccx/vllm-omni-7753-hidream-20260918/venv/lib/python3.12/site-packages/torch/jit/_script.py:365: DeprecationWarning: `torch.jit.script_method` is deprecated. Please switch to `torch.compile` or `torch.export`.
+    warnings.warn(
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+--- Running Summary
+=========================== short test summary info ============================
+FAILED tests/diffusion/models/nextstep_1_1/test_nextstep_rectangular.py::test_forward_preserves_latent_grid[1-32-48]
+FAILED tests/diffusion/models/nextstep_1_1/test_nextstep_rectangular.py::test_forward_preserves_latent_grid[1-48-32]
+FAILED tests/diffusion/models/nextstep_1_1/test_nextstep_rectangular.py::test_forward_preserves_latent_grid[2-32-48]
+FAILED tests/diffusion/models/nextstep_1_1/test_nextstep_rectangular.py::test_forward_preserves_latent_grid[2-48-32]
+4 failed, 2 passed, 14 warnings in 1.35s

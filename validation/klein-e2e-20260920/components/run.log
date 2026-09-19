@@ -1,0 +1,78 @@
+INFO 09-20 06:02:22 [patch.py:252] NVFP4 W4A4 weight_scale NaN-clamp: installed.
+INFO 09-20 06:02:22 [patch.py:252] NVFP4 W4A4 weight_scale NaN-clamp: installed.
+INFO 09-20 06:02:22 [patch.py:503] inductor factorable-divisibility patch: installed.
+INFO 09-20 06:02:22 [patch.py:503] inductor factorable-divisibility patch: installed.
+INFO 09-20 06:02:22 [patch.py:568] [cumem-cuda] CuMemAllocator._python_free_callback patched: asleep guard extended to all platforms.
+INFO 09-20 06:02:22 [patch.py:568] [cumem-cuda] CuMemAllocator._python_free_callback patched: asleep guard extended to all platforms.
+INFO 09-20 06:02:23 [parallel_state.py:785] sequence_parallel_size is not provided, using 2
+INFO 09-20 06:02:23 [parallel_state.py:785] sequence_parallel_size is not provided, using 2
+INFO 09-20 06:02:23 [parallel_state.py:610] Building SP subgroups from explicit sp_group_ranks (sp_size=2, ulysses=2, ring=1, use_ulysses_low=True).
+INFO 09-20 06:02:23 [parallel_state.py:610] Building SP subgroups from explicit sp_group_ranks (sp_size=2, ulysses=2, ring=1, use_ulysses_low=True).
+INFO 09-20 06:02:23 [parallel_state.py:652] SP group details for rank 1: sp_group=[0, 1], ulysses_group=[0, 1], ring_group=[1]
+INFO 09-20 06:02:23 [parallel_state.py:652] SP group details for rank 0: sp_group=[0, 1], ulysses_group=[0, 1], ring_group=[0]
+{"rank": 0, "group": [0, 1], "class": "DistributedAutoencoderKLFlux2", "load_peak_bytes": 349054976, "weight_residency_bytes": 349054976, "tile_latent_min_size": 128}
+/home/kxqandccx/vllm-omni-7753-hidream-20260918/venv/lib/python3.12/site-packages/torch/distributed/c10d_logger.py:83: UserWarning: barrier(): using the device under current context. You can specify `device_id` in `init_process_group` to mute this warning.
+  return func(*args, **kwargs)
+[rank0]:[W920 06:02:24.870026868 ProcessGroupNCCL.cpp:5276] Guessing device ID based on global rank. This can cause a hang if rank to GPU mapping is heterogeneous. You can specify device_id in init_process_group()
+{"rank": 1, "group": [0, 1], "class": "DistributedAutoencoderKLFlux2", "load_peak_bytes": 349054976, "weight_residency_bytes": 349054976, "tile_latent_min_size": 128}
+INFO 09-20 06:02:24 [autoencoder_kl_flux2.py:103] Decode run with distributed executor, split strategy is patch
+INFO 09-20 06:02:24 [autoencoder_kl_flux2.py:103] Decode run with distributed executor, split strategy is patch
+INFO 09-20 06:02:25 [autoencoder_kl_flux2.py:103] Decode run with distributed executor, split strategy is patch
+INFO 09-20 06:02:25 [autoencoder_kl_flux2.py:103] Decode run with distributed executor, split strategy is patch
+INFO 09-20 06:02:25 [autoencoder_kl_flux2.py:103] Decode run with distributed executor, split strategy is patch
+INFO 09-20 06:02:25 [autoencoder_kl_flux2.py:103] Decode run with distributed executor, split strategy is patch
+INFO 09-20 06:02:25 [autoencoder_kl_flux2.py:103] Decode run with distributed executor, split strategy is patch
+INFO 09-20 06:02:25 [autoencoder_kl_flux2.py:103] Decode run with distributed executor, split strategy is patch
+INFO 09-20 06:02:25 [autoencoder_kl_flux2.py:103] Decode run with distributed executor, split strategy is patch
+INFO 09-20 06:02:25 [autoencoder_kl_flux2.py:103] Decode run with distributed executor, split strategy is patch
+INFO 09-20 06:02:25 [autoencoder_kl_flux2.py:103] Decode run with distributed executor, split strategy is patch
+INFO 09-20 06:02:25 [autoencoder_kl_flux2.py:103] Decode run with distributed executor, split strategy is patch
+INFO 09-20 06:02:25 [autoencoder_kl_flux2.py:103] Decode run with distributed executor, split strategy is patch
+INFO 09-20 06:02:25 [autoencoder_kl_flux2.py:103] Decode run with distributed executor, split strategy is patch
+{"case": 0, "quality_vs_full": {"full": {"max_abs": 0.0, "mean_abs": 0.0, "relative_l2": 0.0}, "native_tile": {"max_abs": 0.0, "mean_abs": 0.0, "relative_l2": 0.0}, "distributed_tile": {"max_abs": 0.0, "mean_abs": 0.0, "relative_l2": 0.0}, "distributed_tile_degree1": {"max_abs": 0.0, "mean_abs": 0.0, "relative_l2": 0.0}, "halo_patch": {"max_abs": 0.0, "mean_abs": 0.0, "relative_l2": 0.0}}, "tiled_exact": true}
+INFO 09-20 06:02:25 [autoencoder_kl_flux2.py:103] Decode run with distributed executor, split strategy is patch
+INFO 09-20 06:02:25 [autoencoder_kl_flux2.py:103] Decode run with distributed executor, split strategy is patch
+INFO 09-20 06:02:25 [autoencoder_kl_flux2.py:103] Decode run with distributed executor, split strategy is patch
+INFO 09-20 06:02:25 [autoencoder_kl_flux2.py:103] Decode run with distributed executor, split strategy is patch
+INFO 09-20 06:02:26 [autoencoder_kl_flux2.py:103] Decode run with distributed executor, split strategy is patch
+INFO 09-20 06:02:26 [autoencoder_kl_flux2.py:103] Decode run with distributed executor, split strategy is patch
+INFO 09-20 06:02:26 [autoencoder_kl_flux2.py:103] Decode run with distributed executor, split strategy is patch
+INFO 09-20 06:02:26 [autoencoder_kl_flux2.py:103] Decode run with distributed executor, split strategy is patch
+INFO 09-20 06:02:26 [autoencoder_kl_flux2.py:103] Decode run with distributed executor, split strategy is patch
+INFO 09-20 06:02:26 [autoencoder_kl_flux2.py:103] Decode run with distributed executor, split strategy is patch
+INFO 09-20 06:02:26 [autoencoder_kl_flux2.py:103] Decode run with distributed executor, split strategy is patch
+INFO 09-20 06:02:26 [autoencoder_kl_flux2.py:103] Decode run with distributed executor, split strategy is patch
+INFO 09-20 06:02:26 [autoencoder_kl_flux2.py:103] Decode run with distributed executor, split strategy is patch
+INFO 09-20 06:02:26 [autoencoder_kl_flux2.py:103] Decode run with distributed executor, split strategy is patch
+{"case": 1, "quality_vs_full": {"full": {"max_abs": 0.0, "mean_abs": 0.0, "relative_l2": 0.0}, "native_tile": {"max_abs": 0.0, "mean_abs": 0.0, "relative_l2": 0.0}, "distributed_tile": {"max_abs": 0.0, "mean_abs": 0.0, "relative_l2": 0.0}, "distributed_tile_degree1": {"max_abs": 0.0, "mean_abs": 0.0, "relative_l2": 0.0}, "halo_patch": {"max_abs": 0.076171875, "mean_abs": 0.003469392890110612, "relative_l2": 0.023594915866851807}}, "tiled_exact": true}
+{"case": 2, "quality_vs_full": {"full": {"max_abs": 0.0, "mean_abs": 0.0, "relative_l2": 0.0}, "native_tile": {"max_abs": 0.126953125, "mean_abs": 0.002920997329056263, "relative_l2": 0.02526082657277584}, "distributed_tile": {"max_abs": 0.126953125, "mean_abs": 0.002920997329056263, "relative_l2": 0.02526082657277584}, "distributed_tile_degree1": {"max_abs": 0.126953125, "mean_abs": 0.002920997329056263, "relative_l2": 0.02526082657277584}}, "tiled_exact": true}
+INFO 09-20 06:02:36 [autoencoder_kl_flux2.py:103] Decode run with distributed executor, split strategy is patch
+INFO 09-20 06:02:36 [autoencoder_kl_flux2.py:103] Decode run with distributed executor, split strategy is patch
+INFO 09-20 06:02:36 [autoencoder_kl_flux2.py:103] Decode run with distributed executor, split strategy is patch
+INFO 09-20 06:02:36 [autoencoder_kl_flux2.py:103] Decode run with distributed executor, split strategy is patch
+INFO 09-20 06:02:37 [autoencoder_kl_flux2.py:103] Decode run with distributed executor, split strategy is patch
+INFO 09-20 06:02:37 [autoencoder_kl_flux2.py:103] Decode run with distributed executor, split strategy is patch
+INFO 09-20 06:02:37 [autoencoder_kl_flux2.py:103] Decode run with distributed executor, split strategy is patch
+INFO 09-20 06:02:37 [autoencoder_kl_flux2.py:103] Decode run with distributed executor, split strategy is patch
+INFO 09-20 06:02:38 [autoencoder_kl_flux2.py:103] Decode run with distributed executor, split strategy is patch
+INFO 09-20 06:02:38 [autoencoder_kl_flux2.py:103] Decode run with distributed executor, split strategy is patch
+INFO 09-20 06:02:38 [autoencoder_kl_flux2.py:103] Decode run with distributed executor, split strategy is patch
+INFO 09-20 06:02:38 [autoencoder_kl_flux2.py:103] Decode run with distributed executor, split strategy is patch
+INFO 09-20 06:02:39 [autoencoder_kl_flux2.py:103] Decode run with distributed executor, split strategy is patch
+INFO 09-20 06:02:39 [autoencoder_kl_flux2.py:103] Decode run with distributed executor, split strategy is patch
+{"case": 3, "quality_vs_full": {"full": {"max_abs": 0.0, "mean_abs": 0.0, "relative_l2": 0.0}, "native_tile": {"max_abs": 0.0, "mean_abs": 0.0, "relative_l2": 0.0}, "distributed_tile": {"max_abs": 0.0, "mean_abs": 0.0, "relative_l2": 0.0}, "distributed_tile_degree1": {"max_abs": 0.0, "mean_abs": 0.0, "relative_l2": 0.0}, "halo_patch": {"max_abs": 0.0556640625, "mean_abs": 0.002599782543256879, "relative_l2": 0.018737703561782837}}, "tiled_exact": true}
+INFO 09-20 06:02:39 [autoencoder_kl_flux2.py:103] Decode run with distributed executor, split strategy is patch
+INFO 09-20 06:02:39 [autoencoder_kl_flux2.py:103] Decode run with distributed executor, split strategy is patch
+INFO 09-20 06:02:39 [autoencoder_kl_flux2.py:103] Decode run with distributed executor, split strategy is patch
+INFO 09-20 06:02:39 [autoencoder_kl_flux2.py:103] Decode run with distributed executor, split strategy is patch
+INFO 09-20 06:02:39 [autoencoder_kl_flux2.py:103] Decode run with distributed executor, split strategy is patch
+INFO 09-20 06:02:39 [autoencoder_kl_flux2.py:103] Decode run with distributed executor, split strategy is patch
+INFO 09-20 06:02:39 [autoencoder_kl_flux2.py:103] Decode run with distributed executor, split strategy is patch
+INFO 09-20 06:02:39 [autoencoder_kl_flux2.py:103] Decode run with distributed executor, split strategy is patch
+INFO 09-20 06:02:39 [autoencoder_kl_flux2.py:103] Decode run with distributed executor, split strategy is patch
+INFO 09-20 06:02:39 [autoencoder_kl_flux2.py:103] Decode run with distributed executor, split strategy is patch
+INFO 09-20 06:02:39 [autoencoder_kl_flux2.py:103] Decode run with distributed executor, split strategy is patch
+INFO 09-20 06:02:39 [autoencoder_kl_flux2.py:103] Decode run with distributed executor, split strategy is patch
+INFO 09-20 06:02:39 [autoencoder_kl_flux2.py:103] Decode run with distributed executor, split strategy is patch
+INFO 09-20 06:02:39 [autoencoder_kl_flux2.py:103] Decode run with distributed executor, split strategy is patch
+{"case": 4, "quality_vs_full": {"full": {"max_abs": 0.0, "mean_abs": 0.0, "relative_l2": 0.0}, "native_tile": {"max_abs": 0.0, "mean_abs": 0.0, "relative_l2": 0.0}, "distributed_tile": {"max_abs": 0.0, "mean_abs": 0.0, "relative_l2": 0.0}, "distributed_tile_degree1": {"max_abs": 0.0, "mean_abs": 0.0, "relative_l2": 0.0}, "halo_patch": {"max_abs": 0.0, "mean_abs": 0.0, "relative_l2": 0.0}}, "tiled_exact": true}

@@ -1,0 +1,60 @@
+W0920 05:54:13.998000 318040 torch/utils/cpp_extension.py:178] No CUDA runtime is found, using CUDA_HOME='/usr/local/cuda'
+W0920 05:54:14.209000 318041 torch/utils/cpp_extension.py:178] No CUDA runtime is found, using CUDA_HOME='/usr/local/cuda'
+INFO 09-20 05:54:15 [patch.py:252] NVFP4 W4A4 weight_scale NaN-clamp: installed.
+INFO 09-20 05:54:15 [patch.py:503] inductor factorable-divisibility patch: installed.
+INFO 09-20 05:54:15 [patch.py:568] [cumem-cuda] CuMemAllocator._python_free_callback patched: asleep guard extended to all platforms.
+INFO 09-20 05:54:15 [patch.py:252] NVFP4 W4A4 weight_scale NaN-clamp: installed.
+INFO 09-20 05:54:15 [patch.py:503] inductor factorable-divisibility patch: installed.
+INFO 09-20 05:54:15 [patch.py:568] [cumem-cuda] CuMemAllocator._python_free_callback patched: asleep guard extended to all platforms.
+{"rank": 0, "case": 0, "input_shape": [1, 3, 1, 48, 64], "latent_shape": [1, 16, 1, 6, 8], "posterior_exact": true, "sample_exact": true, "rng_unchanged": true, "decode_exact": true}
+[rank1]: Traceback (most recent call last):
+[rank1]:   File "/home/kxqandccx/omni-1217-20260919/real_weight_gloo.py", line 75, in <module>
+[rank1]:     main()
+[rank1]:   File "/home/kxqandccx/vllm-omni-7753-hidream-20260918/venv/lib/python3.12/site-packages/torch/utils/_contextlib.py", line 124, in decorate_context
+[rank1]:     return func(*args, **kwargs)
+[rank1]:            ^^^^^^^^^^^^^^^^^^^^^
+[rank1]:   File "/home/kxqandccx/omni-1217-20260919/real_weight_gloo.py", line 50, in main
+[rank1]:     assert all(cache is None for cache in candidate._feat_map)
+[rank1]:            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[rank1]: AssertionError
+W0920 05:54:21.192000 317859 torch/distributed/elastic/multiprocessing/api.py:1028] Sending process 318040 closing signal SIGTERM
+E0920 05:54:21.309000 317859 torch/distributed/elastic/multiprocessing/api.py:1002] failed (exitcode: 1) local_rank: 1 (pid: 318041) of binary: /home/kxqandccx/vllm-omni-7753-hidream-20260918/venv/bin/python
+Traceback (most recent call last):
+  File "<frozen runpy>", line 198, in _run_module_as_main
+  File "<frozen runpy>", line 88, in _run_code
+  File "/home/kxqandccx/vllm-omni-7753-hidream-20260918/venv/lib/python3.12/site-packages/torch/distributed/run.py", line 1032, in <module>
+    main()
+  File "/home/kxqandccx/vllm-omni-7753-hidream-20260918/venv/lib/python3.12/site-packages/torch/distributed/elastic/multiprocessing/errors/__init__.py", line 367, in wrapper
+    return f(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^
+  File "/home/kxqandccx/vllm-omni-7753-hidream-20260918/venv/lib/python3.12/site-packages/torch/distributed/run.py", line 1028, in main
+    run(args)
+  File "/home/kxqandccx/vllm-omni-7753-hidream-20260918/venv/lib/python3.12/site-packages/torch/distributed/run.py", line 1019, in run
+    elastic_launch(
+  File "/home/kxqandccx/vllm-omni-7753-hidream-20260918/venv/lib/python3.12/site-packages/torch/distributed/launcher/api.py", line 194, in __call__
+    return launch_agent(
+           ^^^^^^^^^^^^^
+  File "/home/kxqandccx/vllm-omni-7753-hidream-20260918/venv/lib/python3.12/site-packages/torch/distributed/launcher/api.py", line 383, in launch_agent
+    raise ChildFailedError(
+torch.distributed.elastic.multiprocessing.errors.ChildFailedError: 
+============================================================
+/home/kxqandccx/omni-1217-20260919/real_weight_gloo.py FAILED
+------------------------------------------------------------
+Failures:
+[1]:
+  time      : 2026-09-20_05:54:21
+  host      : jk01.taila15469.ts.net
+  rank      : 0 (local_rank: 0)
+  exitcode  : -15 (pid: 318040)  (SIGTERM)
+  error_file: <N/A>
+  traceback : Signal 15 (SIGTERM) received by PID 318040
+------------------------------------------------------------
+Root Cause (first observed failure):
+[0]:
+  time      : 2026-09-20_05:54:21
+  host      : jk01.taila15469.ts.net
+  rank      : 1 (local_rank: 1)
+  exitcode  : 1 (pid: 318041) 
+  error_file: <N/A>
+  traceback : To enable traceback see: https://pytorch.org/docs/stable/elastic/errors.html
+============================================================

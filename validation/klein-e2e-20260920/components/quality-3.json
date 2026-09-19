@@ -1,0 +1,27 @@
+{
+  "full": {
+    "max_abs": 0.0,
+    "mean_abs": 0.0,
+    "relative_l2": 0.0
+  },
+  "native_tile": {
+    "max_abs": 0.0,
+    "mean_abs": 0.0,
+    "relative_l2": 0.0
+  },
+  "distributed_tile": {
+    "max_abs": 0.0,
+    "mean_abs": 0.0,
+    "relative_l2": 0.0
+  },
+  "distributed_tile_degree1": {
+    "max_abs": 0.0,
+    "mean_abs": 0.0,
+    "relative_l2": 0.0
+  },
+  "halo_patch": {
+    "max_abs": 0.0556640625,
+    "mean_abs": 0.002599782543256879,
+    "relative_l2": 0.018737703561782837
+  }
+}

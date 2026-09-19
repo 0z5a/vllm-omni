@@ -1,0 +1,22 @@
+INFO 09-20 06:00:34 [patch.py:252] NVFP4 W4A4 weight_scale NaN-clamp: installed.
+INFO 09-20 06:00:34 [patch.py:252] NVFP4 W4A4 weight_scale NaN-clamp: installed.
+INFO 09-20 06:00:34 [patch.py:503] inductor factorable-divisibility patch: installed.
+INFO 09-20 06:00:34 [patch.py:503] inductor factorable-divisibility patch: installed.
+INFO 09-20 06:00:34 [patch.py:568] [cumem-cuda] CuMemAllocator._python_free_callback patched: asleep guard extended to all platforms.
+INFO 09-20 06:00:34 [patch.py:568] [cumem-cuda] CuMemAllocator._python_free_callback patched: asleep guard extended to all platforms.
+INFO 09-20 06:00:36 [parallel_state.py:785] sequence_parallel_size is not provided, using 2
+INFO 09-20 06:00:36 [parallel_state.py:785] sequence_parallel_size is not provided, using 2
+INFO 09-20 06:00:36 [parallel_state.py:610] Building SP subgroups from explicit sp_group_ranks (sp_size=2, ulysses=2, ring=1, use_ulysses_low=True).
+INFO 09-20 06:00:36 [parallel_state.py:610] Building SP subgroups from explicit sp_group_ranks (sp_size=2, ulysses=2, ring=1, use_ulysses_low=True).
+INFO 09-20 06:00:36 [parallel_state.py:652] SP group details for rank 1: sp_group=[0, 1], ulysses_group=[0, 1], ring_group=[1]
+INFO 09-20 06:00:36 [parallel_state.py:652] SP group details for rank 0: sp_group=[0, 1], ulysses_group=[0, 1], ring_group=[0]
+{"rank": 1, "case": 0, "input_shape": [1, 3, 1, 320, 448], "latent_shape": [1, 16, 1, 40, 56], "posterior_exact": true, "sample_exact": true, "rng_unchanged": true, "decode_exact": true}
+{"rank": 0, "case": 0, "input_shape": [1, 3, 1, 320, 448], "latent_shape": [1, 16, 1, 40, 56], "posterior_exact": true, "sample_exact": true, "rng_unchanged": true, "decode_exact": true}
+{"rank": 1, "case": 1, "input_shape": [1, 3, 5, 320, 448], "latent_shape": [1, 16, 2, 40, 56], "posterior_exact": true, "sample_exact": true, "rng_unchanged": true, "decode_exact": true}
+{"rank": 0, "case": 1, "input_shape": [1, 3, 5, 320, 448], "latent_shape": [1, 16, 2, 40, 56], "posterior_exact": true, "sample_exact": true, "rng_unchanged": true, "decode_exact": true}
+{"rank": 0, "case": 2, "input_shape": [1, 3, 9, 320, 448], "latent_shape": [1, 16, 3, 40, 56], "posterior_exact": true, "sample_exact": true, "rng_unchanged": true, "decode_exact": true}{"rank": 1, "case": 2, "input_shape": [1, 3, 9, 320, 448], "latent_shape": [1, 16, 3, 40, 56], "posterior_exact": true, "sample_exact": true, "rng_unchanged": true, "decode_exact": true}
+
+{"rank": 0, "case": 3, "input_shape": [2, 3, 5, 320, 448], "latent_shape": [2, 16, 2, 40, 56], "posterior_exact": true, "sample_exact": true, "rng_unchanged": true, "decode_exact": true}
+{"rank": 1, "case": 3, "input_shape": [2, 3, 5, 320, 448], "latent_shape": [2, 16, 2, 40, 56], "posterior_exact": true, "sample_exact": true, "rng_unchanged": true, "decode_exact": true}
+{"rank": 1, "case": 4, "input_shape": [1, 3, 1, 320, 448], "latent_shape": [1, 16, 1, 40, 56], "posterior_exact": true, "sample_exact": true, "rng_unchanged": true, "decode_exact": true}{"rank": 0, "case": 4, "input_shape": [1, 3, 1, 320, 448], "latent_shape": [1, 16, 1, 40, 56], "posterior_exact": true, "sample_exact": true, "rng_unchanged": true, "decode_exact": true}
+
