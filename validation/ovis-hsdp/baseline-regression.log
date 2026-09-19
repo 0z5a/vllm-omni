@@ -1,0 +1,72 @@
+F                                                                        [100%]
+=================================== FAILURES ===================================
+________ test_hsdp_selects_both_block_types_without_selecting_children _________
+
+    def test_hsdp_selects_both_block_types_without_selecting_children():
+        model = OvisImageTransformer2DModel.__new__(OvisImageTransformer2DModel)
+        nn.Module.__init__(model)
+        for attribute, block_type in (
+            ("transformer_blocks", OvisImageTransformerBlock),
+            ("single_transformer_blocks", OvisImageSingleTransformerBlock),
+        ):
+            block = block_type.__new__(block_type)
+            nn.Module.__init__(block)
+            block.proj = nn.Linear(4, 4)
+            model.add_module(attribute, nn.ModuleList([block, nn.Linear(4, 4)]))
+        model.proj_out = nn.Linear(4, 4)
+    
+        selected = [
+            name
+            for name, module in model.named_modules()
+>           if any(condition(name, module) for condition in model._hsdp_shard_conditions)
+                                                            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        ]
+
+../test_ovis_image_hsdp.py:32: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = OvisImageTransformer2DModel(
+  (transformer_blocks): ModuleList(
+    (0): OvisImageTransformerBlock(
+      (proj): Lin...: Linear(in_features=4, out_features=4, bias=True)
+  )
+  (proj_out): Linear(in_features=4, out_features=4, bias=True)
+)
+name = '_hsdp_shard_conditions'
+
+    def __getattr__(self, name: str) -> Union[Tensor, "Module"]:
+        if "_parameters" in self.__dict__:
+            _parameters = self.__dict__["_parameters"]
+            if name in _parameters:
+                return _parameters[name]
+        if "_buffers" in self.__dict__:
+            _buffers = self.__dict__["_buffers"]
+            if name in _buffers:
+                return _buffers[name]
+        if "_modules" in self.__dict__:
+            modules = self.__dict__["_modules"]
+            if name in modules:
+                return modules[name]
+>       raise AttributeError(
+            f"'{type(self).__name__}' object has no attribute '{name}'"
+        )
+E       AttributeError: 'OvisImageTransformer2DModel' object has no attribute '_hsdp_shard_conditions'
+
+../../vllm-omni-7753-hidream-20260918/venv/lib/python3.12/site-packages/torch/nn/modules/module.py:1967: AttributeError
+=============================== warnings summary ===============================
+../../vllm-omni-7753-hidream-20260918/venv/lib/python3.12/site-packages/torch/jit/_script.py:365: 14 warnings
+  /home/kxqandccx/vllm-omni-7753-hidream-20260918/venv/lib/python3.12/site-packages/torch/jit/_script.py:365: DeprecationWarning: `torch.jit.script_method` is deprecated. Please switch to `torch.compile` or `torch.export`.
+    warnings.warn(
+
+../test_ovis_image_hsdp.py:13
+  /home/kxqandccx/omni-1217-20260919/test_ovis_image_hsdp.py:13: PytestUnknownMarkWarning: Unknown pytest.mark.core_model - is this a typo?  You can register custom marks to avoid this warning - for details, see https://docs.pytest.org/en/stable/how-to/mark.html
+    pytestmark = [pytest.mark.core_model, pytest.mark.cpu]
+
+../test_ovis_image_hsdp.py:13
+  /home/kxqandccx/omni-1217-20260919/test_ovis_image_hsdp.py:13: PytestUnknownMarkWarning: Unknown pytest.mark.cpu - is this a typo?  You can register custom marks to avoid this warning - for details, see https://docs.pytest.org/en/stable/how-to/mark.html
+    pytestmark = [pytest.mark.core_model, pytest.mark.cpu]
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ============================
+FAILED ../test_ovis_image_hsdp.py::test_hsdp_selects_both_block_types_without_selecting_children
+1 failed, 16 warnings in 15.20s

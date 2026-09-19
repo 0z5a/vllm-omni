@@ -1,0 +1,62 @@
+{
+  "task": "E1 Ovis-Image HSDP",
+  "author": "0z5a",
+  "baseline_sha": "232dbc82f8fcb6cb698860b0210b47d60a13ebdc",
+  "model_id": "ATH-MaaS/Ovis-Image-7B",
+  "model_revision": "41be1c5821a92c970d63d7eb595a2fd3fe32b22e",
+  "host": "kxqandccx@viperekura.xyz:6000",
+  "gpus": [
+    4,
+    5
+  ],
+  "gpu_type": "NVIDIA L20",
+  "baseline_config": {
+    "cfg_parallel_size": 2,
+    "use_hsdp": false
+  },
+  "patch_config": {
+    "cfg_parallel_size": 2,
+    "use_hsdp": true,
+    "hsdp_shard_size": 2
+  },
+  "dtype": "bfloat16",
+  "execution_mode": "eager",
+  "cache_backend": null,
+  "steps": 30,
+  "seed": 142,
+  "guidance_scale": 4.0,
+  "resolutions": [
+    [
+      512,
+      512
+    ],
+    [
+      1024,
+      768
+    ]
+  ],
+  "warmups_per_resolution": 2,
+  "measured_requests_per_resolution": 5,
+  "fresh_process_order": [
+    "A0",
+    "P0",
+    "P1",
+    "A1"
+  ],
+  "primary_metric": "full_request_seconds",
+  "speedup_formula": "baseline_seconds / patch_seconds",
+  "latency_reduction_formula": "100 * (1 - patch_seconds / baseline_seconds)",
+  "purpose": "Enable HSDP and measure its latency and memory cost, without assuming a speedup",
+  "stage2_switch_class": "R: parameter sharding changes process initialization",
+  "max_full_engine_starts": 6,
+  "max_gpu_hours": 6,
+  "correctness_gate": "Check baseline repeatability first; compare fixed-seed outputs and latent evidence before making equivalence claims",
+  "status": "COMPLETE_TESTED_SCOPE",
+  "patch_sha": "6eb8578ffe905ce13f721dcb7b357c39809f203d",
+  "final_source_sha": "1839c08",
+  "shared_host": true,
+  "images": 56,
+  "measured_requests": 40,
+  "correctness": "all same-resolution outputs bitwise equal",
+  "performance": "REGRESSION"
+}

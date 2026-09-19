@@ -1,0 +1,114 @@
+INFO 09-19 16:44:04 [patch.py:252] NVFP4 W4A4 weight_scale NaN-clamp: installed.
+INFO 09-19 16:44:05 [patch.py:503] inductor factorable-divisibility patch: installed.
+INFO 09-19 16:44:05 [patch.py:568] [cumem-cuda] CuMemAllocator._python_free_callback patched: asleep guard extended to all platforms.
+INFO 09-19 16:44:09 [omni_base.py:208] [Omni] Initializing with model /home/kxqandccx/omni-1217-20260919/model
+INFO 09-19 16:44:09 [omni_engine_base.py:163] [OmniEngine] Initializing with model /home/kxqandccx/omni-1217-20260919/model
+INFO 09-19 16:44:10 [config_factory.py:678] Resolved generic diffusion final_output_type='image' for model_class_name='OvisImagePipeline'.
+INFO 09-19 16:44:10 [omni_engine_base.py:312] [OmniEngine] Launching Orchestrator thread with 1 stages
+INFO 09-19 16:44:10 [stage_init_utils.py:775] [stage_init] Set VLLM_WORKER_MULTIPROC_METHOD=spawn
+INFO 09-19 16:44:10 [stage_utils.py:178] Stage 0 logical-to-physical device mapping: 0->4, 1->5
+INFO 09-19 16:44:10 [multiproc_executor.py:350] Starting server...
+INFO 09-19 16:44:19 [patch.py:252] NVFP4 W4A4 weight_scale NaN-clamp: installed.
+INFO 09-19 16:44:20 [patch.py:252] NVFP4 W4A4 weight_scale NaN-clamp: installed.
+INFO 09-19 16:44:20 [patch.py:503] inductor factorable-divisibility patch: installed.
+INFO 09-19 16:44:20 [patch.py:568] [cumem-cuda] CuMemAllocator._python_free_callback patched: asleep guard extended to all platforms.
+INFO 09-19 16:44:20 [patch.py:503] inductor factorable-divisibility patch: installed.
+INFO 09-19 16:44:20 [patch.py:568] [cumem-cuda] CuMemAllocator._python_free_callback patched: asleep guard extended to all platforms.
+(DiffusionWorker pid=2912863) INFO 09-19 16:44:23 [diffusion_worker.py:1058] Worker 1 created result MessageQueue
+(DiffusionWorker pid=2912862) INFO 09-19 16:44:23 [diffusion_worker.py:1058] Worker 0 created result MessageQueue
+(DiffusionWorker pid=2912863) INFO 09-19 16:44:23 [scheduler.py:277] Chunked prefill is enabled with max_num_batched_tokens=2048.
+(DiffusionWorker pid=2912863) INFO 09-19 16:44:23 [kernel.py:369] Final IR op priority after setting platform defaults: IrOpPriorityConfig(rms_norm=['native'], fused_add_rms_norm=['native'])
+(DiffusionWorker pid=2912863) INFO 09-19 16:44:23 [diffusion_worker.py:327] Final IR op priority after setting vLLM-Omni overrides: IrOpPriorityConfig(rms_norm=['vllm_c', 'native'], fused_add_rms_norm=['vllm_c', 'native'])
+(DiffusionWorker pid=2912862) INFO 09-19 16:44:23 [scheduler.py:277] Chunked prefill is enabled with max_num_batched_tokens=2048.
+(DiffusionWorker pid=2912862) INFO 09-19 16:44:23 [kernel.py:369] Final IR op priority after setting platform defaults: IrOpPriorityConfig(rms_norm=['native'], fused_add_rms_norm=['native'])
+(DiffusionWorker pid=2912862) INFO 09-19 16:44:23 [diffusion_worker.py:327] Final IR op priority after setting vLLM-Omni overrides: IrOpPriorityConfig(rms_norm=['vllm_c', 'native'], fused_add_rms_norm=['vllm_c', 'native'])
+(DiffusionWorker pid=2912862) INFO 09-19 16:44:24 [diffusion_worker.py:339] Worker 0: Initialized device and distributed environment.
+(DiffusionWorker pid=2912863) INFO 09-19 16:44:24 [diffusion_worker.py:339] Worker 1: Initialized device and distributed environment.
+(DiffusionWorker pid=2912862) INFO 09-19 16:44:24 [parallel_state.py:610] Building SP subgroups from explicit sp_group_ranks (sp_size=1, ulysses=1, ring=1, use_ulysses_low=True).
+(DiffusionWorker pid=2912862) INFO 09-19 16:44:24 [parallel_state.py:652] SP group details for rank 0: sp_group=[0], ulysses_group=[0], ring_group=[0]
+(DiffusionWorker pid=2912863) INFO 09-19 16:44:24 [parallel_state.py:610] Building SP subgroups from explicit sp_group_ranks (sp_size=1, ulysses=1, ring=1, use_ulysses_low=True).
+(DiffusionWorker pid=2912863) INFO 09-19 16:44:24 [parallel_state.py:652] SP group details for rank 1: sp_group=[1], ulysses_group=[1], ring_group=[1]
+(DiffusionWorker_CFG0_FS0 pid=2912862) Loading weights:   0%|          | 0/310 [00:00<?, ?it/s](DiffusionWorker_CFG1_FS1 pid=2912863) Loading weights:   0%|          | 0/310 [00:00<?, ?it/s]Loading weights:   0%|          | 1/310 [00:23<1:59:09, 23.14s/it]Loading weights:   0%|          | 1/310 [00:23<1:59:10, 23.14s/it]Loading weights:  58%|█████▊    | 179/310 [00:23<00:11, 10.92it/s]Loading weights:  58%|█████▊    | 179/310 [00:23<00:11, 10.92it/s]Loading weights:  93%|█████████▎| 287/310 [00:35<00:02,  9.91it/s]Loading weights:  92%|█████████▏| 286/310 [00:35<00:02,  9.87it/s]Loading weights:  93%|█████████▎| 288/310 [00:36<00:02,  9.38it/s]Loading weights:  93%|█████████▎| 287/310 [00:36<00:02,  9.34it/s]Loading weights: 100%|██████████| 310/310 [00:38<00:00,  8.15it/s]Loading weights: 100%|██████████| 310/310 [00:38<00:00,  8.15it/s]
+
+(DiffusionWorker_CFG0_FS0 pid=2912862) INFO 09-19 16:45:09 [selector.py:93] Resolved diffusion attention backend 'FLASH_ATTN' for role='self' via platform default
+(DiffusionWorker_CFG1_FS1 pid=2912863) INFO 09-19 16:45:09 [selector.py:93] Resolved diffusion attention backend 'FLASH_ATTN' for role='self' via platform default
+(DiffusionWorker_CFG0_FS0 pid=2912862) Multi-thread loading shards:   0% Completed | 0/2 [00:00<?, ?it/s]
+(DiffusionWorker_CFG0_FS0 pid=2912862) Multi-thread loading shards:  50% Completed | 1/2 [00:30<00:30, 30.55s/it]
+(DiffusionWorker_CFG0_FS0 pid=2912862) Multi-thread loading shards: 100% Completed | 2/2 [00:31<00:00, 13.08s/it]
+(DiffusionWorker_CFG0_FS0 pid=2912862) Multi-thread loading shards: 100% Completed | 2/2 [00:31<00:00, 15.95s/it]
+(DiffusionWorker_CFG0_FS0 pid=2912862) 
+(DiffusionWorker_CFG0_FS0 pid=2912862) INFO 09-19 16:46:23 [diffusers_loader.py:1098] Loading weights took 32.21 seconds
+(DiffusionWorker_CFG1_FS1 pid=2912863) INFO 09-19 16:46:24 [hsdp.py:129] HSDP Inference (FSDP2): replicate_size=1, shard_size=2, world_size=2, rank=1
+(DiffusionWorker_CFG0_FS0 pid=2912862) INFO 09-19 16:46:25 [hsdp.py:129] HSDP Inference (FSDP2): replicate_size=1, shard_size=2, world_size=2, rank=0
+(DiffusionWorker_CFG1_FS1 pid=2912863) INFO 09-19 16:46:28 [hsdp.py:286] Sharded 33 modules + root (ignored_params=0)
+(DiffusionWorker_CFG1_FS1 pid=2912863) INFO 09-19 16:46:28 [hsdp.py:240] HSDP applied to model: FSDPOvisImageTransformer2DModel
+(DiffusionWorker_CFG0_FS0 pid=2912862) INFO 09-19 16:46:28 [hsdp.py:286] Sharded 33 modules + root (ignored_params=0)
+(DiffusionWorker_CFG0_FS0 pid=2912862) INFO 09-19 16:46:28 [hsdp.py:240] HSDP applied to model: FSDPOvisImageTransformer2DModel
+(DiffusionWorker_CFG0_FS0 pid=2912862) INFO 09-19 16:46:31 [diffusion_model_runner.py:340] Model loading took 10.3217 GiB and 126.846807 seconds
+(DiffusionWorker_CFG0_FS0 pid=2912862) INFO 09-19 16:46:31 [diffusion_model_runner.py:346] Model runner: Model loaded successfully.
+(DiffusionWorker_CFG0_FS0 pid=2912862) INFO 09-19 16:46:31 [diffusion_model_runner.py:437] Model runner: Initialization complete.
+(DiffusionWorker_CFG0_FS0 pid=2912862) INFO 09-19 16:46:31 [diffusion_worker.py:420] Worker 0: Process-scoped GPU memory after model loading: 10.68 GiB.
+(DiffusionWorker_CFG0_FS0 pid=2912862) INFO 09-19 16:46:31 [manager.py:112] Initializing DiffusionLoRAManager: device=cuda:0, dtype=torch.bfloat16, max_cached_adapters=1, static_lora_path=None
+(DiffusionWorker_CFG0_FS0 pid=2912862) INFO 09-19 16:46:31 [diffusion_worker.py:297] Worker 0: Initialization complete.
+(DiffusionWorker_CFG0_FS0 pid=2912862) INFO 09-19 16:46:31 [diffusion_worker.py:1523] Worker 0: Scheduler loop started.
+(DiffusionWorker_CFG0_FS0 pid=2912862) INFO 09-19 16:46:31 [diffusion_worker.py:1367] Worker 0 ready to receive requests via shared memory
+(DiffusionWorker_CFG1_FS1 pid=2912863) INFO 09-19 16:46:31 [diffusion_model_runner.py:340] Model loading took 10.3217 GiB and 127.332041 seconds
+(DiffusionWorker_CFG1_FS1 pid=2912863) INFO 09-19 16:46:31 [diffusion_model_runner.py:346] Model runner: Model loaded successfully.
+(DiffusionWorker_CFG1_FS1 pid=2912863) INFO 09-19 16:46:31 [diffusion_model_runner.py:437] Model runner: Initialization complete.
+(DiffusionWorker_CFG1_FS1 pid=2912863) INFO 09-19 16:46:32 [diffusion_worker.py:420] Worker 1: Process-scoped GPU memory after model loading: 10.68 GiB.
+(DiffusionWorker_CFG1_FS1 pid=2912863) INFO 09-19 16:46:32 [manager.py:112] Initializing DiffusionLoRAManager: device=cuda:1, dtype=torch.bfloat16, max_cached_adapters=1, static_lora_path=None
+(DiffusionWorker_CFG1_FS1 pid=2912863) INFO 09-19 16:46:32 [diffusion_worker.py:297] Worker 1: Initialization complete.
+(DiffusionWorker_CFG1_FS1 pid=2912863) INFO 09-19 16:46:32 [diffusion_worker.py:1523] Worker 1: Scheduler loop started.
+(DiffusionWorker_CFG1_FS1 pid=2912863) INFO 09-19 16:46:32 [diffusion_worker.py:1367] Worker 1 ready to receive requests via shared memory
+INFO 09-19 16:46:32 [multiproc_executor.py:893] Async result pump started for 2 worker queue(s)
+INFO 09-19 16:46:32 [diffusion_engine.py:402] [RequestBatch] engine init max_num_seqs=1 max_wait_ms=0.0
+INFO 09-19 16:46:32 [diffusion_engine.py:1169] dummy run to warm up the model
+INFO 09-19 16:46:56 [inline_stage_diffusion_client.py:82] [InlineStageDiffusionClient] stage-0 [rep-0] initialized inline (max_num_seqs=1)
+INFO 09-19 16:46:56 [stage_runtime.py:1107] [StageRuntime] Stage 0 replica 0 initialized (diffusion)
+INFO 09-19 16:46:56 [orchestrator.py:416] [Orchestrator] Starting event loop
+INFO 09-19 16:46:56 [omni_engine_base.py:344] [OmniEngine] Orchestrator ready with 1 stages
+INFO 09-19 16:46:56 [omni_base.py:227] [Omni] AsyncOmniEngine initialized in 167.25 seconds
+INFO 09-19 16:46:56 [omni_base.py:246] [Omni] Initialized with 1 stages for model /home/kxqandccx/omni-1217-20260919/model
+Processed prompts:   0%|          | 0/1 [00:00<?, ?it/s](DiffusionWorker_CFG1_FS1 pid=2912863) /home/kxqandccx/vllm-omni-7753-hidream-20260918/venv/lib/python3.12/site-packages/torch/distributed/c10d_logger.py:83: FutureWarning: `torch.distributed.all_gather_into_tensor` is deprecated. Please use `torch.distributed.all_gather_single` instead.
+(DiffusionWorker_CFG1_FS1 pid=2912863)   return func(*args, **kwargs)
+(DiffusionWorker_CFG0_FS0 pid=2912862) /home/kxqandccx/vllm-omni-7753-hidream-20260918/venv/lib/python3.12/site-packages/torch/distributed/c10d_logger.py:83: FutureWarning: `torch.distributed.all_gather_into_tensor` is deprecated. Please use `torch.distributed.all_gather_single` instead.
+(DiffusionWorker_CFG0_FS0 pid=2912862)   return func(*args, **kwargs)
+Processed prompts: 100%|██████████| 1/1 [00:32<00:00, 32.80s/it]Processed prompts: 100%|██████████| 1/1 [00:32<00:00, 32.80s/it]
+{"pid": 2904165, "hsdp": true, "cfg_parallel_size": 2, "width": 512, "height": 512, "iteration": 0, "warmup": true, "seconds": 32.80397464500129, "ready_seconds": 167.38615986999866, "image_sha256": "718838980ca6835cd0a4f87303c414cfb1f80b457ed337f2c2bc6d25f35f8df2"}
+Processed prompts:   0%|          | 0/1 [00:00<?, ?it/s]Processed prompts: 100%|██████████| 1/1 [00:32<00:00, 32.77s/it]Processed prompts: 100%|██████████| 1/1 [00:32<00:00, 32.82s/it]
+{"pid": 2904165, "hsdp": true, "cfg_parallel_size": 2, "width": 512, "height": 512, "iteration": 1, "warmup": true, "seconds": 32.81889839899668, "ready_seconds": 167.38615986999866, "image_sha256": "718838980ca6835cd0a4f87303c414cfb1f80b457ed337f2c2bc6d25f35f8df2"}
+Processed prompts:   0%|          | 0/1 [00:00<?, ?it/s]Processed prompts: 100%|██████████| 1/1 [00:32<00:00, 32.82s/it]Processed prompts: 100%|██████████| 1/1 [00:32<00:00, 32.97s/it]
+{"pid": 2904165, "hsdp": true, "cfg_parallel_size": 2, "width": 512, "height": 512, "iteration": 2, "warmup": false, "seconds": 32.96796878399982, "ready_seconds": 167.38615986999866, "image_sha256": "718838980ca6835cd0a4f87303c414cfb1f80b457ed337f2c2bc6d25f35f8df2"}
+Processed prompts:   0%|          | 0/1 [00:00<?, ?it/s]Processed prompts: 100%|██████████| 1/1 [00:32<00:00, 32.79s/it]Processed prompts: 100%|██████████| 1/1 [00:32<00:00, 32.79s/it]
+{"pid": 2904165, "hsdp": true, "cfg_parallel_size": 2, "width": 512, "height": 512, "iteration": 3, "warmup": false, "seconds": 32.78971769999771, "ready_seconds": 167.38615986999866, "image_sha256": "718838980ca6835cd0a4f87303c414cfb1f80b457ed337f2c2bc6d25f35f8df2"}
+Processed prompts:   0%|          | 0/1 [00:00<?, ?it/s]Processed prompts: 100%|██████████| 1/1 [00:32<00:00, 32.82s/it]Processed prompts: 100%|██████████| 1/1 [00:32<00:00, 32.82s/it]
+{"pid": 2904165, "hsdp": true, "cfg_parallel_size": 2, "width": 512, "height": 512, "iteration": 4, "warmup": false, "seconds": 32.82248330800212, "ready_seconds": 167.38615986999866, "image_sha256": "718838980ca6835cd0a4f87303c414cfb1f80b457ed337f2c2bc6d25f35f8df2"}
+Processed prompts:   0%|          | 0/1 [00:00<?, ?it/s]Processed prompts: 100%|██████████| 1/1 [00:32<00:00, 32.74s/it]Processed prompts: 100%|██████████| 1/1 [00:32<00:00, 32.74s/it]
+{"pid": 2904165, "hsdp": true, "cfg_parallel_size": 2, "width": 512, "height": 512, "iteration": 5, "warmup": false, "seconds": 32.743745010000566, "ready_seconds": 167.38615986999866, "image_sha256": "718838980ca6835cd0a4f87303c414cfb1f80b457ed337f2c2bc6d25f35f8df2"}
+Processed prompts:   0%|          | 0/1 [00:00<?, ?it/s]Processed prompts: 100%|██████████| 1/1 [00:32<00:00, 32.78s/it]Processed prompts: 100%|██████████| 1/1 [00:33<00:00, 33.50s/it]
+{"pid": 2904165, "hsdp": true, "cfg_parallel_size": 2, "width": 512, "height": 512, "iteration": 6, "warmup": false, "seconds": 33.50435674400069, "ready_seconds": 167.38615986999866, "image_sha256": "718838980ca6835cd0a4f87303c414cfb1f80b457ed337f2c2bc6d25f35f8df2"}
+Processed prompts:   0%|          | 0/1 [00:00<?, ?it/s]Processed prompts: 100%|██████████| 1/1 [00:40<00:00, 40.34s/it]Processed prompts: 100%|██████████| 1/1 [00:40<00:00, 40.75s/it]
+{"pid": 2904165, "hsdp": true, "cfg_parallel_size": 2, "width": 1024, "height": 768, "iteration": 0, "warmup": true, "seconds": 40.74671584799944, "ready_seconds": 167.38615986999866, "image_sha256": "93464f6b4871dda8d092946697ccbcb5b11ba1710699286ad3b8b9f033029a35"}
+Processed prompts:   0%|          | 0/1 [00:00<?, ?it/s]Processed prompts: 100%|██████████| 1/1 [00:40<00:00, 40.29s/it]Processed prompts: 100%|██████████| 1/1 [00:40<00:00, 40.29s/it]
+{"pid": 2904165, "hsdp": true, "cfg_parallel_size": 2, "width": 1024, "height": 768, "iteration": 1, "warmup": true, "seconds": 40.29246398399846, "ready_seconds": 167.38615986999866, "image_sha256": "93464f6b4871dda8d092946697ccbcb5b11ba1710699286ad3b8b9f033029a35"}
+Processed prompts:   0%|          | 0/1 [00:00<?, ?it/s]Processed prompts: 100%|██████████| 1/1 [00:40<00:00, 40.29s/it]Processed prompts: 100%|██████████| 1/1 [00:40<00:00, 40.29s/it]
+{"pid": 2904165, "hsdp": true, "cfg_parallel_size": 2, "width": 1024, "height": 768, "iteration": 2, "warmup": false, "seconds": 40.29406304599979, "ready_seconds": 167.38615986999866, "image_sha256": "93464f6b4871dda8d092946697ccbcb5b11ba1710699286ad3b8b9f033029a35"}
+Processed prompts:   0%|          | 0/1 [00:00<?, ?it/s]Processed prompts: 100%|██████████| 1/1 [00:40<00:00, 40.33s/it]Processed prompts: 100%|██████████| 1/1 [00:40<00:00, 40.33s/it]
+{"pid": 2904165, "hsdp": true, "cfg_parallel_size": 2, "width": 1024, "height": 768, "iteration": 3, "warmup": false, "seconds": 40.3272552319977, "ready_seconds": 167.38615986999866, "image_sha256": "93464f6b4871dda8d092946697ccbcb5b11ba1710699286ad3b8b9f033029a35"}
+Processed prompts:   0%|          | 0/1 [00:00<?, ?it/s]Processed prompts: 100%|██████████| 1/1 [00:40<00:00, 40.25s/it]Processed prompts: 100%|██████████| 1/1 [00:40<00:00, 40.65s/it]
+{"pid": 2904165, "hsdp": true, "cfg_parallel_size": 2, "width": 1024, "height": 768, "iteration": 4, "warmup": false, "seconds": 40.65034984799786, "ready_seconds": 167.38615986999866, "image_sha256": "93464f6b4871dda8d092946697ccbcb5b11ba1710699286ad3b8b9f033029a35"}
+Processed prompts:   0%|          | 0/1 [00:00<?, ?it/s]Processed prompts: 100%|██████████| 1/1 [00:40<00:00, 40.23s/it]Processed prompts: 100%|██████████| 1/1 [00:40<00:00, 40.57s/it]
+{"pid": 2904165, "hsdp": true, "cfg_parallel_size": 2, "width": 1024, "height": 768, "iteration": 5, "warmup": false, "seconds": 40.56896898300329, "ready_seconds": 167.38615986999866, "image_sha256": "93464f6b4871dda8d092946697ccbcb5b11ba1710699286ad3b8b9f033029a35"}
+Processed prompts:   0%|          | 0/1 [00:00<?, ?it/s]Processed prompts: 100%|██████████| 1/1 [00:40<00:00, 40.25s/it]Processed prompts: 100%|██████████| 1/1 [00:40<00:00, 40.73s/it]
+{"pid": 2904165, "hsdp": true, "cfg_parallel_size": 2, "width": 1024, "height": 768, "iteration": 6, "warmup": false, "seconds": 40.73372294100045, "ready_seconds": 167.38615986999866, "image_sha256": "93464f6b4871dda8d092946697ccbcb5b11ba1710699286ad3b8b9f033029a35"}
+INFO 09-19 16:55:38 [omni_base.py:771] [Omni] Shutting down
+INFO 09-19 16:55:38 [omni_engine_base.py:1144] [OmniEngine] Shutting down Orchestrator
+INFO 09-19 16:55:38 [orchestrator.py:508] [Orchestrator] Received shutdown signal
+INFO 09-19 16:55:38 [orchestrator.py:2610] [Orchestrator] Shutting down all 1 client(s)
+(DiffusionWorker_CFG1_FS1 pid=2912863) INFO 09-19 16:55:38 [diffusion_worker.py:1456] Worker 1: Received shutdown message
+(DiffusionWorker_CFG1_FS1 pid=2912863) INFO 09-19 16:55:38 [diffusion_worker.py:1478] event loop terminated.
+(DiffusionWorker_CFG0_FS0 pid=2912862) INFO 09-19 16:55:38 [diffusion_worker.py:1456] Worker 0: Received shutdown message
+(DiffusionWorker_CFG0_FS0 pid=2912862) INFO 09-19 16:55:38 [diffusion_worker.py:1478] event loop terminated.
+(DiffusionWorker_CFG1_FS1 pid=2912863) INFO 09-19 16:55:39 [diffusion_worker.py:1546] Worker 1: Shutdown complete.
+(DiffusionWorker_CFG0_FS0 pid=2912862) INFO 09-19 16:55:40 [diffusion_worker.py:1546] Worker 0: Shutdown complete.
+INFO 09-19 16:55:44 [stage_pool.py:1338] [StagePool] Stage 0 replica 0 shut down

@@ -1,0 +1,108 @@
+INFO 09-19 16:56:07 [patch.py:252] NVFP4 W4A4 weight_scale NaN-clamp: installed.
+INFO 09-19 16:56:08 [patch.py:503] inductor factorable-divisibility patch: installed.
+INFO 09-19 16:56:08 [patch.py:568] [cumem-cuda] CuMemAllocator._python_free_callback patched: asleep guard extended to all platforms.
+INFO 09-19 16:56:14 [omni_base.py:208] [Omni] Initializing with model /home/kxqandccx/omni-1217-20260919/model
+INFO 09-19 16:56:14 [omni_engine_base.py:163] [OmniEngine] Initializing with model /home/kxqandccx/omni-1217-20260919/model
+INFO 09-19 16:56:16 [config_factory.py:678] Resolved generic diffusion final_output_type='image' for model_class_name='OvisImagePipeline'.
+INFO 09-19 16:56:16 [omni_engine_base.py:312] [OmniEngine] Launching Orchestrator thread with 1 stages
+INFO 09-19 16:56:16 [stage_init_utils.py:775] [stage_init] Set VLLM_WORKER_MULTIPROC_METHOD=spawn
+INFO 09-19 16:56:16 [stage_utils.py:178] Stage 0 logical-to-physical device mapping: 0->4, 1->5
+INFO 09-19 16:56:19 [multiproc_executor.py:350] Starting server...
+INFO 09-19 16:56:30 [patch.py:252] NVFP4 W4A4 weight_scale NaN-clamp: installed.
+INFO 09-19 16:56:30 [patch.py:252] NVFP4 W4A4 weight_scale NaN-clamp: installed.
+INFO 09-19 16:56:30 [patch.py:503] inductor factorable-divisibility patch: installed.
+INFO 09-19 16:56:30 [patch.py:568] [cumem-cuda] CuMemAllocator._python_free_callback patched: asleep guard extended to all platforms.
+INFO 09-19 16:56:30 [patch.py:503] inductor factorable-divisibility patch: installed.
+INFO 09-19 16:56:30 [patch.py:568] [cumem-cuda] CuMemAllocator._python_free_callback patched: asleep guard extended to all platforms.
+(DiffusionWorker pid=2993841) INFO 09-19 16:56:33 [diffusion_worker.py:1058] Worker 0 created result MessageQueue
+(DiffusionWorker pid=2993841) INFO 09-19 16:56:33 [scheduler.py:277] Chunked prefill is enabled with max_num_batched_tokens=2048.
+(DiffusionWorker pid=2993841) INFO 09-19 16:56:33 [kernel.py:369] Final IR op priority after setting platform defaults: IrOpPriorityConfig(rms_norm=['native'], fused_add_rms_norm=['native'])
+(DiffusionWorker pid=2993841) INFO 09-19 16:56:33 [diffusion_worker.py:327] Final IR op priority after setting vLLM-Omni overrides: IrOpPriorityConfig(rms_norm=['vllm_c', 'native'], fused_add_rms_norm=['vllm_c', 'native'])
+(DiffusionWorker pid=2993842) INFO 09-19 16:56:33 [diffusion_worker.py:1058] Worker 1 created result MessageQueue
+(DiffusionWorker pid=2993842) INFO 09-19 16:56:34 [scheduler.py:277] Chunked prefill is enabled with max_num_batched_tokens=2048.
+(DiffusionWorker pid=2993842) INFO 09-19 16:56:34 [kernel.py:369] Final IR op priority after setting platform defaults: IrOpPriorityConfig(rms_norm=['native'], fused_add_rms_norm=['native'])
+(DiffusionWorker pid=2993842) INFO 09-19 16:56:34 [diffusion_worker.py:327] Final IR op priority after setting vLLM-Omni overrides: IrOpPriorityConfig(rms_norm=['vllm_c', 'native'], fused_add_rms_norm=['vllm_c', 'native'])
+(DiffusionWorker pid=2993842) INFO 09-19 16:56:34 [diffusion_worker.py:339] Worker 1: Initialized device and distributed environment.
+(DiffusionWorker pid=2993841) INFO 09-19 16:56:34 [diffusion_worker.py:339] Worker 0: Initialized device and distributed environment.
+(DiffusionWorker pid=2993842) INFO 09-19 16:56:34 [parallel_state.py:610] Building SP subgroups from explicit sp_group_ranks (sp_size=1, ulysses=1, ring=1, use_ulysses_low=True).
+(DiffusionWorker pid=2993842) INFO 09-19 16:56:34 [parallel_state.py:652] SP group details for rank 1: sp_group=[1], ulysses_group=[1], ring_group=[1]
+(DiffusionWorker pid=2993841) INFO 09-19 16:56:34 [parallel_state.py:610] Building SP subgroups from explicit sp_group_ranks (sp_size=1, ulysses=1, ring=1, use_ulysses_low=True).
+(DiffusionWorker pid=2993841) INFO 09-19 16:56:34 [parallel_state.py:652] SP group details for rank 0: sp_group=[0], ulysses_group=[0], ring_group=[0]
+(DiffusionWorker_CFG0 pid=2993841) Loading weights:   0%|          | 0/310 [00:00<?, ?it/s](DiffusionWorker_CFG1 pid=2993842) Loading weights:   0%|          | 0/310 [00:00<?, ?it/s]Loading weights:  93%|█████████▎| 289/310 [00:00<00:00, 1041.16it/s]Loading weights:  93%|█████████▎| 289/310 [00:00<00:00, 1037.35it/s]Loading weights: 100%|██████████| 310/310 [00:00<00:00, 1043.40it/s]
+Loading weights: 100%|██████████| 310/310 [00:00<00:00, 1040.00it/s]
+(DiffusionWorker_CFG1 pid=2993842) INFO 09-19 16:56:37 [selector.py:93] Resolved diffusion attention backend 'FLASH_ATTN' for role='self' via platform default
+(DiffusionWorker_CFG0 pid=2993841) INFO 09-19 16:56:37 [selector.py:93] Resolved diffusion attention backend 'FLASH_ATTN' for role='self' via platform default
+(DiffusionWorker_CFG0 pid=2993841) Multi-thread loading shards:   0% Completed | 0/2 [00:00<?, ?it/s]
+(DiffusionWorker_CFG0 pid=2993841) Multi-thread loading shards:  50% Completed | 1/2 [00:00<00:00,  1.15it/s]
+(DiffusionWorker_CFG0 pid=2993841) Multi-thread loading shards: 100% Completed | 2/2 [00:03<00:00,  2.04s/it]
+(DiffusionWorker_CFG1 pid=2993842) INFO 09-19 16:56:41 [diffusion_model_runner.py:340] Model loading took 17.0966 GiB and 7.448407 seconds
+(DiffusionWorker_CFG0 pid=2993841) Multi-thread loading shards: 100% Completed | 2/2 [00:03<00:00,  1.92s/it]
+(DiffusionWorker_CFG0 pid=2993841) 
+(DiffusionWorker_CFG1 pid=2993842) INFO 09-19 16:56:41 [diffusion_model_runner.py:346] Model runner: Model loaded successfully.
+(DiffusionWorker_CFG1 pid=2993842) INFO 09-19 16:56:41 [diffusion_model_runner.py:437] Model runner: Initialization complete.
+(DiffusionWorker_CFG1 pid=2993842) INFO 09-19 16:56:42 [diffusion_worker.py:420] Worker 1: Process-scoped GPU memory after model loading: 17.43 GiB.
+(DiffusionWorker_CFG0 pid=2993841) INFO 09-19 16:56:42 [diffusers_loader.py:1098] Loading weights took 4.23 seconds
+(DiffusionWorker_CFG1 pid=2993842) INFO 09-19 16:56:42 [manager.py:112] Initializing DiffusionLoRAManager: device=cuda:1, dtype=torch.bfloat16, max_cached_adapters=1, static_lora_path=None
+(DiffusionWorker_CFG1 pid=2993842) INFO 09-19 16:56:42 [diffusion_worker.py:297] Worker 1: Initialization complete.
+(DiffusionWorker_CFG1 pid=2993842) INFO 09-19 16:56:42 [diffusion_worker.py:1523] Worker 1: Scheduler loop started.
+(DiffusionWorker_CFG1 pid=2993842) INFO 09-19 16:56:42 [diffusion_worker.py:1367] Worker 1 ready to receive requests via shared memory
+(DiffusionWorker_CFG0 pid=2993841) INFO 09-19 16:56:43 [diffusion_model_runner.py:340] Model loading took 17.0966 GiB and 9.098547 seconds
+(DiffusionWorker_CFG0 pid=2993841) INFO 09-19 16:56:43 [diffusion_model_runner.py:346] Model runner: Model loaded successfully.
+(DiffusionWorker_CFG0 pid=2993841) INFO 09-19 16:56:43 [diffusion_model_runner.py:437] Model runner: Initialization complete.
+(DiffusionWorker_CFG0 pid=2993841) INFO 09-19 16:56:44 [diffusion_worker.py:420] Worker 0: Process-scoped GPU memory after model loading: 17.43 GiB.
+(DiffusionWorker_CFG0 pid=2993841) INFO 09-19 16:56:44 [manager.py:112] Initializing DiffusionLoRAManager: device=cuda:0, dtype=torch.bfloat16, max_cached_adapters=1, static_lora_path=None
+(DiffusionWorker_CFG0 pid=2993841) INFO 09-19 16:56:44 [diffusion_worker.py:297] Worker 0: Initialization complete.
+(DiffusionWorker_CFG0 pid=2993841) INFO 09-19 16:56:44 [diffusion_worker.py:1523] Worker 0: Scheduler loop started.
+(DiffusionWorker_CFG0 pid=2993841) INFO 09-19 16:56:44 [diffusion_worker.py:1367] Worker 0 ready to receive requests via shared memory
+INFO 09-19 16:56:44 [multiproc_executor.py:893] Async result pump started for 2 worker queue(s)
+INFO 09-19 16:56:44 [diffusion_engine.py:402] [RequestBatch] engine init max_num_seqs=1 max_wait_ms=0.0
+INFO 09-19 16:56:44 [diffusion_engine.py:1169] dummy run to warm up the model
+INFO 09-19 16:56:53 [inline_stage_diffusion_client.py:82] [InlineStageDiffusionClient] stage-0 [rep-0] initialized inline (max_num_seqs=1)
+INFO 09-19 16:56:53 [stage_runtime.py:1107] [StageRuntime] Stage 0 replica 0 initialized (diffusion)
+INFO 09-19 16:56:53 [orchestrator.py:416] [Orchestrator] Starting event loop
+INFO 09-19 16:56:53 [omni_engine_base.py:344] [OmniEngine] Orchestrator ready with 1 stages
+INFO 09-19 16:56:53 [omni_base.py:227] [Omni] AsyncOmniEngine initialized in 39.88 seconds
+INFO 09-19 16:56:53 [omni_base.py:246] [Omni] Initialized with 1 stages for model /home/kxqandccx/omni-1217-20260919/model
+Processed prompts:   0%|          | 0/1 [00:00<?, ?it/s](DiffusionWorker_CFG0 pid=2993841) /home/kxqandccx/vllm-omni-7753-hidream-20260918/venv/lib/python3.12/site-packages/torch/distributed/c10d_logger.py:83: FutureWarning: `torch.distributed.all_gather_into_tensor` is deprecated. Please use `torch.distributed.all_gather_single` instead.
+(DiffusionWorker_CFG0 pid=2993841)   return func(*args, **kwargs)
+(DiffusionWorker_CFG1 pid=2993842) /home/kxqandccx/vllm-omni-7753-hidream-20260918/venv/lib/python3.12/site-packages/torch/distributed/c10d_logger.py:83: FutureWarning: `torch.distributed.all_gather_into_tensor` is deprecated. Please use `torch.distributed.all_gather_single` instead.
+(DiffusionWorker_CFG1 pid=2993842)   return func(*args, **kwargs)
+Processed prompts: 100%|██████████| 1/1 [00:04<00:00,  4.59s/it]Processed prompts: 100%|██████████| 1/1 [00:04<00:00,  4.75s/it]
+{"pid": 2990465, "hsdp": false, "cfg_parallel_size": 2, "width": 512, "height": 512, "iteration": 0, "warmup": true, "seconds": 4.749660530000256, "ready_seconds": 39.87749921200157, "image_sha256": "718838980ca6835cd0a4f87303c414cfb1f80b457ed337f2c2bc6d25f35f8df2"}
+Processed prompts:   0%|          | 0/1 [00:00<?, ?it/s]Processed prompts: 100%|██████████| 1/1 [00:04<00:00,  4.43s/it]Processed prompts: 100%|██████████| 1/1 [00:04<00:00,  4.83s/it]
+{"pid": 2990465, "hsdp": false, "cfg_parallel_size": 2, "width": 512, "height": 512, "iteration": 1, "warmup": true, "seconds": 4.833228981999127, "ready_seconds": 39.87749921200157, "image_sha256": "718838980ca6835cd0a4f87303c414cfb1f80b457ed337f2c2bc6d25f35f8df2"}
+Processed prompts:   0%|          | 0/1 [00:00<?, ?it/s]Processed prompts: 100%|██████████| 1/1 [00:04<00:00,  4.46s/it]Processed prompts: 100%|██████████| 1/1 [00:04<00:00,  4.46s/it]
+{"pid": 2990465, "hsdp": false, "cfg_parallel_size": 2, "width": 512, "height": 512, "iteration": 2, "warmup": false, "seconds": 4.464566840000771, "ready_seconds": 39.87749921200157, "image_sha256": "718838980ca6835cd0a4f87303c414cfb1f80b457ed337f2c2bc6d25f35f8df2"}
+Processed prompts:   0%|          | 0/1 [00:00<?, ?it/s]Processed prompts: 100%|██████████| 1/1 [00:04<00:00,  4.46s/it]Processed prompts: 100%|██████████| 1/1 [00:04<00:00,  4.64s/it]
+{"pid": 2990465, "hsdp": false, "cfg_parallel_size": 2, "width": 512, "height": 512, "iteration": 3, "warmup": false, "seconds": 4.643052488001558, "ready_seconds": 39.87749921200157, "image_sha256": "718838980ca6835cd0a4f87303c414cfb1f80b457ed337f2c2bc6d25f35f8df2"}
+Processed prompts:   0%|          | 0/1 [00:00<?, ?it/s]Processed prompts: 100%|██████████| 1/1 [00:04<00:00,  4.46s/it]Processed prompts: 100%|██████████| 1/1 [00:04<00:00,  4.46s/it]
+{"pid": 2990465, "hsdp": false, "cfg_parallel_size": 2, "width": 512, "height": 512, "iteration": 4, "warmup": false, "seconds": 4.463684914000623, "ready_seconds": 39.87749921200157, "image_sha256": "718838980ca6835cd0a4f87303c414cfb1f80b457ed337f2c2bc6d25f35f8df2"}
+Processed prompts:   0%|          | 0/1 [00:00<?, ?it/s]Processed prompts: 100%|██████████| 1/1 [00:04<00:00,  4.50s/it]Processed prompts: 100%|██████████| 1/1 [00:04<00:00,  4.50s/it]
+{"pid": 2990465, "hsdp": false, "cfg_parallel_size": 2, "width": 512, "height": 512, "iteration": 5, "warmup": false, "seconds": 4.501893984997878, "ready_seconds": 39.87749921200157, "image_sha256": "718838980ca6835cd0a4f87303c414cfb1f80b457ed337f2c2bc6d25f35f8df2"}
+Processed prompts:   0%|          | 0/1 [00:00<?, ?it/s]Processed prompts: 100%|██████████| 1/1 [00:04<00:00,  4.50s/it]Processed prompts: 100%|██████████| 1/1 [00:04<00:00,  4.50s/it]
+{"pid": 2990465, "hsdp": false, "cfg_parallel_size": 2, "width": 512, "height": 512, "iteration": 6, "warmup": false, "seconds": 4.500944146999245, "ready_seconds": 39.87749921200157, "image_sha256": "718838980ca6835cd0a4f87303c414cfb1f80b457ed337f2c2bc6d25f35f8df2"}
+Processed prompts:   0%|          | 0/1 [00:00<?, ?it/s]Processed prompts: 100%|██████████| 1/1 [00:11<00:00, 11.96s/it]Processed prompts: 100%|██████████| 1/1 [00:11<00:00, 11.96s/it]
+{"pid": 2990465, "hsdp": false, "cfg_parallel_size": 2, "width": 1024, "height": 768, "iteration": 0, "warmup": true, "seconds": 11.963520407000033, "ready_seconds": 39.87749921200157, "image_sha256": "93464f6b4871dda8d092946697ccbcb5b11ba1710699286ad3b8b9f033029a35"}
+Processed prompts:   0%|          | 0/1 [00:00<?, ?it/s]Processed prompts: 100%|██████████| 1/1 [00:12<00:00, 12.03s/it]Processed prompts: 100%|██████████| 1/1 [00:12<00:00, 12.03s/it]
+{"pid": 2990465, "hsdp": false, "cfg_parallel_size": 2, "width": 1024, "height": 768, "iteration": 1, "warmup": true, "seconds": 12.032986680998874, "ready_seconds": 39.87749921200157, "image_sha256": "93464f6b4871dda8d092946697ccbcb5b11ba1710699286ad3b8b9f033029a35"}
+Processed prompts:   0%|          | 0/1 [00:00<?, ?it/s]Processed prompts: 100%|██████████| 1/1 [00:12<00:00, 12.04s/it]Processed prompts: 100%|██████████| 1/1 [00:12<00:00, 12.04s/it]
+{"pid": 2990465, "hsdp": false, "cfg_parallel_size": 2, "width": 1024, "height": 768, "iteration": 2, "warmup": false, "seconds": 12.045341663997533, "ready_seconds": 39.87749921200157, "image_sha256": "93464f6b4871dda8d092946697ccbcb5b11ba1710699286ad3b8b9f033029a35"}
+Processed prompts:   0%|          | 0/1 [00:00<?, ?it/s]Processed prompts: 100%|██████████| 1/1 [00:12<00:00, 12.11s/it]Processed prompts: 100%|██████████| 1/1 [00:12<00:00, 12.57s/it]
+{"pid": 2990465, "hsdp": false, "cfg_parallel_size": 2, "width": 1024, "height": 768, "iteration": 3, "warmup": false, "seconds": 12.575079021997226, "ready_seconds": 39.87749921200157, "image_sha256": "93464f6b4871dda8d092946697ccbcb5b11ba1710699286ad3b8b9f033029a35"}
+Processed prompts:   0%|          | 0/1 [00:00<?, ?it/s]Processed prompts: 100%|██████████| 1/1 [00:12<00:00, 12.12s/it]Processed prompts: 100%|██████████| 1/1 [00:12<00:00, 12.95s/it]
+{"pid": 2990465, "hsdp": false, "cfg_parallel_size": 2, "width": 1024, "height": 768, "iteration": 4, "warmup": false, "seconds": 12.953203277000284, "ready_seconds": 39.87749921200157, "image_sha256": "93464f6b4871dda8d092946697ccbcb5b11ba1710699286ad3b8b9f033029a35"}
+Processed prompts:   0%|          | 0/1 [00:00<?, ?it/s]Processed prompts: 100%|██████████| 1/1 [00:12<00:00, 12.10s/it]Processed prompts: 100%|██████████| 1/1 [00:12<00:00, 12.12s/it]
+{"pid": 2990465, "hsdp": false, "cfg_parallel_size": 2, "width": 1024, "height": 768, "iteration": 5, "warmup": false, "seconds": 12.120431300001655, "ready_seconds": 39.87749921200157, "image_sha256": "93464f6b4871dda8d092946697ccbcb5b11ba1710699286ad3b8b9f033029a35"}
+Processed prompts:   0%|          | 0/1 [00:00<?, ?it/s]Processed prompts: 100%|██████████| 1/1 [00:12<00:00, 12.06s/it]Processed prompts: 100%|██████████| 1/1 [00:12<00:00, 12.06s/it]
+{"pid": 2990465, "hsdp": false, "cfg_parallel_size": 2, "width": 1024, "height": 768, "iteration": 6, "warmup": false, "seconds": 12.064275347001967, "ready_seconds": 39.87749921200157, "image_sha256": "93464f6b4871dda8d092946697ccbcb5b11ba1710699286ad3b8b9f033029a35"}
+INFO 09-19 16:58:59 [omni_base.py:771] [Omni] Shutting down
+INFO 09-19 16:58:59 [omni_engine_base.py:1144] [OmniEngine] Shutting down Orchestrator
+INFO 09-19 16:58:59 [orchestrator.py:508] [Orchestrator] Received shutdown signal
+INFO 09-19 16:58:59 [orchestrator.py:2610] [Orchestrator] Shutting down all 1 client(s)
+(DiffusionWorker_CFG0 pid=2993841) INFO 09-19 16:58:59 [diffusion_worker.py:1456] Worker 0: Received shutdown message
+(DiffusionWorker_CFG0 pid=2993841) INFO 09-19 16:58:59 [diffusion_worker.py:1478] event loop terminated.
+(DiffusionWorker_CFG1 pid=2993842) INFO 09-19 16:58:59 [diffusion_worker.py:1456] Worker 1: Received shutdown message
+(DiffusionWorker_CFG1 pid=2993842) INFO 09-19 16:58:59 [diffusion_worker.py:1478] event loop terminated.
+(DiffusionWorker_CFG0 pid=2993841) INFO 09-19 16:59:00 [diffusion_worker.py:1546] Worker 0: Shutdown complete.
+(DiffusionWorker_CFG1 pid=2993842) INFO 09-19 16:59:00 [diffusion_worker.py:1546] Worker 1: Shutdown complete.
+INFO 09-19 16:59:04 [stage_pool.py:1338] [StagePool] Stage 0 replica 0 shut down
