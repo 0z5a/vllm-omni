@@ -33,7 +33,7 @@ def main() -> None:
     torch.manual_seed(142)
     torch.set_default_dtype(torch.bfloat16)
     config = OmniDiffusionConfig(
-        model="/home/kxqandccx/omni-1217-20260919/model", tf_model_config=TransformerConfig(params={"num_layers": 1})
+        model="/dev/shm/0z5a-ovis-1217", tf_model_config=TransformerConfig(params={"num_layers": 1})
     )
     build = partial(
         OvisImageTransformer2DModel,
