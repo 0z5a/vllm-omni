@@ -7,10 +7,32 @@ from torch import nn
 from transformers import Gemma3Config, Gemma3ForConditionalGeneration, Gemma3TextConfig, SiglipVisionConfig
 from vllm.model_executor.layers.quantization.fp8 import Fp8Config
 
-from vllm_omni.diffusion.models.ltx2 import quantization
+from vllm_omni.diffusion.models.ltx2 import ltx2_components, quantization
 from vllm_omni.quantization import ComponentQuantizationConfig
 
 pytestmark = [pytest.mark.core_model, pytest.mark.cpu, pytest.mark.diffusion]
+
+
+@pytest.mark.parametrize("scope", ["encoder", "transformer", "both", "global", "none"])
+def test_transformer_receives_only_its_component_config(monkeypatch, scope):
+    fp8 = Fp8Config()
+    configs = {
+        "encoder": ComponentQuantizationConfig({"text_encoder": fp8}),
+        "transformer": ComponentQuantizationConfig({"transformer": fp8}),
+        "both": ComponentQuantizationConfig({"text_encoder": fp8, "transformer": fp8}),
+        "global": fp8,
+        "none": None,
+    }
+    received = []
+
+    class Transformer(nn.Module):
+        def __init__(self, num_layers=1, quant_config=None):
+            super().__init__()
+            received.append((num_layers, quant_config))
+
+    monkeypatch.setattr(ltx2_components, "LTX2VideoTransformer3DModel", Transformer)
+    ltx2_components.create_transformer_from_config({"num_layers": 2}, configs[scope])
+    assert received == [(2, None if scope in ("encoder", "none") else fp8)]
 
 
 @pytest.fixture
