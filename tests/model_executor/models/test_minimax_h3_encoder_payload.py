@@ -407,9 +407,10 @@ def test_encoder_releases_workspace_after_cpu_payload(monkeypatch) -> None:
 
 
 def test_driving_audio_is_not_a_short_reference_and_survives_stage_transport():
+    from vllm_omni.inputs.data import OmniDiffusionSamplingParams
     from vllm_omni.model_executor.models.minimax_h3 import encoder_processing as processing
 
-    sampling = SimpleNamespace(
+    sampling = OmniDiffusionSamplingParams(
         width=64,
         height=64,
         fps=24,
@@ -427,7 +428,12 @@ def test_driving_audio_is_not_a_short_reference_and_survives_stage_transport():
     media = MiniMaxH3EncoderMediaInput.from_mm_tensors(prepared.media.to_mm_tensors(), prepared.media.to_metadata())
     assert media.audio_mode == "lock_source"
     assert prepared.condition_labels == []
-    audio_vae = SimpleNamespace(encode_waveform=lambda *_: (torch.ones(6000, 32), 3000))
+
+    class FakeAudioVAE:
+        def encode_waveform(self, waveform: torch.Tensor, sample_rate: int) -> tuple[torch.Tensor, int]:
+            return torch.ones(6000, 32), 3000
+
+    audio_vae = FakeAudioVAE()
     conditioning = processing.encode_media(media, video_vae=None, audio_vae=audio_vae, emit_conditioning=True)
     assert conditioning.audio_condition_lengths == (3000,)
     assert conditioning.ref_blocks == ()

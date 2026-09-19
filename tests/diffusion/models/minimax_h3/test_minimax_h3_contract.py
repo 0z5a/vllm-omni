@@ -3093,9 +3093,10 @@ def test_video_codec_options_are_normalized_for_the_encoder():
 @pytest.mark.parametrize("duration", [60, 75])
 def test_long_video_shape_requires_explicit_opt_in(duration):
     from vllm_omni.errors import OmniClientError
+    from vllm_omni.inputs.data import OmniDiffusionSamplingParams
     from vllm_omni.model_executor.models.minimax_h3.encoder_processing import resolve_minimax_h3_shape
 
-    sampling = SimpleNamespace(width=960, height=544, fps=24, extra_args={"duration": duration})
+    sampling = OmniDiffusionSamplingParams(width=960, height=544, fps=24, extra_args={"duration": duration})
     with pytest.raises(OmniClientError, match="15"):
         resolve_minimax_h3_shape("ref2va", sampling, None)
     sampling.extra_args["long_video"] = True
