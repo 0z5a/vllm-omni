@@ -8,7 +8,7 @@ import os
 import warnings
 from collections.abc import Iterable
 from dataclasses import dataclass
-from typing import Any, ClassVar
+from typing import Any, ClassVar, cast
 
 import numpy as np
 import PIL.Image
@@ -21,6 +21,8 @@ from diffusers.image_processor import (
     VaeImageProcessor,
     is_valid_image_imagelist,
 )
+from diffusers.models.autoencoders import AutoencoderKL
+from diffusers.models.autoencoders.vae import DiagonalGaussianDistribution
 from diffusers.schedulers.scheduling_utils import SchedulerMixin
 from diffusers.utils import BaseOutput
 from diffusers.utils.torch_utils import randn_tensor
@@ -29,6 +31,11 @@ from vllm.model_executor.models.utils import AutoWeightsLoader
 
 from vllm_omni.diffusion.data import DiffusionOutput, OmniDiffusionConfig
 from vllm_omni.diffusion.distributed.autoencoders.autoencoder_kl import DistributedAutoencoderKL
+from vllm_omni.diffusion.distributed.autoencoders.distributed_vae_executor import (
+    DistributedOperator,
+    GridSpec,
+    TileTask,
+)
 from vllm_omni.diffusion.distributed.cfg_parallel import CFGParallelMixin
 from vllm_omni.diffusion.distributed.utils import get_local_device
 from vllm_omni.diffusion.model_loader.diffusers_loader import DiffusersPipelineLoader
@@ -752,7 +759,7 @@ class OmniGen2Pipeline(CFGParallelMixin, nn.Module, SupportsComponentDiscovery):
             latents = latents.to(device)
         return latents
 
-    def encode_vae(self, img: torch.FloatTensor) -> torch.FloatTensor:
+    def encode_vae(self, img: torch.Tensor, moments: torch.Tensor | None = None) -> torch.Tensor:
         """
         Encode an image into the VAE latent space.
 
@@ -762,13 +769,54 @@ class OmniGen2Pipeline(CFGParallelMixin, nn.Module, SupportsComponentDiscovery):
         Returns:
             torch.FloatTensor: The encoded latent representation.
         """
-        z0 = self.vae.encode(img.to(dtype=self.vae.dtype)).latent_dist.sample()
+        posterior = (
+            self.vae.encode(img.to(dtype=self.vae.dtype)).latent_dist
+            if moments is None
+            else DiagonalGaussianDistribution(moments)
+        )
+        z0 = posterior.sample()
         if self.vae.config.shift_factor is not None:
             z0 = z0 - self.vae.config.shift_factor
         if self.vae.config.scaling_factor is not None:
             z0 = z0 * self.vae.config.scaling_factor
         z0 = z0.to(dtype=self.vae.dtype)
         return z0
+
+    def _encode_reference_images(self, images: list[torch.Tensor]) -> list[torch.Tensor]:
+        if len(images) < 2 or not self.vae.is_distributed_enabled():
+            return [self.encode_vae(image).squeeze(0) for image in images]
+
+        images = [image.to(dtype=self.vae.dtype) for image in images]
+
+        def split(_: torch.Tensor) -> tuple[list[TileTask], GridSpec]:
+            tasks = [TileTask(i, (i,), image, image.numel()) for i, image in enumerate(images)]
+            return tasks, GridSpec(split_dims=(2, 3), grid_shape=(len(images),), output_dtype=self.vae.dtype)
+
+        def encode(task: TileTask) -> torch.Tensor:
+            # Each rank encodes whole images; do not enter spatial collectives here.
+            return AutoencoderKL._encode(self.vae, cast(torch.Tensor, task.tensor))
+
+        def merge(outputs: dict[tuple[int, ...], torch.Tensor], _: GridSpec) -> torch.Tensor:
+            return torch.cat([outputs[(i,)].flatten() for i in range(len(images))]).reshape(1, 1, 1, -1)
+
+        moments = self.vae.distributed_executor.execute(
+            images[0], DistributedOperator(split, encode, merge), broadcast_result=True
+        )
+        shapes = [
+            (
+                image.shape[0],
+                2 * self.vae.config.latent_channels,
+                image.shape[2] // self.vae_scale_factor,
+                image.shape[3] // self.vae_scale_factor,
+            )
+            for image in images
+        ]
+        sizes = [shape[0] * shape[1] * shape[2] * shape[3] for shape in shapes]
+        # Preserve the original reference order and per-image RNG consumption.
+        return [
+            self.encode_vae(image, part.reshape(shape)).squeeze(0)
+            for image, part, shape in zip(images, moments.flatten().split(sizes), shapes)
+        ]
 
     def prepare_image(
         self,
@@ -798,9 +846,7 @@ class OmniGen2Pipeline(CFGParallelMixin, nn.Module, SupportsComponentDiscovery):
         latents = []
         for i, img in enumerate(images):
             if img is not None and len(img) > 0:
-                ref_latents = []
-                for j, img_j in enumerate(img):
-                    ref_latents.append(self.encode_vae(img_j.to(device=device)).squeeze(0))
+                ref_latents = self._encode_reference_images([image.to(device=device) for image in img])
             else:
                 ref_latents = None
             for _ in range(num_images_per_prompt):
