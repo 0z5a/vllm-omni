@@ -1,0 +1,59 @@
+F                                                                        [100%]
+=================================== FAILURES ===================================
+_____________________ test_pipeline_loads_distributed_vae ______________________
+
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x749b417100e0>
+
+    def test_pipeline_loads_distributed_vae(monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.setattr(pipeline_omnigen2, "get_local_device", lambda: torch.device("cpu"))
+        monkeypatch.setattr(pipeline_omnigen2, "prefetch_subfolders", Mock())
+        monkeypatch.setattr(pipeline_omnigen2.FlowMatchEulerDiscreteScheduler, "from_pretrained", Mock())
+    
+        class VaeLoadReachedError(Exception):
+            pass
+    
+        def check_vae_class(cls: type[AutoencoderKL], model: str, **kwargs: object) -> None:
+            assert issubclass(cls, DistributedVaeMixin)
+            assert model == "test/omnigen2"
+            assert kwargs["subfolder"] == "vae"
+            raise VaeLoadReachedError
+    
+        monkeypatch.setattr(AutoencoderKL, "from_pretrained", classmethod(check_vae_class))
+        with pytest.raises(VaeLoadReachedError):
+>           pipeline_omnigen2.OmniGen2Pipeline(od_config=OmniDiffusionConfig(model="test/omnigen2", dtype=torch.bfloat16))
+
+../../pending/tests/diffusion/models/omnigen2/test_omnigen2_vae.py:33: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+vllm_omni/diffusion/models/omnigen2/pipeline_omnigen2.py:684: in __init__
+    self.vae = from_pretrained_with_prefetch(
+vllm_omni/diffusion/model_loader/hub_prefetch.py:462: in from_pretrained_with_prefetch
+    return factory(
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+cls = <class 'diffusers.models.autoencoders.autoencoder_kl.AutoencoderKL'>
+model = 'test/omnigen2'
+kwargs = {'subfolder': 'vae', 'local_files_only': False}
+
+    def check_vae_class(cls: type[AutoencoderKL], model: str, **kwargs: object) -> None:
+>       assert issubclass(cls, DistributedVaeMixin)
+E       AssertionError: assert False
+E        +  where False = issubclass(<class 'diffusers.models.autoencoders.autoencoder_kl.AutoencoderKL'>, DistributedVaeMixin)
+
+../../pending/tests/diffusion/models/omnigen2/test_omnigen2_vae.py:26: AssertionError
+---------------------------- Captured stdout setup -----------------------------
+INFO 09-19 23:58:12 [scheduler.py:277] Chunked prefill is enabled with max_num_batched_tokens=2048.
+INFO 09-19 23:58:12 [kernel.py:369] Final IR op priority after setting platform defaults: IrOpPriorityConfig(rms_norm=['native'], fused_add_rms_norm=['native'])
+--- Running test: test_pipeline_loads_distributed_vae
+------------------------------ Captured log setup ------------------------------
+INFO     vllm.config.scheduler:scheduler.py:277 Chunked prefill is enabled with max_num_batched_tokens=2048.
+INFO     vllm.config.kernel:kernel.py:369 Final IR op priority after setting platform defaults: IrOpPriorityConfig(rms_norm=['native'], fused_add_rms_norm=['native'])
+=============================== warnings summary ===============================
+../../../vllm-omni-7753-hidream-20260918/venv/lib/python3.12/site-packages/torch/jit/_script.py:365: 14 warnings
+  /home/kxqandccx/vllm-omni-7753-hidream-20260918/venv/lib/python3.12/site-packages/torch/jit/_script.py:365: DeprecationWarning: `torch.jit.script_method` is deprecated. Please switch to `torch.compile` or `torch.export`.
+    warnings.warn(
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+--- Running Summary
+=========================== short test summary info ============================
+FAILED ../../pending/tests/diffusion/models/omnigen2/test_omnigen2_vae.py::test_pipeline_loads_distributed_vae
+1 failed, 14 warnings in 10.17s

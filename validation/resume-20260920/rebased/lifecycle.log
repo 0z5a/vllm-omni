@@ -1,0 +1,35 @@
+INFO 09-19 23:52:21 [patch.py:252] NVFP4 W4A4 weight_scale NaN-clamp: installed.
+INFO 09-19 23:52:21 [patch.py:252] NVFP4 W4A4 weight_scale NaN-clamp: installed.
+INFO 09-19 23:52:22 [patch.py:503] inductor factorable-divisibility patch: installed.
+INFO 09-19 23:52:22 [patch.py:568] [cumem-cuda] CuMemAllocator._python_free_callback patched: asleep guard extended to all platforms.
+INFO 09-19 23:52:22 [patch.py:503] inductor factorable-divisibility patch: installed.
+INFO 09-19 23:52:22 [patch.py:568] [cumem-cuda] CuMemAllocator._python_free_callback patched: asleep guard extended to all platforms.
+INFO 09-19 23:52:24 [scheduler.py:277] Chunked prefill is enabled with max_num_batched_tokens=2048.
+INFO 09-19 23:52:24 [kernel.py:369] Final IR op priority after setting platform defaults: IrOpPriorityConfig(rms_norm=['native'], fused_add_rms_norm=['native'])
+INFO 09-19 23:52:25 [scheduler.py:277] Chunked prefill is enabled with max_num_batched_tokens=2048.
+INFO 09-19 23:52:25 [kernel.py:369] Final IR op priority after setting platform defaults: IrOpPriorityConfig(rms_norm=['native'], fused_add_rms_norm=['native'])
+INFO 09-19 23:52:25 [parallel_state.py:785] sequence_parallel_size is not provided, using 1
+INFO 09-19 23:52:25 [parallel_state.py:785] sequence_parallel_size is not provided, using 1
+INFO 09-19 23:52:25 [parallel_state.py:610] Building SP subgroups from explicit sp_group_ranks (sp_size=1, ulysses=1, ring=1, use_ulysses_low=True).
+INFO 09-19 23:52:25 [parallel_state.py:610] Building SP subgroups from explicit sp_group_ranks (sp_size=1, ulysses=1, ring=1, use_ulysses_low=True).
+INFO 09-19 23:52:25 [parallel_state.py:652] SP group details for rank 0: sp_group=[0], ulysses_group=[0], ring_group=[0]
+INFO 09-19 23:52:25 [parallel_state.py:652] SP group details for rank 1: sp_group=[1], ulysses_group=[1], ring_group=[1]
+INFO 09-19 23:52:25 [data.py:1157] Port 40189 was unavailable, using port 40226 instead
+INFO 09-19 23:52:25 [data.py:1157] Port 40189 was unavailable, using port 40226 instead
+INFO 09-19 23:52:26 [selector.py:93] Resolved diffusion attention backend 'FLASH_ATTN' for role='self' via platform default
+INFO 09-19 23:52:26 [hsdp.py:129] HSDP Inference (FSDP2): replicate_size=1, shard_size=2, world_size=2, rank=0
+INFO 09-19 23:52:26 [hsdp.py:286] Sharded 2 modules + root (ignored_params=0)
+INFO 09-19 23:52:26 [hsdp.py:240] HSDP applied to model: FSDPOvisImageTransformer2DModel
+WARNING 09-19 23:52:26 [op.py:338] Priority not set for op rms_norm, using native implementation.
+INFO 09-19 23:52:26 [selector.py:93] Resolved diffusion attention backend 'FLASH_ATTN' for role='self' via platform default
+INFO 09-19 23:52:26 [hsdp.py:129] HSDP Inference (FSDP2): replicate_size=1, shard_size=2, world_size=2, rank=1
+INFO 09-19 23:52:26 [hsdp.py:286] Sharded 2 modules + root (ignored_params=0)
+INFO 09-19 23:52:26 [hsdp.py:240] HSDP applied to model: FSDPOvisImageTransformer2DModel
+{"rank": 1, "sequence": 16, "max_abs": 0.0, "all_gathers_for_three_steps": 3}
+{"rank": 0, "sequence": 16, "max_abs": 0.0, "all_gathers_for_three_steps": 3}
+{"rank": 1, "sequence": 24, "max_abs": 0.0, "all_gathers_for_three_steps": 3}
+{"rank": 0, "sequence": 24, "max_abs": 0.0, "all_gathers_for_three_steps": 3}
+{"rank": 1, "sequence": 16, "max_abs": 0.0, "all_gathers_for_three_steps": 3}
+{"rank": 0, "sequence": 16, "max_abs": 0.0, "all_gathers_for_three_steps": 3}
+{"rank": 1, "exception_cleanup": "passed"}
+{"rank": 0, "exception_cleanup": "passed"}

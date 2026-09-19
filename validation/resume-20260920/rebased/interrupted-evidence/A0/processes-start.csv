@@ -1,0 +1,5 @@
+gpu_uuid, pid, used_gpu_memory [MiB], process_name
+GPU-79205eb2-0a9c-208f-b49b-aed7f2b6ebb4, 2928628, 910 MiB, /home/newuser005/venv1/bin/python
+GPU-79205eb2-0a9c-208f-b49b-aed7f2b6ebb4, 2156826, 29768 MiB, /home/kxqandccx/0z5a/moonlight-42-37-20260919/venv-req/bin/python
+GPU-dfe309b3-df0d-f7f1-642b-40c03e15924f, 2932543, 910 MiB, /home/newuser005/venv1/bin/python
+GPU-dfe309b3-df0d-f7f1-642b-40c03e15924f, 2179584, 572 MiB, /home/kxqandccx/0z5a/moonlight-42-37-20260919/venv-req/bin/python

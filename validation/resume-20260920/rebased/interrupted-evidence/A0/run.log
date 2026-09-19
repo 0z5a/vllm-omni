@@ -1,0 +1,520 @@
+INFO 09-19 23:56:02 [patch.py:252] NVFP4 W4A4 weight_scale NaN-clamp: installed.
+INFO 09-19 23:56:03 [patch.py:503] inductor factorable-divisibility patch: installed.
+INFO 09-19 23:56:03 [patch.py:568] [cumem-cuda] CuMemAllocator._python_free_callback patched: asleep guard extended to all platforms.
+INFO 09-19 23:56:16 [omni_base.py:208] [Omni] Initializing with model /dev/shm/0z5a-ovis-1217
+INFO 09-19 23:56:16 [omni_engine_base.py:163] [OmniEngine] Initializing with model /dev/shm/0z5a-ovis-1217
+INFO 09-19 23:56:20 [config_factory.py:697] Resolved generic diffusion final_output_type='image' for model_class_name='OvisImagePipeline'.
+INFO 09-19 23:56:20 [omni_engine_base.py:312] [OmniEngine] Launching Orchestrator thread with 1 stages
+INFO 09-19 23:56:22 [stage_init_utils.py:775] [stage_init] Set VLLM_WORKER_MULTIPROC_METHOD=spawn
+INFO 09-19 23:56:22 [stage_utils.py:178] Stage 0 logical-to-physical device mapping: 0->2, 1->3
+INFO 09-19 23:56:26 [multiproc_executor.py:350] Starting server...
+INFO 09-19 23:56:35 [patch.py:252] NVFP4 W4A4 weight_scale NaN-clamp: installed.
+INFO 09-19 23:56:35 [patch.py:252] NVFP4 W4A4 weight_scale NaN-clamp: installed.
+INFO 09-19 23:56:36 [patch.py:503] inductor factorable-divisibility patch: installed.
+INFO 09-19 23:56:36 [patch.py:568] [cumem-cuda] CuMemAllocator._python_free_callback patched: asleep guard extended to all platforms.
+INFO 09-19 23:56:36 [patch.py:503] inductor factorable-divisibility patch: installed.
+INFO 09-19 23:56:36 [patch.py:568] [cumem-cuda] CuMemAllocator._python_free_callback patched: asleep guard extended to all platforms.
+(DiffusionWorker pid=2195803) INFO 09-19 23:56:39 [diffusion_worker.py:1058] Worker 1 created result MessageQueue
+(DiffusionWorker pid=2195802) INFO 09-19 23:56:39 [diffusion_worker.py:1058] Worker 0 created result MessageQueue
+(DiffusionWorker pid=2195803) INFO 09-19 23:56:39 [scheduler.py:277] Chunked prefill is enabled with max_num_batched_tokens=2048.
+(DiffusionWorker pid=2195803) INFO 09-19 23:56:39 [kernel.py:369] Final IR op priority after setting platform defaults: IrOpPriorityConfig(rms_norm=['native'], fused_add_rms_norm=['native'])
+(DiffusionWorker pid=2195803) INFO 09-19 23:56:39 [diffusion_worker.py:327] Final IR op priority after setting vLLM-Omni overrides: IrOpPriorityConfig(rms_norm=['vllm_c', 'native'], fused_add_rms_norm=['vllm_c', 'native'])
+(DiffusionWorker pid=2195802) INFO 09-19 23:56:39 [scheduler.py:277] Chunked prefill is enabled with max_num_batched_tokens=2048.
+(DiffusionWorker pid=2195802) INFO 09-19 23:56:39 [kernel.py:369] Final IR op priority after setting platform defaults: IrOpPriorityConfig(rms_norm=['native'], fused_add_rms_norm=['native'])
+(DiffusionWorker pid=2195802) INFO 09-19 23:56:39 [diffusion_worker.py:327] Final IR op priority after setting vLLM-Omni overrides: IrOpPriorityConfig(rms_norm=['vllm_c', 'native'], fused_add_rms_norm=['vllm_c', 'native'])
+(DiffusionWorker pid=2195802) INFO 09-19 23:56:39 [diffusion_worker.py:339] Worker 0: Initialized device and distributed environment.
+(DiffusionWorker pid=2195803) INFO 09-19 23:56:39 [diffusion_worker.py:339] Worker 1: Initialized device and distributed environment.
+(DiffusionWorker pid=2195802) INFO 09-19 23:56:39 [parallel_state.py:610] Building SP subgroups from explicit sp_group_ranks (sp_size=1, ulysses=1, ring=1, use_ulysses_low=True).
+(DiffusionWorker pid=2195803) INFO 09-19 23:56:39 [parallel_state.py:610] Building SP subgroups from explicit sp_group_ranks (sp_size=1, ulysses=1, ring=1, use_ulysses_low=True).
+(DiffusionWorker pid=2195802) INFO 09-19 23:56:39 [parallel_state.py:652] SP group details for rank 0: sp_group=[0], ulysses_group=[0], ring_group=[0]
+(DiffusionWorker pid=2195803) INFO 09-19 23:56:39 [parallel_state.py:652] SP group details for rank 1: sp_group=[1], ulysses_group=[1], ring_group=[1]
+(DiffusionWorker_CFG0_FS0 pid=2195802) Loading weights:   0%|          | 0/310 [00:00<?, ?it/s](DiffusionWorker_CFG1_FS1 pid=2195803) Loading weights:   0%|          | 0/310 [00:00<?, ?it/s]Loading weights:   0%|          | 1/310 [00:00<00:40,  7.65it/s]Loading weights:   0%|          | 1/310 [00:00<00:42,  7.34it/s]Loading weights:  83%|████████▎ | 256/310 [00:00<00:00, 1293.74it/s]Loading weights:  87%|████████▋ | 269/310 [00:00<00:00, 1368.61it/s]Loading weights: 100%|██████████| 310/310 [00:00<00:00, 1126.70it/s]
+Loading weights: 100%|██████████| 310/310 [00:00<00:00, 1181.69it/s]
+(DiffusionWorker_CFG1_FS1 pid=2195803) INFO 09-19 23:56:45 [selector.py:93] Resolved diffusion attention backend 'FLASH_ATTN' for role='self' via platform default
+(DiffusionWorker_CFG0_FS0 pid=2195802) INFO 09-19 23:56:46 [selector.py:93] Resolved diffusion attention backend 'FLASH_ATTN' for role='self' via platform default
+(DiffusionWorker_CFG0_FS0 pid=2195802) Multi-thread loading shards:   0% Completed | 0/2 [00:00<?, ?it/s]
+(DiffusionWorker_CFG0_FS0 pid=2195802) Multi-thread loading shards:  50% Completed | 1/2 [00:00<00:00,  1.77it/s]
+(DiffusionWorker_CFG1_FS1 pid=2195803) INFO 09-19 23:57:26 [hsdp.py:129] HSDP Inference (FSDP2): replicate_size=1, shard_size=2, world_size=2, rank=1
+(DiffusionWorker_CFG0_FS0 pid=2195802) Multi-thread loading shards: 100% Completed | 2/2 [00:02<00:00,  1.41s/it]
+(DiffusionWorker_CFG0_FS0 pid=2195802) Multi-thread loading shards: 100% Completed | 2/2 [00:02<00:00,  1.28s/it]
+(DiffusionWorker_CFG0_FS0 pid=2195802) 
+(DiffusionWorker_CFG0_FS0 pid=2195802) INFO 09-19 23:57:26 [diffusers_loader.py:1098] Loading weights took 2.93 seconds
+(DiffusionWorker_CFG0_FS0 pid=2195802) INFO 09-19 23:57:28 [hsdp.py:129] HSDP Inference (FSDP2): replicate_size=1, shard_size=2, world_size=2, rank=0
+(DiffusionWorker_CFG1_FS1 pid=2195803) INFO 09-19 23:57:29 [hsdp.py:286] Sharded 33 modules + root (ignored_params=0)
+(DiffusionWorker_CFG1_FS1 pid=2195803) INFO 09-19 23:57:29 [hsdp.py:240] HSDP applied to model: FSDPOvisImageTransformer2DModel
+(DiffusionWorker_CFG1_FS1 pid=2195803) INFO 09-19 23:57:32 [diffusion_model_runner.py:340] Model loading took 10.3217 GiB and 52.481939 seconds
+(DiffusionWorker_CFG1_FS1 pid=2195803) INFO 09-19 23:57:32 [diffusion_model_runner.py:346] Model runner: Model loaded successfully.
+(DiffusionWorker_CFG1_FS1 pid=2195803) INFO 09-19 23:57:32 [diffusion_model_runner.py:437] Model runner: Initialization complete.
+(DiffusionWorker_CFG0_FS0 pid=2195802) INFO 09-19 23:57:32 [hsdp.py:286] Sharded 33 modules + root (ignored_params=0)
+(DiffusionWorker_CFG0_FS0 pid=2195802) INFO 09-19 23:57:32 [hsdp.py:240] HSDP applied to model: FSDPOvisImageTransformer2DModel
+(DiffusionWorker_CFG1_FS1 pid=2195803) INFO 09-19 23:57:32 [diffusion_worker.py:420] Worker 1: Process-scoped GPU memory after model loading: 10.68 GiB.
+(DiffusionWorker_CFG1_FS1 pid=2195803) INFO 09-19 23:57:32 [manager.py:112] Initializing DiffusionLoRAManager: device=cuda:1, dtype=torch.bfloat16, max_cached_adapters=1, static_lora_path=None
+(DiffusionWorker_CFG1_FS1 pid=2195803) INFO 09-19 23:57:32 [diffusion_worker.py:297] Worker 1: Initialization complete.
+(DiffusionWorker_CFG1_FS1 pid=2195803) INFO 09-19 23:57:32 [diffusion_worker.py:1523] Worker 1: Scheduler loop started.
+(DiffusionWorker_CFG1_FS1 pid=2195803) INFO 09-19 23:57:32 [diffusion_worker.py:1367] Worker 1 ready to receive requests via shared memory
+[rank0]:[W919 23:57:33.897463937 CUDACachingAllocator.cpp:3933] memory allocation failed with OOM on device 0 while trying to allocate 25165824 bytes (free: 22020096, total: 47667740672).
+[rank0]:[W919 23:57:33.897595022 CUDACachingAllocator.cpp:3933] memory allocation failed with OOM on device 0 while trying to allocate 25165824 bytes (free: 22020096, total: 47667740672).
+(DiffusionWorker_CFG0_FS0 pid=2195802) Process DiffusionWorker-0:
+(DiffusionWorker_CFG0_FS0 pid=2195802) Traceback (most recent call last):
+(DiffusionWorker_CFG0_FS0 pid=2195802)   File "/home/kxqandccx/.local/share/uv/python/cpython-3.12.13-linux-x86_64-gnu/lib/python3.12/multiprocessing/process.py", line 314, in _bootstrap
+(DiffusionWorker_CFG0_FS0 pid=2195802)     self.run()
+(DiffusionWorker_CFG0_FS0 pid=2195802)   File "/home/kxqandccx/.local/share/uv/python/cpython-3.12.13-linux-x86_64-gnu/lib/python3.12/multiprocessing/process.py", line 108, in run
+(DiffusionWorker_CFG0_FS0 pid=2195802)     self._target(*self._args, **self._kwargs)
+(DiffusionWorker_CFG0_FS0 pid=2195802)   File "/home/kxqandccx/omni-1217-20260919/rebased/hsdp/vllm_omni/diffusion/worker/diffusion_worker.py", line 1515, in worker_main
+(DiffusionWorker_CFG0_FS0 pid=2195802)     worker_proc = WorkerProc(
+(DiffusionWorker_CFG0_FS0 pid=2195802)                   ^^^^^^^^^^^
+(DiffusionWorker_CFG0_FS0 pid=2195802)   File "/home/kxqandccx/omni-1217-20260919/rebased/hsdp/vllm_omni/diffusion/worker/diffusion_worker.py", line 1063, in __init__
+(DiffusionWorker_CFG0_FS0 pid=2195802)     self.worker = self._create_worker(gpu_id, od_config, worker_extension_cls, custom_pipeline_args)
+(DiffusionWorker_CFG0_FS0 pid=2195802)                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(DiffusionWorker_CFG0_FS0 pid=2195802)   File "/home/kxqandccx/omni-1217-20260919/rebased/hsdp/vllm_omni/diffusion/worker/diffusion_worker.py", line 1098, in _create_worker
+(DiffusionWorker_CFG0_FS0 pid=2195802)     wrapper = WorkerWrapperBase(
+(DiffusionWorker_CFG0_FS0 pid=2195802)               ^^^^^^^^^^^^^^^^^^
+(DiffusionWorker_CFG0_FS0 pid=2195802)   File "/home/kxqandccx/omni-1217-20260919/rebased/hsdp/vllm_omni/diffusion/worker/diffusion_worker.py", line 1587, in __init__
+(DiffusionWorker_CFG0_FS0 pid=2195802)     self.worker = worker_class(
+(DiffusionWorker_CFG0_FS0 pid=2195802)                   ^^^^^^^^^^^^^
+(DiffusionWorker_CFG0_FS0 pid=2195802)   File "/home/kxqandccx/omni-1217-20260919/rebased/hsdp/vllm_omni/diffusion/worker/diffusion_worker.py", line 295, in __init__
+(DiffusionWorker_CFG0_FS0 pid=2195802)     self.load_model(load_format=self.od_config.diffusion_load_format)
+(DiffusionWorker_CFG0_FS0 pid=2195802)   File "/home/kxqandccx/omni-1217-20260919/rebased/hsdp/vllm_omni/diffusion/worker/diffusion_worker.py", line 411, in load_model
+(DiffusionWorker_CFG0_FS0 pid=2195802)     self.model_runner.load_model(
+(DiffusionWorker_CFG0_FS0 pid=2195802)   File "/home/kxqandccx/omni-1217-20260919/rebased/hsdp/vllm_omni/diffusion/worker/diffusion_model_runner.py", line 332, in load_model
+(DiffusionWorker_CFG0_FS0 pid=2195802)     self.pipeline = model_loader.load_model(
+(DiffusionWorker_CFG0_FS0 pid=2195802)                     ^^^^^^^^^^^^^^^^^^^^^^^^
+(DiffusionWorker_CFG0_FS0 pid=2195802)   File "/home/kxqandccx/omni-1217-20260919/rebased/hsdp/vllm_omni/diffusion/model_loader/diffusers_loader.py", line 681, in load_model
+(DiffusionWorker_CFG0_FS0 pid=2195802)     model = self._load_model_with_hsdp(
+(DiffusionWorker_CFG0_FS0 pid=2195802)             ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(DiffusionWorker_CFG0_FS0 pid=2195802)   File "/home/kxqandccx/omni-1217-20260919/rebased/hsdp/vllm_omni/diffusion/model_loader/diffusers_loader.py", line 1356, in _load_model_with_hsdp
+(DiffusionWorker_CFG0_FS0 pid=2195802)     module.to(target_device)
+(DiffusionWorker_CFG0_FS0 pid=2195802)   File "/home/kxqandccx/vllm-omni-7753-hidream-20260918/venv/lib/python3.12/site-packages/transformers/modeling_utils.py", line 3849, in to
+(DiffusionWorker_CFG0_FS0 pid=2195802)     return super().to(*args, **kwargs)
+(DiffusionWorker_CFG0_FS0 pid=2195802)            ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(DiffusionWorker_CFG0_FS0 pid=2195802)   File "/home/kxqandccx/vllm-omni-7753-hidream-20260918/venv/lib/python3.12/site-packages/torch/nn/modules/module.py", line 1383, in to
+(DiffusionWorker_CFG0_FS0 pid=2195802)     return self._apply(convert)
+(DiffusionWorker_CFG0_FS0 pid=2195802)            ^^^^^^^^^^^^^^^^^^^^
+(DiffusionWorker_CFG0_FS0 pid=2195802)   File "/home/kxqandccx/vllm-omni-7753-hidream-20260918/venv/lib/python3.12/site-packages/torch/nn/modules/module.py", line 933, in _apply
+(DiffusionWorker_CFG0_FS0 pid=2195802)     module._apply(fn)
+(DiffusionWorker_CFG0_FS0 pid=2195802)   File "/home/kxqandccx/vllm-omni-7753-hidream-20260918/venv/lib/python3.12/site-packages/torch/nn/modules/module.py", line 933, in _apply
+(DiffusionWorker_CFG0_FS0 pid=2195802)     module._apply(fn)
+(DiffusionWorker_CFG0_FS0 pid=2195802)   File "/home/kxqandccx/vllm-omni-7753-hidream-20260918/venv/lib/python3.12/site-packages/torch/nn/modules/module.py", line 933, in _apply
+(DiffusionWorker_CFG0_FS0 pid=2195802)     module._apply(fn)
+(DiffusionWorker_CFG0_FS0 pid=2195802)   [Previous line repeated 1 more time]
+(DiffusionWorker_CFG0_FS0 pid=2195802)   File "/home/kxqandccx/vllm-omni-7753-hidream-20260918/venv/lib/python3.12/site-packages/torch/nn/modules/module.py", line 964, in _apply
+(DiffusionWorker_CFG0_FS0 pid=2195802)     param_applied = fn(param)
+(DiffusionWorker_CFG0_FS0 pid=2195802)                     ^^^^^^^^^
+(DiffusionWorker_CFG0_FS0 pid=2195802)   File "/home/kxqandccx/vllm-omni-7753-hidream-20260918/venv/lib/python3.12/site-packages/torch/nn/modules/module.py", line 1369, in convert
+(DiffusionWorker_CFG0_FS0 pid=2195802)     return t.to(
+(DiffusionWorker_CFG0_FS0 pid=2195802)            ^^^^^
+(DiffusionWorker_CFG0_FS0 pid=2195802) torch.OutOfMemoryError: CUDA out of memory. Tried to allocate 24.00 MiB. GPU 0 has a total capacity of 44.39 GiB of which 21.00 MiB is free. Process 2928628 has 910.00 MiB memory in use. Process 2156826 has 33.76 GiB memory in use. Including non-PyTorch memory, this process has 9.69 GiB memory in use. Of the allocated memory 9.34 GiB is allocated by PyTorch, and 30.68 MiB is reserved by PyTorch but unallocated. If reserved but unallocated memory is large try setting PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True to avoid fragmentation.  See documentation for Memory Management  (https://docs.pytorch.org/docs/stable/notes/cuda.html#optimizing-memory-usage-with-pytorch-cuda-alloc-conf)
+[rank1]:[W919 23:57:36.561448380 TCPStore.cpp:125] [c10d] recvValue failed on SocketImpl(fd=102, addr=[localhost]:41158, remote=[localhost]:48451): Failed to recv, got 0 bytes. Connection was likely closed. Did the remote server shutdown or crash?
+Exception raised from recvBytes at /__w/pytorch/pytorch/torch/csrc/distributed/c10d/Utils.hpp:787 (most recent call first):
+frame #0: c10::Error::Error(c10::SourceLocation, std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >) + 0x9d (0x7d0d36f63bfd in /home/kxqandccx/vllm-omni-7753-hidream-20260918/venv/lib/python3.12/site-packages/torch/lib/libc10.so)
+frame #1: c10::DistError::DistError(c10::SourceLocation, std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >) + 0x72 (0x7d0d36f64bd2 in /home/kxqandccx/vllm-omni-7753-hidream-20260918/venv/lib/python3.12/site-packages/torch/lib/libc10.so)
+frame #2: c10::DistNetworkError::DistNetworkError(c10::SourceLocation, std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >) + 0x72 (0x7d0d36f65092 in /home/kxqandccx/vllm-omni-7753-hidream-20260918/venv/lib/python3.12/site-packages/torch/lib/libc10.so)
+frame #3: <unknown function> + 0x66acf0d (0x7d0ca02acf0d in /home/kxqandccx/vllm-omni-7753-hidream-20260918/venv/lib/python3.12/site-packages/torch/lib/libtorch_cpu.so)
+frame #4: c10d::TCPStore::check(std::vector<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >, std::allocator<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > > > const&) + 0x383 (0x7d0ca02a63e3 in /home/kxqandccx/vllm-omni-7753-hidream-20260918/venv/lib/python3.12/site-packages/torch/lib/libtorch_cpu.so)
+frame #5: c10d::ProcessGroupNCCL::HeartbeatMonitor::runLoop() + 0x43d (0x7d0c8215419d in /home/kxqandccx/vllm-omni-7753-hidream-20260918/venv/lib/python3.12/site-packages/torch/lib/libtorch_cuda.so)
+frame #6: <unknown function> + 0xdc253 (0x7d0d07adc253 in /lib/x86_64-linux-gnu/libstdc++.so.6)
+frame #7: <unknown function> + 0x94a83 (0x7d0d38694a83 in /lib/x86_64-linux-gnu/libc.so.6)
+frame #8: <unknown function> + 0x1268e0 (0x7d0d387268e0 in /lib/x86_64-linux-gnu/libc.so.6)
+
+[rank1]:[W919 23:57:36.564481047 ProcessGroupNCCL.cpp:1876] [PG ID 0 PG GUID 0 Rank 1] Failed to check the "should dump" flag on TCPStore, (maybe TCPStore server has shut down too early), with error: Failed to recv, got 0 bytes. Connection was likely closed. Did the remote server shutdown or crash?
+[rank1]:[W919 23:57:37.564637074 TCPStore.cpp:106] [c10d] sendBytes failed on SocketImpl(fd=102, addr=[localhost]:41158, remote=[localhost]:48451): Broken pipe
+Exception raised from sendBytes at /__w/pytorch/pytorch/torch/csrc/distributed/c10d/Utils.hpp:758 (most recent call first):
+frame #0: c10::Error::Error(c10::SourceLocation, std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >) + 0x9d (0x7d0d36f63bfd in /home/kxqandccx/vllm-omni-7753-hidream-20260918/venv/lib/python3.12/site-packages/torch/lib/libc10.so)
+frame #1: c10::DistError::DistError(c10::SourceLocation, std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >) + 0x72 (0x7d0d36f64bd2 in /home/kxqandccx/vllm-omni-7753-hidream-20260918/venv/lib/python3.12/site-packages/torch/lib/libc10.so)
+frame #2: c10::DistNetworkError::DistNetworkError(c10::SourceLocation, std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >) + 0x72 (0x7d0d36f65092 in /home/kxqandccx/vllm-omni-7753-hidream-20260918/venv/lib/python3.12/site-packages/torch/lib/libc10.so)
+frame #3: <unknown function> + 0x66ac332 (0x7d0ca02ac332 in /home/kxqandccx/vllm-omni-7753-hidream-20260918/venv/lib/python3.12/site-packages/torch/lib/libtorch_cpu.so)
+frame #4: <unknown function> + 0x66ad3e1 (0x7d0ca02ad3e1 in /home/kxqandccx/vllm-omni-7753-hidream-20260918/venv/lib/python3.12/site-packages/torch/lib/libtorch_cpu.so)
+frame #5: <unknown function> + 0x66ad58d (0x7d0ca02ad58d in /home/kxqandccx/vllm-omni-7753-hidream-20260918/venv/lib/python3.12/site-packages/torch/lib/libtorch_cpu.so)
+frame #6: c10d::TCPStore::check(std::vector<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >, std::allocator<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > > > const&) + 0x35d (0x7d0ca02a63bd in /home/kxqandccx/vllm-omni-7753-hidream-20260918/venv/lib/python3.12/site-packages/torch/lib/libtorch_cpu.so)
+frame #7: c10d::ProcessGroupNCCL::HeartbeatMonitor::runLoop() + 0x43d (0x7d0c8215419d in /home/kxqandccx/vllm-omni-7753-hidream-20260918/venv/lib/python3.12/site-packages/torch/lib/libtorch_cuda.so)
+frame #8: <unknown function> + 0xdc253 (0x7d0d07adc253 in /lib/x86_64-linux-gnu/libstdc++.so.6)
+frame #9: <unknown function> + 0x94a83 (0x7d0d38694a83 in /lib/x86_64-linux-gnu/libc.so.6)
+frame #10: <unknown function> + 0x1268e0 (0x7d0d387268e0 in /lib/x86_64-linux-gnu/libc.so.6)
+
+[rank1]:[W919 23:57:37.568961965 ProcessGroupNCCL.cpp:1876] [PG ID 0 PG GUID 0 Rank 1] Failed to check the "should dump" flag on TCPStore, (maybe TCPStore server has shut down too early), with error: Broken pipe
+[rank1]:[W919 23:57:38.569111248 TCPStore.cpp:106] [c10d] sendBytes failed on SocketImpl(fd=102, addr=[localhost]:41158, remote=[localhost]:48451): Broken pipe
+Exception raised from sendBytes at /__w/pytorch/pytorch/torch/csrc/distributed/c10d/Utils.hpp:758 (most recent call first):
+frame #0: c10::Error::Error(c10::SourceLocation, std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >) + 0x9d (0x7d0d36f63bfd in /home/kxqandccx/vllm-omni-7753-hidream-20260918/venv/lib/python3.12/site-packages/torch/lib/libc10.so)
+frame #1: c10::DistError::DistError(c10::SourceLocation, std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >) + 0x72 (0x7d0d36f64bd2 in /home/kxqandccx/vllm-omni-7753-hidream-20260918/venv/lib/python3.12/site-packages/torch/lib/libc10.so)
+frame #2: c10::DistNetworkError::DistNetworkError(c10::SourceLocation, std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >) + 0x72 (0x7d0d36f65092 in /home/kxqandccx/vllm-omni-7753-hidream-20260918/venv/lib/python3.12/site-packages/torch/lib/libc10.so)
+frame #3: <unknown function> + 0x66ac332 (0x7d0ca02ac332 in /home/kxqandccx/vllm-omni-7753-hidream-20260918/venv/lib/python3.12/site-packages/torch/lib/libtorch_cpu.so)
+frame #4: <unknown function> + 0x66ad3e1 (0x7d0ca02ad3e1 in /home/kxqandccx/vllm-omni-7753-hidream-20260918/venv/lib/python3.12/site-packages/torch/lib/libtorch_cpu.so)
+frame #5: <unknown function> + 0x66ad58d (0x7d0ca02ad58d in /home/kxqandccx/vllm-omni-7753-hidream-20260918/venv/lib/python3.12/site-packages/torch/lib/libtorch_cpu.so)
+frame #6: c10d::TCPStore::check(std::vector<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >, std::allocator<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > > > const&) + 0x35d (0x7d0ca02a63bd in /home/kxqandccx/vllm-omni-7753-hidream-20260918/venv/lib/python3.12/site-packages/torch/lib/libtorch_cpu.so)
+frame #7: c10d::ProcessGroupNCCL::HeartbeatMonitor::runLoop() + 0x43d (0x7d0c8215419d in /home/kxqandccx/vllm-omni-7753-hidream-20260918/venv/lib/python3.12/site-packages/torch/lib/libtorch_cuda.so)
+frame #8: <unknown function> + 0xdc253 (0x7d0d07adc253 in /lib/x86_64-linux-gnu/libstdc++.so.6)
+frame #9: <unknown function> + 0x94a83 (0x7d0d38694a83 in /lib/x86_64-linux-gnu/libc.so.6)
+frame #10: <unknown function> + 0x1268e0 (0x7d0d387268e0 in /lib/x86_64-linux-gnu/libc.so.6)
+
+[rank1]:[W919 23:57:38.573509545 ProcessGroupNCCL.cpp:1876] [PG ID 0 PG GUID 0 Rank 1] Failed to check the "should dump" flag on TCPStore, (maybe TCPStore server has shut down too early), with error: Broken pipe
+[rank1]:[W919 23:57:39.573658961 TCPStore.cpp:106] [c10d] sendBytes failed on SocketImpl(fd=102, addr=[localhost]:41158, remote=[localhost]:48451): Broken pipe
+Exception raised from sendBytes at /__w/pytorch/pytorch/torch/csrc/distributed/c10d/Utils.hpp:758 (most recent call first):
+frame #0: c10::Error::Error(c10::SourceLocation, std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >) + 0x9d (0x7d0d36f63bfd in /home/kxqandccx/vllm-omni-7753-hidream-20260918/venv/lib/python3.12/site-packages/torch/lib/libc10.so)
+frame #1: c10::DistError::DistError(c10::SourceLocation, std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >) + 0x72 (0x7d0d36f64bd2 in /home/kxqandccx/vllm-omni-7753-hidream-20260918/venv/lib/python3.12/site-packages/torch/lib/libc10.so)
+frame #2: c10::DistNetworkError::DistNetworkError(c10::SourceLocation, std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >) + 0x72 (0x7d0d36f65092 in /home/kxqandccx/vllm-omni-7753-hidream-20260918/venv/lib/python3.12/site-packages/torch/lib/libc10.so)
+frame #3: <unknown function> + 0x66ac332 (0x7d0ca02ac332 in /home/kxqandccx/vllm-omni-7753-hidream-20260918/venv/lib/python3.12/site-packages/torch/lib/libtorch_cpu.so)
+frame #4: <unknown function> + 0x66ad3e1 (0x7d0ca02ad3e1 in /home/kxqandccx/vllm-omni-7753-hidream-20260918/venv/lib/python3.12/site-packages/torch/lib/libtorch_cpu.so)
+frame #5: <unknown function> + 0x66ad58d (0x7d0ca02ad58d in /home/kxqandccx/vllm-omni-7753-hidream-20260918/venv/lib/python3.12/site-packages/torch/lib/libtorch_cpu.so)
+frame #6: c10d::TCPStore::check(std::vector<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >, std::allocator<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > > > const&) + 0x35d (0x7d0ca02a63bd in /home/kxqandccx/vllm-omni-7753-hidream-20260918/venv/lib/python3.12/site-packages/torch/lib/libtorch_cpu.so)
+frame #7: c10d::ProcessGroupNCCL::HeartbeatMonitor::runLoop() + 0x43d (0x7d0c8215419d in /home/kxqandccx/vllm-omni-7753-hidream-20260918/venv/lib/python3.12/site-packages/torch/lib/libtorch_cuda.so)
+frame #8: <unknown function> + 0xdc253 (0x7d0d07adc253 in /lib/x86_64-linux-gnu/libstdc++.so.6)
+frame #9: <unknown function> + 0x94a83 (0x7d0d38694a83 in /lib/x86_64-linux-gnu/libc.so.6)
+frame #10: <unknown function> + 0x1268e0 (0x7d0d387268e0 in /lib/x86_64-linux-gnu/libc.so.6)
+
+[rank1]:[W919 23:57:39.577991113 ProcessGroupNCCL.cpp:1876] [PG ID 0 PG GUID 0 Rank 1] Failed to check the "should dump" flag on TCPStore, (maybe TCPStore server has shut down too early), with error: Broken pipe
+[rank1]:[W919 23:57:40.578147594 TCPStore.cpp:106] [c10d] sendBytes failed on SocketImpl(fd=102, addr=[localhost]:41158, remote=[localhost]:48451): Broken pipe
+Exception raised from sendBytes at /__w/pytorch/pytorch/torch/csrc/distributed/c10d/Utils.hpp:758 (most recent call first):
+frame #0: c10::Error::Error(c10::SourceLocation, std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >) + 0x9d (0x7d0d36f63bfd in /home/kxqandccx/vllm-omni-7753-hidream-20260918/venv/lib/python3.12/site-packages/torch/lib/libc10.so)
+frame #1: c10::DistError::DistError(c10::SourceLocation, std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >) + 0x72 (0x7d0d36f64bd2 in /home/kxqandccx/vllm-omni-7753-hidream-20260918/venv/lib/python3.12/site-packages/torch/lib/libc10.so)
+frame #2: c10::DistNetworkError::DistNetworkError(c10::SourceLocation, std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >) + 0x72 (0x7d0d36f65092 in /home/kxqandccx/vllm-omni-7753-hidream-20260918/venv/lib/python3.12/site-packages/torch/lib/libc10.so)
+frame #3: <unknown function> + 0x66ac332 (0x7d0ca02ac332 in /home/kxqandccx/vllm-omni-7753-hidream-20260918/venv/lib/python3.12/site-packages/torch/lib/libtorch_cpu.so)
+frame #4: <unknown function> + 0x66ad3e1 (0x7d0ca02ad3e1 in /home/kxqandccx/vllm-omni-7753-hidream-20260918/venv/lib/python3.12/site-packages/torch/lib/libtorch_cpu.so)
+frame #5: <unknown function> + 0x66ad58d (0x7d0ca02ad58d in /home/kxqandccx/vllm-omni-7753-hidream-20260918/venv/lib/python3.12/site-packages/torch/lib/libtorch_cpu.so)
+frame #6: c10d::TCPStore::check(std::vector<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >, std::allocator<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > > > const&) + 0x35d (0x7d0ca02a63bd in /home/kxqandccx/vllm-omni-7753-hidream-20260918/venv/lib/python3.12/site-packages/torch/lib/libtorch_cpu.so)
+frame #7: c10d::ProcessGroupNCCL::HeartbeatMonitor::runLoop() + 0x43d (0x7d0c8215419d in /home/kxqandccx/vllm-omni-7753-hidream-20260918/venv/lib/python3.12/site-packages/torch/lib/libtorch_cuda.so)
+frame #8: <unknown function> + 0xdc253 (0x7d0d07adc253 in /lib/x86_64-linux-gnu/libstdc++.so.6)
+frame #9: <unknown function> + 0x94a83 (0x7d0d38694a83 in /lib/x86_64-linux-gnu/libc.so.6)
+frame #10: <unknown function> + 0x1268e0 (0x7d0d387268e0 in /lib/x86_64-linux-gnu/libc.so.6)
+
+[rank1]:[W919 23:57:40.582498094 ProcessGroupNCCL.cpp:1876] [PG ID 0 PG GUID 0 Rank 1] Failed to check the "should dump" flag on TCPStore, (maybe TCPStore server has shut down too early), with error: Broken pipe
+[rank1]:[W919 23:57:41.582643671 TCPStore.cpp:106] [c10d] sendBytes failed on SocketImpl(fd=102, addr=[localhost]:41158, remote=[localhost]:48451): Broken pipe
+Exception raised from sendBytes at /__w/pytorch/pytorch/torch/csrc/distributed/c10d/Utils.hpp:758 (most recent call first):
+frame #0: c10::Error::Error(c10::SourceLocation, std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >) + 0x9d (0x7d0d36f63bfd in /home/kxqandccx/vllm-omni-7753-hidream-20260918/venv/lib/python3.12/site-packages/torch/lib/libc10.so)
+frame #1: c10::DistError::DistError(c10::SourceLocation, std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >) + 0x72 (0x7d0d36f64bd2 in /home/kxqandccx/vllm-omni-7753-hidream-20260918/venv/lib/python3.12/site-packages/torch/lib/libc10.so)
+frame #2: c10::DistNetworkError::DistNetworkError(c10::SourceLocation, std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >) + 0x72 (0x7d0d36f65092 in /home/kxqandccx/vllm-omni-7753-hidream-20260918/venv/lib/python3.12/site-packages/torch/lib/libc10.so)
+frame #3: <unknown function> + 0x66ac332 (0x7d0ca02ac332 in /home/kxqandccx/vllm-omni-7753-hidream-20260918/venv/lib/python3.12/site-packages/torch/lib/libtorch_cpu.so)
+frame #4: <unknown function> + 0x66ad3e1 (0x7d0ca02ad3e1 in /home/kxqandccx/vllm-omni-7753-hidream-20260918/venv/lib/python3.12/site-packages/torch/lib/libtorch_cpu.so)
+frame #5: <unknown function> + 0x66ad58d (0x7d0ca02ad58d in /home/kxqandccx/vllm-omni-7753-hidream-20260918/venv/lib/python3.12/site-packages/torch/lib/libtorch_cpu.so)
+frame #6: c10d::TCPStore::check(std::vector<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >, std::allocator<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > > > const&) + 0x35d (0x7d0ca02a63bd in /home/kxqandccx/vllm-omni-7753-hidream-20260918/venv/lib/python3.12/site-packages/torch/lib/libtorch_cpu.so)
+frame #7: c10d::ProcessGroupNCCL::HeartbeatMonitor::runLoop() + 0x43d (0x7d0c8215419d in /home/kxqandccx/vllm-omni-7753-hidream-20260918/venv/lib/python3.12/site-packages/torch/lib/libtorch_cuda.so)
+frame #8: <unknown function> + 0xdc253 (0x7d0d07adc253 in /lib/x86_64-linux-gnu/libstdc++.so.6)
+frame #9: <unknown function> + 0x94a83 (0x7d0d38694a83 in /lib/x86_64-linux-gnu/libc.so.6)
+frame #10: <unknown function> + 0x1268e0 (0x7d0d387268e0 in /lib/x86_64-linux-gnu/libc.so.6)
+
+[rank1]:[W919 23:57:41.586978253 ProcessGroupNCCL.cpp:1876] [PG ID 0 PG GUID 0 Rank 1] Failed to check the "should dump" flag on TCPStore, (maybe TCPStore server has shut down too early), with error: Broken pipe
+[rank1]:[W919 23:57:42.587125510 TCPStore.cpp:106] [c10d] sendBytes failed on SocketImpl(fd=102, addr=[localhost]:41158, remote=[localhost]:48451): Broken pipe
+Exception raised from sendBytes at /__w/pytorch/pytorch/torch/csrc/distributed/c10d/Utils.hpp:758 (most recent call first):
+frame #0: c10::Error::Error(c10::SourceLocation, std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >) + 0x9d (0x7d0d36f63bfd in /home/kxqandccx/vllm-omni-7753-hidream-20260918/venv/lib/python3.12/site-packages/torch/lib/libc10.so)
+frame #1: c10::DistError::DistError(c10::SourceLocation, std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >) + 0x72 (0x7d0d36f64bd2 in /home/kxqandccx/vllm-omni-7753-hidream-20260918/venv/lib/python3.12/site-packages/torch/lib/libc10.so)
+frame #2: c10::DistNetworkError::DistNetworkError(c10::SourceLocation, std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >) + 0x72 (0x7d0d36f65092 in /home/kxqandccx/vllm-omni-7753-hidream-20260918/venv/lib/python3.12/site-packages/torch/lib/libc10.so)
+frame #3: <unknown function> + 0x66ac332 (0x7d0ca02ac332 in /home/kxqandccx/vllm-omni-7753-hidream-20260918/venv/lib/python3.12/site-packages/torch/lib/libtorch_cpu.so)
+frame #4: <unknown function> + 0x66ad3e1 (0x7d0ca02ad3e1 in /home/kxqandccx/vllm-omni-7753-hidream-20260918/venv/lib/python3.12/site-packages/torch/lib/libtorch_cpu.so)
+frame #5: <unknown function> + 0x66ad58d (0x7d0ca02ad58d in /home/kxqandccx/vllm-omni-7753-hidream-20260918/venv/lib/python3.12/site-packages/torch/lib/libtorch_cpu.so)
+frame #6: c10d::TCPStore::check(std::vector<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >, std::allocator<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > > > const&) + 0x35d (0x7d0ca02a63bd in /home/kxqandccx/vllm-omni-7753-hidream-20260918/venv/lib/python3.12/site-packages/torch/lib/libtorch_cpu.so)
+frame #7: c10d::ProcessGroupNCCL::HeartbeatMonitor::runLoop() + 0x43d (0x7d0c8215419d in /home/kxqandccx/vllm-omni-7753-hidream-20260918/venv/lib/python3.12/site-packages/torch/lib/libtorch_cuda.so)
+frame #8: <unknown function> + 0xdc253 (0x7d0d07adc253 in /lib/x86_64-linux-gnu/libstdc++.so.6)
+frame #9: <unknown function> + 0x94a83 (0x7d0d38694a83 in /lib/x86_64-linux-gnu/libc.so.6)
+frame #10: <unknown function> + 0x1268e0 (0x7d0d387268e0 in /lib/x86_64-linux-gnu/libc.so.6)
+
+[rank1]:[W919 23:57:42.591452785 ProcessGroupNCCL.cpp:1876] [PG ID 0 PG GUID 0 Rank 1] Failed to check the "should dump" flag on TCPStore, (maybe TCPStore server has shut down too early), with error: Broken pipe
+[rank1]:[W919 23:57:43.591604084 TCPStore.cpp:106] [c10d] sendBytes failed on SocketImpl(fd=102, addr=[localhost]:41158, remote=[localhost]:48451): Broken pipe
+Exception raised from sendBytes at /__w/pytorch/pytorch/torch/csrc/distributed/c10d/Utils.hpp:758 (most recent call first):
+frame #0: c10::Error::Error(c10::SourceLocation, std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >) + 0x9d (0x7d0d36f63bfd in /home/kxqandccx/vllm-omni-7753-hidream-20260918/venv/lib/python3.12/site-packages/torch/lib/libc10.so)
+frame #1: c10::DistError::DistError(c10::SourceLocation, std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >) + 0x72 (0x7d0d36f64bd2 in /home/kxqandccx/vllm-omni-7753-hidream-20260918/venv/lib/python3.12/site-packages/torch/lib/libc10.so)
+frame #2: c10::DistNetworkError::DistNetworkError(c10::SourceLocation, std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >) + 0x72 (0x7d0d36f65092 in /home/kxqandccx/vllm-omni-7753-hidream-20260918/venv/lib/python3.12/site-packages/torch/lib/libc10.so)
+frame #3: <unknown function> + 0x66ac332 (0x7d0ca02ac332 in /home/kxqandccx/vllm-omni-7753-hidream-20260918/venv/lib/python3.12/site-packages/torch/lib/libtorch_cpu.so)
+frame #4: <unknown function> + 0x66ad3e1 (0x7d0ca02ad3e1 in /home/kxqandccx/vllm-omni-7753-hidream-20260918/venv/lib/python3.12/site-packages/torch/lib/libtorch_cpu.so)
+frame #5: <unknown function> + 0x66ad58d (0x7d0ca02ad58d in /home/kxqandccx/vllm-omni-7753-hidream-20260918/venv/lib/python3.12/site-packages/torch/lib/libtorch_cpu.so)
+frame #6: c10d::TCPStore::check(std::vector<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >, std::allocator<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > > > const&) + 0x35d (0x7d0ca02a63bd in /home/kxqandccx/vllm-omni-7753-hidream-20260918/venv/lib/python3.12/site-packages/torch/lib/libtorch_cpu.so)
+frame #7: c10d::ProcessGroupNCCL::HeartbeatMonitor::runLoop() + 0x43d (0x7d0c8215419d in /home/kxqandccx/vllm-omni-7753-hidream-20260918/venv/lib/python3.12/site-packages/torch/lib/libtorch_cuda.so)
+frame #8: <unknown function> + 0xdc253 (0x7d0d07adc253 in /lib/x86_64-linux-gnu/libstdc++.so.6)
+frame #9: <unknown function> + 0x94a83 (0x7d0d38694a83 in /lib/x86_64-linux-gnu/libc.so.6)
+frame #10: <unknown function> + 0x1268e0 (0x7d0d387268e0 in /lib/x86_64-linux-gnu/libc.so.6)
+
+[rank1]:[W919 23:57:44.595909127 ProcessGroupNCCL.cpp:1876] [PG ID 0 PG GUID 0 Rank 1] Failed to check the "should dump" flag on TCPStore, (maybe TCPStore server has shut down too early), with error: Broken pipe
+[rank1]:[W919 23:57:45.596050709 TCPStore.cpp:106] [c10d] sendBytes failed on SocketImpl(fd=102, addr=[localhost]:41158, remote=[localhost]:48451): Broken pipe
+Exception raised from sendBytes at /__w/pytorch/pytorch/torch/csrc/distributed/c10d/Utils.hpp:758 (most recent call first):
+frame #0: c10::Error::Error(c10::SourceLocation, std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >) + 0x9d (0x7d0d36f63bfd in /home/kxqandccx/vllm-omni-7753-hidream-20260918/venv/lib/python3.12/site-packages/torch/lib/libc10.so)
+frame #1: c10::DistError::DistError(c10::SourceLocation, std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >) + 0x72 (0x7d0d36f64bd2 in /home/kxqandccx/vllm-omni-7753-hidream-20260918/venv/lib/python3.12/site-packages/torch/lib/libc10.so)
+frame #2: c10::DistNetworkError::DistNetworkError(c10::SourceLocation, std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >) + 0x72 (0x7d0d36f65092 in /home/kxqandccx/vllm-omni-7753-hidream-20260918/venv/lib/python3.12/site-packages/torch/lib/libc10.so)
+frame #3: <unknown function> + 0x66ac332 (0x7d0ca02ac332 in /home/kxqandccx/vllm-omni-7753-hidream-20260918/venv/lib/python3.12/site-packages/torch/lib/libtorch_cpu.so)
+frame #4: <unknown function> + 0x66ad3e1 (0x7d0ca02ad3e1 in /home/kxqandccx/vllm-omni-7753-hidream-20260918/venv/lib/python3.12/site-packages/torch/lib/libtorch_cpu.so)
+frame #5: <unknown function> + 0x66ad58d (0x7d0ca02ad58d in /home/kxqandccx/vllm-omni-7753-hidream-20260918/venv/lib/python3.12/site-packages/torch/lib/libtorch_cpu.so)
+frame #6: c10d::TCPStore::check(std::vector<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >, std::allocator<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > > > const&) + 0x35d (0x7d0ca02a63bd in /home/kxqandccx/vllm-omni-7753-hidream-20260918/venv/lib/python3.12/site-packages/torch/lib/libtorch_cpu.so)
+frame #7: c10d::ProcessGroupNCCL::HeartbeatMonitor::runLoop() + 0x43d (0x7d0c8215419d in /home/kxqandccx/vllm-omni-7753-hidream-20260918/venv/lib/python3.12/site-packages/torch/lib/libtorch_cuda.so)
+frame #8: <unknown function> + 0xdc253 (0x7d0d07adc253 in /lib/x86_64-linux-gnu/libstdc++.so.6)
+frame #9: <unknown function> + 0x94a83 (0x7d0d38694a83 in /lib/x86_64-linux-gnu/libc.so.6)
+frame #10: <unknown function> + 0x1268e0 (0x7d0d387268e0 in /lib/x86_64-linux-gnu/libc.so.6)
+
+[rank1]:[W919 23:57:45.600427939 ProcessGroupNCCL.cpp:1876] [PG ID 0 PG GUID 0 Rank 1] Failed to check the "should dump" flag on TCPStore, (maybe TCPStore server has shut down too early), with error: Broken pipe
+ERROR 09-19 23:57:45 [multiproc_executor.py:398] Rank 0 scheduler is dead. Please check if there are relevant logs.
+ERROR 09-19 23:57:45 [multiproc_executor.py:400] Exit code: 1
+ERROR 09-19 23:57:45 [stage_runtime.py:307] [StageRuntime] Stage initialization failed; shutting down 0 initialized client(s)
+ERROR 09-19 23:57:45 [stage_runtime.py:307] Traceback (most recent call last):
+ERROR 09-19 23:57:45 [stage_runtime.py:307]   File "/home/kxqandccx/omni-1217-20260919/rebased/hsdp/vllm_omni/engine/stage_runtime.py", line 294, in initialize
+ERROR 09-19 23:57:45 [stage_runtime.py:307]     initialized_clients = self._initialize_stage_replicas(stage_plans, self._stage_init_timeout)
+ERROR 09-19 23:57:45 [stage_runtime.py:307]                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+ERROR 09-19 23:57:45 [stage_runtime.py:307]   File "/home/kxqandccx/omni-1217-20260919/rebased/hsdp/vllm_omni/engine/stage_runtime.py", line 782, in _initialize_stage_replicas
+ERROR 09-19 23:57:45 [stage_runtime.py:307]     raise primary_exc
+ERROR 09-19 23:57:45 [stage_runtime.py:307]   File "/home/kxqandccx/omni-1217-20260919/rebased/hsdp/vllm_omni/engine/stage_runtime.py", line 743, in _init_group
+ERROR 09-19 23:57:45 [stage_runtime.py:307]     client = self._initialize_replica(
+ERROR 09-19 23:57:45 [stage_runtime.py:307]              ^^^^^^^^^^^^^^^^^^^^^^^^^
+ERROR 09-19 23:57:45 [stage_runtime.py:307]   File "/home/kxqandccx/omni-1217-20260919/rebased/hsdp/vllm_omni/engine/stage_runtime.py", line 972, in _initialize_replica
+ERROR 09-19 23:57:45 [stage_runtime.py:307]     return self._initialize_local_diffusion_replica(plan, stage_init_timeout)
+ERROR 09-19 23:57:45 [stage_runtime.py:307]            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+ERROR 09-19 23:57:45 [stage_runtime.py:307]   File "/home/kxqandccx/omni-1217-20260919/rebased/hsdp/vllm_omni/engine/stage_runtime.py", line 1095, in _initialize_local_diffusion_replica
+ERROR 09-19 23:57:45 [stage_runtime.py:307]     client, resources = launch_diffusion_stage_replica(
+ERROR 09-19 23:57:45 [stage_runtime.py:307]                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+ERROR 09-19 23:57:45 [stage_runtime.py:307]   File "/home/kxqandccx/omni-1217-20260919/rebased/hsdp/vllm_omni/engine/stage_engine_startup.py", line 1599, in launch_diffusion_stage_replica
+ERROR 09-19 23:57:45 [stage_runtime.py:307]     client = initialize_diffusion_stage(
+ERROR 09-19 23:57:45 [stage_runtime.py:307]              ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+ERROR 09-19 23:57:45 [stage_runtime.py:307]   File "/home/kxqandccx/omni-1217-20260919/rebased/hsdp/vllm_omni/engine/stage_init_utils.py", line 2024, in initialize_diffusion_stage
+ERROR 09-19 23:57:45 [stage_runtime.py:307]     return create_diffusion_client(model, od_config, metadata, stage_init_timeout, use_inline)
+ERROR 09-19 23:57:45 [stage_runtime.py:307]            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+ERROR 09-19 23:57:45 [stage_runtime.py:307]   File "/home/kxqandccx/omni-1217-20260919/rebased/hsdp/vllm_omni/diffusion/stage_diffusion_client.py", line 58, in create_diffusion_client
+ERROR 09-19 23:57:45 [stage_runtime.py:307]     return InlineStageDiffusionClient(model, od_config, metadata)
+ERROR 09-19 23:57:45 [stage_runtime.py:307]            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+ERROR 09-19 23:57:45 [stage_runtime.py:307]   File "/home/kxqandccx/omni-1217-20260919/rebased/hsdp/vllm_omni/diffusion/inline_stage_diffusion_client.py", line 70, in __init__
+ERROR 09-19 23:57:45 [stage_runtime.py:307]     self._engine = DiffusionEngine.make_engine(self.od_config)
+ERROR 09-19 23:57:45 [stage_runtime.py:307]                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+ERROR 09-19 23:57:45 [stage_runtime.py:307]   File "/home/kxqandccx/omni-1217-20260919/rebased/hsdp/vllm_omni/diffusion/diffusion_engine.py", line 871, in make_engine
+ERROR 09-19 23:57:45 [stage_runtime.py:307]     engine = engine_class(config, scheduler=scheduler)
+ERROR 09-19 23:57:45 [stage_runtime.py:307]              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+ERROR 09-19 23:57:45 [stage_runtime.py:307]   File "/home/kxqandccx/omni-1217-20260919/rebased/hsdp/vllm_omni/diffusion/diffusion_engine.py", line 257, in __init__
+ERROR 09-19 23:57:45 [stage_runtime.py:307]     self._init_executor(od_config)
+ERROR 09-19 23:57:45 [stage_runtime.py:307]   File "/home/kxqandccx/omni-1217-20260919/rebased/hsdp/vllm_omni/diffusion/diffusion_engine.py", line 328, in _init_executor
+ERROR 09-19 23:57:45 [stage_runtime.py:307]     self.executor = executor_class(od_config)
+ERROR 09-19 23:57:45 [stage_runtime.py:307]                     ^^^^^^^^^^^^^^^^^^^^^^^^^
+ERROR 09-19 23:57:45 [stage_runtime.py:307]   File "/home/kxqandccx/omni-1217-20260919/rebased/hsdp/vllm_omni/diffusion/executor/abstract.py", line 75, in __init__
+ERROR 09-19 23:57:45 [stage_runtime.py:307]     self._init_executor()
+ERROR 09-19 23:57:45 [stage_runtime.py:307]   File "/home/kxqandccx/omni-1217-20260919/rebased/hsdp/vllm_omni/diffusion/executor/multiproc_executor.py", line 167, in _init_executor
+ERROR 09-19 23:57:45 [stage_runtime.py:307]     processes, result_handles = self._launch_workers(broadcast_handle, self.wake_events)
+ERROR 09-19 23:57:45 [stage_runtime.py:307]                                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+ERROR 09-19 23:57:45 [stage_runtime.py:307]   File "/home/kxqandccx/omni-1217-20260919/rebased/hsdp/vllm_omni/diffusion/executor/multiproc_executor.py", line 396, in _launch_workers
+ERROR 09-19 23:57:45 [stage_runtime.py:307]     data = reader.recv()
+ERROR 09-19 23:57:45 [stage_runtime.py:307]            ^^^^^^^^^^^^^
+ERROR 09-19 23:57:45 [stage_runtime.py:307]   File "/home/kxqandccx/.local/share/uv/python/cpython-3.12.13-linux-x86_64-gnu/lib/python3.12/multiprocessing/connection.py", line 250, in recv
+ERROR 09-19 23:57:45 [stage_runtime.py:307]     buf = self._recv_bytes()
+ERROR 09-19 23:57:45 [stage_runtime.py:307]           ^^^^^^^^^^^^^^^^^^
+ERROR 09-19 23:57:45 [stage_runtime.py:307]   File "/home/kxqandccx/.local/share/uv/python/cpython-3.12.13-linux-x86_64-gnu/lib/python3.12/multiprocessing/connection.py", line 430, in _recv_bytes
+ERROR 09-19 23:57:45 [stage_runtime.py:307]     buf = self._recv(4)
+ERROR 09-19 23:57:45 [stage_runtime.py:307]           ^^^^^^^^^^^^^
+ERROR 09-19 23:57:45 [stage_runtime.py:307]   File "/home/kxqandccx/.local/share/uv/python/cpython-3.12.13-linux-x86_64-gnu/lib/python3.12/multiprocessing/connection.py", line 399, in _recv
+ERROR 09-19 23:57:45 [stage_runtime.py:307]     raise EOFError
+ERROR 09-19 23:57:45 [stage_runtime.py:307] EOFError
+ERROR 09-19 23:57:45 [omni_engine_base.py:474] [OmniEngine] Orchestrator thread crashed
+ERROR 09-19 23:57:45 [omni_engine_base.py:474] Traceback (most recent call last):
+ERROR 09-19 23:57:45 [omni_engine_base.py:474]   File "/home/kxqandccx/omni-1217-20260919/rebased/hsdp/vllm_omni/engine/omni_engine_base.py", line 468, in _bootstrap_orchestrator
+ERROR 09-19 23:57:45 [omni_engine_base.py:474]     loop.run_until_complete(_run_orchestrator())
+ERROR 09-19 23:57:45 [omni_engine_base.py:474]   File "/home/kxqandccx/.local/share/uv/python/cpython-3.12.13-linux-x86_64-gnu/lib/python3.12/asyncio/base_events.py", line 691, in run_until_complete
+ERROR 09-19 23:57:45 [omni_engine_base.py:474]     return future.result()
+ERROR 09-19 23:57:45 [omni_engine_base.py:474]            ^^^^^^^^^^^^^^^
+ERROR 09-19 23:57:45 [omni_engine_base.py:474]   File "/home/kxqandccx/omni-1217-20260919/rebased/hsdp/vllm_omni/engine/omni_engine_base.py", line 442, in _run_orchestrator
+ERROR 09-19 23:57:45 [omni_engine_base.py:474]     self._initialize_stages(stage_init_timeout)
+ERROR 09-19 23:57:45 [omni_engine_base.py:474]   File "/home/kxqandccx/omni-1217-20260919/rebased/hsdp/vllm_omni/engine/omni_engine_base.py", line 389, in _initialize_stages
+ERROR 09-19 23:57:45 [omni_engine_base.py:474]     self._runtime.initialize()
+ERROR 09-19 23:57:45 [omni_engine_base.py:474]   File "/home/kxqandccx/omni-1217-20260919/rebased/hsdp/vllm_omni/engine/stage_runtime.py", line 313, in initialize
+ERROR 09-19 23:57:45 [omni_engine_base.py:474]     raise exc
+ERROR 09-19 23:57:45 [omni_engine_base.py:474]   File "/home/kxqandccx/omni-1217-20260919/rebased/hsdp/vllm_omni/engine/stage_runtime.py", line 294, in initialize
+ERROR 09-19 23:57:45 [omni_engine_base.py:474]     initialized_clients = self._initialize_stage_replicas(stage_plans, self._stage_init_timeout)
+ERROR 09-19 23:57:45 [omni_engine_base.py:474]                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+ERROR 09-19 23:57:45 [omni_engine_base.py:474]   File "/home/kxqandccx/omni-1217-20260919/rebased/hsdp/vllm_omni/engine/stage_runtime.py", line 782, in _initialize_stage_replicas
+ERROR 09-19 23:57:45 [omni_engine_base.py:474]     raise primary_exc
+ERROR 09-19 23:57:45 [omni_engine_base.py:474]   File "/home/kxqandccx/omni-1217-20260919/rebased/hsdp/vllm_omni/engine/stage_runtime.py", line 743, in _init_group
+ERROR 09-19 23:57:45 [omni_engine_base.py:474]     client = self._initialize_replica(
+ERROR 09-19 23:57:45 [omni_engine_base.py:474]              ^^^^^^^^^^^^^^^^^^^^^^^^^
+ERROR 09-19 23:57:45 [omni_engine_base.py:474]   File "/home/kxqandccx/omni-1217-20260919/rebased/hsdp/vllm_omni/engine/stage_runtime.py", line 972, in _initialize_replica
+ERROR 09-19 23:57:45 [omni_engine_base.py:474]     return self._initialize_local_diffusion_replica(plan, stage_init_timeout)
+ERROR 09-19 23:57:45 [omni_engine_base.py:474]            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+ERROR 09-19 23:57:45 [omni_engine_base.py:474]   File "/home/kxqandccx/omni-1217-20260919/rebased/hsdp/vllm_omni/engine/stage_runtime.py", line 1095, in _initialize_local_diffusion_replica
+ERROR 09-19 23:57:45 [omni_engine_base.py:474]     client, resources = launch_diffusion_stage_replica(
+ERROR 09-19 23:57:45 [omni_engine_base.py:474]                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+ERROR 09-19 23:57:45 [omni_engine_base.py:474]   File "/home/kxqandccx/omni-1217-20260919/rebased/hsdp/vllm_omni/engine/stage_engine_startup.py", line 1599, in launch_diffusion_stage_replica
+ERROR 09-19 23:57:45 [omni_engine_base.py:474]     client = initialize_diffusion_stage(
+ERROR 09-19 23:57:45 [omni_engine_base.py:474]              ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+ERROR 09-19 23:57:45 [omni_engine_base.py:474]   File "/home/kxqandccx/omni-1217-20260919/rebased/hsdp/vllm_omni/engine/stage_init_utils.py", line 2024, in initialize_diffusion_stage
+ERROR 09-19 23:57:45 [omni_engine_base.py:474]     return create_diffusion_client(model, od_config, metadata, stage_init_timeout, use_inline)
+ERROR 09-19 23:57:45 [omni_engine_base.py:474]            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+ERROR 09-19 23:57:45 [omni_engine_base.py:474]   File "/home/kxqandccx/omni-1217-20260919/rebased/hsdp/vllm_omni/diffusion/stage_diffusion_client.py", line 58, in create_diffusion_client
+ERROR 09-19 23:57:45 [omni_engine_base.py:474]     return InlineStageDiffusionClient(model, od_config, metadata)
+ERROR 09-19 23:57:45 [omni_engine_base.py:474]            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+ERROR 09-19 23:57:45 [omni_engine_base.py:474]   File "/home/kxqandccx/omni-1217-20260919/rebased/hsdp/vllm_omni/diffusion/inline_stage_diffusion_client.py", line 70, in __init__
+ERROR 09-19 23:57:45 [omni_engine_base.py:474]     self._engine = DiffusionEngine.make_engine(self.od_config)
+ERROR 09-19 23:57:45 [omni_engine_base.py:474]                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+ERROR 09-19 23:57:45 [omni_engine_base.py:474]   File "/home/kxqandccx/omni-1217-20260919/rebased/hsdp/vllm_omni/diffusion/diffusion_engine.py", line 871, in make_engine
+ERROR 09-19 23:57:45 [omni_engine_base.py:474]     engine = engine_class(config, scheduler=scheduler)
+ERROR 09-19 23:57:45 [omni_engine_base.py:474]              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+ERROR 09-19 23:57:45 [omni_engine_base.py:474]   File "/home/kxqandccx/omni-1217-20260919/rebased/hsdp/vllm_omni/diffusion/diffusion_engine.py", line 257, in __init__
+ERROR 09-19 23:57:45 [omni_engine_base.py:474]     self._init_executor(od_config)
+ERROR 09-19 23:57:45 [omni_engine_base.py:474]   File "/home/kxqandccx/omni-1217-20260919/rebased/hsdp/vllm_omni/diffusion/diffusion_engine.py", line 328, in _init_executor
+ERROR 09-19 23:57:45 [omni_engine_base.py:474]     self.executor = executor_class(od_config)
+ERROR 09-19 23:57:45 [omni_engine_base.py:474]                     ^^^^^^^^^^^^^^^^^^^^^^^^^
+ERROR 09-19 23:57:45 [omni_engine_base.py:474]   File "/home/kxqandccx/omni-1217-20260919/rebased/hsdp/vllm_omni/diffusion/executor/abstract.py", line 75, in __init__
+ERROR 09-19 23:57:45 [omni_engine_base.py:474]     self._init_executor()
+ERROR 09-19 23:57:45 [omni_engine_base.py:474]   File "/home/kxqandccx/omni-1217-20260919/rebased/hsdp/vllm_omni/diffusion/executor/multiproc_executor.py", line 167, in _init_executor
+ERROR 09-19 23:57:45 [omni_engine_base.py:474]     processes, result_handles = self._launch_workers(broadcast_handle, self.wake_events)
+ERROR 09-19 23:57:45 [omni_engine_base.py:474]                                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+ERROR 09-19 23:57:45 [omni_engine_base.py:474]   File "/home/kxqandccx/omni-1217-20260919/rebased/hsdp/vllm_omni/diffusion/executor/multiproc_executor.py", line 396, in _launch_workers
+ERROR 09-19 23:57:45 [omni_engine_base.py:474]     data = reader.recv()
+ERROR 09-19 23:57:45 [omni_engine_base.py:474]            ^^^^^^^^^^^^^
+ERROR 09-19 23:57:45 [omni_engine_base.py:474]   File "/home/kxqandccx/.local/share/uv/python/cpython-3.12.13-linux-x86_64-gnu/lib/python3.12/multiprocessing/connection.py", line 250, in recv
+ERROR 09-19 23:57:45 [omni_engine_base.py:474]     buf = self._recv_bytes()
+ERROR 09-19 23:57:45 [omni_engine_base.py:474]           ^^^^^^^^^^^^^^^^^^
+ERROR 09-19 23:57:45 [omni_engine_base.py:474]   File "/home/kxqandccx/.local/share/uv/python/cpython-3.12.13-linux-x86_64-gnu/lib/python3.12/multiprocessing/connection.py", line 430, in _recv_bytes
+ERROR 09-19 23:57:45 [omni_engine_base.py:474]     buf = self._recv(4)
+ERROR 09-19 23:57:45 [omni_engine_base.py:474]           ^^^^^^^^^^^^^
+ERROR 09-19 23:57:45 [omni_engine_base.py:474]   File "/home/kxqandccx/.local/share/uv/python/cpython-3.12.13-linux-x86_64-gnu/lib/python3.12/multiprocessing/connection.py", line 399, in _recv
+ERROR 09-19 23:57:45 [omni_engine_base.py:474]     raise EOFError
+ERROR 09-19 23:57:45 [omni_engine_base.py:474] EOFError
+INFO 09-19 23:57:45 [omni_engine_base.py:1144] [OmniEngine] Shutting down Orchestrator
+Exception in thread orchestrator:
+Traceback (most recent call last):
+  File "/home/kxqandccx/.local/share/uv/python/cpython-3.12.13-linux-x86_64-gnu/lib/python3.12/threading.py", line 1075, in _bootstrap_inner
+    self.run()
+  File "/home/kxqandccx/.local/share/uv/python/cpython-3.12.13-linux-x86_64-gnu/lib/python3.12/threading.py", line 1012, in run
+    self._target(*self._args, **self._kwargs)
+  File "/home/kxqandccx/omni-1217-20260919/rebased/hsdp/vllm_omni/engine/omni_engine_base.py", line 468, in _bootstrap_orchestrator
+    loop.run_until_complete(_run_orchestrator())
+  File "/home/kxqandccx/.local/share/uv/python/cpython-3.12.13-linux-x86_64-gnu/lib/python3.12/asyncio/base_events.py", line 691, in run_until_complete
+    return future.result()
+           ^^^^^^^^^^^^^^^
+  File "/home/kxqandccx/omni-1217-20260919/rebased/hsdp/vllm_omni/engine/omni_engine_base.py", line 442, in _run_orchestrator
+    self._initialize_stages(stage_init_timeout)
+  File "/home/kxqandccx/omni-1217-20260919/rebased/hsdp/vllm_omni/engine/omni_engine_base.py", line 389, in _initialize_stages
+    self._runtime.initialize()
+  File "/home/kxqandccx/omni-1217-20260919/rebased/hsdp/vllm_omni/engine/stage_runtime.py", line 313, in initialize
+    raise exc
+  File "/home/kxqandccx/omni-1217-20260919/rebased/hsdp/vllm_omni/engine/stage_runtime.py", line 294, in initialize
+    initialized_clients = self._initialize_stage_replicas(stage_plans, self._stage_init_timeout)
+                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/kxqandccx/omni-1217-20260919/rebased/hsdp/vllm_omni/engine/stage_runtime.py", line 782, in _initialize_stage_replicas
+    raise primary_exc
+  File "/home/kxqandccx/omni-1217-20260919/rebased/hsdp/vllm_omni/engine/stage_runtime.py", line 743, in _init_group
+    client = self._initialize_replica(
+             ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/kxqandccx/omni-1217-20260919/rebased/hsdp/vllm_omni/engine/stage_runtime.py", line 972, in _initialize_replica
+    return self._initialize_local_diffusion_replica(plan, stage_init_timeout)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/kxqandccx/omni-1217-20260919/rebased/hsdp/vllm_omni/engine/stage_runtime.py", line 1095, in _initialize_local_diffusion_replica
+    client, resources = launch_diffusion_stage_replica(
+                        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/kxqandccx/omni-1217-20260919/rebased/hsdp/vllm_omni/engine/stage_engine_startup.py", line 1599, in launch_diffusion_stage_replica
+    client = initialize_diffusion_stage(
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/kxqandccx/omni-1217-20260919/rebased/hsdp/vllm_omni/engine/stage_init_utils.py", line 2024, in initialize_diffusion_stage
+    return create_diffusion_client(model, od_config, metadata, stage_init_timeout, use_inline)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/kxqandccx/omni-1217-20260919/rebased/hsdp/vllm_omni/diffusion/stage_diffusion_client.py", line 58, in create_diffusion_client
+    return InlineStageDiffusionClient(model, od_config, metadata)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/kxqandccx/omni-1217-20260919/rebased/hsdp/vllm_omni/diffusion/inline_stage_diffusion_client.py", line 70, in __init__
+    self._engine = DiffusionEngine.make_engine(self.od_config)
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/kxqandccx/omni-1217-20260919/rebased/hsdp/vllm_omni/diffusion/diffusion_engine.py", line 871, in make_engine
+    engine = engine_class(config, scheduler=scheduler)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/kxqandccx/omni-1217-20260919/rebased/hsdp/vllm_omni/diffusion/diffusion_engine.py", line 257, in __init__
+    self._init_executor(od_config)
+  File "/home/kxqandccx/omni-1217-20260919/rebased/hsdp/vllm_omni/diffusion/diffusion_engine.py", line 328, in _init_executor
+    self.executor = executor_class(od_config)
+                    ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/kxqandccx/omni-1217-20260919/rebased/hsdp/vllm_omni/diffusion/executor/abstract.py", line 75, in __init__
+    self._init_executor()
+  File "/home/kxqandccx/omni-1217-20260919/rebased/hsdp/vllm_omni/diffusion/executor/multiproc_executor.py", line 167, in _init_executor
+    processes, result_handles = self._launch_workers(broadcast_handle, self.wake_events)
+                                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/kxqandccx/omni-1217-20260919/rebased/hsdp/vllm_omni/diffusion/executor/multiproc_executor.py", line 396, in _launch_workers
+    data = reader.recv()
+           ^^^^^^^^^^^^^
+  File "/home/kxqandccx/.local/share/uv/python/cpython-3.12.13-linux-x86_64-gnu/lib/python3.12/multiprocessing/connection.py", line 250, in recv
+    buf = self._recv_bytes()
+          ^^^^^^^^^^^^^^^^^^
+  File "/home/kxqandccx/.local/share/uv/python/cpython-3.12.13-linux-x86_64-gnu/lib/python3.12/multiprocessing/connection.py", line 430, in _recv_bytes
+    buf = self._recv(4)
+          ^^^^^^^^^^^^^
+  File "/home/kxqandccx/.local/share/uv/python/cpython-3.12.13-linux-x86_64-gnu/lib/python3.12/multiprocessing/connection.py", line 399, in _recv
+    raise EOFError
+EOFError
+(DiffusionWorker_CFG1_FS1 pid=2195803) INFO 09-19 23:57:45 [diffusion_worker.py:1532] Worker 1: Shutdown signal received, starting cleanup.
+Traceback (most recent call last):
+  File "/home/kxqandccx/.local/share/uv/python/cpython-3.12.13-linux-x86_64-gnu/lib/python3.12/threading.py", line 1075, in _bootstrap_inner
+    self.run()
+  File "/home/kxqandccx/.local/share/uv/python/cpython-3.12.13-linux-x86_64-gnu/lib/python3.12/threading.py", line 1012, in run
+    self._target(*self._args, **self._kwargs)
+  File "/home/kxqandccx/omni-1217-20260919/rebased/hsdp/vllm_omni/engine/omni_engine_base.py", line 468, in _bootstrap_orchestrator
+    loop.run_until_complete(_run_orchestrator())
+  File "/home/kxqandccx/.local/share/uv/python/cpython-3.12.13-linux-x86_64-gnu/lib/python3.12/asyncio/base_events.py", line 691, in run_until_complete
+    return future.result()
+           ^^^^^^^^^^^^^^^
+  File "/home/kxqandccx/omni-1217-20260919/rebased/hsdp/vllm_omni/engine/omni_engine_base.py", line 442, in _run_orchestrator
+    self._initialize_stages(stage_init_timeout)
+  File "/home/kxqandccx/omni-1217-20260919/rebased/hsdp/vllm_omni/engine/omni_engine_base.py", line 389, in _initialize_stages
+    self._runtime.initialize()
+  File "/home/kxqandccx/omni-1217-20260919/rebased/hsdp/vllm_omni/engine/stage_runtime.py", line 313, in initialize
+    raise exc
+  File "/home/kxqandccx/omni-1217-20260919/rebased/hsdp/vllm_omni/engine/stage_runtime.py", line 294, in initialize
+    initialized_clients = self._initialize_stage_replicas(stage_plans, self._stage_init_timeout)
+                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/kxqandccx/omni-1217-20260919/rebased/hsdp/vllm_omni/engine/stage_runtime.py", line 782, in _initialize_stage_replicas
+    raise primary_exc
+  File "/home/kxqandccx/omni-1217-20260919/rebased/hsdp/vllm_omni/engine/stage_runtime.py", line 743, in _init_group
+    client = self._initialize_replica(
+             ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/kxqandccx/omni-1217-20260919/rebased/hsdp/vllm_omni/engine/stage_runtime.py", line 972, in _initialize_replica
+    return self._initialize_local_diffusion_replica(plan, stage_init_timeout)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/kxqandccx/omni-1217-20260919/rebased/hsdp/vllm_omni/engine/stage_runtime.py", line 1095, in _initialize_local_diffusion_replica
+    client, resources = launch_diffusion_stage_replica(
+                        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/kxqandccx/omni-1217-20260919/rebased/hsdp/vllm_omni/engine/stage_engine_startup.py", line 1599, in launch_diffusion_stage_replica
+    client = initialize_diffusion_stage(
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/kxqandccx/omni-1217-20260919/rebased/hsdp/vllm_omni/engine/stage_init_utils.py", line 2024, in initialize_diffusion_stage
+    return create_diffusion_client(model, od_config, metadata, stage_init_timeout, use_inline)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/kxqandccx/omni-1217-20260919/rebased/hsdp/vllm_omni/diffusion/stage_diffusion_client.py", line 58, in create_diffusion_client
+    return InlineStageDiffusionClient(model, od_config, metadata)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/kxqandccx/omni-1217-20260919/rebased/hsdp/vllm_omni/diffusion/inline_stage_diffusion_client.py", line 70, in __init__
+    self._engine = DiffusionEngine.make_engine(self.od_config)
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/kxqandccx/omni-1217-20260919/rebased/hsdp/vllm_omni/diffusion/diffusion_engine.py", line 871, in make_engine
+    engine = engine_class(config, scheduler=scheduler)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/kxqandccx/omni-1217-20260919/rebased/hsdp/vllm_omni/diffusion/diffusion_engine.py", line 257, in __init__
+    self._init_executor(od_config)
+  File "/home/kxqandccx/omni-1217-20260919/rebased/hsdp/vllm_omni/diffusion/diffusion_engine.py", line 328, in _init_executor
+    self.executor = executor_class(od_config)
+                    ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/kxqandccx/omni-1217-20260919/rebased/hsdp/vllm_omni/diffusion/executor/abstract.py", line 75, in __init__
+    self._init_executor()
+  File "/home/kxqandccx/omni-1217-20260919/rebased/hsdp/vllm_omni/diffusion/executor/multiproc_executor.py", line 167, in _init_executor
+    processes, result_handles = self._launch_workers(broadcast_handle, self.wake_events)
+                                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/kxqandccx/omni-1217-20260919/rebased/hsdp/vllm_omni/diffusion/executor/multiproc_executor.py", line 396, in _launch_workers
+    data = reader.recv()
+           ^^^^^^^^^^^^^
+  File "/home/kxqandccx/.local/share/uv/python/cpython-3.12.13-linux-x86_64-gnu/lib/python3.12/multiprocessing/connection.py", line 250, in recv
+    buf = self._recv_bytes()
+          ^^^^^^^^^^^^^^^^^^
+  File "/home/kxqandccx/.local/share/uv/python/cpython-3.12.13-linux-x86_64-gnu/lib/python3.12/multiprocessing/connection.py", line 430, in _recv_bytes
+    buf = self._recv(4)
+          ^^^^^^^^^^^^^
+  File "/home/kxqandccx/.local/share/uv/python/cpython-3.12.13-linux-x86_64-gnu/lib/python3.12/multiprocessing/connection.py", line 399, in _recv
+    raise EOFError
+EOFError
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/home/kxqandccx/omni-1217-20260919/rebased/benchmark.py", line 81, in <module>
+    main()
+  File "/home/kxqandccx/omni-1217-20260919/rebased/benchmark.py", line 25, in main
+    engine = Omni(
+             ^^^^^
+  File "/home/kxqandccx/omni-1217-20260919/rebased/hsdp/vllm_omni/entrypoints/omni_base.py", line 215, in __init__
+    self.engine = self._create_engine(
+                  ^^^^^^^^^^^^^^^^^^^^
+  File "/home/kxqandccx/omni-1217-20260919/rebased/hsdp/vllm_omni/entrypoints/omni.py", line 33, in _create_engine
+    return AsyncOmniEngine(**engine_kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/kxqandccx/omni-1217-20260919/rebased/hsdp/vllm_omni/engine/omni_engine_base.py", line 327, in __init__
+    self._wait_for_orchestrator_init(startup_future, startup_timeout)
+  File "/home/kxqandccx/omni-1217-20260919/rebased/hsdp/vllm_omni/engine/omni_engine_base.py", line 526, in _wait_for_orchestrator_init
+    startup_future.result(
+  File "/home/kxqandccx/.local/share/uv/python/cpython-3.12.13-linux-x86_64-gnu/lib/python3.12/concurrent/futures/_base.py", line 456, in result
+    return self.__get_result()
+           ^^^^^^^^^^^^^^^^^^^
+  File "/home/kxqandccx/.local/share/uv/python/cpython-3.12.13-linux-x86_64-gnu/lib/python3.12/concurrent/futures/_base.py", line 401, in __get_result
+    raise self._exception
+RuntimeError: Orchestrator initialization failed: 
