@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: Apache-2.0
-# SPDX-FileCopyrightText: Copyright contributors to the vLLM project
+# SPDX-FileCopyrightText: Copyright contributors to the vLLM-Omni project
 
 import inspect
 import json
@@ -21,7 +21,6 @@ from diffusers.image_processor import (
     VaeImageProcessor,
     is_valid_image_imagelist,
 )
-from diffusers.models.autoencoders import AutoencoderKL
 from diffusers.schedulers.scheduling_utils import SchedulerMixin
 from diffusers.utils import BaseOutput
 from diffusers.utils.torch_utils import randn_tensor
@@ -29,6 +28,7 @@ from transformers import Qwen2_5_VLForConditionalGeneration, Qwen2_5_VLProcessor
 from vllm.model_executor.models.utils import AutoWeightsLoader
 
 from vllm_omni.diffusion.data import DiffusionOutput, OmniDiffusionConfig
+from vllm_omni.diffusion.distributed.autoencoders.autoencoder_kl import DistributedAutoencoderKL
 from vllm_omni.diffusion.distributed.cfg_parallel import CFGParallelMixin
 from vllm_omni.diffusion.distributed.utils import get_local_device
 from vllm_omni.diffusion.model_loader.diffusers_loader import DiffusersPipelineLoader
@@ -682,7 +682,7 @@ class OmniGen2Pipeline(CFGParallelMixin, nn.Module, SupportsComponentDiscovery):
             model, subfolder="scheduler", local_files_only=local_files_only
         )
         self.vae = from_pretrained_with_prefetch(
-            AutoencoderKL.from_pretrained,
+            DistributedAutoencoderKL.from_pretrained,
             model,
             subfolder="vae",
             prefetch_list=omnigen2_subfolders,
@@ -1167,7 +1167,9 @@ class OmniGen2Pipeline(CFGParallelMixin, nn.Module, SupportsComponentDiscovery):
             step_func=step_func,
         )
 
-        image = F.interpolate(image, size=(ori_height, ori_width), mode="bilinear")
+        # Distributed VAE decode returns the image only on WORLD rank zero.
+        if image.numel() > 0:
+            image = F.interpolate(image, size=(ori_height, ori_width), mode="bilinear")
 
         return DiffusionOutput(output=image)
 
