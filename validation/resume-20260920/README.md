@@ -17,3 +17,7 @@ The user reserved GPU 2,3, but the Moonlight process (PID 2156826) still occupie
 The redundant completed-run Ovis disk checkpoint was removed after checking the retained checkpoint against its original SHA256 manifest, releasing 21,806,936,378 bytes. The verified `/dev/shm/0z5a-ovis-1217` checkpoint remains because the rebase validation still needs it. ERNIE and OmniGen2 weights remain in use by pending validation. No other task or user model was removed.
 
 FLUX.1-dev, FLUX.1-schnell, FLUX.1-Kontext-dev and SD3.5-medium model-index access through hf-mirror was rechecked and returned HTTP 403. Those scopes remain blocked on model access; other backlog items are not marked complete.
+
+## Follow-up at 01:24 CST
+
+Both bounded GPU waits expired without starting an engine. The six-case two-rank real-weight VAE component run completed using remaining memory; see [numerical comparison](vae-parallel-comparison.md) and [raw log](vae-parallel-components.log). Tiled decode was exact for both models; small-image patch decode was not exact. No new speed claim or full E2E success follows from this check.
