@@ -23,7 +23,8 @@ class QwenImageLoRAMixin:
         )
         if isinstance(helper.target_modules, list):
             helper.target_modules = [
-                name.removesuffix(".0") if name.endswith(".to_out.0") else name for name in helper.target_modules
+                name.removesuffix(".0") if name == "to_out.0" or name.endswith(".to_out.0") else name
+                for name in helper.target_modules
             ]
         supported = {
             name.removesuffix(".base_layer").rsplit(".", 1)[-1]

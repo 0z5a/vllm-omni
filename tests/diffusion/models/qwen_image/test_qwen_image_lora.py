@@ -33,13 +33,14 @@ class _Pipeline(torch.nn.Module, QwenImageLoRAMixin):
 
 
 @pytest.mark.parametrize("wrapped", [False, True])
-@pytest.mark.parametrize("target", ["attn.to_out.0", "attn.to_out"])
+@pytest.mark.parametrize("target", ["attn.to_out.0", "attn.to_out", "to_out.0", "to_out"])
 def test_qwen_lora_output_name_and_scaling(tmp_path, monkeypatch, wrapped, target):
     monkeypatch.setattr(lora_model, "PIN_MEMORY", False)
     (tmp_path / "adapter_config.json").write_text(
         json.dumps({"r": 2, "lora_alpha": 4, "target_modules": [target], "peft_type": "LORA"})
     )
-    prefix = f"transformer.transformer_blocks.0.{target}"
+    projection = target if target.startswith("attn.") else f"attn.{target}"
+    prefix = f"transformer.transformer_blocks.0.{projection}"
     a = torch.arange(6, dtype=torch.float32).reshape(2, 3)
     b = torch.arange(8, dtype=torch.float32).reshape(4, 2)
     save_file({prefix + ".lora_A.weight": a, prefix + ".lora_B.weight": b}, tmp_path / "adapter_model.safetensors")
@@ -48,7 +49,7 @@ def test_qwen_lora_output_name_and_scaling(tmp_path, monkeypatch, wrapped, targe
     manager.dtype = torch.float32
     manager._expected_lora_modules = {"to_out"}
     model, helper = manager._load_adapter(LoRARequest("output", 1, str(tmp_path)))
-    assert helper.target_modules == ["attn.to_out"]
+    assert helper.target_modules == [target.removesuffix(".0")]
     assert set(model.loras) == {"transformer.transformer_blocks.0.attn.to_out"}
     weights = manager._get_lora_weights(model, "transformer.transformer_blocks.0.attn.to_out")
     assert weights is not None and weights.scaling == 1
