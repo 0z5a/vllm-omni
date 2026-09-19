@@ -1,0 +1,2 @@
+gpu_uuid, pid, used_gpu_memory [MiB], process_name
+GPU-79205eb2-0a9c-208f-b49b-aed7f2b6ebb4, 3223519, 286 MiB, /home/kxqandccx/vllm-omni-7753-hidream-20260918/venv/bin/python

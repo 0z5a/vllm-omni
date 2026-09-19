@@ -1,0 +1,44 @@
+#!/usr/bin/env bash
+set -euo pipefail
+root=/home/kxqandccx/omni-1217-20260919/rebased
+python_bin=/home/kxqandccx/vllm-omni-7753-hidream-20260918/venv/bin/python
+export CUDA_VISIBLE_DEVICES=2,3 OMP_NUM_THREADS=4 HF_HUB_OFFLINE=1 TOKENIZERS_PARALLELISM=false
+export PYTHONPATH="$root/source"
+cd "$PYTHONPATH"
+"$python_bin" -m pytest tests/diffusion/models/ovis_image/test_ovis_image_hsdp_residency.py -q > "$root/unit.log" 2>&1
+"$python_bin" -m torch.distributed.run --standalone --nproc-per-node=2 "$root/check_request_collectives.py" > "$root/lifecycle.log" 2>&1
+for arm in N0 A0 P0 P1 A1 N1; do
+    source_dir=hsdp
+    options=(--hsdp)
+    if [[ $arm == N* ]]; then
+        source_dir=native
+        options=()
+    fi
+    driver=benchmark.py
+    if [[ $arm == P* ]]; then
+        source_dir=source
+        driver=benchmark_request.py
+    fi
+    export PYTHONPATH="$root/$source_dir"
+    arm_dir="$root/evidence/$arm"
+    mkdir -p "$arm_dir"
+    export TRITON_CACHE_DIR="$arm_dir/triton" TORCHINDUCTOR_CACHE_DIR="$arm_dir/inductor" VLLM_CACHE_ROOT="$arm_dir/vllm-cache"
+    nvidia-smi -i 2,3 --query-gpu=timestamp,index,memory.used,utilization.gpu,power.draw --format=csv -l 1 > "$arm_dir/gpu.csv" &
+    monitor_pid=$!
+    nvidia-smi pmon -i 2,3 -s um -d 1 > "$arm_dir/process-utilization.txt" &
+    process_monitor_pid=$!
+    nvidia-smi -i 2,3 --query-compute-apps=gpu_uuid,pid,used_memory,process_name --format=csv > "$arm_dir/processes-start.csv"
+    trap 'kill "$monitor_pid" "$process_monitor_pid" 2>/dev/null || true' EXIT
+    cd "$PYTHONPATH"
+    timeout --kill-after=30s 2700 "$python_bin" "$root/$driver" --model /dev/shm/0z5a-ovis-1217 --output "$arm_dir" "${options[@]}" > "$arm_dir/run.log" 2>&1
+    nvidia-smi -i 2,3 --query-compute-apps=gpu_uuid,pid,used_memory,process_name --format=csv > "$arm_dir/processes-end.csv"
+    kill "$monitor_pid" "$process_monitor_pid"
+    trap - EXIT
+    printf 'complete\n' > "$arm_dir/status"
+done
+
+bash /home/kxqandccx/omni-1217-20260919/vae-validation/run_quartets.sh
+
+bash /home/kxqandccx/omni-1217-20260919/omnigen2-reference-validation/run_quartet.sh
+
+bash /home/kxqandccx/omni-1217-20260919/nextstep-validation/run_quartet.sh

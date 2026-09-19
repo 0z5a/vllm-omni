@@ -1,0 +1,263 @@
+{
+  "N0": {
+    "resident_processes": {},
+    "worker_pids": [
+      3221883,
+      3221884
+    ],
+    "additional_active_compute_pids": [
+      3228882
+    ],
+    "samples_by_pid": {
+      "103561": {
+        "command": "Xorg",
+        "type": "G",
+        "samples": 312,
+        "numeric_sm_samples": 0,
+        "max_sm": 0,
+        "max_fb_mib": 4
+      },
+      "3221883": {
+        "command": "vLLM-Omni::Diff",
+        "type": "C",
+        "samples": 124,
+        "numeric_sm_samples": 124,
+        "max_sm": 99,
+        "max_fb_mib": 21766
+      },
+      "3221884": {
+        "command": "vLLM-Omni::Diff",
+        "type": "C",
+        "samples": 124,
+        "numeric_sm_samples": 124,
+        "max_sm": 99,
+        "max_fb_mib": 21766
+      },
+      "3223519": {
+        "command": "python",
+        "type": "C",
+        "samples": 112,
+        "numeric_sm_samples": 0,
+        "max_sm": 0,
+        "max_fb_mib": 286
+      },
+      "3228882": {
+        "command": "VLLM::StageEngi",
+        "type": "C",
+        "samples": 35,
+        "numeric_sm_samples": 12,
+        "max_sm": 39,
+        "max_fb_mib": 23106
+      }
+    }
+  },
+  "A0": {
+    "resident_processes": {
+      "3223519": "/home/kxqandccx/vllm-omni-7753-hidream-20260918/venv/bin/python"
+    },
+    "worker_pids": [
+      3237158,
+      3237159
+    ],
+    "additional_active_compute_pids": [],
+    "samples_by_pid": {
+      "103561": {
+        "command": "Xorg",
+        "type": "G",
+        "samples": 1026,
+        "numeric_sm_samples": 0,
+        "max_sm": 0,
+        "max_fb_mib": 4
+      },
+      "3223519": {
+        "command": "python",
+        "type": "C",
+        "samples": 2,
+        "numeric_sm_samples": 0,
+        "max_sm": 0,
+        "max_fb_mib": 286
+      },
+      "3237158": {
+        "command": "vLLM-Omni::Diff",
+        "type": "C",
+        "samples": 477,
+        "numeric_sm_samples": 443,
+        "max_sm": 99,
+        "max_fb_mib": 16828
+      },
+      "3237159": {
+        "command": "vLLM-Omni::Diff",
+        "type": "C",
+        "samples": 477,
+        "numeric_sm_samples": 443,
+        "max_sm": 99,
+        "max_fb_mib": 16828
+      }
+    }
+  },
+  "P0": {
+    "resident_processes": {},
+    "worker_pids": [
+      3298868,
+      3298869
+    ],
+    "additional_active_compute_pids": [
+      3309257
+    ],
+    "samples_by_pid": {
+      "103561": {
+        "command": "Xorg",
+        "type": "G",
+        "samples": 392,
+        "numeric_sm_samples": 0,
+        "max_sm": 0,
+        "max_fb_mib": 4
+      },
+      "3298868": {
+        "command": "vLLM-Omni::Diff",
+        "type": "C",
+        "samples": 168,
+        "numeric_sm_samples": 137,
+        "max_sm": 99,
+        "max_fb_mib": 30444
+      },
+      "3298869": {
+        "command": "vLLM-Omni::Diff",
+        "type": "C",
+        "samples": 168,
+        "numeric_sm_samples": 137,
+        "max_sm": 99,
+        "max_fb_mib": 30444
+      },
+      "3309257": {
+        "command": "vLLM-Omni::Diff",
+        "type": "C",
+        "samples": 10,
+        "numeric_sm_samples": 4,
+        "max_sm": 14,
+        "max_fb_mib": 9568
+      }
+    }
+  },
+  "P1": {
+    "resident_processes": {},
+    "worker_pids": [
+      3322899,
+      3322902
+    ],
+    "additional_active_compute_pids": [
+      3334988,
+      3334986
+    ],
+    "samples_by_pid": {
+      "103561": {
+        "command": "Xorg",
+        "type": "G",
+        "samples": 380,
+        "numeric_sm_samples": 0,
+        "max_sm": 0,
+        "max_fb_mib": 4
+      },
+      "3322899": {
+        "command": "vLLM-Omni::Diff",
+        "type": "C",
+        "samples": 166,
+        "numeric_sm_samples": 135,
+        "max_sm": 99,
+        "max_fb_mib": 30444
+      },
+      "3322902": {
+        "command": "vLLM-Omni::Diff",
+        "type": "C",
+        "samples": 166,
+        "numeric_sm_samples": 136,
+        "max_sm": 99,
+        "max_fb_mib": 30444
+      },
+      "3334988": {
+        "command": "vLLM-Omni::Diff",
+        "type": "C",
+        "samples": 13,
+        "numeric_sm_samples": 5,
+        "max_sm": 48,
+        "max_fb_mib": 9750
+      },
+      "3334986": {
+        "command": "vLLM-Omni::Diff",
+        "type": "C",
+        "samples": 12,
+        "numeric_sm_samples": 4,
+        "max_sm": 37,
+        "max_fb_mib": 9732
+      }
+    }
+  },
+  "A1": {
+    "resident_processes": {},
+    "worker_pids": [
+      3347040,
+      3347041
+    ],
+    "additional_active_compute_pids": [],
+    "samples_by_pid": {
+      "103561": {
+        "command": "Xorg",
+        "type": "G",
+        "samples": 1030,
+        "numeric_sm_samples": 0,
+        "max_sm": 0,
+        "max_fb_mib": 4
+      },
+      "3347040": {
+        "command": "vLLM-Omni::Diff",
+        "type": "C",
+        "samples": 491,
+        "numeric_sm_samples": 460,
+        "max_sm": 99,
+        "max_fb_mib": 16828
+      },
+      "3347041": {
+        "command": "vLLM-Omni::Diff",
+        "type": "C",
+        "samples": 491,
+        "numeric_sm_samples": 461,
+        "max_sm": 99,
+        "max_fb_mib": 16828
+      }
+    }
+  },
+  "N1": {
+    "resident_processes": {},
+    "worker_pids": [
+      3408979,
+      3408980
+    ],
+    "additional_active_compute_pids": [],
+    "samples_by_pid": {
+      "103561": {
+        "command": "Xorg",
+        "type": "G",
+        "samples": 274,
+        "numeric_sm_samples": 0,
+        "max_sm": 0,
+        "max_fb_mib": 4
+      },
+      "3408979": {
+        "command": "vLLM-Omni::Diff",
+        "type": "C",
+        "samples": 113,
+        "numeric_sm_samples": 113,
+        "max_sm": 99,
+        "max_fb_mib": 21766
+      },
+      "3408980": {
+        "command": "vLLM-Omni::Diff",
+        "type": "C",
+        "samples": 113,
+        "numeric_sm_samples": 113,
+        "max_sm": 99,
+        "max_fb_mib": 21766
+      }
+    }
+  }
+}
