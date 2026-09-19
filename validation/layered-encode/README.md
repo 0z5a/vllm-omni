@@ -13,7 +13,7 @@ The wrapper inherits Layered's vendored VAE and distributes the existing spatial
 | Two-process Gloo executor, metadata packing/gather/merge/broadcast | 6 rank records exactly equal; RNG unchanged |
 | Changed-file pre-commit checks, including mypy | Passed |
 
-The Gloo probe uses real collectives and the real distributed executor with a test WORLD-group adapter. It uses a tiny randomly initialized vendored VAE on CPU, not real weights or GPU execution. Full checkpoint revision `8f0ca708dfff6ba1dd5f2d85d78f8c108a040bcf` is being downloaded; completeness is not yet verified.
+The Gloo probe uses real collectives and the real distributed executor with a test WORLD-group adapter. It uses a tiny randomly initialized vendored VAE on CPU, not real weights or GPU execution. Full checkpoint revision `8f0ca708dfff6ba1dd5f2d85d78f8c108a040bcf` has downloaded: all 33 repository files are present, and 10 safetensors files total 57,699,272,568 bytes. Every shard was opened and index keys were checked; see `layered-verified.json`. This is structural verification, not a full-file checksum or GPU inference test.
 
 | Full-model metric | Native encode | Parallel encode | Speedup |
 |---|---|---|---|
