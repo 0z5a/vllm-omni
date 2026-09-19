@@ -1,0 +1,51 @@
+{
+  "revision": "2c433cc0cbc293bde2ac8ca9624f279b5d23fcf4",
+  "repository_files": 27,
+  "weights": [
+    {
+      "file": "text_encoder/model.safetensors",
+      "bytes": 870643240,
+      "tensors": 111
+    },
+    {
+      "file": "transformer/diffusion_pytorch_model-00001-of-00003.safetensors",
+      "bytes": 4966398856,
+      "tensors": 169
+    },
+    {
+      "file": "transformer/diffusion_pytorch_model-00002-of-00003.safetensors",
+      "bytes": 4984743304,
+      "tensors": 154
+    },
+    {
+      "file": "transformer/diffusion_pytorch_model-00003-of-00003.safetensors",
+      "bytes": 3902674480,
+      "tensors": 120
+    },
+    {
+      "file": "vae/diffusion_pytorch_model.safetensors",
+      "bytes": 812234342,
+      "tensors": 288
+    },
+    {
+      "file": "vision_language_encoder/model-00001-of-00004.safetensors",
+      "bytes": 5295710600,
+      "tensors": 121
+    },
+    {
+      "file": "vision_language_encoder/model-00002-of-00004.safetensors",
+      "bytes": 5303216664,
+      "tensors": 169
+    },
+    {
+      "file": "vision_language_encoder/model-00003-of-00004.safetensors",
+      "bytes": 5303216648,
+      "tensors": 169
+    },
+    {
+      "file": "vision_language_encoder/model-00004-of-00004.safetensors",
+      "bytes": 4326469720,
+      "tensors": 552
+    }
+  ]
+}

@@ -1,0 +1,21 @@
+INFO 09-20 02:43:36 [patch.py:252] NVFP4 W4A4 weight_scale NaN-clamp: installed.
+INFO 09-20 02:43:36 [patch.py:252] NVFP4 W4A4 weight_scale NaN-clamp: installed.
+INFO 09-20 02:43:36 [patch.py:503] inductor factorable-divisibility patch: installed.
+INFO 09-20 02:43:36 [patch.py:503] inductor factorable-divisibility patch: installed.
+INFO 09-20 02:43:36 [patch.py:568] [cumem-cuda] CuMemAllocator._python_free_callback patched: asleep guard extended to all platforms.
+INFO 09-20 02:43:36 [patch.py:568] [cumem-cuda] CuMemAllocator._python_free_callback patched: asleep guard extended to all platforms.
+INFO 09-20 02:43:37 [parallel_state.py:785] sequence_parallel_size is not provided, using 2
+INFO 09-20 02:43:37 [parallel_state.py:785] sequence_parallel_size is not provided, using 2
+INFO 09-20 02:43:37 [parallel_state.py:610] Building SP subgroups from explicit sp_group_ranks (sp_size=2, ulysses=2, ring=1, use_ulysses_low=True).
+INFO 09-20 02:43:37 [parallel_state.py:610] Building SP subgroups from explicit sp_group_ranks (sp_size=2, ulysses=2, ring=1, use_ulysses_low=True).
+INFO 09-20 02:43:37 [parallel_state.py:652] SP group details for rank 1: sp_group=[0, 1], ulysses_group=[0, 1], ring_group=[1]
+INFO 09-20 02:43:37 [parallel_state.py:652] SP group details for rank 0: sp_group=[0, 1], ulysses_group=[0, 1], ring_group=[0]
+INFO 09-20 02:43:38 [autoencoder_kl.py:282] Decode run with distributed executor, split strategy is patch
+INFO 09-20 02:43:38 [autoencoder_kl.py:282] Decode run with distributed executor, split strategy is patch
+{"model": "glm-image", "latent_shape": [1, 16, 64, 64], "max_abs": 0.05078125, "mean_abs": 0.0037536248564720154, "relative_l2": 0.007503180298954248, "strategy": "patch"}
+INFO 09-20 02:43:39 [autoencoder_kl.py:282] Decode run with distributed executor, split strategy is tile
+INFO 09-20 02:43:40 [autoencoder_kl.py:282] Decode run with distributed executor, split strategy is tile
+INFO 09-20 02:43:40 [autoencoder_kl.py:282] Decode run with distributed executor, split strategy is patch
+{"model": "glm-image", "latent_shape": [1, 16, 128, 144], "max_abs": 0.0, "mean_abs": 0.0, "relative_l2": 0.0, "strategy": "tile"}
+INFO 09-20 02:43:40 [autoencoder_kl.py:282] Decode run with distributed executor, split strategy is patch
+{"model": "glm-image", "latent_shape": [1, 16, 64, 64], "max_abs": 0.046875, "mean_abs": 0.004054064862430096, "relative_l2": 0.008086086250841618, "strategy": "patch"}
