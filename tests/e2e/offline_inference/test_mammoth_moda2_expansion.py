@@ -101,7 +101,7 @@ def _sample_pixels(image: Image.Image) -> list[float]:
     return values
 
 
-def _iter_image_tensors(outputs: list[object]):
+def _iter_images(outputs: list[object]):
     """Yield images from shared diffusion ``OmniRequestOutput`` objects."""
     for out in outputs:
         ro_list = out if isinstance(out, list) else [out]
@@ -117,7 +117,7 @@ def test_diffusion_output_exposes_images_at_top_level():
     output = OmniRequestOutput.from_diffusion(request_id="diffusion-test", images=[image])
 
     assert output.outputs == []
-    assert list(_iter_image_tensors([output])) == [image]
+    assert list(_iter_images([output])) == [image]
 
 
 @pytest.mark.cpu
@@ -198,22 +198,21 @@ def test_mammothmoda2_t2i_e2e(omni_runner: OmniRunner):
 
     assert len(outputs) > 0, "Pipeline produced no outputs"
 
-    found_image = False
-    for image in _iter_image_tensors(outputs):
-        assert isinstance(image, Image.Image), f"Expected postprocessed PIL image, got {type(image)}"
-        assert image.mode == "RGB" and image.size == (width, height)
+    images = list(_iter_images(outputs))
+    assert len(images) == 1, f"Expected exactly one image, got {len(images)}"
 
-        sampled = _sample_pixels(image)
+    image = images[0]
+    assert isinstance(image, Image.Image), f"Expected PIL image, got {type(image)}"
+    assert image.mode == "RGB"
+    assert image.size == (width, height)
 
-        if os.environ.get("UPDATE_GOLDEN"):
-            _GOLDEN_T2I_PATH.parent.mkdir(parents=True, exist_ok=True)
-            _GOLDEN_T2I_PATH.write_text(json.dumps({"pixels": sampled}, indent=2))
-            print(f"\nGolden file written to {_GOLDEN_T2I_PATH}")
-        elif _GOLDEN_T2I_PATH.exists():
-            golden = json.loads(_GOLDEN_T2I_PATH.read_text())["pixels"]
-            for i, (got, exp) in enumerate(zip(sampled, golden)):
-                assert abs(got - exp) < 1e-4, f"Pixel {i} mismatch: got {got}, expected {exp}"
+    sampled = _sample_pixels(image)
 
-        found_image = True
-
-    assert found_image, "No postprocessed image found in pipeline output"
+    if os.environ.get("UPDATE_GOLDEN"):
+        _GOLDEN_T2I_PATH.parent.mkdir(parents=True, exist_ok=True)
+        _GOLDEN_T2I_PATH.write_text(json.dumps({"pixels": sampled}, indent=2))
+        print(f"\nGolden file written to {_GOLDEN_T2I_PATH}")
+    elif _GOLDEN_T2I_PATH.exists():
+        golden = json.loads(_GOLDEN_T2I_PATH.read_text())["pixels"]
+        for i, (got, exp) in enumerate(zip(sampled, golden)):
+            assert abs(got - exp) < 1e-4, f"Pixel {i} mismatch: got {got}, expected {exp}"
