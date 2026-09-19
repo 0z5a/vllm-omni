@@ -1,0 +1,89 @@
+{
+  "model": "Ovis-Image",
+  "revision": "41be1c5821a92c970d63d7eb595a2fd3fe32b22e",
+  "removed_owned_path": "/dev/shm/0z5a-ovis-1217",
+  "file_bytes": 21806939436,
+  "files": [
+    {
+      "path": "staging-manifest.json",
+      "bytes": 3058
+    },
+    {
+      "path": "model_index.json",
+      "bytes": 414
+    },
+    {
+      "path": "vae/diffusion_pytorch_model.safetensors",
+      "bytes": 167666902
+    },
+    {
+      "path": "vae/config.json",
+      "bytes": 774
+    },
+    {
+      "path": "transformer/diffusion_pytorch_model.safetensors.index.json",
+      "bytes": 61002
+    },
+    {
+      "path": "transformer/diffusion_pytorch_model-00002-of-00002.safetensors",
+      "bytes": 4757992496
+    },
+    {
+      "path": "transformer/diffusion_pytorch_model-00001-of-00002.safetensors",
+      "bytes": 9982976024
+    },
+    {
+      "path": "transformer/config.json",
+      "bytes": 339
+    },
+    {
+      "path": "tokenizer/vocab.json",
+      "bytes": 2776833
+    },
+    {
+      "path": "tokenizer/tokenizer_config.json",
+      "bytes": 5404
+    },
+    {
+      "path": "tokenizer/tokenizer.json",
+      "bytes": 11422654
+    },
+    {
+      "path": "tokenizer/special_tokens_map.json",
+      "bytes": 613
+    },
+    {
+      "path": "tokenizer/merges.txt",
+      "bytes": 1671853
+    },
+    {
+      "path": "tokenizer/chat_template.jinja",
+      "bytes": 1582
+    },
+    {
+      "path": "tokenizer/added_tokens.json",
+      "bytes": 707
+    },
+    {
+      "path": "text_encoder/model.safetensors.index.json",
+      "bytes": 23723
+    },
+    {
+      "path": "text_encoder/model-00002-of-00002.safetensors",
+      "bytes": 1912795064
+    },
+    {
+      "path": "text_encoder/model-00001-of-00002.safetensors",
+      "bytes": 4969538328
+    },
+    {
+      "path": "text_encoder/config.json",
+      "bytes": 1393
+    },
+    {
+      "path": "scheduler/scheduler_config.json",
+      "bytes": 273
+    }
+  ],
+  "reason": "All six rebased Ovis E2E arms and output-hash verification complete; remaining queues use other checkpoints; source/evidence retained."
+}

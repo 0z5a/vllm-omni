@@ -7,3 +7,5 @@ All six fresh-process arms completed on GPU 2/3. All 84 PNG files were checked l
 [Speed comparison](evidence/speed-comparison.md) reports both HSDP and native comparisons. It is a shared-host observation: N0, P0 and P1 contain additional active compute PIDs outside the worker set. Raw process telemetry is retained, including the other PIDs. There is one balanced block and no cross-session confidence interval. This run establishes successful rebased E2E and output parity, not an isolated speed guarantee.
 
 To regenerate the table, run `python audit_processes.py evidence` followed by `python summarize_rebased.py evidence`. Both scripts use the saved records; the latter also hashes every PNG.
+
+After the evidence was pushed and PR #7831 updated, the task-owned Ovis checkpoint was removed, releasing 21,806,939,436 file bytes. The checkpoint revision and cleanup manifest are retained in `ovis-cleanup.json`. Remaining E2E queues use other models; their required weights and shared model directories were preserved. Reproduction requires restoring the recorded Ovis checkpoint revision before running the GPU harness.
