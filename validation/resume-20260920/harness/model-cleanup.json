@@ -1,0 +1,7 @@
+{
+  "removed": "/home/kxqandccx/omni-1217-20260919/model",
+  "retained_for_rebase_validation": "/dev/shm/0z5a-ovis-1217",
+  "verified_files": 19,
+  "released_bytes": 21806936378,
+  "verification": "Retained full checkpoint hashes match original copy manifest; redundant source file sizes match."
+}
