@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: Apache-2.0
-# SPDX-FileCopyrightText: Copyright contributors to the vLLM project
+# SPDX-FileCopyrightText: Copyright contributors to the vLLM-Omni project
 
 from __future__ import annotations
 
@@ -27,6 +27,7 @@ from vllm_omni.diffusion.distributed.utils import get_local_device
 from vllm_omni.diffusion.model_loader.diffusers_loader import DiffusersPipelineLoader
 from vllm_omni.diffusion.model_loader.hub_prefetch import from_pretrained_with_prefetch, prefetch_subfolders
 from vllm_omni.diffusion.models.hunyuan_video.hunyuan_video_15_transformer import HunyuanVideo15Transformer3DModel
+from vllm_omni.diffusion.models.hunyuan_video.quantization import prepare_hunyuan15_text_encoder_fp8
 from vllm_omni.diffusion.models.interface import SupportsComponentDiscovery
 from vllm_omni.diffusion.models.progress_bar import ProgressBarMixin
 from vllm_omni.diffusion.models.t5_encoder import T5EncoderModel
@@ -34,6 +35,7 @@ from vllm_omni.diffusion.profiler.diffusion_pipeline_profiler import DiffusionPi
 from vllm_omni.diffusion.utils.tf_utils import get_transformer_config_kwargs
 from vllm_omni.diffusion.worker.request_batch import DiffusionRequestBatch
 from vllm_omni.platforms import current_omni_platform
+from vllm_omni.quantization import resolve_component_quant_config
 
 logger = logging.getLogger(__name__)
 
@@ -125,6 +127,8 @@ class HunyuanVideo15Pipeline(
             torch_dtype=dtype,
         ).to(self.device)
 
+        prepare_hunyuan15_text_encoder_fp8(self.text_encoder, od_config.quantization_config, self.device)
+
         self.tokenizer_2 = ByT5Tokenizer.from_pretrained(
             model, subfolder="tokenizer_2", local_files_only=local_files_only
         )
@@ -151,7 +155,9 @@ class HunyuanVideo15Pipeline(
 
         transformer_kwargs = get_transformer_config_kwargs(od_config.tf_model_config, HunyuanVideo15Transformer3DModel)
         self.transformer = HunyuanVideo15Transformer3DModel(
-            od_config=od_config, quant_config=od_config.quantization_config, **transformer_kwargs
+            od_config=od_config,
+            quant_config=resolve_component_quant_config(od_config.quantization_config, "transformer"),
+            **transformer_kwargs,
         )
 
         # Check if model uses meanflow (distilled variants)
