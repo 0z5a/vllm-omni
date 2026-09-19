@@ -1,0 +1,5 @@
+{
+  "tests/diffusion/models/helios/test_helios_vae.py": "bcbdb8c5afc1be3e54c78404a24032691ec2d056e48e92846bf822df1eda77c2",
+  "vllm_omni/diffusion/models/helios/autoencoder_kl_wan.py": "c5f6d70a16c812d634899a0b6d73ae20d4b504afef89be56a18ecee167a2cb80",
+  "vllm_omni/diffusion/models/helios/pipeline_helios.py": "0db981c3caa2e7c915c729c477c98f576afced6743131d921869cd169ae6c33f"
+}

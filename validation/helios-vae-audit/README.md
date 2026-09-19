@@ -19,3 +19,11 @@ Six CPU regressions pass. A real-weight two-process Gloo run first caught stale 
 These component results do not establish full-pipeline fit, VAE speed improvement, quality relative to untiled decoding, or full E2E. Those gates remain pending; shared weights are retained.
 
 Draft implementation: [PR 7854](https://github.com/vllm-project/vllm-omni/pull/7854). Full E2E remains pending.
+
+## Full E2E queue
+
+The full benchmark and probe import successfully against an immutable source snapshot whose three changed-file hashes match `75e089b`. GPU runs are queued after the current model controller and ERNIE component gate. The shared checkpoint is already verified and retained.
+
+Four timed A/P/P/A processes use identical TP2, BF16 transformer/text encoder, the pipeline's FP32 VAE, eager execution and native VAE tiling. They run 33-frame T2V, 33-frame I2V, 66-frame V2V, then T2V reentry at 640×384. Each case has two warmups and five timed requests. Both arms use the distilled pyramid path with 10/10/10 stages, guidance 1 and seed 142. Generated arrays are saved by content hash; selected frames provide inspection samples.
+
+Separate untimed A/P probes record the ordered VAE inputs/outputs and actual tile-call counts. Two additional untimed runs cover step execution. These diagnostics are excluded from the speed samples. Both input types use the pipeline's existing tensor APIs; no new public image/video contract is introduced. Full execution and fit remain pending.

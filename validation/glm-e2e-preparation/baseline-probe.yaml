@@ -1,0 +1,35 @@
+async_chunk: false
+dtype: bfloat16
+trust_remote_code: true
+enable_prefix_caching: false
+stages:
+  - stage_id: 0
+    devices: "0"
+    max_num_seqs: 1
+    max_model_len: 8192
+    max_num_batched_tokens: 8192
+    gpu_memory_utilization: 0.55
+    enforce_eager: true
+    default_sampling_params:
+      temperature: 0.9
+      top_p: 0.75
+      top_k: 16512
+      stop_token_ids: [16385]
+      max_tokens: 4353
+      seed: 142
+      detokenize: false
+  - stage_id: 1
+    devices: "0,1"
+    tensor_parallel_size: 2
+    vae_patch_parallel_size: 1
+    engine_extras:
+      diffusion_model_runner_cls: probe.VaeProbeRunner
+    vae_use_tiling: true
+    max_num_seqs: 1
+    enforce_eager: true
+    default_sampling_params:
+      seed: 142
+      num_inference_steps: 50
+      guidance_scale: 1.5
+      height: 512
+      width: 512
