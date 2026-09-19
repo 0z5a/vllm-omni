@@ -30,14 +30,14 @@ def gpu_snapshot():
     )
 
 
-def request(fixture, url):
+def request(fixture, url, width, height):
     started = time.perf_counter()
     with fixture.open("rb") as uploaded:
         response = requests.post(
             url + "/v1/videos/sync",
             data={
                 "prompt": " ",
-                "size": "224x128",
+                "size": f"{width}x{height}",
                 "seed": "7723",
                 "num_frames": "5",
                 "num_inference_steps": "1",
@@ -51,11 +51,11 @@ def request(fixture, url):
     return seconds, response.content
 
 
-def check_media(body):
+def check_media(body, width, height):
     with av.open(io.BytesIO(body)) as container:
         stream = container.streams.video[0]
         frames = list(container.decode(video=0))
-        assert (len(frames), stream.width, stream.height, str(stream.average_rate)) == (5, 224, 128, "25")
+        assert (len(frames), stream.width, stream.height, str(stream.average_rate)) == (5, width, height, "25")
         assert [frame.pts for frame in frames] == [0, 512, 1024, 1536, 2048]
         pixels = np.stack([frame.to_ndarray(format="rgb24") for frame in frames])
     with av.open(io.BytesIO(body)) as container:
@@ -136,11 +136,12 @@ def run_arm(directory, arm, args):
                 rope["sha256"]
                 == hashlib.sha256((checkout / "vllm_omni/diffusion/models/seedvr2/rope.py").read_bytes()).hexdigest()
             )
-            record["warmup_seconds"] = [request(args.input, url)[0] for _ in range(5)]
+            record["warmup_seconds"] = [request(args.input, url, args.width, args.height)[0] for _ in range(5)]
+            assert json.loads(audits[0].read_text())["audited_forwards"] == 6, "warmup audit did not finish"
             record["samples"] = []
             for repeat in range(24):
-                seconds, body = request(args.input, url)
-                video_hash, audio_hash = check_media(body)
+                seconds, body = request(args.input, url, args.width, args.height)
+                video_hash, audio_hash = check_media(body, args.width, args.height)
                 if repeat == 0:
                     (directory / "output.mp4").write_bytes(body)
                 record["samples"].append({"seconds": seconds, "video_sha256": video_hash, "audio_sha256": audio_hash})
@@ -168,6 +169,10 @@ def main():
     parser.add_argument("--gpu", type=int, required=True)
     parser.add_argument("--port", type=int, default=19824)
     parser.add_argument("--server-cpus")
+    parser.add_argument("--width", type=int, default=224)
+    parser.add_argument("--height", type=int, default=128)
+    parser.add_argument("--video-mae-limit", type=float, default=0)
+    parser.add_argument("--video-max-error-limit", type=float, default=0)
     for name in ("baseline", "candidate", "models", "input", "output"):
         parser.add_argument(f"--{name}", type=Path, required=True)
     args = parser.parse_args()
@@ -185,17 +190,35 @@ def main():
         "AA_drift_limit": 0.15,
         "independent_unit": "fresh-process quartet",
         "gpu": args.gpu,
+        "output_size": [args.width, args.height],
+        "video_mae_limit": args.video_mae_limit,
+        "video_max_error_limit": args.video_max_error_limit,
         "exclusive_host": False,
         "server_cpu_affinity": args.server_cpus,
         "client_cpu_affinity": sorted(os.sched_getaffinity(0)),
     }
     (destination / "contract.json").write_text(json.dumps(contract, indent=2))
-    hashes = set()
+    hashes = {"A": set(), "P": set()}
+    first_outputs = {}
     for block, order in enumerate(contract["orders"]):
         for position, arm in enumerate(order):
             row = run_arm(destination / f"{block:02d}-{position}-{arm}", arm, args)
-            hashes.update((sample["video_sha256"], sample["audio_sha256"]) for sample in row["samples"])
-            assert len(hashes) == 1, "cross-request/cross-arm decoded media mismatch"
+            hashes[arm].update((sample["video_sha256"], sample["audio_sha256"]) for sample in row["samples"])
+            assert len(hashes[arm]) == 1, "within-variant decoded media mismatch"
+            first_outputs.setdefault(arm, destination / f"{block:02d}-{position}-{arm}" / "output.mp4")
+            if len(first_outputs) == 2:
+                assert next(iter(hashes["A"]))[1] == next(iter(hashes["P"]))[1], "audio mismatch"
+                pixels = []
+                for variant in ("A", "P"):
+                    with av.open(str(first_outputs[variant])) as container:
+                        pixels.append(
+                            np.stack([frame.to_ndarray(format="rgb24") for frame in container.decode(video=0)])
+                        )
+                error = np.abs(pixels[0].astype(np.float32) - pixels[1].astype(np.float32)) / 255
+                quality = {"mae": float(error.mean()), "max_error": float(error.max())}
+                (destination / "media-comparison.json").write_text(json.dumps(quality, indent=2))
+                assert quality["mae"] <= args.video_mae_limit
+                assert quality["max_error"] <= args.video_max_error_limit
     print("ALL_ARMS_COMPLETE", flush=True)
 
 

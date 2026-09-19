@@ -75,10 +75,13 @@ Unsupported engine modes are rejected before process hooks and worker creation.
 Use `window_parallel_size` for model-owned sequence parallelism; Ulysses, Ring
 and AllGather-KV are not supported for this pipeline.
 
-Native SP1 five-frame output is bitwise equal to the reference fixture. SP2/SP4
-frame error is MAE 0.000171566 and max 0.00387573 against SP1, below the declared
-0.02/0.25 gates. These shared-host checks establish correctness, not scaling or
-stable service speedup.
+The CUDA FP16 VAE fuses framewise GroupNorm and SiLU while preserving the
+FP16 boundary between them. Its FP32 reduction order differs from the reference:
+full-checkpoint five/six-frame and 2×/4× SP1 comparisons have worst MAE 0.000231787,
+max error 0.016113282, and minimum PSNR 68.25 dB. Same-seed repeated requests are
+exact within this implementation. CPU and non-FP16 standalone VAE calls retain
+the reference normalization path. See the [VAE validation report](../../benchmarks/diffusion/seedvr2_vae_results.md)
+for service measurements and SP results; these are not multi-GPU scaling claims.
 
 The practical P0 reference's five-frame batches, overlap, LAB correction,
 32-block CPU swapping, and VAE tiling are separate execution semantics and are

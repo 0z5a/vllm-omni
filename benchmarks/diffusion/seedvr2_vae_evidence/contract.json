@@ -1,0 +1,28 @@
+{
+  "fixture_sha256": "8236d30c70936cff5bfcbaf551b6551d68cfdf3a64be26cd757f24a19e3a43fa",
+  "warmup_requests": 5,
+  "measured_requests_per_arm": 24,
+  "orders": [
+    "APPA",
+    "PAAP",
+    "APPA",
+    "PAAP",
+    "APPA"
+  ],
+  "metric": "upload-through-response-download seconds",
+  "MES_latency_reduction": 0.01,
+  "AA_drift_limit": 0.15,
+  "independent_unit": "fresh-process quartet",
+  "gpu": 4,
+  "output_size": [
+    848,
+    480
+  ],
+  "video_mae_limit": 0.02,
+  "video_max_error_limit": 0.25,
+  "exclusive_host": false,
+  "server_cpu_affinity": "40-47",
+  "client_cpu_affinity": [
+    48
+  ]
+}
