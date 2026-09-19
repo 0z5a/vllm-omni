@@ -99,6 +99,7 @@ from .condition_noise import (
     minimax_h3_audio_cond_noise_aug_rows,
     minimax_h3_imgvid_cond_noise_aug_rows,
 )
+from .continuation import diffuse_continuation, resolve_continuation
 from .denoise_loop import (
     MiniMaxH3DenoiseBranch,
     minimax_h3_denoise_loop,
@@ -2067,6 +2068,9 @@ class MiniMaxH3Pipeline(
         sampling: Any,
     ) -> dict[str, Any]:
         extra = sampling.extra_args or {}
+        continuation = resolve_continuation(
+            extra, task=conditioning.task, step_execution=bool(getattr(self.od_config, "step_execution", False))
+        )
         requested_task = extra.get("task")
         if requested_task is not None and str(requested_task).lower() != conditioning.task:
             raise OmniClientError(
@@ -2133,8 +2137,11 @@ class MiniMaxH3Pipeline(
             num_inference_steps=num_steps,
             extra_args=extra,
         )
+        if continuation is not None and quality_plan.cache_dit is not None:
+            raise OmniClientError("MiniMax H3 continuation requires uncached denoising; set quality=lossless")
         self._cache_dit_runtime.prepare(quality_plan.cache_dit)
         return {
+            "continuation": continuation,
             "task": task,
             "height": conditioning.height,
             "width": conditioning.width,
@@ -2196,7 +2203,14 @@ class MiniMaxH3Pipeline(
         videos = []
         audios = []
         for output_seed in _minimax_h3_output_seeds(context["seed"], num_outputs):
-            video_latent, audio_latent = self.diffuse(**{**denoise_kwargs, "seed": output_seed})
+            output_kwargs = {**denoise_kwargs, "seed": output_seed}
+            if context.get("continuation") is None:
+                video_latent, audio_latent = self.diffuse(**output_kwargs)
+            else:
+                window_frames, overlap_frames = context["continuation"]
+                video_latent, audio_latent = diffuse_continuation(
+                    self.diffuse, output_kwargs, window_frames=window_frames, overlap_frames=overlap_frames
+                )
             if context["preencode_mp4"]:
                 videos.append(
                     self.decode_to_mp4(

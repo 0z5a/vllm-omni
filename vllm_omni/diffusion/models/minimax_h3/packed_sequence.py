@@ -353,6 +353,8 @@ def minimax_h3_packed_sequence_ref2va_blocks(
     - ``{"kind": "audio", "ref_audio_t": T}``
     - ``{"kind": "video"|"video_audio", "ref_audio_t": T,
        "latent_t": RT, "latent_h": RH, "latent_w": RW}``
+    - Internal ``latent_guide``: a final AV condition block on the target's
+      spatial grid and temporal origin, without advancing the reference clock.
 
     Video-bearing blocks pack their audio rows immediately before their video
     rows; both share the same temporal origin and advance by the longer of the
@@ -383,11 +385,15 @@ def minimax_h3_packed_sequence_ref2va_blocks(
             rows = rt * audio_channel
             item = {"kind": kind, "ref_audio_t": rt, "audio_rows": rows}
             ref_audio_rows += rows
-        elif kind in ("video", "video_audio"):
+        elif kind in ("video", "video_audio", "latent_guide"):
             rt = _positive_int(raw, "ref_audio_t", path, allow_zero=True)
             vt = _positive_int(raw, "latent_t", path)
             vh = _positive_int(raw, "latent_h", path)
             vw = _positive_int(raw, "latent_w", path)
+            if kind == "latent_guide" and (
+                index != len(ref_blocks) - 1 or (vh, vw) != (latent_h, latent_w) or vt > latent_t or rt > audio_t
+            ):
+                raise ValueError("latent_guide must be last, match the target canvas, and fit its AV lengths")
             frame_rows = (vh // _PATCH_H) * (vw // _PATCH_W)
             audio_rows = rt * audio_channel
             video_rows = vt * frame_rows
@@ -447,7 +453,7 @@ def minimax_h3_packed_sequence_ref2va_blocks(
     # device-to-host synchronization.
     video_spans: list[dict[str, object]] = []
     for item in block_slices:
-        if item["kind"] in ("video", "video_audio"):
+        if item["kind"] in ("video", "video_audio", "latent_guide"):
             visual_sl = item["visual_sl"]
             assert isinstance(visual_sl, slice)
             video_spans.append(
@@ -567,7 +573,8 @@ def minimax_h3_packed_sequence_ref2va_blocks(
             rv_g[:, :, 0] = _video_t_grid(vt, t_cursor)[:, None]
             rv_g[:, :, 1:] = rv_frame[None]
             g[visual_sl] = rv_g.reshape(-1, 3)
-            t_cursor += max(float(ref_t), _video_t_span(vt))
+            if kind != "latent_guide":
+                t_cursor += max(float(ref_t), _video_t_span(vt))
 
     input_ids[audio_sl] = MINIMAX_H3_AUDIO_ID
     input_ids[audio_sl.start] = MINIMAX_H3_AUDIO_FIRST_ID

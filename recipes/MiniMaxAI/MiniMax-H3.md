@@ -883,6 +883,44 @@ and [ComfyUI H3 masking](https://github.com/Comfy-Org/ComfyUI/blob/master/comfy/
 The workflow's custom Dasiwa weights, Sol attention, and T8-specific LoRA are
 not supplied by this feature.
 
+### Latent-tail continuation
+
+For bounded denoising windows, add `long_video_mode=continuation` to the
+long-video request above. This experimental mode currently supports Ref2VA
+request execution with uncached denoising (`quality=lossless`); step execution
+is rejected. The default `full` mode still samples the entire target at once.
+
+```json
+{
+  "task": "ref2va",
+  "duration": 75,
+  "long_video": true,
+  "long_video_mode": "continuation",
+  "continuation_window_frames": 277,
+  "continuation_overlap_frames": 22,
+  "audio_mode": "lock_source",
+  "audio_flow_shift": 3,
+  "preencode_mp4": true,
+  "preencode_batch_frames": 17
+}
+```
+
+These defaults sample seven windows for a 1,807-frame output. Each continuation
+uses the preceding AV latent tail as fixed condition rows at the new target's
+time origin, samples a fresh unmasked target, discards its hidden overlap, and
+appends only the new suffix. The reference image and full prompt remain present
+in every window. Both window and overlap use the `17n+5` frame grid; the window
+must be 107..345 frames and larger than the overlap. A final window may be shorter.
+Audio boundaries are rounded on the cumulative 24 FPS / 40 Hz timeline to avoid
+drift; a locked driving track is sliced separately for each stereo channel.
+
+The cumulative latent is decoded once after all windows. Denoising memory is
+bounded by the window, while cumulative latent storage still grows with duration.
+This follows the [ComfyUI latent-tail continuation algorithm](https://github.com/ttulttul/ComfyUI-Minimax-H3-Continuation).
+It does not guarantee seamless cuts or adherence to absolute shot timestamps in
+a repeated prompt. For comparison, keep the model, seed, prompt, source media,
+steps, shifts, and output size fixed, changing only `long_video_mode`.
+
 ## Request-scoped quality
 
 Add one of these fields to any HTTP request above. No Cache-DiT startup option
