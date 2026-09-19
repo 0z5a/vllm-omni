@@ -1,0 +1,13 @@
+{
+  "source": "3ea51522ba780697f3670cadfdb117781b3ea7f3",
+  "remote": "/dev/shm/0z5a-qwen-lora-3ea5152",
+  "files": {
+    "tests/diffusion/models/qwen_image/test_qwen_image_lora.py": "8f14de52030e4d7993c9d31d3a363e9a2cabfd3f13eea8d80331fad9e3394403",
+    "vllm_omni/diffusion/models/qwen_image/lora.py": "4be7bef34f0fb8c239db0c9a98312685f9e104db5651dd8f5016f91d7796676c",
+    "vllm_omni/diffusion/models/qwen_image/pipeline_qwen_image.py": "d951f00118045379cefdc3ec4546e81996b2569baeac63efac639ed7d7268eba",
+    "vllm_omni/diffusion/models/qwen_image/pipeline_qwen_image_edit.py": "4831e6a9b41703fc86d349c1bf3357e13f7c5115a425dd7cf3e3fdf49664fc45",
+    "vllm_omni/diffusion/models/qwen_image/pipeline_qwen_image_edit_plus.py": "da0ab6be2b9b86d876aae401ecef552e0d90bf6db5d34c20102b38b84700c5bb",
+    "vllm_omni/diffusion/models/qwen_image/pipeline_qwen_image_layered.py": "4a6883abeffb4fccde99f4179beaf20c4a72cf391f5b05a0c69821b3ea3415ce"
+  },
+  "all_remote_hashes_match": true
+}
