@@ -43,7 +43,7 @@ def encoder():
 @pytest.mark.parametrize("config", [None, Fp8Config(), ComponentQuantizationConfig({"transformer": Fp8Config()})])
 def test_encoder_requires_component_opt_in(encoder, config):
     original = dict(encoder.named_parameters())
-    assert quantization.prepare_gemma3_fp8(encoder, config) == 0
+    assert quantization.prepare_gemma3_fp8(encoder, config, torch.device("cpu")) == 0
     assert all(dict(encoder.named_parameters())[name] is value for name, value in original.items())
 
 
@@ -53,13 +53,17 @@ def test_encoder_requires_component_opt_in(encoder, config):
 def test_encoder_rejects_unsupported_fp8_before_mutation(encoder, config):
     original = dict(encoder.named_parameters())
     with pytest.raises(ValueError, match="dynamic online FP8"):
-        quantization.prepare_gemma3_fp8(encoder, ComponentQuantizationConfig({"text_encoder": config}))
+        quantization.prepare_gemma3_fp8(
+            encoder, ComponentQuantizationConfig({"text_encoder": config}), torch.device("cpu")
+        )
     assert all(dict(encoder.named_parameters())[name] is value for name, value in original.items())
 
 
 def test_encoder_rejects_other_architectures():
     with pytest.raises(ValueError, match="Gemma3 only"):
-        quantization.prepare_gemma3_fp8(nn.Linear(2, 2), ComponentQuantizationConfig({"text_encoder": Fp8Config()}))
+        quantization.prepare_gemma3_fp8(
+            nn.Linear(2, 2), ComponentQuantizationConfig({"text_encoder": Fp8Config()}), torch.device("cpu")
+        )
 
 
 def test_text_projection_conversion_preserves_other_weights_and_hidden_states(encoder, monkeypatch):
@@ -81,7 +85,12 @@ def test_text_projection_conversion_preserves_other_weights_and_hidden_states(en
             self.weight.weight_loader = lambda parameter, weight: parameter.copy_(weight)
 
     monkeypatch.setattr(quantization, "ReplicatedLinear", LoadedLinear)
-    assert quantization.prepare_gemma3_fp8(encoder, ComponentQuantizationConfig({"text_encoder": Fp8Config()})) == 14
+    assert (
+        quantization.prepare_gemma3_fp8(
+            encoder, ComponentQuantizationConfig({"text_encoder": Fp8Config()}), torch.device("cpu")
+        )
+        == 14
+    )
     assert all(prefix.startswith("text_encoder.model.language_model.layers.") for prefix in prefixes)
     for name, parameter in encoder.named_parameters():
         if ".language_model.layers." not in name or name.endswith("norm.weight"):
