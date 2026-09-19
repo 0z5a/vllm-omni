@@ -64,18 +64,6 @@ def _ceiling(value: int, tiers: tuple[int, ...]) -> int:
 
 
 class _MiniCPMO45EncoderCudaGraphMixin(SupportsEncoderCudaGraph):
-    def _encoder_slice_caps(self) -> tuple[int, ...]:
-        budgets = self.vllm_config.compilation_config.encoder_cudagraph_token_budgets
-        if not budgets:
-            budgets = [self.get_encoder_cudagraph_budget_range(self.vllm_config)[1]]
-        # An item beyond the output-token budget already takes the manager's
-        # eager path. Do not capture larger slice layouts that cannot replay.
-        max_slices = max(1, max(budgets) // int(self.config.query_num))
-        caps = [1]
-        while caps[-1] < max_slices:
-            caps.append(caps[-1] * 2)
-        return tuple(caps)
-
     def get_input_modality(self, mm_kwargs: dict[str, Any]) -> str:
         if "audio_features" in mm_kwargs:
             return "audio"
@@ -88,11 +76,7 @@ class _MiniCPMO45EncoderCudaGraphMixin(SupportsEncoderCudaGraph):
             modalities.extend(["image", "video"])
             # Capture the largest intermediates first so smaller layouts can
             # reuse the graph pool instead of growing fragmented segments.
-            axes.extend(
-                ("vision", slices, patches)
-                for slices in reversed(self._encoder_slice_caps())
-                for patches in reversed(_PATCH_CAPS)
-            )
+            axes.extend(("vision", patches) for patches in reversed(_PATCH_CAPS))
         # Audio remains eager: even padded BF16 convolution changes values
         # at rounding boundaries, which can change greedy transcript tokens.
         return EncoderCudaGraphConfig(
@@ -129,17 +113,17 @@ class _MiniCPMO45EncoderCudaGraphMixin(SupportsEncoderCudaGraph):
         min_budget = min(max(1, int(self.config.query_num)), max_budget)
         return min_budget, max_budget
 
-    def _vision_layout(self, slices: int, patches: int) -> tuple[str, int, int]:
+    def _vision_layout(self, slices: int, patches: int) -> tuple[str, int]:
         """Reject in-budget layouts the manager cannot replay."""
-        caps = self._encoder_slice_caps()
-        capacity = _ceiling(slices, caps)
+        budgets = self.vllm_config.compilation_config.encoder_cudagraph_token_budgets
+        max_budget = max(budgets) if budgets else self.get_encoder_cudagraph_budget_range(self.vllm_config)[1]
         extent = _ceiling(patches, _PATCH_CAPS)
-        if capacity in caps and extent not in _PATCH_CAPS:
+        if slices * int(self.config.query_num) <= max_budget and extent not in _PATCH_CAPS:
             raise ValueError(
                 f"No captured vision layout for {slices} slices of {patches} patches; "
                 f"captured patch caps: {_PATCH_CAPS}. Disable cudagraph_mm_encoder for this input."
             )
-        return ("vision", capacity, extent)
+        return ("vision", extent)
 
     def _encoder_data(self, mm_kwargs: dict[str, Any]):
         cached = mm_kwargs.get(_PARSE_KEY)
@@ -209,7 +193,8 @@ class _MiniCPMO45EncoderCudaGraphMixin(SupportsEncoderCudaGraph):
         path: str = "default",
         axis_keys: tuple[Hashable, ...] | None = None,
     ) -> EncoderCudaGraphCaptureInputs:
-        kind, capacity, extent = axis_keys[0]
+        kind, extent = axis_keys[0]
+        capacity = max(1, token_budget // int(self.config.query_num))
         patch = int(self.vpm.embeddings.patch_size)
         values = {
             "pixels": torch.zeros(capacity, 3, patch, extent * patch, device=device, dtype=dtype),
@@ -227,7 +212,7 @@ class _MiniCPMO45EncoderCudaGraphMixin(SupportsEncoderCudaGraph):
         max_frames_per_batch: int,
         path: str = "default",
     ) -> EncoderCudaGraphReplayBuffers:
-        kind, _, extent = mm_kwargs[_LAYOUT_KEY]
+        kind, extent = mm_kwargs[_LAYOUT_KEY]
         modality, features, metadata, counts = self._encoder_data(mm_kwargs)
         device, dtype = next(self.vpm.parameters()).device, next(self.vpm.parameters()).dtype
         patch = int(self.vpm.embeddings.patch_size)

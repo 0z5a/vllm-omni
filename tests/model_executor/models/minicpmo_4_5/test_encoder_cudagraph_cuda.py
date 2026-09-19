@@ -69,6 +69,9 @@ def test_manager_graph_replay_matches_encoder_entry_point(modality: str, dtype, 
     monkeypatch.setattr(manager, "_run_budget_graph", record_budget)
     with torch.inference_mode():
         manager.capture(torch.cuda.graph_pool_handle())
+        assert set(manager.budget_graphs["default"]) == {
+            (budget, (("vision", patches),)) for budget in (16, 32) for patches in (1024, 1152, 2048)
+        }
         for iteration in range(8):
             prefix = "video_" if modality == "video" else ""
             counts = (5, 3) if iteration % 2 else (2, 1)

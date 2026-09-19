@@ -90,9 +90,10 @@ vllm serve openbmb/MiniCPM-o-4_5 --omni --trust-remote-code \
 ```
 
 Do not change `enforce_eager` for an OFF/ON comparison. Without explicit
-budgets, the model captures one four-query-group budget, clipped to the
-scheduler/model limits. Slice tiers follow the largest configured token
-budget, and capture runs largest layouts first to limit graph-pool growth.
+budgets, the manager captures 64/128/256 output-token budgets at the default
+`query_num=64`, clipped to the scheduler/model limits. Each budget determines
+its slice capacity directly (1/2/4); the three patch tiers produce nine graphs
+in total. Capture runs largest budgets and patch tiers first.
 Actual item tokens are not inflated to fit a tier: a five-slice image has
 320 tokens and exceeds the example's 256-token budget, so it runs eager.
 Video frames reuse the image path. Larger explicit budgets are supported

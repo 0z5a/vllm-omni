@@ -36,8 +36,10 @@ from tests.helpers.clean import wait_for_gpu_memory_to_clear
 from tests.helpers.mark import hardware_test
 from tests.helpers.media import generate_synthetic_video
 from tests.helpers.stage_config import get_deploy_config_path, modify_stage_config
+from vllm_omni.platforms import current_omni_platform
 
 _MODEL = "openbmb/MiniCPM-o-4_5"
+pytestmark = pytest.mark.skipif(not current_omni_platform.is_cuda(), reason="Encoder graphs require CUDA")
 _CI_DEPLOY = get_deploy_config_path("minicpmo_4_5.yaml")
 
 # One four-query-group budget for the real checkpoint. In-budget items replay a
@@ -68,6 +70,7 @@ def _deploy_config(*, encoder_graph: bool) -> str:
     stage0: dict[str, object] = {
         # Bound the shared-card profile so a second engine can load after the
         # first is closed, without changing any modality default.
+        "worker_extension_cls": "tests.e2e.offline_inference.encoder_graph_probe.EncoderGraphProbe",
         "kv_cache_memory_bytes": 2 * 1024**3,
         "max_model_len": 8192,
         "max_num_batched_tokens": 4096,
@@ -120,7 +123,7 @@ def _oversized_image() -> Image.Image:
 
 
 def _small_video() -> np.ndarray:
-    return generate_synthetic_video(112, 112, 8)["np_array"]
+    return generate_synthetic_video(112, 112, 2)["np_array"]
 
 
 def _image_question() -> str:
@@ -168,13 +171,6 @@ def _generate(omni_runner, *, images=None, videos=None) -> str:
     )
 
 
-def _stage0_uses_encoder_graph(omni_runner) -> bool:
-    """Check that Stage 0 received the requested encoder graph flag."""
-    stage0 = omni_runner.omni.engine.stage_configs[0]
-    compilation = stage0.engine_args.get("compilation_config")
-    return bool(compilation and compilation.get("cudagraph_mm_encoder", False))
-
-
 def _wait_for_card_release() -> None:
     """Wait until the previous engine's card memory is back before loading the next."""
     wait_for_gpu_memory_to_clear(
@@ -206,22 +202,33 @@ def _arm(run_level: str, deploy_config: str):
         yield runner
 
 
+def _graph_state(runner) -> tuple[bool, int, int]:
+    (stage,) = runner.omni.engine.collective_rpc("encoder_graph_state", stage_ids=[0], timeout=30)
+    (state,) = stage
+    return tuple(state)
+
+
 @pytest.fixture
 def graph_and_eager_texts(run_level: str) -> tuple[str, str, str, str]:
     """Greedy image/video text from both arms, prepared outside the xfail region.
 
-    Engine loads and the two compilation-config assertions describe the harness,
-    not replay correctness. Running them in a fixture keeps a failed second
-    engine, an OOM during teardown or a graph profile that never reached Stage 0
+    Engine loads and worker capture/replay assertions describe the harness.
+    Running them in a fixture keeps a failed second engine, an OOM during teardown or a graph profile that never reached Stage 0
     from being absorbed by the explicit xfail on the final comparison.
     """
     with _arm(run_level, _GRAPH_DEPLOY) as graph_runner:
-        assert _stage0_uses_encoder_graph(graph_runner), "graph profile did not reach Stage 0 compilation config"
-        graph_texts = (_generate(graph_runner, images=_small_image()), _generate(graph_runner, videos=_small_video()))
+        before = _graph_state(graph_runner)
+        assert before[0] and before[1] > 0, "Stage 0 did not capture encoder graphs"
+        image_text = _generate(graph_runner, images=_small_image())
+        after_image = _graph_state(graph_runner)
+        assert after_image[2] > before[2], "image request did not replay an encoder graph"
+        video_text = _generate(graph_runner, videos=_small_video())
+        assert _graph_state(graph_runner)[2] > after_image[2], "video request did not replay an encoder graph"
+        graph_texts = (image_text, video_text)
     _wait_for_card_release()
 
     with _arm(run_level, _EAGER_DEPLOY) as eager_runner:
-        assert not _stage0_uses_encoder_graph(eager_runner), "eager profile unexpectedly enabled encoder graphs"
+        assert _graph_state(eager_runner) == (False, 0, 0), "eager arm created an encoder graph manager"
         eager_texts = (_generate(eager_runner, images=_small_image()), _generate(eager_runner, videos=_small_video()))
     _wait_for_card_release()
 
@@ -230,7 +237,7 @@ def graph_and_eager_texts(run_level: str) -> tuple[str, str, str, str]:
 
 @pytest.mark.core_model
 @pytest.mark.omni
-@hardware_test(res={"cuda": "H100", "npu": "A3"}, num_cards=1)
+@hardware_test(res={"cuda": "H100"}, num_cards=1)
 @pytest.mark.parametrize("omni_runner_function", test_params, indirect=True)
 def test_image_and_video_requests_are_served(omni_runner_function, offline_client_function) -> None:
     """The graph-enabled profile serves in-budget image and video requests."""
@@ -249,7 +256,7 @@ def test_image_and_video_requests_are_served(omni_runner_function, offline_clien
 
 @pytest.mark.core_model
 @pytest.mark.omni
-@hardware_test(res={"cuda": "H100", "npu": "A3"}, num_cards=1)
+@hardware_test(res={"cuda": "H100"}, num_cards=1)
 @pytest.mark.parametrize("omni_runner_function", test_params, indirect=True)
 def test_oversized_image_falls_back_without_failing(omni_runner_function, offline_client_function) -> None:
     """An image above the capture budget is served, not rejected or clamped."""
@@ -269,7 +276,7 @@ def test_oversized_image_falls_back_without_failing(omni_runner_function, offlin
 @requires_encoder_capture_axes
 @pytest.mark.advanced_model
 @pytest.mark.omni
-@hardware_test(res={"cuda": "H100", "npu": "A3"}, num_cards=1)
+@hardware_test(res={"cuda": "H100"}, num_cards=1)
 def test_encoder_graph_matches_eager_encoder(graph_and_eager_texts) -> None:
     """Only final text divergence is expected to fail; setup and teardown must pass."""
     graph_image, eager_image, graph_video, eager_video = graph_and_eager_texts
