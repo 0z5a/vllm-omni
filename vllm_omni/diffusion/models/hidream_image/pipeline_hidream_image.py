@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: Apache-2.0
-# SPDX-FileCopyrightText: Copyright contributors to the vLLM project
+# SPDX-FileCopyrightText: Copyright contributors to the vLLM-Omni project
 
 import inspect
 import json
@@ -11,7 +11,6 @@ from typing import Any
 import numpy as np
 import torch
 from diffusers.image_processor import VaeImageProcessor
-from diffusers.models import AutoencoderKL
 from diffusers.schedulers import FlowMatchEulerDiscreteScheduler
 from diffusers.utils import deprecate, logging
 from diffusers.utils.torch_utils import randn_tensor
@@ -27,6 +26,7 @@ from transformers import (
 from vllm.model_executor.models.utils import AutoWeightsLoader
 
 from vllm_omni.diffusion.data import DiffusionOutput, OmniDiffusionConfig
+from vllm_omni.diffusion.distributed.autoencoders.autoencoder_kl import DistributedAutoencoderKL
 from vllm_omni.diffusion.distributed.cfg_parallel import CFGParallelMixin
 from vllm_omni.diffusion.distributed.parallel_state import get_classifier_free_guidance_world_size
 from vllm_omni.diffusion.distributed.utils import get_local_device
@@ -197,7 +197,7 @@ class HiDreamImagePipeline(nn.Module, CFGParallelMixin, DiffusionPipelineProfile
             model, subfolder="scheduler", local_files_only=local_files_only
         )
         self.vae = from_pretrained_with_prefetch(
-            AutoencoderKL.from_pretrained,
+            DistributedAutoencoderKL.from_pretrained,
             model,
             subfolder="vae",
             prefetch_list=hidream_subfolders,
