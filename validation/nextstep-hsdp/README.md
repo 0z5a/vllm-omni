@@ -24,6 +24,6 @@ The probe also checks seven FSDP modules (six children plus root) and that every
 | Cached token latency, including all-gathers | Pending | Pending | Pending |
 | Peak process GPU memory | Pending | Pending | Pending |
 
-No tiny-model timing is presented as E2E performance. The approximately 60 GB checkpoint cannot be assumed to fit a single L20. A two-GPU TP baseline and two-GPU HSDP candidate compare different parallel strategies, so that comparison must be labeled accordingly. Real-checkpoint image quality, loading peak, long-cache behavior and AR all-gather cost remain unverified.
+No tiny-model timing is presented as E2E performance. The approximately 60 GB checkpoint cannot be assumed to fit a single L20. A two-GPU TP baseline and two-GPU HSDP candidate compare different parallel strategies, so that comparison must be labeled accordingly. Both strategy arms use candidate source `9545f40`; the TP arm is the runtime reference, not an earlier HSDP implementation. Real-checkpoint image quality, loading peak, long-cache behavior and AR all-gather cost remain unverified.
 
 NextStep checkpoint revision `05486ff90769ad32109d219fd4659d41671a770a` is downloaded. All 13 safetensors shards were opened and their 691 tensor keys checked against the index; total shard size is 59,815,331,784 bytes. The VAE checkpoint is present but has not yet been loaded in this validation. Weights remain required for pending E2E.
