@@ -14,3 +14,7 @@ Syntax, Ruff and CPU import checks passed in the target environment. Do not run 
 | TeaCache | Pending | Pending | Pending | Pending |
 | HSDP | Pending | Pending | N/A | Pending |
 | TeaCache + HSDP | Pending | Pending | Pending | Pending |
+
+## Forced no-hit control
+
+A separate diagnostic driver supplies the supported coefficients `[0,0,0,0,1]` with threshold 0.2. The constant rescaled distance forces complete computation without changing the production decision method; threshold zero is invalid. Three CPU requests through the real observed hook each produce 9/9 compute decisions with clean resets. Complete-model cache-only and cache+HSDP no-hit probes are queued after DBCache validation and excluded from timing. Their rank records and PNG comparisons must still be audited. The normal timing driver and calibrated coefficients remain unchanged.
