@@ -1,0 +1,36 @@
+{
+  "repo": "chestnutlzj/Edit-R1-Qwen-Image-Edit-2509",
+  "revision": "6f58a70502ea6560da338c5af91d7a3d156077ee",
+  "files": [
+    {
+      "type": "file",
+      "oid": "a6344aac8c09253b3b630fb776ae94478aa0275b",
+      "size": 1519,
+      "path": ".gitattributes"
+    },
+    {
+      "type": "file",
+      "oid": "141acd65d657eaac9553d08bd97da61ba6f5bf58",
+      "size": 2186,
+      "path": "README.md"
+    },
+    {
+      "type": "file",
+      "oid": "0aa9bac154347025e7978755a7f0937aae80ff38",
+      "size": 1103,
+      "path": "adapter_config.json"
+    },
+    {
+      "type": "file",
+      "oid": "0c805bd1af3bc8fd29e1fb96e58ed2ae2312d953",
+      "size": 377615760,
+      "lfs": {
+        "oid": "ffccd3511ba8a198c2d5f7a630e5af5a7ad5465c77411a15e528bfd1aa289060",
+        "size": 377615760,
+        "pointerSize": 134
+      },
+      "xetHash": "d165f6acd4d6bcc9241be144e1945b821c63e11173c0b3831729f1e8e686883d",
+      "path": "adapter_model.safetensors"
+    }
+  ]
+}

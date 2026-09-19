@@ -1,0 +1,2 @@
+Fetching 3 files:   0%|          | 0/3 [00:00<?, ?it/s]Fetching 3 files:  33%|███▎      | 1/3 [00:00<00:01,  1.08it/s]Fetching 3 files:  67%|██████▋   | 2/3 [00:01<00:00,  1.79it/s]Fetching 3 files: 100%|██████████| 3/3 [00:35<00:00, 16.12s/it]Fetching 3 files: 100%|██████████| 3/3 [00:35<00:00, 11.95s/it]
+{"model": "edit-r1", "revision": "6f58a70502ea6560da338c5af91d7a3d156077ee", "bytes": 377615760, "sha256": "ffccd3511ba8a198c2d5f7a630e5af5a7ad5465c77411a15e528bfd1aa289060", "tensors": 960, "rank": 32}
