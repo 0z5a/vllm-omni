@@ -244,6 +244,7 @@ class _ParallelConfigEngineOverrides(TypedDict, total=False):
     ulysses_degree: int
     ring_degree: int
     allgather_degree: int
+    window_parallel_size: int
     ulysses_mode: str
     ulysses_a2a_permute: bool
     cfg_parallel_size: int
