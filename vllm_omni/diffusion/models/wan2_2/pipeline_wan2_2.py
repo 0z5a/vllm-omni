@@ -484,7 +484,7 @@ class Wan22Pipeline(
             local_files_only=local_files_only,
             torch_dtype=dtype,
         ).to(self.device)
-        prepare_t5_fp8(self.text_encoder, od_config.quantization_config, "text_encoder")
+        prepare_t5_fp8(self.text_encoder, od_config.quantization_config, "text_encoder", quantize_attention=False)
         self.vae = from_pretrained_with_prefetch(
             DistributedAutoencoderKLWan.from_pretrained,
             model,

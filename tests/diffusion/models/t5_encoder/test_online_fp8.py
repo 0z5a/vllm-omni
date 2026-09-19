@@ -50,7 +50,10 @@ def test_rejects_unsupported_modes_before_mutation(encoder, config):
 
 @pytest.mark.parametrize("component", ["text_encoder", "text_encoder_3"])
 @pytest.mark.parametrize("ignore_first_q", [False, True])
-def test_preserves_wo_and_non_linear_weights_and_forward(encoder, monkeypatch, component, ignore_first_q):
+@pytest.mark.parametrize("quantize_attention", [False, True])
+def test_preserves_wo_and_non_linear_weights_and_forward(
+    encoder, monkeypatch, component, ignore_first_q, quantize_attention
+):
     original = dict(encoder.named_parameters())
     ids = torch.tensor([[1, 2, 3, 0]])
     with torch.no_grad():
@@ -80,12 +83,19 @@ def test_preserves_wo_and_non_linear_weights_and_forward(encoder, monkeypatch, c
             return super().forward(x.to(self.weight.dtype)).to(x.dtype)
 
     monkeypatch.setattr(quantization, "_T5Fp8Linear", LoaderLinear)
-    expected = 11 if ignore_first_q else 12
+    expected = (11 if ignore_first_q else 12) if quantize_attention else 4
     assert (
-        quantization.prepare_t5_fp8(encoder, ComponentQuantizationConfig({component: Fp8Config()}), component)
+        quantization.prepare_t5_fp8(
+            encoder,
+            ComponentQuantizationConfig({component: Fp8Config()}),
+            component,
+            quantize_attention=quantize_attention,
+        )
         == expected
     )
     assert len(loaded) == expected
+    if not quantize_attention:
+        assert all(".SelfAttention." not in name for name in prefixes)
     assert all(name.startswith(component + ".encoder.block.") for name in prefixes)
     for name, p in encoder.named_parameters():
         if name.endswith(".wo.weight") or not any(
