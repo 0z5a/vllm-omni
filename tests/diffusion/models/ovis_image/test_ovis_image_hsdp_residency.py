@@ -7,7 +7,7 @@ import pytest
 import torch.nn as nn
 from torch.distributed.fsdp import FSDPModule
 
-from vllm_omni.diffusion.data import OmniDiffusionConfig, TransformerConfig
+from vllm_omni.diffusion.data import OmniDiffusionConfig
 from vllm_omni.diffusion.models.ovis_image.pipeline_ovis_image import OvisImagePipeline
 
 pytestmark = [pytest.mark.core_model, pytest.mark.cpu]
@@ -17,11 +17,7 @@ pytestmark = [pytest.mark.core_model, pytest.mark.cpu]
 def test_request_residency_reshards_before_leaving_denoising(fail: bool) -> None:
     pipeline = OvisImagePipeline.__new__(OvisImagePipeline)
     nn.Module.__init__(pipeline)
-    pipeline.od_config = OmniDiffusionConfig(
-        model="test/ovis",
-        tf_model_config=TransformerConfig(params={}),
-        additional_config={"hsdp_reshard_after_forward": False},
-    )
+    pipeline.od_config = Mock(spec=OmniDiffusionConfig, additional_config={"hsdp_reshard_after_forward": False})
     root = Mock(spec=FSDPModule)
     block = Mock(spec=FSDPModule)
     root.modules.return_value = [root, block]
@@ -51,7 +47,7 @@ def test_request_residency_reshards_before_leaving_denoising(fail: bool) -> None
 def test_default_keeps_block_resharding() -> None:
     pipeline = OvisImagePipeline.__new__(OvisImagePipeline)
     nn.Module.__init__(pipeline)
-    pipeline.od_config = OmniDiffusionConfig(model="test/ovis", tf_model_config=TransformerConfig(params={}))
+    pipeline.od_config = Mock(spec=OmniDiffusionConfig, additional_config={})
     pipeline.transformer = Mock(spec=FSDPModule)
     with pipeline._hsdp_denoising_context():
         pass
