@@ -5,6 +5,8 @@ import os
 from pathlib import Path
 
 import torch
+from dbcache_probe import ProbeRunner as DBCacheRunner
+from teacache_probe import ProbeRunner as TeaCacheRunner
 
 from vllm_omni.diffusion.data import DiffusionOutput
 from vllm_omni.diffusion.diffusion_kv.metadata import DiffusionKVMetadata
@@ -85,3 +87,11 @@ class ProbeRunner(DiffusionModelRunner):
         with (Path(os.environ["LORA_PROBE_DIR"]) / f"rank-{rank}.jsonl").open("a") as destination:
             destination.write(json.dumps(record) + "\n")
         return output
+
+
+class TeaCacheProbeRunner(ProbeRunner, TeaCacheRunner):
+    pass
+
+
+class DBCacheProbeRunner(ProbeRunner, DBCacheRunner):
+    pass

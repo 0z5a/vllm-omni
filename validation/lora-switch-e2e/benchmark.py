@@ -25,7 +25,9 @@ def main() -> None:
     )
     parser.add_argument("--repeats", type=int, default=5)
     parser.add_argument("--probe", action="store_true")
+    parser.add_argument("--no-hit", action="store_true")
     args = parser.parse_args()
+    assert not args.no_hit or (args.probe and args.feature in ("tea_cache", "cache_dit"))
     args.output.mkdir(parents=True, exist_ok=False)
     os.environ["LORA_PROBE_DIR"] = str(args.output.resolve())
     parallel = DiffusionParallelConfig(
@@ -36,7 +38,7 @@ def main() -> None:
         hsdp_shard_size=2 if args.feature == "hsdp" else -1,
     )
     cache = args.feature if args.feature in ("tea_cache", "cache_dit") else None
-    cache_config = (
+    cache_config: dict[str, object] = (
         {"rel_l1_thresh": 0.2}
         if cache == "tea_cache"
         else {
@@ -49,12 +51,22 @@ def main() -> None:
             "scm_steps_mask_policy": None,
         }
     )
+    if args.no_hit:
+        if cache == "tea_cache":
+            cache_config["coefficients"] = [0.0, 0.0, 0.0, 0.0, 1.0]
+        else:
+            cache_config["max_cached_steps"] = 0
+    runner = {"tea_cache": "TeaCacheProbeRunner", "cache_dit": "DBCacheProbeRunner"}.get(cache, "ProbeRunner")
+    if args.probe:
+        cache_dir = args.output / "cache"
+        cache_dir.mkdir()
+        os.environ["COMPAT_PROBE_DIR"] = str(cache_dir.resolve())
     engine = Omni(
         model=args.model,
         parallel_config=parallel,
         cache_backend=cache,
         cache_config=cache_config if cache else None,
-        diffusion_model_runner_cls="probe.ProbeRunner" if args.probe else None,
+        diffusion_model_runner_cls=f"probe.{runner}" if args.probe else None,
         lora_backend="peft",
         max_cpu_loras=2,
         dtype="bfloat16",
@@ -102,6 +114,7 @@ def main() -> None:
                         feature=args.feature,
                         warmup=cycle < 2,
                         probe=args.probe,
+                        forced_no_hit=args.no_hit,
                         seconds=seconds,
                         image_sha256=hashlib.sha256(path.read_bytes()).hexdigest(),
                     )
