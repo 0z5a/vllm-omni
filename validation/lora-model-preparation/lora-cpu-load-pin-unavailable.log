@@ -1,0 +1,18 @@
+W0920 07:10:06.241000 734023 torch/utils/cpp_extension.py:178] No CUDA runtime is found, using CUDA_HOME='/usr/local/cuda'
+INFO 09-20 07:10:08 [patch.py:252] NVFP4 W4A4 weight_scale NaN-clamp: installed.
+INFO 09-20 07:10:08 [patch.py:503] inductor factorable-divisibility patch: installed.
+INFO 09-20 07:10:08 [patch.py:568] [cumem-cuda] CuMemAllocator._python_free_callback patched: asleep guard extended to all platforms.
+Traceback (most recent call last):
+  File "/home/kxqandccx/omni-1217-20260919/cpu_lora_load_contract.py", line 22, in <module>
+    model, helper = manager._load_adapter(LoRARequest(name, adapter_id, str(path)))
+                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/dev/shm/0z5a-compat-698f716/vllm_omni/diffusion/lora/manager.py", line 319, in _load_adapter
+    lora_model = LoRAModel.from_local_checkpoint(
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/kxqandccx/vllm-omni-7753-hidream-20260918/venv/lib/python3.12/site-packages/vllm/lora/lora_model.py", line 298, in from_local_checkpoint
+    return cls.from_lora_tensors(
+           ^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/kxqandccx/vllm-omni-7753-hidream-20260918/venv/lib/python3.12/site-packages/vllm/lora/lora_model.py", line 157, in from_lora_tensors
+    loras[module_name].lora_a = loras[module_name].lora_a.pin_memory()
+                                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+RuntimeError: No CUDA GPUs are available

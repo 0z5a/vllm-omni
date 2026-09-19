@@ -1,0 +1,2 @@
+{"adapter": "helio", "logical_targets": 204, "tensor_shapes_checked": 408, "all_checkpoint_targets_exist": true, "all_shapes_match": true}
+{"adapter": "fuli", "logical_targets": 204, "tensor_shapes_checked": 408, "all_checkpoint_targets_exist": true, "all_shapes_match": true}

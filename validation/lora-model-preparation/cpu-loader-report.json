@@ -1,0 +1,36 @@
+[
+  {
+    "adapter": "helio",
+    "modules": 204,
+    "rank": 64,
+    "alpha": 128,
+    "scaling_folded_exact": true,
+    "projection_suffixes_checked": [
+      "to_k",
+      "to_q",
+      "to_v",
+      "w1",
+      "w2",
+      "w3"
+    ],
+    "device": "cpu",
+    "dtype": "float32"
+  },
+  {
+    "adapter": "fuli",
+    "modules": 204,
+    "rank": 32,
+    "alpha": 32.0,
+    "scaling_folded_exact": true,
+    "projection_suffixes_checked": [
+      "to_k",
+      "to_q",
+      "to_v",
+      "w1",
+      "w2",
+      "w3"
+    ],
+    "device": "cpu",
+    "dtype": "float32"
+  }
+]
