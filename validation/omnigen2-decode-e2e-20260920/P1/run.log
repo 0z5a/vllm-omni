@@ -1,0 +1,143 @@
+INFO 09-20 04:48:45 [patch.py:252] NVFP4 W4A4 weight_scale NaN-clamp: installed.
+INFO 09-20 04:48:45 [patch.py:503] inductor factorable-divisibility patch: installed.
+INFO 09-20 04:48:45 [patch.py:568] [cumem-cuda] CuMemAllocator._python_free_callback patched: asleep guard extended to all platforms.
+INFO 09-20 04:48:47 [omni_base.py:208] [Omni] Initializing with model /home/kxqandccx/omnigen2-encoder-fp8-20260915/model
+INFO 09-20 04:48:47 [omni_engine_base.py:163] [OmniEngine] Initializing with model /home/kxqandccx/omnigen2-encoder-fp8-20260915/model
+INFO 09-20 04:48:48 [omnigen2_transformer.py:124] Patched vllm._custom_ops.cutlass_scaled_mm with CUTLASS-padded FP8 variant (avoids slow Triton fallback for non-%%16 dimensions)
+INFO 09-20 04:48:48 [config_factory.py:697] Resolved generic diffusion final_output_type='image' for model_class_name='OmniGen2Pipeline'.
+INFO 09-20 04:48:48 [omni_engine_base.py:312] [OmniEngine] Launching Orchestrator thread with 1 stages
+INFO 09-20 04:48:48 [stage_init_utils.py:775] [stage_init] Set VLLM_WORKER_MULTIPROC_METHOD=spawn
+INFO 09-20 04:48:48 [stage_utils.py:178] Stage 0 logical-to-physical device mapping: 0->2, 1->3
+INFO 09-20 04:48:48 [multiproc_executor.py:350] Starting server...
+INFO 09-20 04:48:57 [patch.py:252] NVFP4 W4A4 weight_scale NaN-clamp: installed.
+INFO 09-20 04:48:57 [patch.py:252] NVFP4 W4A4 weight_scale NaN-clamp: installed.
+INFO 09-20 04:48:57 [patch.py:503] inductor factorable-divisibility patch: installed.
+INFO 09-20 04:48:57 [patch.py:568] [cumem-cuda] CuMemAllocator._python_free_callback patched: asleep guard extended to all platforms.
+INFO 09-20 04:48:57 [patch.py:503] inductor factorable-divisibility patch: installed.
+INFO 09-20 04:48:57 [patch.py:568] [cumem-cuda] CuMemAllocator._python_free_callback patched: asleep guard extended to all platforms.
+(DiffusionWorker pid=4057376) INFO 09-20 04:49:00 [diffusion_worker.py:1058] Worker 0 created result MessageQueue
+(DiffusionWorker pid=4057377) INFO 09-20 04:49:00 [diffusion_worker.py:1058] Worker 1 created result MessageQueue
+(DiffusionWorker pid=4057376) INFO 09-20 04:49:00 [scheduler.py:277] Chunked prefill is enabled with max_num_batched_tokens=2048.
+(DiffusionWorker pid=4057376) INFO 09-20 04:49:00 [kernel.py:369] Final IR op priority after setting platform defaults: IrOpPriorityConfig(rms_norm=['native'], fused_add_rms_norm=['native'])
+(DiffusionWorker pid=4057376) INFO 09-20 04:49:00 [diffusion_worker.py:327] Final IR op priority after setting vLLM-Omni overrides: IrOpPriorityConfig(rms_norm=['vllm_c', 'native'], fused_add_rms_norm=['vllm_c', 'native'])
+(DiffusionWorker pid=4057377) INFO 09-20 04:49:00 [scheduler.py:277] Chunked prefill is enabled with max_num_batched_tokens=2048.
+(DiffusionWorker pid=4057377) INFO 09-20 04:49:00 [kernel.py:369] Final IR op priority after setting platform defaults: IrOpPriorityConfig(rms_norm=['native'], fused_add_rms_norm=['native'])
+(DiffusionWorker pid=4057377) INFO 09-20 04:49:00 [diffusion_worker.py:327] Final IR op priority after setting vLLM-Omni overrides: IrOpPriorityConfig(rms_norm=['vllm_c', 'native'], fused_add_rms_norm=['vllm_c', 'native'])
+(DiffusionWorker pid=4057377) INFO 09-20 04:49:00 [diffusion_worker.py:339] Worker 1: Initialized device and distributed environment.
+(DiffusionWorker pid=4057376) INFO 09-20 04:49:00 [diffusion_worker.py:339] Worker 0: Initialized device and distributed environment.
+(DiffusionWorker pid=4057377) INFO 09-20 04:49:00 [parallel_state.py:610] Building SP subgroups from explicit sp_group_ranks (sp_size=2, ulysses=2, ring=1, use_ulysses_low=True).
+(DiffusionWorker pid=4057377) INFO 09-20 04:49:00 [parallel_state.py:652] SP group details for rank 1: sp_group=[0, 1], ulysses_group=[0, 1], ring_group=[1]
+(DiffusionWorker pid=4057376) INFO 09-20 04:49:00 [parallel_state.py:610] Building SP subgroups from explicit sp_group_ranks (sp_size=2, ulysses=2, ring=1, use_ulysses_low=True).
+(DiffusionWorker pid=4057376) INFO 09-20 04:49:00 [parallel_state.py:652] SP group details for rank 0: sp_group=[0, 1], ulysses_group=[0, 1], ring_group=[0]
+(DiffusionWorker_SP0 pid=4057376) INFO 09-20 04:49:00 [omnigen2_transformer.py:124] Patched vllm._custom_ops.cutlass_scaled_mm with CUTLASS-padded FP8 variant (avoids slow Triton fallback for non-%%16 dimensions)
+(DiffusionWorker_SP1 pid=4057377) INFO 09-20 04:49:00 [omnigen2_transformer.py:124] Patched vllm._custom_ops.cutlass_scaled_mm with CUTLASS-padded FP8 variant (avoids slow Triton fallback for non-%%16 dimensions)
+(DiffusionWorker_SP0 pid=4057376) INFO 09-20 04:49:00 [selector.py:93] Resolved diffusion attention backend 'FLASH_ATTN' for role='self' via platform default
+(DiffusionWorker_SP1 pid=4057377) INFO 09-20 04:49:00 [selector.py:93] Resolved diffusion attention backend 'FLASH_ATTN' for role='self' via platform default
+(DiffusionWorker_SP0 pid=4057376) Loading weights:   0%|          | 0/824 [00:00<?, ?it/s](DiffusionWorker_SP1 pid=4057377) Loading weights:   0%|          | 0/824 [00:00<?, ?it/s]Loading weights:   0%|          | 1/824 [00:00<01:47,  7.67it/s]Loading weights:   0%|          | 1/824 [00:00<01:40,  8.17it/s]Loading weights:   2%|▏         | 16/824 [00:00<00:09, 84.09it/s]Loading weights:   2%|▏         | 16/824 [00:00<00:12, 66.02it/s]Loading weights:   4%|▎         | 29/824 [00:00<00:08, 94.91it/s]Loading weights:   4%|▍         | 33/824 [00:00<00:07, 104.65it/s]Loading weights:   5%|▍         | 41/824 [00:00<00:07, 102.59it/s]Loading weights:   5%|▌         | 45/824 [00:00<00:07, 108.29it/s]Loading weights:   6%|▋         | 53/824 [00:00<00:07, 103.68it/s]Loading weights:   7%|▋         | 57/824 [00:00<00:06, 110.68it/s]Loading weights:   8%|▊         | 65/824 [00:00<00:07, 108.12it/s]Loading weights:   8%|▊         | 69/824 [00:00<00:06, 110.83it/s]Loading weights:  10%|▉         | 81/824 [00:00<00:06, 122.36it/s]Loading weights:  10%|█         | 83/824 [00:00<00:06, 119.08it/s]Loading weights:  11%|█▏        | 94/824 [00:00<00:05, 122.75it/s]Loading weights:  12%|█▏        | 96/824 [00:00<00:05, 121.57it/s]Loading weights:  13%|█▎        | 108/824 [00:00<00:05, 127.70it/s]Loading weights:  13%|█▎        | 109/824 [00:01<00:05, 122.65it/s]Loading weights:  15%|█▍        | 121/824 [00:01<00:05, 126.43it/s]Loading weights:  15%|█▍        | 122/824 [00:01<00:05, 124.79it/s]Loading weights:  16%|█▋        | 134/824 [00:01<00:05, 125.93it/s]Loading weights:  16%|█▋        | 135/824 [00:01<00:06, 107.09it/s]Loading weights:  18%|█▊        | 147/824 [00:01<00:06, 108.21it/s]Loading weights:  18%|█▊        | 148/824 [00:01<00:05, 112.89it/s]Loading weights:  19%|█▉        | 160/824 [00:01<00:05, 112.64it/s]Loading weights:  19%|█▉        | 160/824 [00:01<00:05, 114.13it/s]Loading weights:  21%|██        | 172/824 [00:01<00:05, 113.84it/s]Loading weights:  21%|██        | 172/824 [00:01<00:06, 106.58it/s]Loading weights:  22%|██▏       | 184/824 [00:01<00:05, 114.07it/s]Loading weights:  22%|██▏       | 185/824 [00:01<00:05, 110.49it/s]Loading weights:  24%|██▍       | 196/824 [00:01<00:05, 105.72it/s]Loading weights:  24%|██▍       | 197/824 [00:01<00:05, 112.56it/s]Loading weights:  25%|██▌       | 209/824 [00:01<00:05, 112.23it/s]Loading weights:  25%|██▌       | 209/824 [00:01<00:05, 114.16it/s]Loading weights:  27%|██▋       | 224/824 [00:01<00:04, 121.42it/s]Loading weights:  27%|██▋       | 225/824 [00:02<00:04, 126.36it/s]Loading weights:  29%|██▉       | 238/824 [00:02<00:04, 126.63it/s]Loading weights:  29%|██▉       | 239/824 [00:02<00:04, 128.50it/s]Loading weights:  31%|███       | 252/824 [00:02<00:04, 127.51it/s]Loading weights:  30%|███       | 251/824 [00:02<00:04, 124.26it/s]Loading weights:  32%|███▏      | 265/824 [00:02<00:04, 126.87it/s]Loading weights:  32%|███▏      | 264/824 [00:02<00:04, 124.72it/s]Loading weights:  34%|███▎      | 278/824 [00:02<00:04, 125.80it/s]Loading weights:  34%|███▎      | 277/824 [00:02<00:04, 124.30it/s]Loading weights:  35%|███▌      | 290/824 [00:02<00:04, 125.78it/s]Loading weights:  35%|███▌      | 291/824 [00:02<00:04, 117.30it/s]Loading weights:  37%|███▋      | 303/824 [00:02<00:04, 116.86it/s]Loading weights:  37%|███▋      | 303/824 [00:02<00:04, 108.12it/s]Loading weights:  38%|███▊      | 315/824 [00:02<00:04, 117.36it/s]Loading weights:  38%|███▊      | 316/824 [00:02<00:04, 113.27it/s]Loading weights:  40%|███▉      | 327/824 [00:02<00:04, 116.41it/s]Loading weights:  40%|███▉      | 328/824 [00:02<00:04, 105.81it/s]Loading weights:  41%|████      | 339/824 [00:02<00:04, 117.31it/s]Loading weights:  41%|████      | 339/824 [00:03<00:04, 106.13it/s]Loading weights:  43%|████▎     | 351/824 [00:03<00:04, 107.53it/s]Loading weights:  43%|████▎     | 351/824 [00:03<00:04, 108.86it/s]Loading weights:  44%|████▍     | 364/824 [00:03<00:04, 113.09it/s]Loading weights:  44%|████▍     | 364/824 [00:03<00:04, 111.81it/s]Loading weights:  46%|████▌     | 376/824 [00:03<00:03, 114.04it/s]Loading weights:  46%|████▌     | 376/824 [00:03<00:03, 113.51it/s]Loading weights:  47%|████▋     | 388/824 [00:03<00:03, 115.55it/s]Loading weights:  48%|████▊     | 399/824 [00:03<00:03, 135.27it/s]Loading weights:  49%|████▊     | 400/824 [00:03<00:03, 114.02it/s]Loading weights:  50%|█████     | 412/824 [00:03<00:03, 113.85it/s]Loading weights:  50%|█████     | 413/824 [00:03<00:03, 116.72it/s]Loading weights:  52%|█████▏    | 425/824 [00:03<00:03, 117.28it/s]Loading weights:  51%|█████▏    | 424/824 [00:03<00:03, 106.57it/s]Loading weights:  57%|█████▋    | 468/824 [00:03<00:01, 198.05it/s]Loading weights:  58%|█████▊    | 476/824 [00:03<00:01, 218.58it/s]Loading weights:  62%|██████▏   | 512/824 [00:03<00:01, 260.19it/s]Loading weights:  63%|██████▎   | 520/824 [00:03<00:01, 279.47it/s]Loading weights:  68%|██████▊   | 558/824 [00:04<00:00, 313.54it/s]Loading weights:  68%|██████▊   | 560/824 [00:04<00:00, 311.78it/s]Loading weights:  74%|███████▍  | 608/824 [00:04<00:00, 363.59it/s]Loading weights:  74%|███████▎  | 606/824 [00:04<00:00, 349.68it/s]Loading weights:  79%|███████▊  | 648/824 [00:04<00:00, 369.95it/s]Loading weights:  79%|███████▊  | 648/824 [00:04<00:00, 368.38it/s]Loading weights:  84%|████████▍ | 693/824 [00:04<00:00, 392.64it/s]Loading weights:  84%|████████▍ | 694/824 [00:04<00:00, 393.15it/s]Loading weights:  90%|████████▉ | 738/824 [00:04<00:00, 405.11it/s]Loading weights:  90%|████████▉ | 740/824 [00:04<00:00, 409.14it/s]Loading weights:  95%|█████████▍| 779/824 [00:04<00:00, 401.37it/s]Loading weights:  95%|█████████▌| 785/824 [00:04<00:00, 411.92it/s]Loading weights: 100%|█████████▉| 821/824 [00:04<00:00, 382.21it/s]Loading weights: 100%|██████████| 824/824 [00:04<00:00, 176.10it/s]
+Loading weights: 100%|██████████| 824/824 [00:04<00:00, 175.42it/s]
+(DiffusionWorker_SP1 pid=4057377) INFO 09-20 04:49:06 [registry.py:540] Applying sequence parallelism to OmniGen2Transformer2DModel (transformer) (sp_size=2, mode=ulysses, ulysses=2, ring=1)
+(DiffusionWorker_SP0 pid=4057376) INFO 09-20 04:49:06 [registry.py:540] Applying sequence parallelism to OmniGen2Transformer2DModel (transformer) (sp_size=2, mode=ulysses, ulysses=2, ring=1)
+(DiffusionWorker_SP0 pid=4057376) Multi-thread loading shards:   0% Completed | 0/2 [00:00<?, ?it/s]
+(DiffusionWorker_SP0 pid=4057376) Multi-thread loading shards:  50% Completed | 1/2 [00:00<00:00,  1.14it/s]
+(DiffusionWorker_SP0 pid=4057376) Multi-thread loading shards: 100% Completed | 2/2 [00:02<00:00,  1.39s/it]
+(DiffusionWorker_SP0 pid=4057376) Multi-thread loading shards: 100% Completed | 2/2 [00:02<00:00,  1.31s/it]
+(DiffusionWorker_SP0 pid=4057376) 
+(DiffusionWorker_SP0 pid=4057376) INFO 09-20 04:49:09 [diffusers_loader.py:1098] Loading weights took 2.82 seconds
+(DiffusionWorker_SP1 pid=4057377) INFO 09-20 04:49:10 [diffusion_model_runner.py:340] Model loading took 21.5788 GiB and 9.547787 seconds
+(DiffusionWorker_SP1 pid=4057377) INFO 09-20 04:49:10 [diffusion_model_runner.py:346] Model runner: Model loaded successfully.
+(DiffusionWorker_SP1 pid=4057377) INFO 09-20 04:49:10 [diffusion_model_runner.py:437] Model runner: Initialization complete.
+(DiffusionWorker_SP1 pid=4057377) INFO 09-20 04:49:10 [diffusion_worker.py:420] Worker 1: Process-scoped GPU memory after model loading: 22.28 GiB.
+(DiffusionWorker_SP1 pid=4057377) INFO 09-20 04:49:10 [manager.py:112] Initializing DiffusionLoRAManager: device=cuda:1, dtype=torch.bfloat16, max_cached_adapters=1, static_lora_path=None
+(DiffusionWorker_SP1 pid=4057377) INFO 09-20 04:49:10 [diffusion_worker.py:297] Worker 1: Initialization complete.
+(DiffusionWorker_SP1 pid=4057377) INFO 09-20 04:49:10 [diffusion_worker.py:1523] Worker 1: Scheduler loop started.
+(DiffusionWorker_SP1 pid=4057377) INFO 09-20 04:49:10 [diffusion_worker.py:1367] Worker 1 ready to receive requests via shared memory
+(DiffusionWorker_SP0 pid=4057376) INFO 09-20 04:49:10 [diffusion_model_runner.py:340] Model loading took 21.5788 GiB and 9.979939 seconds
+(DiffusionWorker_SP0 pid=4057376) INFO 09-20 04:49:10 [diffusion_model_runner.py:346] Model runner: Model loaded successfully.
+(DiffusionWorker_SP0 pid=4057376) INFO 09-20 04:49:10 [diffusion_model_runner.py:437] Model runner: Initialization complete.
+(DiffusionWorker_SP0 pid=4057376) INFO 09-20 04:49:10 [diffusion_worker.py:420] Worker 0: Process-scoped GPU memory after model loading: 22.28 GiB.
+(DiffusionWorker_SP0 pid=4057376) INFO 09-20 04:49:10 [manager.py:112] Initializing DiffusionLoRAManager: device=cuda:0, dtype=torch.bfloat16, max_cached_adapters=1, static_lora_path=None
+(DiffusionWorker_SP0 pid=4057376) INFO 09-20 04:49:10 [diffusion_worker.py:297] Worker 0: Initialization complete.
+(DiffusionWorker_SP0 pid=4057376) INFO 09-20 04:49:10 [diffusion_worker.py:1523] Worker 0: Scheduler loop started.
+(DiffusionWorker_SP0 pid=4057376) INFO 09-20 04:49:10 [diffusion_worker.py:1367] Worker 0 ready to receive requests via shared memory
+INFO 09-20 04:49:10 [multiproc_executor.py:893] Async result pump started for 2 worker queue(s)
+INFO 09-20 04:49:10 [diffusion_engine.py:402] [RequestBatch] engine init max_num_seqs=1 max_wait_ms=0.0
+INFO 09-20 04:49:10 [diffusion_engine.py:1169] dummy run to warm up the model
+(DiffusionWorker_SP1 pid=4057377) /home/kxqandccx/vllm-omni-7753-hidream-20260918/venv/lib/python3.12/site-packages/torch/distributed/c10d_logger.py:83: FutureWarning: `torch.distributed.all_gather_into_tensor` is deprecated. Please use `torch.distributed.all_gather_single` instead.
+(DiffusionWorker_SP1 pid=4057377)   return func(*args, **kwargs)
+(DiffusionWorker_SP0 pid=4057376) /home/kxqandccx/vllm-omni-7753-hidream-20260918/venv/lib/python3.12/site-packages/torch/distributed/c10d_logger.py:83: FutureWarning: `torch.distributed.all_gather_into_tensor` is deprecated. Please use `torch.distributed.all_gather_single` instead.
+(DiffusionWorker_SP0 pid=4057376)   return func(*args, **kwargs)
+(DiffusionWorker_SP1 pid=4057377) INFO 09-20 04:49:13 [autoencoder_kl.py:195] Decode run with distributed executor, split strategy is patch
+(DiffusionWorker_SP0 pid=4057376) INFO 09-20 04:49:13 [autoencoder_kl.py:195] Decode run with distributed executor, split strategy is patch
+INFO 09-20 04:49:14 [inline_stage_diffusion_client.py:82] [InlineStageDiffusionClient] stage-0 [rep-0] initialized inline (max_num_seqs=1)
+INFO 09-20 04:49:14 [stage_runtime.py:1107] [StageRuntime] Stage 0 replica 0 initialized (diffusion)
+INFO 09-20 04:49:14 [orchestrator.py:416] [Orchestrator] Starting event loop
+INFO 09-20 04:49:14 [omni_engine_base.py:344] [OmniEngine] Orchestrator ready with 1 stages
+INFO 09-20 04:49:14 [omni_base.py:227] [Omni] AsyncOmniEngine initialized in 26.90 seconds
+INFO 09-20 04:49:14 [omni_base.py:246] [Omni] Initialized with 1 stages for model /home/kxqandccx/omnigen2-encoder-fp8-20260915/model
+Processed prompts:   0%|          | 0/1 [00:00<?, ?it/s](DiffusionWorker_SP1 pid=4057377) INFO 09-20 04:49:19 [autoencoder_kl.py:195] Decode run with distributed executor, split strategy is patch
+(DiffusionWorker_SP0 pid=4057376) INFO 09-20 04:49:19 [autoencoder_kl.py:195] Decode run with distributed executor, split strategy is patch
+Processed prompts: 100%|██████████| 1/1 [00:05<00:00,  5.14s/it]Processed prompts: 100%|██████████| 1/1 [00:05<00:00,  5.14s/it]
+{"pid": 4056127, "parallel_vae": true, "ulysses_degree": 2, "ulysses_mode": "advanced_uaa", "width": 512, "height": 512, "iteration": 0, "warmup": true, "seconds": 5.14761546299269, "ready_seconds": 26.899557106997236, "image_sha256": "7529a9f38b60810a8f617c1f00f9b234a28960d646a5db9dc1855fd62c92e800"}
+Processed prompts:   0%|          | 0/1 [00:00<?, ?it/s](DiffusionWorker_SP0 pid=4057376) INFO 09-20 04:49:24 [autoencoder_kl.py:195] Decode run with distributed executor, split strategy is patch
+(DiffusionWorker_SP1 pid=4057377) INFO 09-20 04:49:24 [autoencoder_kl.py:195] Decode run with distributed executor, split strategy is patch
+Processed prompts: 100%|██████████| 1/1 [00:05<00:00,  5.04s/it]Processed prompts: 100%|██████████| 1/1 [00:05<00:00,  5.04s/it]
+{"pid": 4056127, "parallel_vae": true, "ulysses_degree": 2, "ulysses_mode": "advanced_uaa", "width": 512, "height": 512, "iteration": 1, "warmup": true, "seconds": 5.042264782998245, "ready_seconds": 26.899557106997236, "image_sha256": "7529a9f38b60810a8f617c1f00f9b234a28960d646a5db9dc1855fd62c92e800"}
+Processed prompts:   0%|          | 0/1 [00:00<?, ?it/s](DiffusionWorker_SP1 pid=4057377) INFO 09-20 04:49:29 [autoencoder_kl.py:195] Decode run with distributed executor, split strategy is patch
+(DiffusionWorker_SP0 pid=4057376) INFO 09-20 04:49:29 [autoencoder_kl.py:195] Decode run with distributed executor, split strategy is patch
+Processed prompts: 100%|██████████| 1/1 [00:05<00:00,  5.04s/it]Processed prompts: 100%|██████████| 1/1 [00:05<00:00,  5.04s/it]
+{"pid": 4056127, "parallel_vae": true, "ulysses_degree": 2, "ulysses_mode": "advanced_uaa", "width": 512, "height": 512, "iteration": 2, "warmup": false, "seconds": 5.042213360997266, "ready_seconds": 26.899557106997236, "image_sha256": "7529a9f38b60810a8f617c1f00f9b234a28960d646a5db9dc1855fd62c92e800"}
+Processed prompts:   0%|          | 0/1 [00:00<?, ?it/s](DiffusionWorker_SP1 pid=4057377) INFO 09-20 04:49:34 [autoencoder_kl.py:195] Decode run with distributed executor, split strategy is patch
+(DiffusionWorker_SP0 pid=4057376) INFO 09-20 04:49:34 [autoencoder_kl.py:195] Decode run with distributed executor, split strategy is patch
+Processed prompts: 100%|██████████| 1/1 [00:05<00:00,  5.04s/it]Processed prompts: 100%|██████████| 1/1 [00:05<00:00,  5.04s/it]
+{"pid": 4056127, "parallel_vae": true, "ulysses_degree": 2, "ulysses_mode": "advanced_uaa", "width": 512, "height": 512, "iteration": 3, "warmup": false, "seconds": 5.0403331559937214, "ready_seconds": 26.899557106997236, "image_sha256": "7529a9f38b60810a8f617c1f00f9b234a28960d646a5db9dc1855fd62c92e800"}
+Processed prompts:   0%|          | 0/1 [00:00<?, ?it/s](DiffusionWorker_SP1 pid=4057377) INFO 09-20 04:49:40 [autoencoder_kl.py:195] Decode run with distributed executor, split strategy is patch
+(DiffusionWorker_SP0 pid=4057376) INFO 09-20 04:49:40 [autoencoder_kl.py:195] Decode run with distributed executor, split strategy is patch
+Processed prompts: 100%|██████████| 1/1 [00:05<00:00,  5.23s/it]Processed prompts: 100%|██████████| 1/1 [00:05<00:00,  5.23s/it]
+{"pid": 4056127, "parallel_vae": true, "ulysses_degree": 2, "ulysses_mode": "advanced_uaa", "width": 512, "height": 512, "iteration": 4, "warmup": false, "seconds": 5.235366738997982, "ready_seconds": 26.899557106997236, "image_sha256": "7529a9f38b60810a8f617c1f00f9b234a28960d646a5db9dc1855fd62c92e800"}
+Processed prompts:   0%|          | 0/1 [00:00<?, ?it/s](DiffusionWorker_SP1 pid=4057377) INFO 09-20 04:49:45 [autoencoder_kl.py:195] Decode run with distributed executor, split strategy is patch
+(DiffusionWorker_SP0 pid=4057376) INFO 09-20 04:49:45 [autoencoder_kl.py:195] Decode run with distributed executor, split strategy is patch
+Processed prompts: 100%|██████████| 1/1 [00:05<00:00,  5.05s/it]Processed prompts: 100%|██████████| 1/1 [00:05<00:00,  5.06s/it]
+{"pid": 4056127, "parallel_vae": true, "ulysses_degree": 2, "ulysses_mode": "advanced_uaa", "width": 512, "height": 512, "iteration": 5, "warmup": false, "seconds": 5.05606406199513, "ready_seconds": 26.899557106997236, "image_sha256": "7529a9f38b60810a8f617c1f00f9b234a28960d646a5db9dc1855fd62c92e800"}
+Processed prompts:   0%|          | 0/1 [00:00<?, ?it/s](DiffusionWorker_SP1 pid=4057377) INFO 09-20 04:49:50 [autoencoder_kl.py:195] Decode run with distributed executor, split strategy is patch
+(DiffusionWorker_SP0 pid=4057376) INFO 09-20 04:49:50 [autoencoder_kl.py:195] Decode run with distributed executor, split strategy is patch
+Processed prompts: 100%|██████████| 1/1 [00:05<00:00,  5.04s/it]Processed prompts: 100%|██████████| 1/1 [00:05<00:00,  5.04s/it]
+{"pid": 4056127, "parallel_vae": true, "ulysses_degree": 2, "ulysses_mode": "advanced_uaa", "width": 512, "height": 512, "iteration": 6, "warmup": false, "seconds": 5.039549391993205, "ready_seconds": 26.899557106997236, "image_sha256": "7529a9f38b60810a8f617c1f00f9b234a28960d646a5db9dc1855fd62c92e800"}
+Processed prompts:   0%|          | 0/1 [00:00<?, ?it/s](DiffusionWorker_SP1 pid=4057377) INFO 09-20 04:50:07 [autoencoder_kl.py:195] Decode run with distributed executor, split strategy is tile
+(DiffusionWorker_SP0 pid=4057376) INFO 09-20 04:50:07 [autoencoder_kl.py:195] Decode run with distributed executor, split strategy is tile
+Processed prompts: 100%|██████████| 1/1 [00:17<00:00, 17.05s/it]Processed prompts: 100%|██████████| 1/1 [00:17<00:00, 17.59s/it]
+{"pid": 4056127, "parallel_vae": true, "ulysses_degree": 2, "ulysses_mode": "advanced_uaa", "width": 1152, "height": 1024, "iteration": 0, "warmup": true, "seconds": 17.58882576499309, "ready_seconds": 26.899557106997236, "image_sha256": "b45488795d2ee4d67e26dfba8048537eda0842dafd59e2bf490fc5ef1cde36b0"}
+Processed prompts:   0%|          | 0/1 [00:00<?, ?it/s](DiffusionWorker_SP1 pid=4057377) INFO 09-20 04:50:29 [autoencoder_kl.py:195] Decode run with distributed executor, split strategy is tile
+(DiffusionWorker_SP0 pid=4057376) INFO 09-20 04:50:29 [autoencoder_kl.py:195] Decode run with distributed executor, split strategy is tile
+Processed prompts: 100%|██████████| 1/1 [00:20<00:00, 20.89s/it]Processed prompts: 100%|██████████| 1/1 [00:20<00:00, 20.89s/it]
+{"pid": 4056127, "parallel_vae": true, "ulysses_degree": 2, "ulysses_mode": "advanced_uaa", "width": 1152, "height": 1024, "iteration": 1, "warmup": true, "seconds": 20.886966620004387, "ready_seconds": 26.899557106997236, "image_sha256": "b45488795d2ee4d67e26dfba8048537eda0842dafd59e2bf490fc5ef1cde36b0"}
+Processed prompts:   0%|          | 0/1 [00:00<?, ?it/s](DiffusionWorker_SP1 pid=4057377) INFO 09-20 04:50:56 [autoencoder_kl.py:195] Decode run with distributed executor, split strategy is tile
+(DiffusionWorker_SP0 pid=4057376) INFO 09-20 04:50:56 [autoencoder_kl.py:195] Decode run with distributed executor, split strategy is tile
+Processed prompts: 100%|██████████| 1/1 [00:26<00:00, 26.70s/it]Processed prompts: 100%|██████████| 1/1 [00:26<00:00, 26.70s/it]
+{"pid": 4056127, "parallel_vae": true, "ulysses_degree": 2, "ulysses_mode": "advanced_uaa", "width": 1152, "height": 1024, "iteration": 2, "warmup": false, "seconds": 26.699424250997254, "ready_seconds": 26.899557106997236, "image_sha256": "b45488795d2ee4d67e26dfba8048537eda0842dafd59e2bf490fc5ef1cde36b0"}
+Processed prompts:   0%|          | 0/1 [00:00<?, ?it/s](DiffusionWorker_SP1 pid=4057377) INFO 09-20 04:51:23 [autoencoder_kl.py:195] Decode run with distributed executor, split strategy is tile
+(DiffusionWorker_SP0 pid=4057376) INFO 09-20 04:51:23 [autoencoder_kl.py:195] Decode run with distributed executor, split strategy is tile
+Processed prompts: 100%|██████████| 1/1 [00:26<00:00, 26.19s/it]Processed prompts: 100%|██████████| 1/1 [00:26<00:00, 26.19s/it]
+{"pid": 4056127, "parallel_vae": true, "ulysses_degree": 2, "ulysses_mode": "advanced_uaa", "width": 1152, "height": 1024, "iteration": 3, "warmup": false, "seconds": 26.195498901986866, "ready_seconds": 26.899557106997236, "image_sha256": "b45488795d2ee4d67e26dfba8048537eda0842dafd59e2bf490fc5ef1cde36b0"}
+Processed prompts:   0%|          | 0/1 [00:00<?, ?it/s](DiffusionWorker_SP1 pid=4057377) INFO 09-20 04:51:50 [autoencoder_kl.py:195] Decode run with distributed executor, split strategy is tile
+(DiffusionWorker_SP0 pid=4057376) INFO 09-20 04:51:50 [autoencoder_kl.py:195] Decode run with distributed executor, split strategy is tile
+Processed prompts: 100%|██████████| 1/1 [00:26<00:00, 26.21s/it]Processed prompts: 100%|██████████| 1/1 [00:26<00:00, 26.21s/it]
+{"pid": 4056127, "parallel_vae": true, "ulysses_degree": 2, "ulysses_mode": "advanced_uaa", "width": 1152, "height": 1024, "iteration": 4, "warmup": false, "seconds": 26.210371926994412, "ready_seconds": 26.899557106997236, "image_sha256": "b45488795d2ee4d67e26dfba8048537eda0842dafd59e2bf490fc5ef1cde36b0"}
+Processed prompts:   0%|          | 0/1 [00:00<?, ?it/s](DiffusionWorker_SP1 pid=4057377) INFO 09-20 04:52:15 [autoencoder_kl.py:195] Decode run with distributed executor, split strategy is tile
+(DiffusionWorker_SP0 pid=4057376) INFO 09-20 04:52:15 [autoencoder_kl.py:195] Decode run with distributed executor, split strategy is tile
+Processed prompts: 100%|██████████| 1/1 [00:24<00:00, 24.34s/it]Processed prompts: 100%|██████████| 1/1 [00:24<00:00, 24.34s/it]
+{"pid": 4056127, "parallel_vae": true, "ulysses_degree": 2, "ulysses_mode": "advanced_uaa", "width": 1152, "height": 1024, "iteration": 5, "warmup": false, "seconds": 24.341983118007192, "ready_seconds": 26.899557106997236, "image_sha256": "b45488795d2ee4d67e26dfba8048537eda0842dafd59e2bf490fc5ef1cde36b0"}
+Processed prompts:   0%|          | 0/1 [00:00<?, ?it/s](DiffusionWorker_SP1 pid=4057377) INFO 09-20 04:52:33 [autoencoder_kl.py:195] Decode run with distributed executor, split strategy is tile
+(DiffusionWorker_SP0 pid=4057376) INFO 09-20 04:52:33 [autoencoder_kl.py:195] Decode run with distributed executor, split strategy is tile
+Processed prompts: 100%|██████████| 1/1 [00:17<00:00, 17.03s/it]Processed prompts: 100%|██████████| 1/1 [00:17<00:00, 17.03s/it]
+{"pid": 4056127, "parallel_vae": true, "ulysses_degree": 2, "ulysses_mode": "advanced_uaa", "width": 1152, "height": 1024, "iteration": 6, "warmup": false, "seconds": 17.0313581500086, "ready_seconds": 26.899557106997236, "image_sha256": "b45488795d2ee4d67e26dfba8048537eda0842dafd59e2bf490fc5ef1cde36b0"}
+INFO 09-20 04:52:34 [omni_base.py:771] [Omni] Shutting down
+INFO 09-20 04:52:34 [omni_engine_base.py:1144] [OmniEngine] Shutting down Orchestrator
+INFO 09-20 04:52:34 [orchestrator.py:508] [Orchestrator] Received shutdown signal
+INFO 09-20 04:52:34 [orchestrator.py:2610] [Orchestrator] Shutting down all 1 client(s)
+(DiffusionWorker_SP0 pid=4057376) INFO 09-20 04:52:34 [diffusion_worker.py:1456] Worker 0: Received shutdown message
+(DiffusionWorker_SP0 pid=4057376) INFO 09-20 04:52:34 [diffusion_worker.py:1478] event loop terminated.
+(DiffusionWorker_SP1 pid=4057377) INFO 09-20 04:52:34 [diffusion_worker.py:1456] Worker 1: Received shutdown message
+(DiffusionWorker_SP1 pid=4057377) INFO 09-20 04:52:34 [diffusion_worker.py:1478] event loop terminated.
+(DiffusionWorker_SP1 pid=4057377) INFO 09-20 04:52:35 [diffusion_worker.py:1546] Worker 1: Shutdown complete.
+(DiffusionWorker_SP0 pid=4057376) INFO 09-20 04:52:35 [diffusion_worker.py:1546] Worker 0: Shutdown complete.
+INFO 09-20 04:52:37 [stage_pool.py:1338] [StagePool] Stage 0 replica 0 shut down

@@ -1,0 +1,14 @@
+{
+  "base_sha": "698f7160125d3071b8c0eef69b1b03fa8dfba766",
+  "pr": "https://github.com/vllm-project/vllm-omni/pull/4933",
+  "pr_sha": "37e4407dcf10d49ab9215dfd4a545fb9f014b5c4",
+  "original_author": "abtonmoy",
+  "patch_sha256": "b3b1d69460c219ee48ad213e70b95c691d9def56b46b243626d9f3ea6c508e0b",
+  "files": {
+    "vllm_omni/diffusion/distributed/autoencoders/autoencoder_kl_qwenimage.py": "2a4f9466171bad26fa23c85ed93a005e6ef9c839cfab8772fcbff8ed5afb2bab",
+    "vllm_omni/diffusion/models/qwen_image/pipeline_qwen_image_edit.py": "8d0c01b62d5cf6d793aebe9ecf2999615f9c8a8e174a485d9a0d8a89cbd447ba",
+    "vllm_omni/diffusion/models/qwen_image/pipeline_qwen_image_edit_plus.py": "534541f590ca2ce672596bedff223efc5ca1c8361925f849e6394df76e15f32e",
+    "tests/diffusion/distributed/test_autoencoder_kl_qwenimage_encode.py": "1ca106802f75d843491c41e3f6ba15c37a6dfd914a4b172da5467374aed80d74"
+  },
+  "adaptation": "Runtime and tests applied cleanly to pinned base. Documentation hunk excluded because table changed. No runtime edits to the original patch."
+}

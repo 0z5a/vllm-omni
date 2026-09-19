@@ -1,0 +1,729 @@
+INFO 09-20 03:56:01 [patch.py:252] NVFP4 W4A4 weight_scale NaN-clamp: installed.
+INFO 09-20 03:56:01 [patch.py:503] inductor factorable-divisibility patch: installed.
+INFO 09-20 03:56:01 [patch.py:568] [cumem-cuda] CuMemAllocator._python_free_callback patched: asleep guard extended to all platforms.
+INFO 09-20 03:56:03 [omni_base.py:208] [Omni] Initializing with model /home/kxqandccx/omnigen2-encoder-fp8-20260915/model
+INFO 09-20 03:56:03 [omni_engine_base.py:163] [OmniEngine] Initializing with model /home/kxqandccx/omnigen2-encoder-fp8-20260915/model
+INFO 09-20 03:56:04 [omnigen2_transformer.py:124] Patched vllm._custom_ops.cutlass_scaled_mm with CUTLASS-padded FP8 variant (avoids slow Triton fallback for non-%%16 dimensions)
+INFO 09-20 03:56:04 [config_factory.py:697] Resolved generic diffusion final_output_type='image' for model_class_name='OmniGen2Pipeline'.
+INFO 09-20 03:56:04 [omni_engine_base.py:312] [OmniEngine] Launching Orchestrator thread with 1 stages
+INFO 09-20 03:56:04 [stage_init_utils.py:775] [stage_init] Set VLLM_WORKER_MULTIPROC_METHOD=spawn
+INFO 09-20 03:56:04 [stage_utils.py:178] Stage 0 logical-to-physical device mapping: 0->2, 1->3
+INFO 09-20 03:56:05 [multiproc_executor.py:350] Starting server...
+INFO 09-20 03:56:13 [patch.py:252] NVFP4 W4A4 weight_scale NaN-clamp: installed.
+INFO 09-20 03:56:13 [patch.py:252] NVFP4 W4A4 weight_scale NaN-clamp: installed.
+INFO 09-20 03:56:13 [patch.py:503] inductor factorable-divisibility patch: installed.
+INFO 09-20 03:56:13 [patch.py:568] [cumem-cuda] CuMemAllocator._python_free_callback patched: asleep guard extended to all platforms.
+INFO 09-20 03:56:13 [patch.py:503] inductor factorable-divisibility patch: installed.
+INFO 09-20 03:56:13 [patch.py:568] [cumem-cuda] CuMemAllocator._python_free_callback patched: asleep guard extended to all platforms.
+(DiffusionWorker pid=3699653) INFO 09-20 03:56:16 [diffusion_worker.py:1058] Worker 1 created result MessageQueue
+(DiffusionWorker pid=3699653) INFO 09-20 03:56:16 [scheduler.py:277] Chunked prefill is enabled with max_num_batched_tokens=2048.
+(DiffusionWorker pid=3699653) INFO 09-20 03:56:16 [kernel.py:369] Final IR op priority after setting platform defaults: IrOpPriorityConfig(rms_norm=['native'], fused_add_rms_norm=['native'])
+(DiffusionWorker pid=3699653) INFO 09-20 03:56:16 [diffusion_worker.py:327] Final IR op priority after setting vLLM-Omni overrides: IrOpPriorityConfig(rms_norm=['vllm_c', 'native'], fused_add_rms_norm=['vllm_c', 'native'])
+(DiffusionWorker pid=3699652) INFO 09-20 03:56:16 [diffusion_worker.py:1058] Worker 0 created result MessageQueue
+(DiffusionWorker pid=3699652) INFO 09-20 03:56:17 [scheduler.py:277] Chunked prefill is enabled with max_num_batched_tokens=2048.
+(DiffusionWorker pid=3699652) INFO 09-20 03:56:17 [kernel.py:369] Final IR op priority after setting platform defaults: IrOpPriorityConfig(rms_norm=['native'], fused_add_rms_norm=['native'])
+(DiffusionWorker pid=3699652) INFO 09-20 03:56:17 [diffusion_worker.py:327] Final IR op priority after setting vLLM-Omni overrides: IrOpPriorityConfig(rms_norm=['vllm_c', 'native'], fused_add_rms_norm=['vllm_c', 'native'])
+(DiffusionWorker pid=3699653) INFO 09-20 03:56:17 [diffusion_worker.py:339] Worker 1: Initialized device and distributed environment.
+(DiffusionWorker pid=3699652) INFO 09-20 03:56:17 [diffusion_worker.py:339] Worker 0: Initialized device and distributed environment.
+(DiffusionWorker pid=3699653) INFO 09-20 03:56:17 [parallel_state.py:610] Building SP subgroups from explicit sp_group_ranks (sp_size=2, ulysses=2, ring=1, use_ulysses_low=True).
+(DiffusionWorker pid=3699653) INFO 09-20 03:56:17 [parallel_state.py:652] SP group details for rank 1: sp_group=[0, 1], ulysses_group=[0, 1], ring_group=[1]
+(DiffusionWorker pid=3699652) INFO 09-20 03:56:17 [parallel_state.py:610] Building SP subgroups from explicit sp_group_ranks (sp_size=2, ulysses=2, ring=1, use_ulysses_low=True).
+(DiffusionWorker pid=3699652) INFO 09-20 03:56:17 [parallel_state.py:652] SP group details for rank 0: sp_group=[0, 1], ulysses_group=[0, 1], ring_group=[0]
+(DiffusionWorker_SP1 pid=3699653) INFO 09-20 03:56:17 [omnigen2_transformer.py:124] Patched vllm._custom_ops.cutlass_scaled_mm with CUTLASS-padded FP8 variant (avoids slow Triton fallback for non-%%16 dimensions)
+(DiffusionWorker_SP0 pid=3699652) INFO 09-20 03:56:17 [omnigen2_transformer.py:124] Patched vllm._custom_ops.cutlass_scaled_mm with CUTLASS-padded FP8 variant (avoids slow Triton fallback for non-%%16 dimensions)
+(DiffusionWorker_SP1 pid=3699653) INFO 09-20 03:56:18 [selector.py:93] Resolved diffusion attention backend 'FLASH_ATTN' for role='self' via platform default
+(DiffusionWorker_SP0 pid=3699652) INFO 09-20 03:56:18 [selector.py:93] Resolved diffusion attention backend 'FLASH_ATTN' for role='self' via platform default
+(DiffusionWorker_SP1 pid=3699653) Loading weights:   0%|          | 0/824 [00:00<?, ?it/s](DiffusionWorker_SP0 pid=3699652) Loading weights:   0%|          | 0/824 [00:00<?, ?it/s]Loading weights:   0%|          | 1/824 [00:10<2:18:28, 10.10s/it]Loading weights:   0%|          | 1/824 [00:10<2:18:08, 10.07s/it]Loading weights:   0%|          | 3/824 [00:10<39:11,  2.86s/it]  Loading weights:   0%|          | 3/824 [00:10<39:33,  2.89s/it]  Loading weights:   1%|          | 5/824 [00:11<20:29,  1.50s/it]Loading weights:   1%|          | 5/824 [00:11<20:20,  1.49s/it]Loading weights:   1%|▏         | 11/824 [00:11<06:36,  2.05it/s]Loading weights:   1%|          | 10/824 [00:11<07:22,  1.84it/s]Loading weights:   2%|▏         | 14/824 [00:11<05:15,  2.57it/s]Loading weights:   2%|▏         | 16/824 [00:12<04:48,  2.80it/s]Loading weights:   2%|▏         | 14/824 [00:12<05:47,  2.33it/s]Loading weights:   2%|▏         | 20/824 [00:12<02:59,  4.48it/s]Loading weights:   3%|▎         | 21/824 [00:12<02:59,  4.47it/s]Loading weights:   3%|▎         | 22/824 [00:12<02:38,  5.07it/s]Loading weights:   3%|▎         | 24/824 [00:12<02:26,  5.47it/s]Loading weights:   3%|▎         | 27/824 [00:13<02:17,  5.81it/s]Loading weights:   3%|▎         | 27/824 [00:13<02:02,  6.51it/s]Loading weights:   4%|▎         | 29/824 [00:14<03:55,  3.38it/s]Loading weights:   4%|▎         | 29/824 [00:14<03:47,  3.50it/s]Loading weights:   4%|▍         | 35/824 [00:14<02:17,  5.74it/s]Loading weights:   4%|▍         | 35/824 [00:15<02:11,  6.01it/s]Loading weights:   5%|▍         | 39/824 [00:15<02:08,  6.12it/s]Loading weights:   5%|▍         | 39/824 [00:15<02:15,  5.80it/s]Loading weights:   5%|▍         | 41/824 [00:16<02:18,  5.64it/s]Loading weights:   5%|▍         | 41/824 [00:16<02:16,  5.74it/s]Loading weights:   5%|▌         | 45/824 [00:16<01:36,  8.08it/s]Loading weights:   5%|▌         | 45/824 [00:16<01:38,  7.92it/s]Loading weights:   6%|▌         | 47/824 [00:16<01:33,  8.30it/s]Loading weights:   6%|▌         | 49/824 [00:16<01:18,  9.81it/s]Loading weights:   6%|▌         | 51/824 [00:16<01:32,  8.35it/s]Loading weights:   6%|▌         | 49/824 [00:16<01:49,  7.10it/s]Loading weights:   6%|▋         | 53/824 [00:17<02:26,  5.28it/s]Loading weights:   6%|▋         | 52/824 [00:17<02:29,  5.17it/s]Loading weights:   7%|▋         | 59/824 [00:17<01:25,  8.97it/s]Loading weights:   7%|▋         | 58/824 [00:17<01:25,  8.95it/s]Loading weights:   8%|▊         | 63/824 [00:18<01:25,  8.86it/s]Loading weights:   8%|▊         | 62/824 [00:18<01:26,  8.84it/s]Loading weights:   8%|▊         | 64/824 [00:20<03:20,  3.79it/s]Loading weights:   8%|▊         | 65/824 [00:20<03:23,  3.72it/s]Loading weights:   9%|▊         | 71/824 [00:20<01:54,  6.58it/s]Loading weights:   9%|▊         | 71/824 [00:20<02:03,  6.12it/s]Loading weights:   9%|▉         | 75/824 [00:20<01:48,  6.92it/s]Loading weights:   9%|▉         | 74/824 [00:20<02:01,  6.15it/s]Loading weights:   9%|▉         | 76/824 [00:21<02:08,  5.84it/s]Loading weights:   9%|▉         | 78/824 [00:21<02:27,  5.06it/s]Loading weights:   9%|▉         | 77/824 [00:21<02:35,  4.81it/s]Loading weights:  10%|▉         | 81/824 [00:22<01:52,  6.62it/s]Loading weights:  10%|▉         | 82/824 [00:22<01:42,  7.24it/s]Loading weights:  10%|█         | 84/824 [00:22<01:27,  8.41it/s]Loading weights:  10%|█         | 85/824 [00:22<01:25,  8.64it/s]Loading weights:  11%|█         | 88/824 [00:22<01:45,  6.96it/s]Loading weights:  11%|█         | 87/824 [00:22<01:53,  6.50it/s]Loading weights:  11%|█         | 90/824 [00:23<02:08,  5.70it/s]Loading weights:  11%|█         | 89/824 [00:23<02:19,  5.28it/s]Loading weights:  11%|█▏        | 93/824 [00:23<01:38,  7.44it/s]Loading weights:  11%|█▏        | 93/824 [00:23<01:47,  6.81it/s]Loading weights:  12%|█▏        | 97/824 [00:23<01:18,  9.21it/s]Loading weights:  12%|█▏        | 97/824 [00:23<01:14,  9.70it/s]Loading weights:  12%|█▏        | 99/824 [00:24<01:24,  8.54it/s]Loading weights:  12%|█▏        | 99/824 [00:24<01:29,  8.06it/s]Loading weights:  12%|█▏        | 101/824 [00:25<03:13,  3.73it/s]Loading weights:  12%|█▏        | 101/824 [00:25<03:18,  3.65it/s]Loading weights:  13%|█▎        | 106/824 [00:25<01:54,  6.25it/s]Loading weights:  13%|█▎        | 106/824 [00:25<02:00,  5.98it/s]Loading weights:  13%|█▎        | 110/824 [00:26<01:53,  6.28it/s]Loading weights:  13%|█▎        | 111/824 [00:26<01:53,  6.31it/s]Loading weights:  14%|█▎        | 112/824 [00:27<02:08,  5.52it/s]Loading weights:  14%|█▎        | 113/824 [00:27<02:00,  5.89it/s]Loading weights:  14%|█▍        | 117/824 [00:27<01:22,  8.53it/s]Loading weights:  15%|█▍        | 121/824 [00:27<01:03, 11.09it/s]Loading weights:  14%|█▍        | 119/824 [00:27<01:19,  8.87it/s]Loading weights:  15%|█▍        | 123/824 [00:27<01:19,  8.86it/s]Loading weights:  15%|█▌        | 124/824 [00:28<01:56,  6.02it/s]Loading weights:  15%|█▌        | 125/824 [00:28<01:54,  6.13it/s]Loading weights:  15%|█▌        | 126/824 [00:28<01:40,  6.92it/s]Loading weights:  16%|█▌        | 131/824 [00:28<01:12,  9.58it/s]Loading weights:  16%|█▌        | 131/824 [00:28<01:10,  9.85it/s]Loading weights:  16%|█▋        | 135/824 [00:29<01:22,  8.35it/s]Loading weights:  16%|█▋        | 135/824 [00:29<01:27,  7.83it/s]Loading weights:  17%|█▋        | 137/824 [00:29<01:37,  7.04it/s]Loading weights:  17%|█▋        | 137/824 [00:30<01:37,  7.02it/s]Loading weights:  17%|█▋        | 141/824 [00:30<01:11,  9.49it/s]Loading weights:  17%|█▋        | 141/824 [00:30<01:12,  9.45it/s]Loading weights:  17%|█▋        | 143/824 [00:30<01:47,  6.36it/s]Loading weights:  17%|█▋        | 143/824 [00:30<01:47,  6.36it/s]Loading weights:  18%|█▊        | 147/824 [00:31<02:02,  5.52it/s]Loading weights:  18%|█▊        | 145/824 [00:31<02:28,  4.56it/s]Loading weights:  18%|█▊        | 147/824 [00:32<02:45,  4.10it/s]Loading weights:  18%|█▊        | 149/824 [00:32<02:26,  4.62it/s]Loading weights:  18%|█▊        | 152/824 [00:32<01:41,  6.65it/s]Loading weights:  19%|█▊        | 154/824 [00:32<01:31,  7.32it/s]Loading weights:  19%|█▉        | 159/824 [00:32<01:10,  9.39it/s]Loading weights:  19%|█▉        | 158/824 [00:33<01:23,  7.98it/s]Loading weights:  19%|█▉        | 160/824 [00:33<01:30,  7.34it/s]Loading weights:  20%|█▉        | 161/824 [00:33<01:43,  6.43it/s]Loading weights:  20%|█▉        | 162/824 [00:33<01:44,  6.34it/s]Loading weights:  20%|██        | 165/824 [00:33<01:19,  8.27it/s]Loading weights:  20%|██        | 165/824 [00:33<01:21,  8.13it/s]Loading weights:  21%|██        | 170/824 [00:34<01:16,  8.59it/s]Loading weights:  21%|██        | 172/824 [00:34<01:23,  7.85it/s]Loading weights:  21%|██        | 174/824 [00:35<01:32,  7.03it/s]Loading weights:  21%|██        | 170/824 [00:35<02:01,  5.40it/s]Loading weights:  22%|██▏       | 178/824 [00:35<01:04,  9.99it/s]Loading weights:  22%|██▏       | 179/824 [00:35<01:02, 10.28it/s]Loading weights:  22%|██▏       | 182/824 [00:36<01:20,  7.98it/s]Loading weights:  22%|██▏       | 185/824 [00:36<01:22,  7.76it/s]Loading weights:  22%|██▏       | 183/824 [00:36<01:42,  6.25it/s]Loading weights:  23%|██▎       | 190/824 [00:36<01:00, 10.50it/s]Loading weights:  23%|██▎       | 190/824 [00:36<00:59, 10.59it/s]Loading weights:  23%|██▎       | 193/824 [00:36<00:53, 11.70it/s]Loading weights:  23%|██▎       | 193/824 [00:36<00:52, 12.05it/s]Loading weights:  24%|██▍       | 196/824 [00:38<02:14,  4.65it/s]Loading weights:  24%|██▍       | 196/824 [00:38<02:13,  4.69it/s]Loading weights:  24%|██▍       | 198/824 [00:39<02:19,  4.49it/s]Loading weights:  24%|██▍       | 198/824 [00:39<02:19,  4.49it/s]Loading weights:  24%|██▍       | 201/824 [00:39<01:45,  5.89it/s]Loading weights:  25%|██▍       | 202/824 [00:39<01:36,  6.42it/s]Loading weights:  25%|██▌       | 207/824 [00:40<01:30,  6.80it/s]Loading weights:  25%|██▌       | 209/824 [00:40<01:40,  6.11it/s]Loading weights:  25%|██▌       | 207/824 [00:40<01:53,  5.44it/s]Loading weights:  26%|██▌       | 213/824 [00:40<01:13,  8.33it/s]Loading weights:  26%|██▌       | 213/824 [00:40<01:14,  8.21it/s]Loading weights:  27%|██▋       | 219/824 [00:41<00:57, 10.52it/s]Loading weights:  26%|██▋       | 218/824 [00:41<01:02,  9.67it/s]Loading weights:  27%|██▋       | 220/824 [00:41<01:22,  7.28it/s]Loading weights:  27%|██▋       | 221/824 [00:41<01:21,  7.36it/s]Loading weights:  27%|██▋       | 226/824 [00:41<00:53, 11.08it/s]Loading weights:  28%|██▊       | 229/824 [00:41<00:45, 13.12it/s]Loading weights:  28%|██▊       | 231/824 [00:42<01:00,  9.85it/s]Loading weights:  28%|██▊       | 233/824 [00:44<02:03,  4.78it/s]Loading weights:  28%|██▊       | 234/824 [00:44<02:03,  4.79it/s]Loading weights:  29%|██▉       | 237/824 [00:44<01:41,  5.78it/s]Loading weights:  29%|██▉       | 237/824 [00:44<01:37,  6.01it/s]Loading weights:  29%|██▉       | 243/824 [00:46<02:02,  4.74it/s]Loading weights:  29%|██▉       | 243/824 [00:46<02:13,  4.35it/s]Loading weights:  30%|██▉       | 245/824 [00:47<02:54,  3.33it/s]Loading weights:  30%|██▉       | 245/824 [00:47<02:49,  3.41it/s]Loading weights:  30%|███       | 249/824 [00:47<02:03,  4.64it/s]Loading weights:  30%|███       | 249/824 [00:47<02:03,  4.67it/s]Loading weights:  30%|███       | 251/824 [00:47<01:47,  5.32it/s]Loading weights:  31%|███       | 252/824 [00:47<01:39,  5.74it/s]Loading weights:  31%|███       | 255/824 [00:48<01:29,  6.36it/s]Loading weights:  31%|███       | 253/824 [00:48<01:44,  5.45it/s]Loading weights:  31%|███       | 256/824 [00:48<01:49,  5.20it/s]Loading weights:  31%|███       | 257/824 [00:49<01:51,  5.07it/s]Loading weights:  32%|███▏      | 261/824 [00:49<01:23,  6.74it/s]Loading weights:  32%|███▏      | 261/824 [00:49<01:22,  6.78it/s]Loading weights:  32%|███▏      | 267/824 [00:50<01:23,  6.68it/s]Loading weights:  32%|███▏      | 267/824 [00:50<01:22,  6.78it/s]Loading weights:  33%|███▎      | 269/824 [00:50<01:29,  6.23it/s]Loading weights:  33%|███▎      | 269/824 [00:50<01:25,  6.48it/s]Loading weights:  33%|███▎      | 273/824 [00:50<01:04,  8.58it/s]Loading weights:  33%|███▎      | 274/824 [00:50<00:59,  9.31it/s]Loading weights:  34%|███▎      | 277/824 [00:50<00:49, 10.99it/s]Loading weights:  34%|███▍      | 279/824 [00:51<00:58,  9.36it/s]Loading weights:  34%|███▍      | 280/824 [00:51<01:22,  6.59it/s]Loading weights:  34%|███▍      | 281/824 [00:51<01:15,  7.15it/s]Loading weights:  35%|███▍      | 285/824 [00:51<00:57,  9.38it/s]Loading weights:  35%|███▍      | 287/824 [00:52<00:50, 10.53it/s]Loading weights:  35%|███▌      | 290/824 [00:52<00:41, 13.02it/s]Loading weights:  35%|███▌      | 291/824 [00:53<01:19,  6.67it/s]Loading weights:  36%|███▌      | 293/824 [00:53<01:45,  5.04it/s]Loading weights:  36%|███▌      | 293/824 [00:53<01:36,  5.51it/s]Loading weights:  36%|███▌      | 297/824 [00:53<01:10,  7.50it/s]Loading weights:  36%|███▌      | 297/824 [00:54<01:18,  6.73it/s]Loading weights:  37%|███▋      | 302/824 [00:54<01:07,  7.74it/s]Loading weights:  37%|███▋      | 303/824 [00:54<00:57,  9.03it/s]Loading weights:  37%|███▋      | 304/824 [00:55<01:35,  5.44it/s]Loading weights:  37%|███▋      | 305/824 [00:55<01:26,  5.99it/s]Loading weights:  38%|███▊      | 310/824 [00:55<01:00,  8.51it/s]Loading weights:  38%|███▊      | 310/824 [00:55<01:00,  8.55it/s]Loading weights:  38%|███▊      | 314/824 [00:56<01:00,  8.50it/s]Loading weights:  38%|███▊      | 315/824 [00:56<00:56,  9.05it/s]Loading weights:  38%|███▊      | 316/824 [00:56<01:00,  8.41it/s]Loading weights:  39%|███▊      | 318/824 [00:56<01:05,  7.74it/s]Loading weights:  38%|███▊      | 317/824 [00:56<01:11,  7.06it/s]Loading weights:  39%|███▉      | 321/824 [00:56<00:54,  9.31it/s]Loading weights:  39%|███▉      | 321/824 [00:56<00:58,  8.64it/s]Loading weights:  40%|███▉      | 327/824 [00:57<00:39, 12.61it/s]Loading weights:  40%|███▉      | 326/824 [00:57<00:45, 10.86it/s]Loading weights:  40%|███▉      | 328/824 [00:57<01:01,  8.04it/s]Loading weights:  40%|███▉      | 329/824 [00:59<02:01,  4.08it/s]Loading weights:  40%|████      | 330/824 [00:59<02:01,  4.06it/s]Loading weights:  40%|████      | 333/824 [00:59<01:25,  5.72it/s]Loading weights:  41%|████      | 335/824 [00:59<01:18,  6.21it/s]Loading weights:  41%|████      | 336/824 [00:59<01:07,  7.28it/s]Loading weights:  41%|████      | 338/824 [00:59<00:58,  8.26it/s]Loading weights:  41%|████      | 338/824 [00:59<01:02,  7.75it/s]Loading weights:  41%|████▏     | 340/824 [01:00<01:41,  4.79it/s]Loading weights:  41%|████▏     | 340/824 [01:00<01:45,  4.61it/s]Loading weights:  42%|████▏     | 345/824 [01:00<01:02,  7.64it/s]Loading weights:  42%|████▏     | 347/824 [01:00<00:53,  8.98it/s]Loading weights:  42%|████▏     | 350/824 [01:00<00:42, 11.04it/s]Loading weights:  43%|████▎     | 351/824 [01:01<00:57,  8.20it/s]Loading weights:  43%|████▎     | 353/824 [01:02<01:23,  5.63it/s]Loading weights:  43%|████▎     | 354/824 [01:02<01:17,  6.06it/s]Loading weights:  43%|████▎     | 357/824 [01:02<01:02,  7.53it/s]Loading weights:  43%|████▎     | 358/824 [01:02<00:58,  7.91it/s]Loading weights:  44%|████▍     | 361/824 [01:02<00:47,  9.68it/s]Loading weights:  44%|████▎     | 360/824 [01:02<00:54,  8.58it/s]Loading weights:  44%|████▍     | 363/824 [01:02<00:50,  9.19it/s]Loading weights:  44%|████▍     | 364/824 [01:03<01:09,  6.62it/s]Loading weights:  44%|████▍     | 365/824 [01:03<01:09,  6.56it/s]Loading weights:  45%|████▍     | 370/824 [01:03<00:44, 10.19it/s]Loading weights:  45%|████▍     | 369/824 [01:03<00:48,  9.40it/s]Loading weights:  45%|████▌     | 371/824 [01:03<00:45,  9.89it/s]Loading weights:  45%|████▌     | 373/824 [01:03<00:43, 10.33it/s]Loading weights:  45%|████▌     | 373/824 [01:03<00:42, 10.73it/s]Loading weights:  46%|████▌     | 375/824 [01:05<01:53,  3.97it/s]Loading weights:  46%|████▌     | 375/824 [01:05<01:46,  4.22it/s]Loading weights:  46%|████▌     | 377/824 [01:06<02:27,  3.03it/s]Loading weights:  46%|████▌     | 377/824 [01:06<02:20,  3.19it/s]Loading weights:  46%|████▌     | 381/824 [01:06<01:30,  4.89it/s]Loading weights:  46%|████▌     | 381/824 [01:06<01:36,  4.59it/s]Loading weights:  47%|████▋     | 387/824 [01:07<01:00,  7.18it/s]Loading weights:  47%|████▋     | 387/824 [01:06<01:00,  7.21it/s]Loading weights:  47%|████▋     | 389/824 [01:07<01:25,  5.06it/s]Loading weights:  47%|████▋     | 389/824 [01:07<01:26,  5.04it/s]Loading weights:  48%|████▊     | 394/824 [01:08<00:55,  7.77it/s]Loading weights:  48%|████▊     | 394/824 [01:08<00:56,  7.60it/s]Loading weights:  48%|████▊     | 399/824 [01:08<00:48,  8.74it/s]Loading weights:  48%|████▊     | 399/824 [01:08<00:49,  8.63it/s]Loading weights:  49%|████▊     | 401/824 [01:09<01:03,  6.62it/s]Loading weights:  49%|████▊     | 401/824 [01:09<01:03,  6.64it/s]Loading weights:  49%|████▉     | 405/824 [01:09<00:46,  8.97it/s]Loading weights:  49%|████▉     | 406/824 [01:09<00:45,  9.17it/s]Loading weights:  50%|████▉     | 409/824 [01:09<00:35, 11.67it/s]Loading weights:  50%|████▉     | 411/824 [01:09<00:46,  8.90it/s]Loading weights:  50%|█████     | 412/824 [01:11<01:50,  3.74it/s]Loading weights:  50%|█████     | 413/824 [01:11<01:43,  3.97it/s]Loading weights:  51%|█████     | 419/824 [01:11<01:02,  6.44it/s]Loading weights:  51%|█████     | 418/824 [01:11<01:07,  5.98it/s]Loading weights:  51%|█████     | 422/824 [01:12<00:50,  7.98it/s]Loading weights:  51%|█████     | 422/824 [01:12<00:51,  7.73it/s]Loading weights:  52%|█████▏    | 425/824 [01:13<01:13,  5.45it/s]Loading weights:  52%|█████▏    | 425/824 [01:13<01:14,  5.39it/s]Loading weights:  52%|█████▏    | 429/824 [01:13<00:54,  7.24it/s]Loading weights:  52%|█████▏    | 429/824 [01:13<00:55,  7.11it/s]Loading weights:  53%|█████▎    | 437/824 [01:13<00:35, 10.83it/s]Loading weights:  53%|█████▎    | 437/824 [01:13<00:35, 10.97it/s]Loading weights:  54%|█████▍    | 444/824 [01:13<00:23, 15.97it/s]Loading weights:  54%|█████▍    | 444/824 [01:13<00:24, 15.41it/s]Loading weights:  55%|█████▍    | 450/824 [01:13<00:19, 19.04it/s]Loading weights:  55%|█████▍    | 450/824 [01:13<00:19, 18.97it/s]Loading weights:  55%|█████▌    | 454/824 [01:14<00:22, 16.20it/s]Loading weights:  55%|█████▌    | 454/824 [01:14<00:22, 16.16it/s]Loading weights:  55%|█████▌    | 457/824 [01:14<00:20, 17.63it/s]Loading weights:  55%|█████▌    | 457/824 [01:14<00:22, 16.65it/s]Loading weights:  56%|█████▌    | 462/824 [01:14<00:16, 21.36it/s]Loading weights:  56%|█████▌    | 463/824 [01:14<00:16, 22.18it/s]Loading weights:  57%|█████▋    | 466/824 [01:14<00:17, 20.12it/s]Loading weights:  57%|█████▋    | 467/824 [01:14<00:16, 21.61it/s]Loading weights:  57%|█████▋    | 469/824 [01:14<00:17, 19.86it/s]Loading weights:  57%|█████▋    | 470/824 [01:14<00:17, 20.44it/s]Loading weights:  57%|█████▋    | 472/824 [01:15<00:17, 19.63it/s]Loading weights:  57%|█████▋    | 473/824 [01:15<00:17, 20.64it/s]Loading weights:  58%|█████▊    | 478/824 [01:15<00:15, 22.12it/s]Loading weights:  58%|█████▊    | 478/824 [01:15<00:15, 22.95it/s]Loading weights:  58%|█████▊    | 481/824 [01:15<00:14, 23.04it/s]Loading weights:  58%|█████▊    | 481/824 [01:15<00:16, 20.26it/s]Loading weights:  59%|█████▉    | 486/824 [01:15<00:14, 23.84it/s]Loading weights:  59%|█████▉    | 486/824 [01:15<00:15, 21.81it/s]Loading weights:  59%|█████▉    | 490/824 [01:15<00:12, 25.91it/s]Loading weights:  60%|█████▉    | 492/824 [01:16<00:27, 11.88it/s]Loading weights:  60%|█████▉    | 493/824 [01:16<00:30, 10.68it/s]Loading weights:  60%|██████    | 496/824 [01:16<00:23, 13.71it/s]Loading weights:  60%|██████    | 497/824 [01:16<00:29, 10.96it/s]Loading weights:  60%|██████    | 498/824 [01:16<00:26, 12.18it/s]Loading weights:  61%|██████    | 504/824 [01:17<00:19, 16.48it/s]Loading weights:  62%|██████▏   | 508/824 [01:17<00:19, 16.44it/s]Loading weights:  62%|██████▏   | 509/824 [01:17<00:16, 19.22it/s]Loading weights:  62%|██████▏   | 514/824 [01:17<00:13, 22.39it/s]Loading weights:  62%|██████▏   | 513/824 [01:17<00:15, 20.30it/s]Loading weights:  63%|██████▎   | 518/824 [01:17<00:12, 24.83it/s]Loading weights:  63%|██████▎   | 517/824 [01:17<00:13, 23.37it/s]Loading weights:  63%|██████▎   | 522/824 [01:17<00:12, 24.66it/s]Loading weights:  63%|██████▎   | 522/824 [01:17<00:12, 25.12it/s]Loading weights:  64%|██████▍   | 526/824 [01:17<00:15, 19.15it/s]Loading weights:  64%|██████▍   | 526/824 [01:18<00:15, 18.71it/s]Loading weights:  64%|██████▍   | 529/824 [01:18<00:19, 14.83it/s]Loading weights:  64%|██████▍   | 529/824 [01:18<00:19, 14.82it/s]Loading weights:  65%|██████▍   | 532/824 [01:18<00:17, 16.69it/s]Loading weights:  65%|██████▍   | 533/824 [01:18<00:16, 17.34it/s]Loading weights:  65%|██████▌   | 538/824 [01:18<00:13, 21.06it/s]Loading weights:  65%|██████▌   | 537/824 [01:18<00:14, 20.20it/s]Loading weights:  66%|██████▌   | 544/824 [01:18<00:10, 27.80it/s]Loading weights:  66%|██████▌   | 545/824 [01:18<00:09, 28.21it/s]Loading weights:  67%|██████▋   | 548/824 [01:18<00:11, 25.06it/s]Loading weights:  67%|██████▋   | 549/824 [01:19<00:11, 23.33it/s]Loading weights:  67%|██████▋   | 552/824 [01:19<00:11, 23.25it/s]Loading weights:  67%|██████▋   | 552/824 [01:19<00:12, 22.05it/s]Loading weights:  68%|██████▊   | 557/824 [01:19<00:10, 25.92it/s]Loading weights:  68%|██████▊   | 557/824 [01:19<00:13, 20.48it/s]Loading weights:  68%|██████▊   | 561/824 [01:19<00:11, 22.54it/s]Loading weights:  68%|██████▊   | 562/824 [01:19<00:11, 23.02it/s]Loading weights:  69%|██████▊   | 565/824 [01:19<00:10, 24.01it/s]Loading weights:  68%|██████▊   | 564/824 [01:19<00:12, 20.11it/s]Loading weights:  69%|██████▉   | 568/824 [01:19<00:11, 22.38it/s]Loading weights:  69%|██████▉   | 569/824 [01:19<00:10, 23.64it/s]Loading weights:  69%|██████▉   | 572/824 [01:20<00:10, 24.73it/s]Loading weights:  69%|██████▉   | 572/824 [01:20<00:10, 23.96it/s]Loading weights:  70%|██████▉   | 575/824 [01:20<00:09, 25.31it/s]Loading weights:  70%|██████▉   | 575/824 [01:20<00:11, 21.16it/s]Loading weights:  70%|███████   | 578/824 [01:20<00:09, 25.09it/s]Loading weights:  70%|███████   | 580/824 [01:20<00:09, 25.98it/s]Loading weights:  71%|███████   | 581/824 [01:20<00:11, 20.58it/s]Loading weights:  71%|███████   | 584/824 [01:20<00:10, 21.88it/s]Loading weights:  71%|███████   | 583/824 [01:20<00:11, 21.32it/s]Loading weights:  71%|███████▏  | 588/824 [01:20<00:14, 16.52it/s]Loading weights:  71%|███████▏  | 588/824 [01:21<00:15, 14.97it/s]Loading weights:  72%|███████▏  | 594/824 [01:21<00:10, 22.47it/s]Loading weights:  72%|███████▏  | 594/824 [01:21<00:10, 21.47it/s]Loading weights:  72%|███████▏  | 597/824 [01:21<00:09, 22.80it/s]Loading weights:  72%|███████▏  | 597/824 [01:21<00:09, 23.48it/s]Loading weights:  73%|███████▎  | 600/824 [01:21<00:09, 24.28it/s]Loading weights:  73%|███████▎  | 600/824 [01:21<00:09, 23.75it/s]Loading weights:  73%|███████▎  | 604/824 [01:21<00:08, 26.15it/s]Loading weights:  73%|███████▎  | 605/824 [01:22<00:18, 11.63it/s]Loading weights:  74%|███████▍  | 608/824 [01:22<00:18, 11.51it/s]Loading weights:  74%|███████▎  | 607/824 [01:22<00:23,  9.07it/s]Loading weights:  74%|███████▍  | 611/824 [01:22<00:17, 12.08it/s]Loading weights:  74%|███████▍  | 612/824 [01:22<00:17, 12.18it/s]Loading weights:  75%|███████▍  | 617/824 [01:22<00:14, 14.34it/s]Loading weights:  75%|███████▍  | 616/824 [01:22<00:14, 14.48it/s]Loading weights:  75%|███████▌  | 620/824 [01:22<00:13, 15.25it/s]Loading weights:  75%|███████▌  | 618/824 [01:23<00:14, 14.07it/s]Loading weights:  76%|███████▌  | 624/824 [01:23<00:10, 19.49it/s]Loading weights:  76%|███████▌  | 624/824 [01:23<00:12, 16.48it/s]Loading weights:  76%|███████▋  | 630/824 [01:23<00:09, 21.40it/s]Loading weights:  76%|███████▋  | 629/824 [01:23<00:09, 21.34it/s]Loading weights:  77%|███████▋  | 633/824 [01:23<00:09, 20.72it/s]Loading weights:  77%|███████▋  | 636/824 [01:23<00:12, 15.40it/s]Loading weights:  77%|███████▋  | 633/824 [01:23<00:13, 14.01it/s]Loading weights:  78%|███████▊  | 640/824 [01:23<00:09, 18.89it/s]Loading weights:  78%|███████▊  | 642/824 [01:24<00:08, 21.24it/s]Loading weights:  78%|███████▊  | 643/824 [01:24<00:10, 17.08it/s]Loading weights:  78%|███████▊  | 645/824 [01:24<00:08, 21.58it/s]Loading weights:  79%|███████▊  | 648/824 [01:24<00:08, 20.32it/s]Loading weights:  79%|███████▊  | 648/824 [01:24<00:08, 19.92it/s]Loading weights:  79%|███████▉  | 654/824 [01:24<00:06, 25.22it/s]Loading weights:  79%|███████▉  | 653/824 [01:24<00:08, 20.33it/s]Loading weights:  80%|███████▉  | 658/824 [01:24<00:06, 24.93it/s]Loading weights:  80%|████████  | 660/824 [01:24<00:07, 22.68it/s]Loading weights:  80%|████████  | 661/824 [01:24<00:07, 22.22it/s]Loading weights:  81%|████████  | 665/824 [01:24<00:05, 26.81it/s]Loading weights:  81%|████████  | 664/824 [01:25<00:07, 21.15it/s]Loading weights:  81%|████████  | 669/824 [01:25<00:05, 26.59it/s]Loading weights:  81%|████████  | 669/824 [01:25<00:06, 23.46it/s]Loading weights:  82%|████████▏ | 672/824 [01:25<00:06, 24.38it/s]Loading weights:  82%|████████▏ | 674/824 [01:25<00:05, 27.17it/s]Loading weights:  82%|████████▏ | 678/824 [01:25<00:04, 29.69it/s]Loading weights:  83%|████████▎ | 680/824 [01:25<00:04, 29.87it/s]Loading weights:  83%|████████▎ | 682/824 [01:25<00:06, 23.53it/s]Loading weights:  83%|████████▎ | 684/824 [01:25<00:06, 23.29it/s]Loading weights:  83%|████████▎ | 685/824 [01:25<00:05, 23.99it/s]Loading weights:  84%|████████▎ | 689/824 [01:25<00:05, 24.48it/s]Loading weights:  84%|████████▎ | 689/824 [01:25<00:05, 24.39it/s]Loading weights:  84%|████████▍ | 693/824 [01:26<00:04, 26.66it/s]Loading weights:  84%|████████▍ | 693/824 [01:26<00:05, 24.35it/s]Loading weights:  84%|████████▍ | 696/824 [01:26<00:05, 24.10it/s]Loading weights:  84%|████████▍ | 696/824 [01:26<00:05, 24.77it/s]Loading weights:  85%|████████▌ | 701/824 [01:26<00:04, 29.84it/s]Loading weights:  85%|████████▍ | 700/824 [01:26<00:04, 26.89it/s]Loading weights:  85%|████████▌ | 703/824 [01:26<00:04, 25.76it/s]Loading weights:  86%|████████▌ | 705/824 [01:26<00:05, 23.73it/s]Loading weights:  86%|████████▌ | 706/824 [01:26<00:05, 22.59it/s]Loading weights:  86%|████████▌ | 708/824 [01:26<00:05, 22.50it/s]Loading weights:  86%|████████▌ | 709/824 [01:26<00:05, 22.53it/s]Loading weights:  86%|████████▋ | 711/824 [01:26<00:04, 23.45it/s]Loading weights:  87%|████████▋ | 716/824 [01:26<00:03, 28.70it/s]Loading weights:  87%|████████▋ | 713/824 [01:27<00:05, 21.77it/s]Loading weights:  87%|████████▋ | 718/824 [01:27<00:03, 27.23it/s]Loading weights:  87%|████████▋ | 720/824 [01:27<00:04, 25.75it/s]Loading weights:  88%|████████▊ | 723/824 [01:27<00:03, 30.00it/s]Loading weights:  88%|████████▊ | 725/824 [01:27<00:03, 30.55it/s]Loading weights:  88%|████████▊ | 728/824 [01:27<00:03, 31.79it/s]Loading weights:  89%|████████▊ | 730/824 [01:27<00:03, 29.23it/s]Loading weights:  89%|████████▉ | 733/824 [01:27<00:02, 32.28it/s]Loading weights:  89%|████████▉ | 736/824 [01:27<00:02, 34.55it/s]Loading weights:  90%|████████▉ | 739/824 [01:27<00:02, 33.47it/s]Loading weights:  90%|████████▉ | 741/824 [01:27<00:02, 31.66it/s]Loading weights:  90%|█████████ | 744/824 [01:27<00:02, 33.43it/s]Loading weights:  91%|█████████ | 749/824 [01:27<00:01, 39.16it/s]Loading weights:  91%|█████████ | 749/824 [01:27<00:02, 36.27it/s]Loading weights:  91%|█████████▏| 753/824 [01:28<00:04, 15.21it/s]Loading weights:  92%|█████████▏| 754/824 [01:28<00:04, 16.91it/s]Loading weights:  92%|█████████▏| 756/824 [01:29<00:05, 12.36it/s]Loading weights:  92%|█████████▏| 758/824 [01:29<00:04, 13.95it/s]Loading weights:  92%|█████████▏| 760/824 [01:29<00:04, 15.07it/s]Loading weights:  92%|█████████▏| 761/824 [01:29<00:04, 15.07it/s]Loading weights:  93%|█████████▎| 763/824 [01:29<00:05, 10.34it/s]Loading weights:  93%|█████████▎| 764/824 [01:29<00:05, 10.14it/s]Loading weights:  93%|█████████▎| 765/824 [01:30<00:05,  9.94it/s]Loading weights:  93%|█████████▎| 766/824 [01:30<00:05, 10.56it/s]Loading weights:  93%|█████████▎| 769/824 [01:30<00:04, 12.75it/s]Loading weights:  93%|█████████▎| 770/824 [01:30<00:03, 13.60it/s]Loading weights:  94%|█████████▍| 774/824 [01:30<00:02, 17.16it/s]Loading weights:  94%|█████████▍| 773/824 [01:30<00:03, 15.30it/s]Loading weights:  94%|█████████▍| 777/824 [01:30<00:02, 19.05it/s]Loading weights:  94%|█████████▍| 777/824 [01:30<00:02, 17.04it/s]Loading weights:  95%|█████████▍| 780/824 [01:30<00:02, 18.71it/s]Loading weights:  95%|█████████▍| 780/824 [01:30<00:02, 17.13it/s]Loading weights:  95%|█████████▌| 785/824 [01:30<00:02, 19.03it/s]Loading weights:  95%|█████████▌| 786/824 [01:30<00:01, 21.64it/s]Loading weights:  96%|█████████▌| 792/824 [01:30<00:01, 25.18it/s]Loading weights:  96%|█████████▌| 791/824 [01:31<00:01, 24.09it/s]Loading weights:  97%|█████████▋| 796/824 [01:31<00:01, 27.99it/s]Loading weights:  97%|█████████▋| 797/824 [01:31<00:00, 27.73it/s]Loading weights:  97%|█████████▋| 802/824 [01:31<00:00, 29.18it/s]Loading weights:  97%|█████████▋| 802/824 [01:31<00:00, 28.26it/s]Loading weights:  98%|█████████▊| 806/824 [01:31<00:00, 24.41it/s]Loading weights:  98%|█████████▊| 806/824 [01:31<00:00, 23.86it/s]Loading weights:  98%|█████████▊| 810/824 [01:31<00:00, 22.22it/s]Loading weights:  98%|█████████▊| 809/824 [01:31<00:00, 21.06it/s]Loading weights:  99%|█████████▊| 812/824 [01:31<00:00, 22.34it/s]Loading weights:  99%|█████████▊| 813/824 [01:31<00:00, 23.26it/s]Loading weights:  99%|█████████▉| 816/824 [01:31<00:00, 23.77it/s]Loading weights:  99%|█████████▉| 817/824 [01:32<00:00, 26.91it/s]Loading weights: 100%|█████████▉| 821/824 [01:32<00:00, 10.65it/s]Loading weights: 100%|█████████▉| 820/824 [01:32<00:00,  9.97it/s]Loading weights: 100%|█████████▉| 823/824 [01:33<00:00, 10.98it/s]Loading weights: 100%|██████████| 824/824 [01:33<00:00,  8.85it/s]
+Loading weights: 100%|█████████▉| 823/824 [01:33<00:00, 10.52it/s]Loading weights: 100%|██████████| 824/824 [01:33<00:00,  8.85it/s]
+(DiffusionWorker_SP0 pid=3699652) INFO 09-20 03:57:53 [registry.py:540] Applying sequence parallelism to OmniGen2Transformer2DModel (transformer) (sp_size=2, mode=ulysses, ulysses=2, ring=1)
+(DiffusionWorker_SP1 pid=3699653) INFO 09-20 03:57:53 [registry.py:540] Applying sequence parallelism to OmniGen2Transformer2DModel (transformer) (sp_size=2, mode=ulysses, ulysses=2, ring=1)
+(DiffusionWorker_SP0 pid=3699652) Multi-thread loading shards:   0% Completed | 0/2 [00:00<?, ?it/s]
+(DiffusionWorker_SP0 pid=3699652) Multi-thread loading shards:  50% Completed | 1/2 [00:43<00:43, 43.26s/it]
+(DiffusionWorker_SP0 pid=3699652) Multi-thread loading shards: 100% Completed | 2/2 [01:39<00:00, 50.75s/it]
+(DiffusionWorker_SP0 pid=3699652) Multi-thread loading shards: 100% Completed | 2/2 [01:39<00:00, 49.63s/it]
+(DiffusionWorker_SP0 pid=3699652) 
+(DiffusionWorker_SP0 pid=3699652) INFO 09-20 03:59:32 [diffusers_loader.py:1098] Loading weights took 99.49 seconds
+(DiffusionWorker_SP0 pid=3699652) INFO 09-20 03:59:33 [diffusion_model_runner.py:340] Model loading took 21.5788 GiB and 195.891894 seconds
+(DiffusionWorker_SP0 pid=3699652) INFO 09-20 03:59:33 [diffusion_model_runner.py:346] Model runner: Model loaded successfully.
+(DiffusionWorker_SP0 pid=3699652) INFO 09-20 03:59:33 [diffusion_model_runner.py:437] Model runner: Initialization complete.
+(DiffusionWorker_SP1 pid=3699653) INFO 09-20 03:59:33 [diffusion_model_runner.py:340] Model loading took 21.5788 GiB and 195.900465 seconds
+(DiffusionWorker_SP1 pid=3699653) INFO 09-20 03:59:33 [diffusion_model_runner.py:346] Model runner: Model loaded successfully.
+(DiffusionWorker_SP1 pid=3699653) INFO 09-20 03:59:33 [diffusion_model_runner.py:437] Model runner: Initialization complete.
+(DiffusionWorker_SP0 pid=3699652) INFO 09-20 03:59:33 [diffusion_worker.py:420] Worker 0: Process-scoped GPU memory after model loading: 22.28 GiB.
+(DiffusionWorker_SP1 pid=3699653) INFO 09-20 03:59:33 [diffusion_worker.py:420] Worker 1: Process-scoped GPU memory after model loading: 22.28 GiB.
+(DiffusionWorker_SP0 pid=3699652) INFO 09-20 03:59:33 [manager.py:112] Initializing DiffusionLoRAManager: device=cuda:0, dtype=torch.bfloat16, max_cached_adapters=1, static_lora_path=None
+(DiffusionWorker_SP0 pid=3699652) INFO 09-20 03:59:33 [diffusion_worker.py:297] Worker 0: Initialization complete.
+(DiffusionWorker_SP1 pid=3699653) INFO 09-20 03:59:33 [manager.py:112] Initializing DiffusionLoRAManager: device=cuda:1, dtype=torch.bfloat16, max_cached_adapters=1, static_lora_path=None
+(DiffusionWorker_SP1 pid=3699653) INFO 09-20 03:59:33 [diffusion_worker.py:297] Worker 1: Initialization complete.
+(DiffusionWorker_SP0 pid=3699652) INFO 09-20 03:59:33 [diffusion_worker.py:1523] Worker 0: Scheduler loop started.
+(DiffusionWorker_SP0 pid=3699652) INFO 09-20 03:59:33 [diffusion_worker.py:1367] Worker 0 ready to receive requests via shared memory
+(DiffusionWorker_SP1 pid=3699653) INFO 09-20 03:59:33 [diffusion_worker.py:1523] Worker 1: Scheduler loop started.
+(DiffusionWorker_SP1 pid=3699653) INFO 09-20 03:59:33 [diffusion_worker.py:1367] Worker 1 ready to receive requests via shared memory
+INFO 09-20 03:59:33 [multiproc_executor.py:893] Async result pump started for 2 worker queue(s)
+INFO 09-20 03:59:33 [diffusion_engine.py:402] [RequestBatch] engine init max_num_seqs=1 max_wait_ms=0.0
+INFO 09-20 03:59:33 [diffusion_engine.py:1169] dummy run to warm up the model
+(DiffusionWorker_SP0 pid=3699652) ERROR 09-20 03:59:35 [diffusion_worker.py:1741] Error executing method 'execute_model'. This might cause issues in distributed execution.
+(DiffusionWorker_SP0 pid=3699652) ERROR 09-20 03:59:35 [diffusion_worker.py:1741] Traceback (most recent call last):
+(DiffusionWorker_SP0 pid=3699652) ERROR 09-20 03:59:35 [diffusion_worker.py:1741]   File "/home/kxqandccx/omni-1217-20260919/rebased/native/vllm_omni/diffusion/worker/diffusion_worker.py", line 1737, in execute_method
+(DiffusionWorker_SP0 pid=3699652) ERROR 09-20 03:59:35 [diffusion_worker.py:1741]     return func(*args, **kwargs)
+(DiffusionWorker_SP0 pid=3699652) ERROR 09-20 03:59:35 [diffusion_worker.py:1741]            ^^^^^^^^^^^^^^^^^^^^^
+(DiffusionWorker_SP0 pid=3699652) ERROR 09-20 03:59:35 [diffusion_worker.py:1741]   File "/home/kxqandccx/omni-1217-20260919/rebased/native/vllm_omni/diffusion/worker/diffusion_worker.py", line 671, in execute_model
+(DiffusionWorker_SP0 pid=3699652) ERROR 09-20 03:59:35 [diffusion_worker.py:1741]     output = self.model_runner.execute_model(req, **kwargs)
+(DiffusionWorker_SP0 pid=3699652) ERROR 09-20 03:59:35 [diffusion_worker.py:1741]              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(DiffusionWorker_SP0 pid=3699652) ERROR 09-20 03:59:35 [diffusion_worker.py:1741]   File "/home/kxqandccx/omni-1217-20260919/rebased/native/vllm_omni/diffusion/worker/diffusion_model_runner.py", line 869, in execute_model
+(DiffusionWorker_SP0 pid=3699652) ERROR 09-20 03:59:35 [diffusion_worker.py:1741]     runner_output = self._execute_request_list(
+(DiffusionWorker_SP0 pid=3699652) ERROR 09-20 03:59:35 [diffusion_worker.py:1741]                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(DiffusionWorker_SP0 pid=3699652) ERROR 09-20 03:59:35 [diffusion_worker.py:1741]   File "/home/kxqandccx/omni-1217-20260919/rebased/native/vllm_omni/diffusion/worker/diffusion_model_runner.py", line 787, in _execute_request_list
+(DiffusionWorker_SP0 pid=3699652) ERROR 09-20 03:59:35 [diffusion_worker.py:1741]     raw_outputs = self.pipeline.forward(batch)
+(DiffusionWorker_SP0 pid=3699652) ERROR 09-20 03:59:35 [diffusion_worker.py:1741]                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(DiffusionWorker_SP0 pid=3699652) ERROR 09-20 03:59:35 [diffusion_worker.py:1741]   File "/home/kxqandccx/vllm-omni-7753-hidream-20260918/venv/lib/python3.12/site-packages/torch/utils/_contextlib.py", line 124, in decorate_context
+(DiffusionWorker_SP0 pid=3699652) ERROR 09-20 03:59:35 [diffusion_worker.py:1741]     return func(*args, **kwargs)
+(DiffusionWorker_SP0 pid=3699652) ERROR 09-20 03:59:35 [diffusion_worker.py:1741]            ^^^^^^^^^^^^^^^^^^^^^
+(DiffusionWorker_SP0 pid=3699652) ERROR 09-20 03:59:35 [diffusion_worker.py:1741]   File "/home/kxqandccx/omni-1217-20260919/rebased/native/vllm_omni/diffusion/models/omnigen2/pipeline_omnigen2.py", line 1154, in forward
+(DiffusionWorker_SP0 pid=3699652) ERROR 09-20 03:59:35 [diffusion_worker.py:1741]     image = self.processing(
+(DiffusionWorker_SP0 pid=3699652) ERROR 09-20 03:59:35 [diffusion_worker.py:1741]             ^^^^^^^^^^^^^^^^
+(DiffusionWorker_SP0 pid=3699652) ERROR 09-20 03:59:35 [diffusion_worker.py:1741]   File "/home/kxqandccx/omni-1217-20260919/rebased/native/vllm_omni/diffusion/models/omnigen2/pipeline_omnigen2.py", line 1251, in processing
+(DiffusionWorker_SP0 pid=3699652) ERROR 09-20 03:59:35 [diffusion_worker.py:1741]     model_pred = self.predict_noise(**positive_kwargs)
+(DiffusionWorker_SP0 pid=3699652) ERROR 09-20 03:59:35 [diffusion_worker.py:1741]                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(DiffusionWorker_SP0 pid=3699652) ERROR 09-20 03:59:35 [diffusion_worker.py:1741]   File "/home/kxqandccx/omni-1217-20260919/rebased/native/vllm_omni/diffusion/models/omnigen2/pipeline_omnigen2.py", line 1302, in predict_noise
+(DiffusionWorker_SP0 pid=3699652) ERROR 09-20 03:59:35 [diffusion_worker.py:1741]     return self.predict(**kwargs)
+(DiffusionWorker_SP0 pid=3699652) ERROR 09-20 03:59:35 [diffusion_worker.py:1741]            ^^^^^^^^^^^^^^^^^^^^^^
+(DiffusionWorker_SP0 pid=3699652) ERROR 09-20 03:59:35 [diffusion_worker.py:1741]   File "/home/kxqandccx/omni-1217-20260919/rebased/native/vllm_omni/diffusion/models/omnigen2/pipeline_omnigen2.py", line 1290, in predict
+(DiffusionWorker_SP0 pid=3699652) ERROR 09-20 03:59:35 [diffusion_worker.py:1741]     model_pred = self.transformer(
+(DiffusionWorker_SP0 pid=3699652) ERROR 09-20 03:59:35 [diffusion_worker.py:1741]                  ^^^^^^^^^^^^^^^^^
+(DiffusionWorker_SP0 pid=3699652) ERROR 09-20 03:59:35 [diffusion_worker.py:1741]   File "/home/kxqandccx/vllm-omni-7753-hidream-20260918/venv/lib/python3.12/site-packages/torch/nn/modules/module.py", line 1778, in _wrapped_call_impl
+(DiffusionWorker_SP0 pid=3699652) ERROR 09-20 03:59:35 [diffusion_worker.py:1741]     return self._call_impl(*args, **kwargs)
+(DiffusionWorker_SP0 pid=3699652) ERROR 09-20 03:59:35 [diffusion_worker.py:1741]            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(DiffusionWorker_SP0 pid=3699652) ERROR 09-20 03:59:35 [diffusion_worker.py:1741]   File "/home/kxqandccx/vllm-omni-7753-hidream-20260918/venv/lib/python3.12/site-packages/torch/nn/modules/module.py", line 1789, in _call_impl
+(DiffusionWorker_SP0 pid=3699652) ERROR 09-20 03:59:35 [diffusion_worker.py:1741]     return forward_call(*args, **kwargs)
+(DiffusionWorker_SP0 pid=3699652) ERROR 09-20 03:59:35 [diffusion_worker.py:1741]            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(DiffusionWorker_SP0 pid=3699652) ERROR 09-20 03:59:35 [diffusion_worker.py:1741]   File "/home/kxqandccx/omni-1217-20260919/rebased/native/vllm_omni/diffusion/models/omnigen2/omnigen2_transformer.py", line 1276, in forward
+(DiffusionWorker_SP0 pid=3699652) ERROR 09-20 03:59:35 [diffusion_worker.py:1741]     text_hidden_states = layer(text_hidden_states, text_attention_mask, context_rotary_emb)
+(DiffusionWorker_SP0 pid=3699652) ERROR 09-20 03:59:35 [diffusion_worker.py:1741]                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(DiffusionWorker_SP0 pid=3699652) ERROR 09-20 03:59:35 [diffusion_worker.py:1741]   File "/home/kxqandccx/vllm-omni-7753-hidream-20260918/venv/lib/python3.12/site-packages/torch/nn/modules/module.py", line 1778, in _wrapped_call_impl
+(DiffusionWorker_SP0 pid=3699652) ERROR 09-20 03:59:35 [diffusion_worker.py:1741]     return self._call_impl(*args, **kwargs)
+(DiffusionWorker_SP0 pid=3699652) ERROR 09-20 03:59:35 [diffusion_worker.py:1741]            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(DiffusionWorker_SP0 pid=3699652) ERROR 09-20 03:59:35 [diffusion_worker.py:1741]   File "/home/kxqandccx/vllm-omni-7753-hidream-20260918/venv/lib/python3.12/site-packages/torch/nn/modules/module.py", line 1789, in _call_impl
+(DiffusionWorker_SP0 pid=3699652) ERROR 09-20 03:59:35 [diffusion_worker.py:1741]     return forward_call(*args, **kwargs)
+(DiffusionWorker_SP0 pid=3699652) ERROR 09-20 03:59:35 [diffusion_worker.py:1741]            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(DiffusionWorker_SP0 pid=3699652) ERROR 09-20 03:59:35 [diffusion_worker.py:1741]   File "/home/kxqandccx/omni-1217-20260919/rebased/native/vllm_omni/diffusion/models/omnigen2/omnigen2_transformer.py", line 803, in forward
+(DiffusionWorker_SP0 pid=3699652) ERROR 09-20 03:59:35 [diffusion_worker.py:1741]     attn_output = self.attn(
+(DiffusionWorker_SP0 pid=3699652) ERROR 09-20 03:59:35 [diffusion_worker.py:1741]                   ^^^^^^^^^^
+(DiffusionWorker_SP0 pid=3699652) ERROR 09-20 03:59:35 [diffusion_worker.py:1741]   File "/home/kxqandccx/vllm-omni-7753-hidream-20260918/venv/lib/python3.12/site-packages/torch/nn/modules/module.py", line 1778, in _wrapped_call_impl
+(DiffusionWorker_SP0 pid=3699652) ERROR 09-20 03:59:35 [diffusion_worker.py:1741]     return self._call_impl(*args, **kwargs)
+(DiffusionWorker_SP0 pid=3699652) ERROR 09-20 03:59:35 [diffusion_worker.py:1741]            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(DiffusionWorker_SP0 pid=3699652) ERROR 09-20 03:59:35 [diffusion_worker.py:1741]   File "/home/kxqandccx/vllm-omni-7753-hidream-20260918/venv/lib/python3.12/site-packages/torch/nn/modules/module.py", line 1789, in _call_impl
+(DiffusionWorker_SP1 pid=3699653) ERROR 09-20 03:59:35 [diffusion_worker.py:1741] Error executing method 'execute_model'. This might cause issues in distributed execution.
+(DiffusionWorker_SP1 pid=3699653) ERROR 09-20 03:59:35 [diffusion_worker.py:1741] Traceback (most recent call last):
+(DiffusionWorker_SP1 pid=3699653) ERROR 09-20 03:59:35 [diffusion_worker.py:1741]   File "/home/kxqandccx/omni-1217-20260919/rebased/native/vllm_omni/diffusion/worker/diffusion_worker.py", line 1737, in execute_method
+(DiffusionWorker_SP1 pid=3699653) ERROR 09-20 03:59:35 [diffusion_worker.py:1741]     return func(*args, **kwargs)
+(DiffusionWorker_SP1 pid=3699653) ERROR 09-20 03:59:35 [diffusion_worker.py:1741]            ^^^^^^^^^^^^^^^^^^^^^
+(DiffusionWorker_SP1 pid=3699653) ERROR 09-20 03:59:35 [diffusion_worker.py:1741]   File "/home/kxqandccx/omni-1217-20260919/rebased/native/vllm_omni/diffusion/worker/diffusion_worker.py", line 671, in execute_model
+(DiffusionWorker_SP1 pid=3699653) ERROR 09-20 03:59:35 [diffusion_worker.py:1741]     output = self.model_runner.execute_model(req, **kwargs)
+(DiffusionWorker_SP1 pid=3699653) ERROR 09-20 03:59:35 [diffusion_worker.py:1741]              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(DiffusionWorker_SP1 pid=3699653) ERROR 09-20 03:59:35 [diffusion_worker.py:1741]   File "/home/kxqandccx/omni-1217-20260919/rebased/native/vllm_omni/diffusion/worker/diffusion_model_runner.py", line 869, in execute_model
+(DiffusionWorker_SP1 pid=3699653) ERROR 09-20 03:59:35 [diffusion_worker.py:1741]     runner_output = self._execute_request_list(
+(DiffusionWorker_SP1 pid=3699653) ERROR 09-20 03:59:35 [diffusion_worker.py:1741]                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(DiffusionWorker_SP1 pid=3699653) ERROR 09-20 03:59:35 [diffusion_worker.py:1741]   File "/home/kxqandccx/omni-1217-20260919/rebased/native/vllm_omni/diffusion/worker/diffusion_model_runner.py", line 787, in _execute_request_list
+(DiffusionWorker_SP1 pid=3699653) ERROR 09-20 03:59:35 [diffusion_worker.py:1741]     raw_outputs = self.pipeline.forward(batch)
+(DiffusionWorker_SP1 pid=3699653) ERROR 09-20 03:59:35 [diffusion_worker.py:1741]                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(DiffusionWorker_SP1 pid=3699653) ERROR 09-20 03:59:35 [diffusion_worker.py:1741]   File "/home/kxqandccx/vllm-omni-7753-hidream-20260918/venv/lib/python3.12/site-packages/torch/utils/_contextlib.py", line 124, in decorate_context
+(DiffusionWorker_SP1 pid=3699653) ERROR 09-20 03:59:35 [diffusion_worker.py:1741]     return func(*args, **kwargs)
+(DiffusionWorker_SP1 pid=3699653) ERROR 09-20 03:59:35 [diffusion_worker.py:1741]            ^^^^^^^^^^^^^^^^^^^^^
+(DiffusionWorker_SP1 pid=3699653) ERROR 09-20 03:59:35 [diffusion_worker.py:1741]   File "/home/kxqandccx/omni-1217-20260919/rebased/native/vllm_omni/diffusion/models/omnigen2/pipeline_omnigen2.py", line 1154, in forward
+(DiffusionWorker_SP1 pid=3699653) ERROR 09-20 03:59:35 [diffusion_worker.py:1741]     image = self.processing(
+(DiffusionWorker_SP1 pid=3699653) ERROR 09-20 03:59:35 [diffusion_worker.py:1741]             ^^^^^^^^^^^^^^^^
+(DiffusionWorker_SP1 pid=3699653) ERROR 09-20 03:59:35 [diffusion_worker.py:1741]   File "/home/kxqandccx/omni-1217-20260919/rebased/native/vllm_omni/diffusion/models/omnigen2/pipeline_omnigen2.py", line 1251, in processing
+(DiffusionWorker_SP1 pid=3699653) ERROR 09-20 03:59:35 [diffusion_worker.py:1741]     model_pred = self.predict_noise(**positive_kwargs)
+(DiffusionWorker_SP1 pid=3699653) ERROR 09-20 03:59:35 [diffusion_worker.py:1741]                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(DiffusionWorker_SP1 pid=3699653) ERROR 09-20 03:59:35 [diffusion_worker.py:1741]   File "/home/kxqandccx/omni-1217-20260919/rebased/native/vllm_omni/diffusion/models/omnigen2/pipeline_omnigen2.py", line 1302, in predict_noise
+(DiffusionWorker_SP1 pid=3699653) ERROR 09-20 03:59:35 [diffusion_worker.py:1741]     return self.predict(**kwargs)
+(DiffusionWorker_SP1 pid=3699653) ERROR 09-20 03:59:35 [diffusion_worker.py:1741]            ^^^^^^^^^^^^^^^^^^^^^^
+(DiffusionWorker_SP1 pid=3699653) ERROR 09-20 03:59:35 [diffusion_worker.py:1741]   File "/home/kxqandccx/omni-1217-20260919/rebased/native/vllm_omni/diffusion/models/omnigen2/pipeline_omnigen2.py", line 1290, in predict
+(DiffusionWorker_SP1 pid=3699653) ERROR 09-20 03:59:35 [diffusion_worker.py:1741]     model_pred = self.transformer(
+(DiffusionWorker_SP1 pid=3699653) ERROR 09-20 03:59:35 [diffusion_worker.py:1741]                  ^^^^^^^^^^^^^^^^^
+(DiffusionWorker_SP1 pid=3699653) ERROR 09-20 03:59:35 [diffusion_worker.py:1741]   File "/home/kxqandccx/vllm-omni-7753-hidream-20260918/venv/lib/python3.12/site-packages/torch/nn/modules/module.py", line 1778, in _wrapped_call_impl
+(DiffusionWorker_SP1 pid=3699653) ERROR 09-20 03:59:35 [diffusion_worker.py:1741]     return self._call_impl(*args, **kwargs)
+(DiffusionWorker_SP1 pid=3699653) ERROR 09-20 03:59:35 [diffusion_worker.py:1741]            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(DiffusionWorker_SP1 pid=3699653) ERROR 09-20 03:59:35 [diffusion_worker.py:1741]   File "/home/kxqandccx/vllm-omni-7753-hidream-20260918/venv/lib/python3.12/site-packages/torch/nn/modules/module.py", line 1789, in _call_impl
+(DiffusionWorker_SP1 pid=3699653) ERROR 09-20 03:59:35 [diffusion_worker.py:1741]     return forward_call(*args, **kwargs)
+(DiffusionWorker_SP1 pid=3699653) ERROR 09-20 03:59:35 [diffusion_worker.py:1741]            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(DiffusionWorker_SP1 pid=3699653) ERROR 09-20 03:59:35 [diffusion_worker.py:1741]   File "/home/kxqandccx/omni-1217-20260919/rebased/native/vllm_omni/diffusion/models/omnigen2/omnigen2_transformer.py", line 1276, in forward
+(DiffusionWorker_SP1 pid=3699653) ERROR 09-20 03:59:35 [diffusion_worker.py:1741]     text_hidden_states = layer(text_hidden_states, text_attention_mask, context_rotary_emb)
+(DiffusionWorker_SP1 pid=3699653) ERROR 09-20 03:59:35 [diffusion_worker.py:1741]                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(DiffusionWorker_SP1 pid=3699653) ERROR 09-20 03:59:35 [diffusion_worker.py:1741]   File "/home/kxqandccx/vllm-omni-7753-hidream-20260918/venv/lib/python3.12/site-packages/torch/nn/modules/module.py", line 1778, in _wrapped_call_impl
+(DiffusionWorker_SP1 pid=3699653) ERROR 09-20 03:59:35 [diffusion_worker.py:1741]     return self._call_impl(*args, **kwargs)
+(DiffusionWorker_SP1 pid=3699653) ERROR 09-20 03:59:35 [diffusion_worker.py:1741]            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(DiffusionWorker_SP1 pid=3699653) ERROR 09-20 03:59:35 [diffusion_worker.py:1741]   File "/home/kxqandccx/vllm-omni-7753-hidream-20260918/venv/lib/python3.12/site-packages/torch/nn/modules/module.py", line 1789, in _call_impl
+(DiffusionWorker_SP1 pid=3699653) ERROR 09-20 03:59:35 [diffusion_worker.py:1741]     return forward_call(*args, **kwargs)
+(DiffusionWorker_SP1 pid=3699653) ERROR 09-20 03:59:35 [diffusion_worker.py:1741]            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(DiffusionWorker_SP1 pid=3699653) ERROR 09-20 03:59:35 [diffusion_worker.py:1741]   File "/home/kxqandccx/omni-1217-20260919/rebased/native/vllm_omni/diffusion/models/omnigen2/omnigen2_transformer.py", line 803, in forward
+(DiffusionWorker_SP1 pid=3699653) ERROR 09-20 03:59:35 [diffusion_worker.py:1741]     attn_output = self.attn(
+(DiffusionWorker_SP1 pid=3699653) ERROR 09-20 03:59:35 [diffusion_worker.py:1741]                   ^^^^^^^^^^
+(DiffusionWorker_SP1 pid=3699653) ERROR 09-20 03:59:35 [diffusion_worker.py:1741]   File "/home/kxqandccx/vllm-omni-7753-hidream-20260918/venv/lib/python3.12/site-packages/torch/nn/modules/module.py", line 1778, in _wrapped_call_impl
+(DiffusionWorker_SP1 pid=3699653) ERROR 09-20 03:59:35 [diffusion_worker.py:1741]     return self._call_impl(*args, **kwargs)
+(DiffusionWorker_SP1 pid=3699653) ERROR 09-20 03:59:35 [diffusion_worker.py:1741]            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(DiffusionWorker_SP1 pid=3699653) ERROR 09-20 03:59:35 [diffusion_worker.py:1741]   File "/home/kxqandccx/vllm-omni-7753-hidream-20260918/venv/lib/python3.12/site-packages/torch/nn/modules/module.py", line 1789, in _call_impl
+(DiffusionWorker_SP0 pid=3699652) ERROR 09-20 03:59:35 [diffusion_worker.py:1741]     return forward_call(*args, **kwargs)
+(DiffusionWorker_SP0 pid=3699652) ERROR 09-20 03:59:35 [diffusion_worker.py:1741]            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(DiffusionWorker_SP0 pid=3699652) ERROR 09-20 03:59:35 [diffusion_worker.py:1741]   File "/home/kxqandccx/omni-1217-20260919/rebased/native/vllm_omni/diffusion/models/omnigen2/omnigen2_transformer.py", line 239, in forward
+(DiffusionWorker_SP0 pid=3699652) ERROR 09-20 03:59:35 [diffusion_worker.py:1741]     hidden_states = self.attn(
+(DiffusionWorker_SP0 pid=3699652) ERROR 09-20 03:59:35 [diffusion_worker.py:1741]                     ^^^^^^^^^^
+(DiffusionWorker_SP0 pid=3699652) ERROR 09-20 03:59:35 [diffusion_worker.py:1741]   File "/home/kxqandccx/vllm-omni-7753-hidream-20260918/venv/lib/python3.12/site-packages/torch/nn/modules/module.py", line 1778, in _wrapped_call_impl
+(DiffusionWorker_SP0 pid=3699652) ERROR 09-20 03:59:35 [diffusion_worker.py:1741]     return self._call_impl(*args, **kwargs)
+(DiffusionWorker_SP0 pid=3699652) ERROR 09-20 03:59:35 [diffusion_worker.py:1741]            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(DiffusionWorker_SP0 pid=3699652) ERROR 09-20 03:59:35 [diffusion_worker.py:1741]   File "/home/kxqandccx/vllm-omni-7753-hidream-20260918/venv/lib/python3.12/site-packages/torch/nn/modules/module.py", line 1789, in _call_impl
+(DiffusionWorker_SP0 pid=3699652) ERROR 09-20 03:59:35 [diffusion_worker.py:1741]     return forward_call(*args, **kwargs)
+(DiffusionWorker_SP0 pid=3699652) ERROR 09-20 03:59:35 [diffusion_worker.py:1741]            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(DiffusionWorker_SP0 pid=3699652) ERROR 09-20 03:59:35 [diffusion_worker.py:1741]   File "/home/kxqandccx/omni-1217-20260919/rebased/native/vllm_omni/diffusion/attention/layer.py", line 390, in forward
+(DiffusionWorker_SP0 pid=3699652) ERROR 09-20 03:59:35 [diffusion_worker.py:1741]     return self._forward_impl(query, key, value, attn_metadata)
+(DiffusionWorker_SP0 pid=3699652) ERROR 09-20 03:59:35 [diffusion_worker.py:1741]            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(DiffusionWorker_SP0 pid=3699652) ERROR 09-20 03:59:35 [diffusion_worker.py:1741]   File "/home/kxqandccx/omni-1217-20260919/rebased/native/vllm_omni/diffusion/attention/layer.py", line 444, in _forward_impl
+(DiffusionWorker_SP0 pid=3699652) ERROR 09-20 03:59:35 [diffusion_worker.py:1741]     query, key, value, attn_metadata, ctx = strategy.pre_attention(query, key, value, attn_metadata)
+(DiffusionWorker_SP0 pid=3699652) ERROR 09-20 03:59:35 [diffusion_worker.py:1741]                                             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(DiffusionWorker_SP0 pid=3699652) ERROR 09-20 03:59:35 [diffusion_worker.py:1741]   File "/home/kxqandccx/omni-1217-20260919/rebased/native/vllm_omni/diffusion/attention/parallel/ulysses.py", line 516, in pre_attention
+(DiffusionWorker_SP0 pid=3699652) ERROR 09-20 03:59:35 [diffusion_worker.py:1741]     raise ValueError(
+(DiffusionWorker_SP0 pid=3699652) ERROR 09-20 03:59:35 [diffusion_worker.py:1741] ValueError: Ulysses-SP strict mode requires head_cnt divisible by ulysses_degree. query_head_cnt=21, ulysses_degree=2. Try ulysses_degree in [1, 3, 7, 21], or set ulysses_mode='advanced_uaa'.
+(DiffusionWorker_SP1 pid=3699653) ERROR 09-20 03:59:35 [diffusion_worker.py:1741]     return forward_call(*args, **kwargs)
+(DiffusionWorker_SP1 pid=3699653) ERROR 09-20 03:59:35 [diffusion_worker.py:1741]            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(DiffusionWorker_SP1 pid=3699653) ERROR 09-20 03:59:35 [diffusion_worker.py:1741]   File "/home/kxqandccx/omni-1217-20260919/rebased/native/vllm_omni/diffusion/models/omnigen2/omnigen2_transformer.py", line 239, in forward
+(DiffusionWorker_SP1 pid=3699653) ERROR 09-20 03:59:35 [diffusion_worker.py:1741]     hidden_states = self.attn(
+(DiffusionWorker_SP1 pid=3699653) ERROR 09-20 03:59:35 [diffusion_worker.py:1741]                     ^^^^^^^^^^
+(DiffusionWorker_SP1 pid=3699653) ERROR 09-20 03:59:35 [diffusion_worker.py:1741]   File "/home/kxqandccx/vllm-omni-7753-hidream-20260918/venv/lib/python3.12/site-packages/torch/nn/modules/module.py", line 1778, in _wrapped_call_impl
+(DiffusionWorker_SP1 pid=3699653) ERROR 09-20 03:59:35 [diffusion_worker.py:1741]     return self._call_impl(*args, **kwargs)
+(DiffusionWorker_SP1 pid=3699653) ERROR 09-20 03:59:35 [diffusion_worker.py:1741]            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(DiffusionWorker_SP1 pid=3699653) ERROR 09-20 03:59:35 [diffusion_worker.py:1741]   File "/home/kxqandccx/vllm-omni-7753-hidream-20260918/venv/lib/python3.12/site-packages/torch/nn/modules/module.py", line 1789, in _call_impl
+(DiffusionWorker_SP1 pid=3699653) ERROR 09-20 03:59:35 [diffusion_worker.py:1741]     return forward_call(*args, **kwargs)
+(DiffusionWorker_SP1 pid=3699653) ERROR 09-20 03:59:35 [diffusion_worker.py:1741]            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(DiffusionWorker_SP1 pid=3699653) ERROR 09-20 03:59:35 [diffusion_worker.py:1741]   File "/home/kxqandccx/omni-1217-20260919/rebased/native/vllm_omni/diffusion/attention/layer.py", line 390, in forward
+(DiffusionWorker_SP1 pid=3699653) ERROR 09-20 03:59:35 [diffusion_worker.py:1741]     return self._forward_impl(query, key, value, attn_metadata)
+(DiffusionWorker_SP1 pid=3699653) ERROR 09-20 03:59:35 [diffusion_worker.py:1741]            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(DiffusionWorker_SP1 pid=3699653) ERROR 09-20 03:59:35 [diffusion_worker.py:1741]   File "/home/kxqandccx/omni-1217-20260919/rebased/native/vllm_omni/diffusion/attention/layer.py", line 444, in _forward_impl
+(DiffusionWorker_SP1 pid=3699653) ERROR 09-20 03:59:35 [diffusion_worker.py:1741]     query, key, value, attn_metadata, ctx = strategy.pre_attention(query, key, value, attn_metadata)
+(DiffusionWorker_SP1 pid=3699653) ERROR 09-20 03:59:35 [diffusion_worker.py:1741]                                             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(DiffusionWorker_SP1 pid=3699653) ERROR 09-20 03:59:35 [diffusion_worker.py:1741]   File "/home/kxqandccx/omni-1217-20260919/rebased/native/vllm_omni/diffusion/attention/parallel/ulysses.py", line 516, in pre_attention
+(DiffusionWorker_SP1 pid=3699653) ERROR 09-20 03:59:35 [diffusion_worker.py:1741]     raise ValueError(
+(DiffusionWorker_SP1 pid=3699653) ERROR 09-20 03:59:35 [diffusion_worker.py:1741] ValueError: Ulysses-SP strict mode requires head_cnt divisible by ulysses_degree. query_head_cnt=21, ulysses_degree=2. Try ulysses_degree in [1, 3, 7, 21], or set ulysses_mode='advanced_uaa'.
+(DiffusionWorker_SP0 pid=3699652) ERROR 09-20 03:59:35 [diffusion_worker.py:1318] Error executing RPC: Ulysses-SP strict mode requires head_cnt divisible by ulysses_degree. query_head_cnt=21, ulysses_degree=2. Try ulysses_degree in [1, 3, 7, 21], or set ulysses_mode='advanced_uaa'.
+(DiffusionWorker_SP0 pid=3699652) ERROR 09-20 03:59:35 [diffusion_worker.py:1318] Traceback (most recent call last):
+(DiffusionWorker_SP0 pid=3699652) ERROR 09-20 03:59:35 [diffusion_worker.py:1318]   File "/home/kxqandccx/omni-1217-20260919/rebased/native/vllm_omni/diffusion/worker/diffusion_worker.py", line 1316, in _execute_rpc
+(DiffusionWorker_SP0 pid=3699652) ERROR 09-20 03:59:35 [diffusion_worker.py:1318]     result = self.worker.execute_method(method, *args, **kwargs)
+(DiffusionWorker_SP0 pid=3699652) ERROR 09-20 03:59:35 [diffusion_worker.py:1318]              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(DiffusionWorker_SP0 pid=3699652) ERROR 09-20 03:59:35 [diffusion_worker.py:1318]   File "/home/kxqandccx/omni-1217-20260919/rebased/native/vllm_omni/diffusion/worker/diffusion_worker.py", line 1742, in execute_method
+(DiffusionWorker_SP0 pid=3699652) ERROR 09-20 03:59:35 [diffusion_worker.py:1318]     raise e
+(DiffusionWorker_SP0 pid=3699652) ERROR 09-20 03:59:35 [diffusion_worker.py:1318]   File "/home/kxqandccx/omni-1217-20260919/rebased/native/vllm_omni/diffusion/worker/diffusion_worker.py", line 1737, in execute_method
+(DiffusionWorker_SP0 pid=3699652) ERROR 09-20 03:59:35 [diffusion_worker.py:1318]     return func(*args, **kwargs)
+(DiffusionWorker_SP0 pid=3699652) ERROR 09-20 03:59:35 [diffusion_worker.py:1318]            ^^^^^^^^^^^^^^^^^^^^^
+(DiffusionWorker_SP0 pid=3699652) ERROR 09-20 03:59:35 [diffusion_worker.py:1318]   File "/home/kxqandccx/omni-1217-20260919/rebased/native/vllm_omni/diffusion/worker/diffusion_worker.py", line 671, in execute_model
+(DiffusionWorker_SP0 pid=3699652) ERROR 09-20 03:59:35 [diffusion_worker.py:1318]     output = self.model_runner.execute_model(req, **kwargs)
+(DiffusionWorker_SP0 pid=3699652) ERROR 09-20 03:59:35 [diffusion_worker.py:1318]              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(DiffusionWorker_SP0 pid=3699652) ERROR 09-20 03:59:35 [diffusion_worker.py:1318]   File "/home/kxqandccx/omni-1217-20260919/rebased/native/vllm_omni/diffusion/worker/diffusion_model_runner.py", line 869, in execute_model
+(DiffusionWorker_SP0 pid=3699652) ERROR 09-20 03:59:35 [diffusion_worker.py:1318]     runner_output = self._execute_request_list(
+(DiffusionWorker_SP0 pid=3699652) ERROR 09-20 03:59:35 [diffusion_worker.py:1318]                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(DiffusionWorker_SP0 pid=3699652) ERROR 09-20 03:59:35 [diffusion_worker.py:1318]   File "/home/kxqandccx/omni-1217-20260919/rebased/native/vllm_omni/diffusion/worker/diffusion_model_runner.py", line 787, in _execute_request_list
+(DiffusionWorker_SP0 pid=3699652) ERROR 09-20 03:59:35 [diffusion_worker.py:1318]     raw_outputs = self.pipeline.forward(batch)
+(DiffusionWorker_SP0 pid=3699652) ERROR 09-20 03:59:35 [diffusion_worker.py:1318]                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(DiffusionWorker_SP0 pid=3699652) ERROR 09-20 03:59:35 [diffusion_worker.py:1318]   File "/home/kxqandccx/vllm-omni-7753-hidream-20260918/venv/lib/python3.12/site-packages/torch/utils/_contextlib.py", line 124, in decorate_context
+(DiffusionWorker_SP0 pid=3699652) ERROR 09-20 03:59:35 [diffusion_worker.py:1318]     return func(*args, **kwargs)
+(DiffusionWorker_SP0 pid=3699652) ERROR 09-20 03:59:35 [diffusion_worker.py:1318]            ^^^^^^^^^^^^^^^^^^^^^
+(DiffusionWorker_SP0 pid=3699652) ERROR 09-20 03:59:35 [diffusion_worker.py:1318]   File "/home/kxqandccx/omni-1217-20260919/rebased/native/vllm_omni/diffusion/models/omnigen2/pipeline_omnigen2.py", line 1154, in forward
+(DiffusionWorker_SP0 pid=3699652) ERROR 09-20 03:59:35 [diffusion_worker.py:1318]     image = self.processing(
+(DiffusionWorker_SP0 pid=3699652) ERROR 09-20 03:59:35 [diffusion_worker.py:1318]             ^^^^^^^^^^^^^^^^
+(DiffusionWorker_SP0 pid=3699652) ERROR 09-20 03:59:35 [diffusion_worker.py:1318]   File "/home/kxqandccx/omni-1217-20260919/rebased/native/vllm_omni/diffusion/models/omnigen2/pipeline_omnigen2.py", line 1251, in processing
+(DiffusionWorker_SP0 pid=3699652) ERROR 09-20 03:59:35 [diffusion_worker.py:1318]     model_pred = self.predict_noise(**positive_kwargs)
+(DiffusionWorker_SP0 pid=3699652) ERROR 09-20 03:59:35 [diffusion_worker.py:1318]                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(DiffusionWorker_SP0 pid=3699652) ERROR 09-20 03:59:35 [diffusion_worker.py:1318]   File "/home/kxqandccx/omni-1217-20260919/rebased/native/vllm_omni/diffusion/models/omnigen2/pipeline_omnigen2.py", line 1302, in predict_noise
+(DiffusionWorker_SP0 pid=3699652) ERROR 09-20 03:59:35 [diffusion_worker.py:1318]     return self.predict(**kwargs)
+(DiffusionWorker_SP0 pid=3699652) ERROR 09-20 03:59:35 [diffusion_worker.py:1318]            ^^^^^^^^^^^^^^^^^^^^^^
+(DiffusionWorker_SP0 pid=3699652) ERROR 09-20 03:59:35 [diffusion_worker.py:1318]   File "/home/kxqandccx/omni-1217-20260919/rebased/native/vllm_omni/diffusion/models/omnigen2/pipeline_omnigen2.py", line 1290, in predict
+(DiffusionWorker_SP0 pid=3699652) ERROR 09-20 03:59:35 [diffusion_worker.py:1318]     model_pred = self.transformer(
+(DiffusionWorker_SP0 pid=3699652) ERROR 09-20 03:59:35 [diffusion_worker.py:1318]                  ^^^^^^^^^^^^^^^^^
+(DiffusionWorker_SP0 pid=3699652) ERROR 09-20 03:59:35 [diffusion_worker.py:1318]   File "/home/kxqandccx/vllm-omni-7753-hidream-20260918/venv/lib/python3.12/site-packages/torch/nn/modules/module.py", line 1778, in _wrapped_call_impl
+(DiffusionWorker_SP0 pid=3699652) ERROR 09-20 03:59:35 [diffusion_worker.py:1318]     return self._call_impl(*args, **kwargs)
+(DiffusionWorker_SP0 pid=3699652) ERROR 09-20 03:59:35 [diffusion_worker.py:1318]            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(DiffusionWorker_SP0 pid=3699652) ERROR 09-20 03:59:35 [diffusion_worker.py:1318]   File "/home/kxqandccx/vllm-omni-7753-hidream-20260918/venv/lib/python3.12/site-packages/torch/nn/modules/module.py", line 1789, in _call_impl
+(DiffusionWorker_SP0 pid=3699652) ERROR 09-20 03:59:35 [diffusion_worker.py:1318]     return forward_call(*args, **kwargs)
+(DiffusionWorker_SP0 pid=3699652) ERROR 09-20 03:59:35 [diffusion_worker.py:1318]            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(DiffusionWorker_SP0 pid=3699652) ERROR 09-20 03:59:35 [diffusion_worker.py:1318]   File "/home/kxqandccx/omni-1217-20260919/rebased/native/vllm_omni/diffusion/models/omnigen2/omnigen2_transformer.py", line 1276, in forward
+(DiffusionWorker_SP0 pid=3699652) ERROR 09-20 03:59:35 [diffusion_worker.py:1318]     text_hidden_states = layer(text_hidden_states, text_attention_mask, context_rotary_emb)
+(DiffusionWorker_SP0 pid=3699652) ERROR 09-20 03:59:35 [diffusion_worker.py:1318]                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(DiffusionWorker_SP0 pid=3699652) ERROR 09-20 03:59:35 [diffusion_worker.py:1318]   File "/home/kxqandccx/vllm-omni-7753-hidream-20260918/venv/lib/python3.12/site-packages/torch/nn/modules/module.py", line 1778, in _wrapped_call_impl
+(DiffusionWorker_SP0 pid=3699652) ERROR 09-20 03:59:35 [diffusion_worker.py:1318]     return self._call_impl(*args, **kwargs)
+(DiffusionWorker_SP0 pid=3699652) ERROR 09-20 03:59:35 [diffusion_worker.py:1318]            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(DiffusionWorker_SP0 pid=3699652) ERROR 09-20 03:59:35 [diffusion_worker.py:1318]   File "/home/kxqandccx/vllm-omni-7753-hidream-20260918/venv/lib/python3.12/site-packages/torch/nn/modules/module.py", line 1789, in _call_impl
+(DiffusionWorker_SP0 pid=3699652) ERROR 09-20 03:59:35 [diffusion_worker.py:1318]     return forward_call(*args, **kwargs)
+(DiffusionWorker_SP0 pid=3699652) ERROR 09-20 03:59:35 [diffusion_worker.py:1318]            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(DiffusionWorker_SP0 pid=3699652) ERROR 09-20 03:59:35 [diffusion_worker.py:1318]   File "/home/kxqandccx/omni-1217-20260919/rebased/native/vllm_omni/diffusion/models/omnigen2/omnigen2_transformer.py", line 803, in forward
+(DiffusionWorker_SP1 pid=3699653) ERROR 09-20 03:59:35 [diffusion_worker.py:1318] Error executing RPC: Ulysses-SP strict mode requires head_cnt divisible by ulysses_degree. query_head_cnt=21, ulysses_degree=2. Try ulysses_degree in [1, 3, 7, 21], or set ulysses_mode='advanced_uaa'.
+(DiffusionWorker_SP1 pid=3699653) ERROR 09-20 03:59:35 [diffusion_worker.py:1318] Traceback (most recent call last):
+(DiffusionWorker_SP1 pid=3699653) ERROR 09-20 03:59:35 [diffusion_worker.py:1318]   File "/home/kxqandccx/omni-1217-20260919/rebased/native/vllm_omni/diffusion/worker/diffusion_worker.py", line 1316, in _execute_rpc
+(DiffusionWorker_SP1 pid=3699653) ERROR 09-20 03:59:35 [diffusion_worker.py:1318]     result = self.worker.execute_method(method, *args, **kwargs)
+(DiffusionWorker_SP1 pid=3699653) ERROR 09-20 03:59:35 [diffusion_worker.py:1318]              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(DiffusionWorker_SP1 pid=3699653) ERROR 09-20 03:59:35 [diffusion_worker.py:1318]   File "/home/kxqandccx/omni-1217-20260919/rebased/native/vllm_omni/diffusion/worker/diffusion_worker.py", line 1742, in execute_method
+(DiffusionWorker_SP1 pid=3699653) ERROR 09-20 03:59:35 [diffusion_worker.py:1318]     raise e
+(DiffusionWorker_SP1 pid=3699653) ERROR 09-20 03:59:35 [diffusion_worker.py:1318]   File "/home/kxqandccx/omni-1217-20260919/rebased/native/vllm_omni/diffusion/worker/diffusion_worker.py", line 1737, in execute_method
+(DiffusionWorker_SP1 pid=3699653) ERROR 09-20 03:59:35 [diffusion_worker.py:1318]     return func(*args, **kwargs)
+(DiffusionWorker_SP1 pid=3699653) ERROR 09-20 03:59:35 [diffusion_worker.py:1318]            ^^^^^^^^^^^^^^^^^^^^^
+(DiffusionWorker_SP1 pid=3699653) ERROR 09-20 03:59:35 [diffusion_worker.py:1318]   File "/home/kxqandccx/omni-1217-20260919/rebased/native/vllm_omni/diffusion/worker/diffusion_worker.py", line 671, in execute_model
+(DiffusionWorker_SP1 pid=3699653) ERROR 09-20 03:59:35 [diffusion_worker.py:1318]     output = self.model_runner.execute_model(req, **kwargs)
+(DiffusionWorker_SP1 pid=3699653) ERROR 09-20 03:59:35 [diffusion_worker.py:1318]              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(DiffusionWorker_SP1 pid=3699653) ERROR 09-20 03:59:35 [diffusion_worker.py:1318]   File "/home/kxqandccx/omni-1217-20260919/rebased/native/vllm_omni/diffusion/worker/diffusion_model_runner.py", line 869, in execute_model
+(DiffusionWorker_SP1 pid=3699653) ERROR 09-20 03:59:35 [diffusion_worker.py:1318]     runner_output = self._execute_request_list(
+(DiffusionWorker_SP1 pid=3699653) ERROR 09-20 03:59:35 [diffusion_worker.py:1318]                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(DiffusionWorker_SP1 pid=3699653) ERROR 09-20 03:59:35 [diffusion_worker.py:1318]   File "/home/kxqandccx/omni-1217-20260919/rebased/native/vllm_omni/diffusion/worker/diffusion_model_runner.py", line 787, in _execute_request_list
+(DiffusionWorker_SP1 pid=3699653) ERROR 09-20 03:59:35 [diffusion_worker.py:1318]     raw_outputs = self.pipeline.forward(batch)
+(DiffusionWorker_SP1 pid=3699653) ERROR 09-20 03:59:35 [diffusion_worker.py:1318]                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(DiffusionWorker_SP1 pid=3699653) ERROR 09-20 03:59:35 [diffusion_worker.py:1318]   File "/home/kxqandccx/vllm-omni-7753-hidream-20260918/venv/lib/python3.12/site-packages/torch/utils/_contextlib.py", line 124, in decorate_context
+(DiffusionWorker_SP1 pid=3699653) ERROR 09-20 03:59:35 [diffusion_worker.py:1318]     return func(*args, **kwargs)
+(DiffusionWorker_SP1 pid=3699653) ERROR 09-20 03:59:35 [diffusion_worker.py:1318]            ^^^^^^^^^^^^^^^^^^^^^
+(DiffusionWorker_SP1 pid=3699653) ERROR 09-20 03:59:35 [diffusion_worker.py:1318]   File "/home/kxqandccx/omni-1217-20260919/rebased/native/vllm_omni/diffusion/models/omnigen2/pipeline_omnigen2.py", line 1154, in forward
+(DiffusionWorker_SP1 pid=3699653) ERROR 09-20 03:59:35 [diffusion_worker.py:1318]     image = self.processing(
+(DiffusionWorker_SP1 pid=3699653) ERROR 09-20 03:59:35 [diffusion_worker.py:1318]             ^^^^^^^^^^^^^^^^
+(DiffusionWorker_SP1 pid=3699653) ERROR 09-20 03:59:35 [diffusion_worker.py:1318]   File "/home/kxqandccx/omni-1217-20260919/rebased/native/vllm_omni/diffusion/models/omnigen2/pipeline_omnigen2.py", line 1251, in processing
+(DiffusionWorker_SP1 pid=3699653) ERROR 09-20 03:59:35 [diffusion_worker.py:1318]     model_pred = self.predict_noise(**positive_kwargs)
+(DiffusionWorker_SP1 pid=3699653) ERROR 09-20 03:59:35 [diffusion_worker.py:1318]                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(DiffusionWorker_SP1 pid=3699653) ERROR 09-20 03:59:35 [diffusion_worker.py:1318]   File "/home/kxqandccx/omni-1217-20260919/rebased/native/vllm_omni/diffusion/models/omnigen2/pipeline_omnigen2.py", line 1302, in predict_noise
+(DiffusionWorker_SP1 pid=3699653) ERROR 09-20 03:59:35 [diffusion_worker.py:1318]     return self.predict(**kwargs)
+(DiffusionWorker_SP1 pid=3699653) ERROR 09-20 03:59:35 [diffusion_worker.py:1318]            ^^^^^^^^^^^^^^^^^^^^^^
+(DiffusionWorker_SP1 pid=3699653) ERROR 09-20 03:59:35 [diffusion_worker.py:1318]   File "/home/kxqandccx/omni-1217-20260919/rebased/native/vllm_omni/diffusion/models/omnigen2/pipeline_omnigen2.py", line 1290, in predict
+(DiffusionWorker_SP1 pid=3699653) ERROR 09-20 03:59:35 [diffusion_worker.py:1318]     model_pred = self.transformer(
+(DiffusionWorker_SP1 pid=3699653) ERROR 09-20 03:59:35 [diffusion_worker.py:1318]                  ^^^^^^^^^^^^^^^^^
+(DiffusionWorker_SP1 pid=3699653) ERROR 09-20 03:59:35 [diffusion_worker.py:1318]   File "/home/kxqandccx/vllm-omni-7753-hidream-20260918/venv/lib/python3.12/site-packages/torch/nn/modules/module.py", line 1778, in _wrapped_call_impl
+(DiffusionWorker_SP1 pid=3699653) ERROR 09-20 03:59:35 [diffusion_worker.py:1318]     return self._call_impl(*args, **kwargs)
+(DiffusionWorker_SP1 pid=3699653) ERROR 09-20 03:59:35 [diffusion_worker.py:1318]            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(DiffusionWorker_SP1 pid=3699653) ERROR 09-20 03:59:35 [diffusion_worker.py:1318]   File "/home/kxqandccx/vllm-omni-7753-hidream-20260918/venv/lib/python3.12/site-packages/torch/nn/modules/module.py", line 1789, in _call_impl
+(DiffusionWorker_SP1 pid=3699653) ERROR 09-20 03:59:35 [diffusion_worker.py:1318]     return forward_call(*args, **kwargs)
+(DiffusionWorker_SP1 pid=3699653) ERROR 09-20 03:59:35 [diffusion_worker.py:1318]            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(DiffusionWorker_SP1 pid=3699653) ERROR 09-20 03:59:35 [diffusion_worker.py:1318]   File "/home/kxqandccx/omni-1217-20260919/rebased/native/vllm_omni/diffusion/models/omnigen2/omnigen2_transformer.py", line 1276, in forward
+(DiffusionWorker_SP1 pid=3699653) ERROR 09-20 03:59:35 [diffusion_worker.py:1318]     text_hidden_states = layer(text_hidden_states, text_attention_mask, context_rotary_emb)
+(DiffusionWorker_SP1 pid=3699653) ERROR 09-20 03:59:35 [diffusion_worker.py:1318]                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(DiffusionWorker_SP1 pid=3699653) ERROR 09-20 03:59:35 [diffusion_worker.py:1318]   File "/home/kxqandccx/vllm-omni-7753-hidream-20260918/venv/lib/python3.12/site-packages/torch/nn/modules/module.py", line 1778, in _wrapped_call_impl
+(DiffusionWorker_SP1 pid=3699653) ERROR 09-20 03:59:35 [diffusion_worker.py:1318]     return self._call_impl(*args, **kwargs)
+(DiffusionWorker_SP1 pid=3699653) ERROR 09-20 03:59:35 [diffusion_worker.py:1318]            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(DiffusionWorker_SP1 pid=3699653) ERROR 09-20 03:59:35 [diffusion_worker.py:1318]   File "/home/kxqandccx/vllm-omni-7753-hidream-20260918/venv/lib/python3.12/site-packages/torch/nn/modules/module.py", line 1789, in _call_impl
+(DiffusionWorker_SP1 pid=3699653) ERROR 09-20 03:59:35 [diffusion_worker.py:1318]     return forward_call(*args, **kwargs)
+(DiffusionWorker_SP1 pid=3699653) ERROR 09-20 03:59:35 [diffusion_worker.py:1318]            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(DiffusionWorker_SP1 pid=3699653) ERROR 09-20 03:59:35 [diffusion_worker.py:1318]   File "/home/kxqandccx/omni-1217-20260919/rebased/native/vllm_omni/diffusion/models/omnigen2/omnigen2_transformer.py", line 803, in forward
+(DiffusionWorker_SP0 pid=3699652) ERROR 09-20 03:59:35 [diffusion_worker.py:1318]     attn_output = self.attn(
+(DiffusionWorker_SP0 pid=3699652) ERROR 09-20 03:59:35 [diffusion_worker.py:1318]                   ^^^^^^^^^^
+(DiffusionWorker_SP0 pid=3699652) ERROR 09-20 03:59:35 [diffusion_worker.py:1318]   File "/home/kxqandccx/vllm-omni-7753-hidream-20260918/venv/lib/python3.12/site-packages/torch/nn/modules/module.py", line 1778, in _wrapped_call_impl
+(DiffusionWorker_SP0 pid=3699652) ERROR 09-20 03:59:35 [diffusion_worker.py:1318]     return self._call_impl(*args, **kwargs)
+(DiffusionWorker_SP0 pid=3699652) ERROR 09-20 03:59:35 [diffusion_worker.py:1318]            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(DiffusionWorker_SP0 pid=3699652) ERROR 09-20 03:59:35 [diffusion_worker.py:1318]   File "/home/kxqandccx/vllm-omni-7753-hidream-20260918/venv/lib/python3.12/site-packages/torch/nn/modules/module.py", line 1789, in _call_impl
+(DiffusionWorker_SP0 pid=3699652) ERROR 09-20 03:59:35 [diffusion_worker.py:1318]     return forward_call(*args, **kwargs)
+(DiffusionWorker_SP0 pid=3699652) ERROR 09-20 03:59:35 [diffusion_worker.py:1318]            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(DiffusionWorker_SP0 pid=3699652) ERROR 09-20 03:59:35 [diffusion_worker.py:1318]   File "/home/kxqandccx/omni-1217-20260919/rebased/native/vllm_omni/diffusion/models/omnigen2/omnigen2_transformer.py", line 239, in forward
+(DiffusionWorker_SP0 pid=3699652) ERROR 09-20 03:59:35 [diffusion_worker.py:1318]     hidden_states = self.attn(
+(DiffusionWorker_SP0 pid=3699652) ERROR 09-20 03:59:35 [diffusion_worker.py:1318]                     ^^^^^^^^^^
+(DiffusionWorker_SP0 pid=3699652) ERROR 09-20 03:59:35 [diffusion_worker.py:1318]   File "/home/kxqandccx/vllm-omni-7753-hidream-20260918/venv/lib/python3.12/site-packages/torch/nn/modules/module.py", line 1778, in _wrapped_call_impl
+(DiffusionWorker_SP0 pid=3699652) ERROR 09-20 03:59:35 [diffusion_worker.py:1318]     return self._call_impl(*args, **kwargs)
+(DiffusionWorker_SP0 pid=3699652) ERROR 09-20 03:59:35 [diffusion_worker.py:1318]            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(DiffusionWorker_SP0 pid=3699652) ERROR 09-20 03:59:35 [diffusion_worker.py:1318]   File "/home/kxqandccx/vllm-omni-7753-hidream-20260918/venv/lib/python3.12/site-packages/torch/nn/modules/module.py", line 1789, in _call_impl
+(DiffusionWorker_SP0 pid=3699652) ERROR 09-20 03:59:35 [diffusion_worker.py:1318]     return forward_call(*args, **kwargs)
+(DiffusionWorker_SP0 pid=3699652) ERROR 09-20 03:59:35 [diffusion_worker.py:1318]            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(DiffusionWorker_SP0 pid=3699652) ERROR 09-20 03:59:35 [diffusion_worker.py:1318]   File "/home/kxqandccx/omni-1217-20260919/rebased/native/vllm_omni/diffusion/attention/layer.py", line 390, in forward
+(DiffusionWorker_SP0 pid=3699652) ERROR 09-20 03:59:35 [diffusion_worker.py:1318]     return self._forward_impl(query, key, value, attn_metadata)
+(DiffusionWorker_SP0 pid=3699652) ERROR 09-20 03:59:35 [diffusion_worker.py:1318]            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(DiffusionWorker_SP0 pid=3699652) ERROR 09-20 03:59:35 [diffusion_worker.py:1318]   File "/home/kxqandccx/omni-1217-20260919/rebased/native/vllm_omni/diffusion/attention/layer.py", line 444, in _forward_impl
+(DiffusionWorker_SP0 pid=3699652) ERROR 09-20 03:59:35 [diffusion_worker.py:1318]     query, key, value, attn_metadata, ctx = strategy.pre_attention(query, key, value, attn_metadata)
+(DiffusionWorker_SP0 pid=3699652) ERROR 09-20 03:59:35 [diffusion_worker.py:1318]                                             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(DiffusionWorker_SP0 pid=3699652) ERROR 09-20 03:59:35 [diffusion_worker.py:1318]   File "/home/kxqandccx/omni-1217-20260919/rebased/native/vllm_omni/diffusion/attention/parallel/ulysses.py", line 516, in pre_attention
+(DiffusionWorker_SP0 pid=3699652) ERROR 09-20 03:59:35 [diffusion_worker.py:1318]     raise ValueError(
+(DiffusionWorker_SP0 pid=3699652) ERROR 09-20 03:59:35 [diffusion_worker.py:1318] ValueError: Ulysses-SP strict mode requires head_cnt divisible by ulysses_degree. query_head_cnt=21, ulysses_degree=2. Try ulysses_degree in [1, 3, 7, 21], or set ulysses_mode='advanced_uaa'.
+(DiffusionWorker_SP1 pid=3699653) ERROR 09-20 03:59:35 [diffusion_worker.py:1318]     attn_output = self.attn(
+(DiffusionWorker_SP1 pid=3699653) ERROR 09-20 03:59:35 [diffusion_worker.py:1318]                   ^^^^^^^^^^
+(DiffusionWorker_SP1 pid=3699653) ERROR 09-20 03:59:35 [diffusion_worker.py:1318]   File "/home/kxqandccx/vllm-omni-7753-hidream-20260918/venv/lib/python3.12/site-packages/torch/nn/modules/module.py", line 1778, in _wrapped_call_impl
+(DiffusionWorker_SP1 pid=3699653) ERROR 09-20 03:59:35 [diffusion_worker.py:1318]     return self._call_impl(*args, **kwargs)
+(DiffusionWorker_SP1 pid=3699653) ERROR 09-20 03:59:35 [diffusion_worker.py:1318]            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(DiffusionWorker_SP1 pid=3699653) ERROR 09-20 03:59:35 [diffusion_worker.py:1318]   File "/home/kxqandccx/vllm-omni-7753-hidream-20260918/venv/lib/python3.12/site-packages/torch/nn/modules/module.py", line 1789, in _call_impl
+(DiffusionWorker_SP1 pid=3699653) ERROR 09-20 03:59:35 [diffusion_worker.py:1318]     return forward_call(*args, **kwargs)
+(DiffusionWorker_SP1 pid=3699653) ERROR 09-20 03:59:35 [diffusion_worker.py:1318]            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(DiffusionWorker_SP1 pid=3699653) ERROR 09-20 03:59:35 [diffusion_worker.py:1318]   File "/home/kxqandccx/omni-1217-20260919/rebased/native/vllm_omni/diffusion/models/omnigen2/omnigen2_transformer.py", line 239, in forward
+(DiffusionWorker_SP1 pid=3699653) ERROR 09-20 03:59:35 [diffusion_worker.py:1318]     hidden_states = self.attn(
+(DiffusionWorker_SP1 pid=3699653) ERROR 09-20 03:59:35 [diffusion_worker.py:1318]                     ^^^^^^^^^^
+(DiffusionWorker_SP1 pid=3699653) ERROR 09-20 03:59:35 [diffusion_worker.py:1318]   File "/home/kxqandccx/vllm-omni-7753-hidream-20260918/venv/lib/python3.12/site-packages/torch/nn/modules/module.py", line 1778, in _wrapped_call_impl
+(DiffusionWorker_SP1 pid=3699653) ERROR 09-20 03:59:35 [diffusion_worker.py:1318]     return self._call_impl(*args, **kwargs)
+(DiffusionWorker_SP1 pid=3699653) ERROR 09-20 03:59:35 [diffusion_worker.py:1318]            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(DiffusionWorker_SP1 pid=3699653) ERROR 09-20 03:59:35 [diffusion_worker.py:1318]   File "/home/kxqandccx/vllm-omni-7753-hidream-20260918/venv/lib/python3.12/site-packages/torch/nn/modules/module.py", line 1789, in _call_impl
+(DiffusionWorker_SP1 pid=3699653) ERROR 09-20 03:59:35 [diffusion_worker.py:1318]     return forward_call(*args, **kwargs)
+(DiffusionWorker_SP1 pid=3699653) ERROR 09-20 03:59:35 [diffusion_worker.py:1318]            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(DiffusionWorker_SP1 pid=3699653) ERROR 09-20 03:59:35 [diffusion_worker.py:1318]   File "/home/kxqandccx/omni-1217-20260919/rebased/native/vllm_omni/diffusion/attention/layer.py", line 390, in forward
+(DiffusionWorker_SP1 pid=3699653) ERROR 09-20 03:59:35 [diffusion_worker.py:1318]     return self._forward_impl(query, key, value, attn_metadata)
+(DiffusionWorker_SP1 pid=3699653) ERROR 09-20 03:59:35 [diffusion_worker.py:1318]            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(DiffusionWorker_SP1 pid=3699653) ERROR 09-20 03:59:35 [diffusion_worker.py:1318]   File "/home/kxqandccx/omni-1217-20260919/rebased/native/vllm_omni/diffusion/attention/layer.py", line 444, in _forward_impl
+(DiffusionWorker_SP1 pid=3699653) ERROR 09-20 03:59:35 [diffusion_worker.py:1318]     query, key, value, attn_metadata, ctx = strategy.pre_attention(query, key, value, attn_metadata)
+(DiffusionWorker_SP1 pid=3699653) ERROR 09-20 03:59:35 [diffusion_worker.py:1318]                                             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(DiffusionWorker_SP1 pid=3699653) ERROR 09-20 03:59:35 [diffusion_worker.py:1318]   File "/home/kxqandccx/omni-1217-20260919/rebased/native/vllm_omni/diffusion/attention/parallel/ulysses.py", line 516, in pre_attention
+(DiffusionWorker_SP1 pid=3699653) ERROR 09-20 03:59:35 [diffusion_worker.py:1318]     raise ValueError(
+(DiffusionWorker_SP1 pid=3699653) ERROR 09-20 03:59:35 [diffusion_worker.py:1318] ValueError: Ulysses-SP strict mode requires head_cnt divisible by ulysses_degree. query_head_cnt=21, ulysses_degree=2. Try ulysses_degree in [1, 3, 7, 21], or set ulysses_mode='advanced_uaa'.
+(DiffusionWorker_SP0 pid=3699652) ERROR 09-20 03:59:35 [diffusion_worker.py:1404] Error processing RPC: Ulysses-SP strict mode requires head_cnt divisible by ulysses_degree. query_head_cnt=21, ulysses_degree=2. Try ulysses_degree in [1, 3, 7, 21], or set ulysses_mode='advanced_uaa'.
+(DiffusionWorker_SP0 pid=3699652) ERROR 09-20 03:59:35 [diffusion_worker.py:1404] Traceback (most recent call last):
+(DiffusionWorker_SP0 pid=3699652) ERROR 09-20 03:59:35 [diffusion_worker.py:1404]   File "/home/kxqandccx/omni-1217-20260919/rebased/native/vllm_omni/diffusion/worker/diffusion_worker.py", line 1400, in _worker_busy_loop
+(DiffusionWorker_SP0 pid=3699652) ERROR 09-20 03:59:35 [diffusion_worker.py:1404]     result, should_reply = self._execute_rpc(msg)
+(DiffusionWorker_SP0 pid=3699652) ERROR 09-20 03:59:35 [diffusion_worker.py:1404]                            ^^^^^^^^^^^^^^^^^^^^^^
+(DiffusionWorker_SP0 pid=3699652) ERROR 09-20 03:59:35 [diffusion_worker.py:1404]   File "/home/kxqandccx/omni-1217-20260919/rebased/native/vllm_omni/diffusion/worker/diffusion_worker.py", line 1316, in _execute_rpc
+(DiffusionWorker_SP0 pid=3699652) ERROR 09-20 03:59:35 [diffusion_worker.py:1404]     result = self.worker.execute_method(method, *args, **kwargs)
+(DiffusionWorker_SP0 pid=3699652) ERROR 09-20 03:59:35 [diffusion_worker.py:1404]              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(DiffusionWorker_SP0 pid=3699652) ERROR 09-20 03:59:35 [diffusion_worker.py:1404]   File "/home/kxqandccx/omni-1217-20260919/rebased/native/vllm_omni/diffusion/worker/diffusion_worker.py", line 1742, in execute_method
+(DiffusionWorker_SP0 pid=3699652) ERROR 09-20 03:59:35 [diffusion_worker.py:1404]     raise e
+(DiffusionWorker_SP0 pid=3699652) ERROR 09-20 03:59:35 [diffusion_worker.py:1404]   File "/home/kxqandccx/omni-1217-20260919/rebased/native/vllm_omni/diffusion/worker/diffusion_worker.py", line 1737, in execute_method
+(DiffusionWorker_SP0 pid=3699652) ERROR 09-20 03:59:35 [diffusion_worker.py:1404]     return func(*args, **kwargs)
+(DiffusionWorker_SP0 pid=3699652) ERROR 09-20 03:59:35 [diffusion_worker.py:1404]            ^^^^^^^^^^^^^^^^^^^^^
+(DiffusionWorker_SP0 pid=3699652) ERROR 09-20 03:59:35 [diffusion_worker.py:1404]   File "/home/kxqandccx/omni-1217-20260919/rebased/native/vllm_omni/diffusion/worker/diffusion_worker.py", line 671, in execute_model
+(DiffusionWorker_SP0 pid=3699652) ERROR 09-20 03:59:35 [diffusion_worker.py:1404]     output = self.model_runner.execute_model(req, **kwargs)
+(DiffusionWorker_SP0 pid=3699652) ERROR 09-20 03:59:35 [diffusion_worker.py:1404]              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(DiffusionWorker_SP0 pid=3699652) ERROR 09-20 03:59:35 [diffusion_worker.py:1404]   File "/home/kxqandccx/omni-1217-20260919/rebased/native/vllm_omni/diffusion/worker/diffusion_model_runner.py", line 869, in execute_model
+(DiffusionWorker_SP0 pid=3699652) ERROR 09-20 03:59:35 [diffusion_worker.py:1404]     runner_output = self._execute_request_list(
+(DiffusionWorker_SP0 pid=3699652) ERROR 09-20 03:59:35 [diffusion_worker.py:1404]                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(DiffusionWorker_SP0 pid=3699652) ERROR 09-20 03:59:35 [diffusion_worker.py:1404]   File "/home/kxqandccx/omni-1217-20260919/rebased/native/vllm_omni/diffusion/worker/diffusion_model_runner.py", line 787, in _execute_request_list
+(DiffusionWorker_SP0 pid=3699652) ERROR 09-20 03:59:35 [diffusion_worker.py:1404]     raw_outputs = self.pipeline.forward(batch)
+(DiffusionWorker_SP0 pid=3699652) ERROR 09-20 03:59:35 [diffusion_worker.py:1404]                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(DiffusionWorker_SP0 pid=3699652) ERROR 09-20 03:59:35 [diffusion_worker.py:1404]   File "/home/kxqandccx/vllm-omni-7753-hidream-20260918/venv/lib/python3.12/site-packages/torch/utils/_contextlib.py", line 124, in decorate_context
+(DiffusionWorker_SP0 pid=3699652) ERROR 09-20 03:59:35 [diffusion_worker.py:1404]     return func(*args, **kwargs)
+(DiffusionWorker_SP0 pid=3699652) ERROR 09-20 03:59:35 [diffusion_worker.py:1404]            ^^^^^^^^^^^^^^^^^^^^^
+(DiffusionWorker_SP0 pid=3699652) ERROR 09-20 03:59:35 [diffusion_worker.py:1404]   File "/home/kxqandccx/omni-1217-20260919/rebased/native/vllm_omni/diffusion/models/omnigen2/pipeline_omnigen2.py", line 1154, in forward
+(DiffusionWorker_SP0 pid=3699652) ERROR 09-20 03:59:35 [diffusion_worker.py:1404]     image = self.processing(
+(DiffusionWorker_SP0 pid=3699652) ERROR 09-20 03:59:35 [diffusion_worker.py:1404]             ^^^^^^^^^^^^^^^^
+(DiffusionWorker_SP0 pid=3699652) ERROR 09-20 03:59:35 [diffusion_worker.py:1404]   File "/home/kxqandccx/omni-1217-20260919/rebased/native/vllm_omni/diffusion/models/omnigen2/pipeline_omnigen2.py", line 1251, in processing
+(DiffusionWorker_SP0 pid=3699652) ERROR 09-20 03:59:35 [diffusion_worker.py:1404]     model_pred = self.predict_noise(**positive_kwargs)
+(DiffusionWorker_SP0 pid=3699652) ERROR 09-20 03:59:35 [diffusion_worker.py:1404]                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(DiffusionWorker_SP0 pid=3699652) ERROR 09-20 03:59:35 [diffusion_worker.py:1404]   File "/home/kxqandccx/omni-1217-20260919/rebased/native/vllm_omni/diffusion/models/omnigen2/pipeline_omnigen2.py", line 1302, in predict_noise
+(DiffusionWorker_SP0 pid=3699652) ERROR 09-20 03:59:35 [diffusion_worker.py:1404]     return self.predict(**kwargs)
+(DiffusionWorker_SP0 pid=3699652) ERROR 09-20 03:59:35 [diffusion_worker.py:1404]            ^^^^^^^^^^^^^^^^^^^^^^
+(DiffusionWorker_SP0 pid=3699652) ERROR 09-20 03:59:35 [diffusion_worker.py:1404]   File "/home/kxqandccx/omni-1217-20260919/rebased/native/vllm_omni/diffusion/models/omnigen2/pipeline_omnigen2.py", line 1290, in predict
+(DiffusionWorker_SP0 pid=3699652) ERROR 09-20 03:59:35 [diffusion_worker.py:1404]     model_pred = self.transformer(
+(DiffusionWorker_SP0 pid=3699652) ERROR 09-20 03:59:35 [diffusion_worker.py:1404]                  ^^^^^^^^^^^^^^^^^
+(DiffusionWorker_SP0 pid=3699652) ERROR 09-20 03:59:35 [diffusion_worker.py:1404]   File "/home/kxqandccx/vllm-omni-7753-hidream-20260918/venv/lib/python3.12/site-packages/torch/nn/modules/module.py", line 1778, in _wrapped_call_impl
+(DiffusionWorker_SP0 pid=3699652) ERROR 09-20 03:59:35 [diffusion_worker.py:1404]     return self._call_impl(*args, **kwargs)
+(DiffusionWorker_SP0 pid=3699652) ERROR 09-20 03:59:35 [diffusion_worker.py:1404]            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(DiffusionWorker_SP0 pid=3699652) ERROR 09-20 03:59:35 [diffusion_worker.py:1404]   File "/home/kxqandccx/vllm-omni-7753-hidream-20260918/venv/lib/python3.12/site-packages/torch/nn/modules/module.py", line 1789, in _call_impl
+(DiffusionWorker_SP0 pid=3699652) ERROR 09-20 03:59:35 [diffusion_worker.py:1404]     return forward_call(*args, **kwargs)
+(DiffusionWorker_SP0 pid=3699652) ERROR 09-20 03:59:35 [diffusion_worker.py:1404]            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(DiffusionWorker_SP0 pid=3699652) ERROR 09-20 03:59:35 [diffusion_worker.py:1404]   File "/home/kxqandccx/omni-1217-20260919/rebased/native/vllm_omni/diffusion/models/omnigen2/omnigen2_transformer.py", line 1276, in forward
+(DiffusionWorker_SP0 pid=3699652) ERROR 09-20 03:59:35 [diffusion_worker.py:1404]     text_hidden_states = layer(text_hidden_states, text_attention_mask, context_rotary_emb)
+(DiffusionWorker_SP0 pid=3699652) ERROR 09-20 03:59:35 [diffusion_worker.py:1404]                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(DiffusionWorker_SP0 pid=3699652) ERROR 09-20 03:59:35 [diffusion_worker.py:1404]   File "/home/kxqandccx/vllm-omni-7753-hidream-20260918/venv/lib/python3.12/site-packages/torch/nn/modules/module.py", line 1778, in _wrapped_call_impl
+(DiffusionWorker_SP0 pid=3699652) ERROR 09-20 03:59:35 [diffusion_worker.py:1404]     return self._call_impl(*args, **kwargs)
+(DiffusionWorker_SP0 pid=3699652) ERROR 09-20 03:59:35 [diffusion_worker.py:1404]            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(DiffusionWorker_SP0 pid=3699652) ERROR 09-20 03:59:35 [diffusion_worker.py:1404]   File "/home/kxqandccx/vllm-omni-7753-hidream-20260918/venv/lib/python3.12/site-packages/torch/nn/modules/module.py", line 1789, in _call_impl
+(DiffusionWorker_SP0 pid=3699652) ERROR 09-20 03:59:35 [diffusion_worker.py:1404]     return forward_call(*args, **kwargs)
+(DiffusionWorker_SP0 pid=3699652) ERROR 09-20 03:59:35 [diffusion_worker.py:1404]            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(DiffusionWorker_SP0 pid=3699652) ERROR 09-20 03:59:35 [diffusion_worker.py:1404]   File "/home/kxqandccx/omni-1217-20260919/rebased/native/vllm_omni/diffusion/models/omnigen2/omnigen2_transformer.py", line 803, in forward
+(DiffusionWorker_SP0 pid=3699652) ERROR 09-20 03:59:35 [diffusion_worker.py:1404]     attn_output = self.attn(
+(DiffusionWorker_SP0 pid=3699652) ERROR 09-20 03:59:35 [diffusion_worker.py:1404]                   ^^^^^^^^^^
+(DiffusionWorker_SP0 pid=3699652) ERROR 09-20 03:59:35 [diffusion_worker.py:1404]   File "/home/kxqandccx/vllm-omni-7753-hidream-20260918/venv/lib/python3.12/site-packages/torch/nn/modules/module.py", line 1778, in _wrapped_call_impl
+(DiffusionWorker_SP0 pid=3699652) ERROR 09-20 03:59:35 [diffusion_worker.py:1404]     return self._call_impl(*args, **kwargs)
+(DiffusionWorker_SP0 pid=3699652) ERROR 09-20 03:59:35 [diffusion_worker.py:1404]            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(DiffusionWorker_SP0 pid=3699652) ERROR 09-20 03:59:35 [diffusion_worker.py:1404]   File "/home/kxqandccx/vllm-omni-7753-hidream-20260918/venv/lib/python3.12/site-packages/torch/nn/modules/module.py", line 1789, in _call_impl
+(DiffusionWorker_SP0 pid=3699652) ERROR 09-20 03:59:35 [diffusion_worker.py:1404]     return forward_call(*args, **kwargs)
+(DiffusionWorker_SP0 pid=3699652) ERROR 09-20 03:59:35 [diffusion_worker.py:1404]            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(DiffusionWorker_SP0 pid=3699652) ERROR 09-20 03:59:35 [diffusion_worker.py:1404]   File "/home/kxqandccx/omni-1217-20260919/rebased/native/vllm_omni/diffusion/models/omnigen2/omnigen2_transformer.py", line 239, in forward
+(DiffusionWorker_SP0 pid=3699652) ERROR 09-20 03:59:35 [diffusion_worker.py:1404]     hidden_states = self.attn(
+(DiffusionWorker_SP0 pid=3699652) ERROR 09-20 03:59:35 [diffusion_worker.py:1404]                     ^^^^^^^^^^
+(DiffusionWorker_SP0 pid=3699652) ERROR 09-20 03:59:35 [diffusion_worker.py:1404]   File "/home/kxqandccx/vllm-omni-7753-hidream-20260918/venv/lib/python3.12/site-packages/torch/nn/modules/module.py", line 1778, in _wrapped_call_impl
+(DiffusionWorker_SP0 pid=3699652) ERROR 09-20 03:59:35 [diffusion_worker.py:1404]     return self._call_impl(*args, **kwargs)
+(DiffusionWorker_SP0 pid=3699652) ERROR 09-20 03:59:35 [diffusion_worker.py:1404]            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(DiffusionWorker_SP0 pid=3699652) ERROR 09-20 03:59:35 [diffusion_worker.py:1404]   File "/home/kxqandccx/vllm-omni-7753-hidream-20260918/venv/lib/python3.12/site-packages/torch/nn/modules/module.py", line 1789, in _call_impl
+(DiffusionWorker_SP0 pid=3699652) ERROR 09-20 03:59:35 [diffusion_worker.py:1404]     return forward_call(*args, **kwargs)
+(DiffusionWorker_SP0 pid=3699652) ERROR 09-20 03:59:35 [diffusion_worker.py:1404]            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(DiffusionWorker_SP0 pid=3699652) ERROR 09-20 03:59:35 [diffusion_worker.py:1404]   File "/home/kxqandccx/omni-1217-20260919/rebased/native/vllm_omni/diffusion/attention/layer.py", line 390, in forward
+(DiffusionWorker_SP0 pid=3699652) ERROR 09-20 03:59:35 [diffusion_worker.py:1404]     return self._forward_impl(query, key, value, attn_metadata)
+(DiffusionWorker_SP0 pid=3699652) ERROR 09-20 03:59:35 [diffusion_worker.py:1404]            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(DiffusionWorker_SP0 pid=3699652) ERROR 09-20 03:59:35 [diffusion_worker.py:1404]   File "/home/kxqandccx/omni-1217-20260919/rebased/native/vllm_omni/diffusion/attention/layer.py", line 444, in _forward_impl
+(DiffusionWorker_SP0 pid=3699652) ERROR 09-20 03:59:35 [diffusion_worker.py:1404]     query, key, value, attn_metadata, ctx = strategy.pre_attention(query, key, value, attn_metadata)
+(DiffusionWorker_SP0 pid=3699652) ERROR 09-20 03:59:35 [diffusion_worker.py:1404]                                             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(DiffusionWorker_SP0 pid=3699652) ERROR 09-20 03:59:35 [diffusion_worker.py:1404]   File "/home/kxqandccx/omni-1217-20260919/rebased/native/vllm_omni/diffusion/attention/parallel/ulysses.py", line 516, in pre_attention
+(DiffusionWorker_SP0 pid=3699652) ERROR 09-20 03:59:35 [diffusion_worker.py:1404]     raise ValueError(
+(DiffusionWorker_SP0 pid=3699652) ERROR 09-20 03:59:35 [diffusion_worker.py:1404] ValueError: Ulysses-SP strict mode requires head_cnt divisible by ulysses_degree. query_head_cnt=21, ulysses_degree=2. Try ulysses_degree in [1, 3, 7, 21], or set ulysses_mode='advanced_uaa'.
+(DiffusionWorker_SP1 pid=3699653) ERROR 09-20 03:59:35 [diffusion_worker.py:1404] Error processing RPC: Ulysses-SP strict mode requires head_cnt divisible by ulysses_degree. query_head_cnt=21, ulysses_degree=2. Try ulysses_degree in [1, 3, 7, 21], or set ulysses_mode='advanced_uaa'.
+(DiffusionWorker_SP1 pid=3699653) ERROR 09-20 03:59:35 [diffusion_worker.py:1404] Traceback (most recent call last):
+(DiffusionWorker_SP1 pid=3699653) ERROR 09-20 03:59:35 [diffusion_worker.py:1404]   File "/home/kxqandccx/omni-1217-20260919/rebased/native/vllm_omni/diffusion/worker/diffusion_worker.py", line 1400, in _worker_busy_loop
+(DiffusionWorker_SP1 pid=3699653) ERROR 09-20 03:59:35 [diffusion_worker.py:1404]     result, should_reply = self._execute_rpc(msg)
+(DiffusionWorker_SP1 pid=3699653) ERROR 09-20 03:59:35 [diffusion_worker.py:1404]                            ^^^^^^^^^^^^^^^^^^^^^^
+(DiffusionWorker_SP1 pid=3699653) ERROR 09-20 03:59:35 [diffusion_worker.py:1404]   File "/home/kxqandccx/omni-1217-20260919/rebased/native/vllm_omni/diffusion/worker/diffusion_worker.py", line 1316, in _execute_rpc
+(DiffusionWorker_SP1 pid=3699653) ERROR 09-20 03:59:35 [diffusion_worker.py:1404]     result = self.worker.execute_method(method, *args, **kwargs)
+(DiffusionWorker_SP1 pid=3699653) ERROR 09-20 03:59:35 [diffusion_worker.py:1404]              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(DiffusionWorker_SP1 pid=3699653) ERROR 09-20 03:59:35 [diffusion_worker.py:1404]   File "/home/kxqandccx/omni-1217-20260919/rebased/native/vllm_omni/diffusion/worker/diffusion_worker.py", line 1742, in execute_method
+(DiffusionWorker_SP1 pid=3699653) ERROR 09-20 03:59:35 [diffusion_worker.py:1404]     raise e
+(DiffusionWorker_SP1 pid=3699653) ERROR 09-20 03:59:35 [diffusion_worker.py:1404]   File "/home/kxqandccx/omni-1217-20260919/rebased/native/vllm_omni/diffusion/worker/diffusion_worker.py", line 1737, in execute_method
+(DiffusionWorker_SP1 pid=3699653) ERROR 09-20 03:59:35 [diffusion_worker.py:1404]     return func(*args, **kwargs)
+(DiffusionWorker_SP1 pid=3699653) ERROR 09-20 03:59:35 [diffusion_worker.py:1404]            ^^^^^^^^^^^^^^^^^^^^^
+(DiffusionWorker_SP1 pid=3699653) ERROR 09-20 03:59:35 [diffusion_worker.py:1404]   File "/home/kxqandccx/omni-1217-20260919/rebased/native/vllm_omni/diffusion/worker/diffusion_worker.py", line 671, in execute_model
+(DiffusionWorker_SP1 pid=3699653) ERROR 09-20 03:59:35 [diffusion_worker.py:1404]     output = self.model_runner.execute_model(req, **kwargs)
+(DiffusionWorker_SP1 pid=3699653) ERROR 09-20 03:59:35 [diffusion_worker.py:1404]              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(DiffusionWorker_SP1 pid=3699653) ERROR 09-20 03:59:35 [diffusion_worker.py:1404]   File "/home/kxqandccx/omni-1217-20260919/rebased/native/vllm_omni/diffusion/worker/diffusion_model_runner.py", line 869, in execute_model
+(DiffusionWorker_SP1 pid=3699653) ERROR 09-20 03:59:35 [diffusion_worker.py:1404]     runner_output = self._execute_request_list(
+(DiffusionWorker_SP1 pid=3699653) ERROR 09-20 03:59:35 [diffusion_worker.py:1404]                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(DiffusionWorker_SP1 pid=3699653) ERROR 09-20 03:59:35 [diffusion_worker.py:1404]   File "/home/kxqandccx/omni-1217-20260919/rebased/native/vllm_omni/diffusion/worker/diffusion_model_runner.py", line 787, in _execute_request_list
+(DiffusionWorker_SP1 pid=3699653) ERROR 09-20 03:59:35 [diffusion_worker.py:1404]     raw_outputs = self.pipeline.forward(batch)
+(DiffusionWorker_SP1 pid=3699653) ERROR 09-20 03:59:35 [diffusion_worker.py:1404]                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(DiffusionWorker_SP1 pid=3699653) ERROR 09-20 03:59:35 [diffusion_worker.py:1404]   File "/home/kxqandccx/vllm-omni-7753-hidream-20260918/venv/lib/python3.12/site-packages/torch/utils/_contextlib.py", line 124, in decorate_context
+(DiffusionWorker_SP1 pid=3699653) ERROR 09-20 03:59:35 [diffusion_worker.py:1404]     return func(*args, **kwargs)
+(DiffusionWorker_SP1 pid=3699653) ERROR 09-20 03:59:35 [diffusion_worker.py:1404]            ^^^^^^^^^^^^^^^^^^^^^
+(DiffusionWorker_SP1 pid=3699653) ERROR 09-20 03:59:35 [diffusion_worker.py:1404]   File "/home/kxqandccx/omni-1217-20260919/rebased/native/vllm_omni/diffusion/models/omnigen2/pipeline_omnigen2.py", line 1154, in forward
+(DiffusionWorker_SP1 pid=3699653) ERROR 09-20 03:59:35 [diffusion_worker.py:1404]     image = self.processing(
+(DiffusionWorker_SP1 pid=3699653) ERROR 09-20 03:59:35 [diffusion_worker.py:1404]             ^^^^^^^^^^^^^^^^
+(DiffusionWorker_SP1 pid=3699653) ERROR 09-20 03:59:35 [diffusion_worker.py:1404]   File "/home/kxqandccx/omni-1217-20260919/rebased/native/vllm_omni/diffusion/models/omnigen2/pipeline_omnigen2.py", line 1251, in processing
+(DiffusionWorker_SP1 pid=3699653) ERROR 09-20 03:59:35 [diffusion_worker.py:1404]     model_pred = self.predict_noise(**positive_kwargs)
+(DiffusionWorker_SP1 pid=3699653) ERROR 09-20 03:59:35 [diffusion_worker.py:1404]                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(DiffusionWorker_SP1 pid=3699653) ERROR 09-20 03:59:35 [diffusion_worker.py:1404]   File "/home/kxqandccx/omni-1217-20260919/rebased/native/vllm_omni/diffusion/models/omnigen2/pipeline_omnigen2.py", line 1302, in predict_noise
+(DiffusionWorker_SP1 pid=3699653) ERROR 09-20 03:59:35 [diffusion_worker.py:1404]     return self.predict(**kwargs)
+(DiffusionWorker_SP1 pid=3699653) ERROR 09-20 03:59:35 [diffusion_worker.py:1404]            ^^^^^^^^^^^^^^^^^^^^^^
+(DiffusionWorker_SP1 pid=3699653) ERROR 09-20 03:59:35 [diffusion_worker.py:1404]   File "/home/kxqandccx/omni-1217-20260919/rebased/native/vllm_omni/diffusion/models/omnigen2/pipeline_omnigen2.py", line 1290, in predict
+(DiffusionWorker_SP1 pid=3699653) ERROR 09-20 03:59:35 [diffusion_worker.py:1404]     model_pred = self.transformer(
+(DiffusionWorker_SP1 pid=3699653) ERROR 09-20 03:59:35 [diffusion_worker.py:1404]                  ^^^^^^^^^^^^^^^^^
+(DiffusionWorker_SP1 pid=3699653) ERROR 09-20 03:59:35 [diffusion_worker.py:1404]   File "/home/kxqandccx/vllm-omni-7753-hidream-20260918/venv/lib/python3.12/site-packages/torch/nn/modules/module.py", line 1778, in _wrapped_call_impl
+(DiffusionWorker_SP1 pid=3699653) ERROR 09-20 03:59:35 [diffusion_worker.py:1404]     return self._call_impl(*args, **kwargs)
+(DiffusionWorker_SP1 pid=3699653) ERROR 09-20 03:59:35 [diffusion_worker.py:1404]            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(DiffusionWorker_SP1 pid=3699653) ERROR 09-20 03:59:35 [diffusion_worker.py:1404]   File "/home/kxqandccx/vllm-omni-7753-hidream-20260918/venv/lib/python3.12/site-packages/torch/nn/modules/module.py", line 1789, in _call_impl
+(DiffusionWorker_SP1 pid=3699653) ERROR 09-20 03:59:35 [diffusion_worker.py:1404]     return forward_call(*args, **kwargs)
+(DiffusionWorker_SP1 pid=3699653) ERROR 09-20 03:59:35 [diffusion_worker.py:1404]            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(DiffusionWorker_SP1 pid=3699653) ERROR 09-20 03:59:35 [diffusion_worker.py:1404]   File "/home/kxqandccx/omni-1217-20260919/rebased/native/vllm_omni/diffusion/models/omnigen2/omnigen2_transformer.py", line 1276, in forward
+(DiffusionWorker_SP1 pid=3699653) ERROR 09-20 03:59:35 [diffusion_worker.py:1404]     text_hidden_states = layer(text_hidden_states, text_attention_mask, context_rotary_emb)
+(DiffusionWorker_SP1 pid=3699653) ERROR 09-20 03:59:35 [diffusion_worker.py:1404]                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(DiffusionWorker_SP1 pid=3699653) ERROR 09-20 03:59:35 [diffusion_worker.py:1404]   File "/home/kxqandccx/vllm-omni-7753-hidream-20260918/venv/lib/python3.12/site-packages/torch/nn/modules/module.py", line 1778, in _wrapped_call_impl
+(DiffusionWorker_SP1 pid=3699653) ERROR 09-20 03:59:35 [diffusion_worker.py:1404]     return self._call_impl(*args, **kwargs)
+(DiffusionWorker_SP1 pid=3699653) ERROR 09-20 03:59:35 [diffusion_worker.py:1404]            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(DiffusionWorker_SP1 pid=3699653) ERROR 09-20 03:59:35 [diffusion_worker.py:1404]   File "/home/kxqandccx/vllm-omni-7753-hidream-20260918/venv/lib/python3.12/site-packages/torch/nn/modules/module.py", line 1789, in _call_impl
+(DiffusionWorker_SP1 pid=3699653) ERROR 09-20 03:59:35 [diffusion_worker.py:1404]     return forward_call(*args, **kwargs)
+(DiffusionWorker_SP1 pid=3699653) ERROR 09-20 03:59:35 [diffusion_worker.py:1404]            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(DiffusionWorker_SP1 pid=3699653) ERROR 09-20 03:59:35 [diffusion_worker.py:1404]   File "/home/kxqandccx/omni-1217-20260919/rebased/native/vllm_omni/diffusion/models/omnigen2/omnigen2_transformer.py", line 803, in forward
+(DiffusionWorker_SP1 pid=3699653) ERROR 09-20 03:59:35 [diffusion_worker.py:1404]     attn_output = self.attn(
+(DiffusionWorker_SP1 pid=3699653) ERROR 09-20 03:59:35 [diffusion_worker.py:1404]                   ^^^^^^^^^^
+(DiffusionWorker_SP1 pid=3699653) ERROR 09-20 03:59:35 [diffusion_worker.py:1404]   File "/home/kxqandccx/vllm-omni-7753-hidream-20260918/venv/lib/python3.12/site-packages/torch/nn/modules/module.py", line 1778, in _wrapped_call_impl
+(DiffusionWorker_SP1 pid=3699653) ERROR 09-20 03:59:35 [diffusion_worker.py:1404]     return self._call_impl(*args, **kwargs)
+(DiffusionWorker_SP1 pid=3699653) ERROR 09-20 03:59:35 [diffusion_worker.py:1404]            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(DiffusionWorker_SP1 pid=3699653) ERROR 09-20 03:59:35 [diffusion_worker.py:1404]   File "/home/kxqandccx/vllm-omni-7753-hidream-20260918/venv/lib/python3.12/site-packages/torch/nn/modules/module.py", line 1789, in _call_impl
+(DiffusionWorker_SP1 pid=3699653) ERROR 09-20 03:59:35 [diffusion_worker.py:1404]     return forward_call(*args, **kwargs)
+(DiffusionWorker_SP1 pid=3699653) ERROR 09-20 03:59:35 [diffusion_worker.py:1404]            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(DiffusionWorker_SP1 pid=3699653) ERROR 09-20 03:59:35 [diffusion_worker.py:1404]   File "/home/kxqandccx/omni-1217-20260919/rebased/native/vllm_omni/diffusion/models/omnigen2/omnigen2_transformer.py", line 239, in forward
+(DiffusionWorker_SP1 pid=3699653) ERROR 09-20 03:59:35 [diffusion_worker.py:1404]     hidden_states = self.attn(
+(DiffusionWorker_SP1 pid=3699653) ERROR 09-20 03:59:35 [diffusion_worker.py:1404]                     ^^^^^^^^^^
+(DiffusionWorker_SP1 pid=3699653) ERROR 09-20 03:59:35 [diffusion_worker.py:1404]   File "/home/kxqandccx/vllm-omni-7753-hidream-20260918/venv/lib/python3.12/site-packages/torch/nn/modules/module.py", line 1778, in _wrapped_call_impl
+(DiffusionWorker_SP1 pid=3699653) ERROR 09-20 03:59:35 [diffusion_worker.py:1404]     return self._call_impl(*args, **kwargs)
+(DiffusionWorker_SP1 pid=3699653) ERROR 09-20 03:59:35 [diffusion_worker.py:1404]            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(DiffusionWorker_SP1 pid=3699653) ERROR 09-20 03:59:35 [diffusion_worker.py:1404]   File "/home/kxqandccx/vllm-omni-7753-hidream-20260918/venv/lib/python3.12/site-packages/torch/nn/modules/module.py", line 1789, in _call_impl
+(DiffusionWorker_SP1 pid=3699653) ERROR 09-20 03:59:35 [diffusion_worker.py:1404]     return forward_call(*args, **kwargs)
+(DiffusionWorker_SP1 pid=3699653) ERROR 09-20 03:59:35 [diffusion_worker.py:1404]            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(DiffusionWorker_SP1 pid=3699653) ERROR 09-20 03:59:35 [diffusion_worker.py:1404]   File "/home/kxqandccx/omni-1217-20260919/rebased/native/vllm_omni/diffusion/attention/layer.py", line 390, in forward
+(DiffusionWorker_SP1 pid=3699653) ERROR 09-20 03:59:35 [diffusion_worker.py:1404]     return self._forward_impl(query, key, value, attn_metadata)
+(DiffusionWorker_SP1 pid=3699653) ERROR 09-20 03:59:35 [diffusion_worker.py:1404]            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(DiffusionWorker_SP1 pid=3699653) ERROR 09-20 03:59:35 [diffusion_worker.py:1404]   File "/home/kxqandccx/omni-1217-20260919/rebased/native/vllm_omni/diffusion/attention/layer.py", line 444, in _forward_impl
+(DiffusionWorker_SP1 pid=3699653) ERROR 09-20 03:59:35 [diffusion_worker.py:1404]     query, key, value, attn_metadata, ctx = strategy.pre_attention(query, key, value, attn_metadata)
+(DiffusionWorker_SP1 pid=3699653) ERROR 09-20 03:59:35 [diffusion_worker.py:1404]                                             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+(DiffusionWorker_SP1 pid=3699653) ERROR 09-20 03:59:35 [diffusion_worker.py:1404]   File "/home/kxqandccx/omni-1217-20260919/rebased/native/vllm_omni/diffusion/attention/parallel/ulysses.py", line 516, in pre_attention
+(DiffusionWorker_SP1 pid=3699653) ERROR 09-20 03:59:35 [diffusion_worker.py:1404]     raise ValueError(
+(DiffusionWorker_SP1 pid=3699653) ERROR 09-20 03:59:35 [diffusion_worker.py:1404] ValueError: Ulysses-SP strict mode requires head_cnt divisible by ulysses_degree. query_head_cnt=21, ulysses_degree=2. Try ulysses_degree in [1, 3, 7, 21], or set ulysses_mode='advanced_uaa'.
+ERROR 09-20 03:59:35 [diffusion_engine.py:1049] Dummy run failed: Dummy run failed: Ulysses-SP strict mode requires head_cnt divisible by ulysses_degree. query_head_cnt=21, ulysses_degree=2. Try ulysses_degree in [1, 3, 7, 21], or set ulysses_mode='advanced_uaa'.
+(DiffusionWorker_SP1 pid=3699653) INFO 09-20 03:59:35 [diffusion_worker.py:1456] Worker 1: Received shutdown message
+(DiffusionWorker_SP0 pid=3699652) INFO 09-20 03:59:35 [diffusion_worker.py:1456] Worker 0: Received shutdown message
+(DiffusionWorker_SP1 pid=3699653) INFO 09-20 03:59:35 [diffusion_worker.py:1478] event loop terminated.
+(DiffusionWorker_SP0 pid=3699652) INFO 09-20 03:59:35 [diffusion_worker.py:1478] event loop terminated.
+(DiffusionWorker_SP1 pid=3699653) INFO 09-20 03:59:36 [diffusion_worker.py:1546] Worker 1: Shutdown complete.
+(DiffusionWorker_SP0 pid=3699652) INFO 09-20 03:59:36 [diffusion_worker.py:1546] Worker 0: Shutdown complete.
+ERROR 09-20 03:59:38 [stage_runtime.py:307] [StageRuntime] Stage initialization failed; shutting down 0 initialized client(s)
+ERROR 09-20 03:59:38 [stage_runtime.py:307] Traceback (most recent call last):
+ERROR 09-20 03:59:38 [stage_runtime.py:307]   File "/home/kxqandccx/omni-1217-20260919/rebased/native/vllm_omni/engine/stage_runtime.py", line 294, in initialize
+ERROR 09-20 03:59:38 [stage_runtime.py:307]     initialized_clients = self._initialize_stage_replicas(stage_plans, self._stage_init_timeout)
+ERROR 09-20 03:59:38 [stage_runtime.py:307]                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+ERROR 09-20 03:59:38 [stage_runtime.py:307]   File "/home/kxqandccx/omni-1217-20260919/rebased/native/vllm_omni/engine/stage_runtime.py", line 782, in _initialize_stage_replicas
+ERROR 09-20 03:59:38 [stage_runtime.py:307]     raise primary_exc
+ERROR 09-20 03:59:38 [stage_runtime.py:307]   File "/home/kxqandccx/omni-1217-20260919/rebased/native/vllm_omni/engine/stage_runtime.py", line 743, in _init_group
+ERROR 09-20 03:59:38 [stage_runtime.py:307]     client = self._initialize_replica(
+ERROR 09-20 03:59:38 [stage_runtime.py:307]              ^^^^^^^^^^^^^^^^^^^^^^^^^
+ERROR 09-20 03:59:38 [stage_runtime.py:307]   File "/home/kxqandccx/omni-1217-20260919/rebased/native/vllm_omni/engine/stage_runtime.py", line 972, in _initialize_replica
+ERROR 09-20 03:59:38 [stage_runtime.py:307]     return self._initialize_local_diffusion_replica(plan, stage_init_timeout)
+ERROR 09-20 03:59:38 [stage_runtime.py:307]            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+ERROR 09-20 03:59:38 [stage_runtime.py:307]   File "/home/kxqandccx/omni-1217-20260919/rebased/native/vllm_omni/engine/stage_runtime.py", line 1095, in _initialize_local_diffusion_replica
+ERROR 09-20 03:59:38 [stage_runtime.py:307]     client, resources = launch_diffusion_stage_replica(
+ERROR 09-20 03:59:38 [stage_runtime.py:307]                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+ERROR 09-20 03:59:38 [stage_runtime.py:307]   File "/home/kxqandccx/omni-1217-20260919/rebased/native/vllm_omni/engine/stage_engine_startup.py", line 1599, in launch_diffusion_stage_replica
+ERROR 09-20 03:59:38 [stage_runtime.py:307]     client = initialize_diffusion_stage(
+ERROR 09-20 03:59:38 [stage_runtime.py:307]              ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+ERROR 09-20 03:59:38 [stage_runtime.py:307]   File "/home/kxqandccx/omni-1217-20260919/rebased/native/vllm_omni/engine/stage_init_utils.py", line 2024, in initialize_diffusion_stage
+ERROR 09-20 03:59:38 [stage_runtime.py:307]     return create_diffusion_client(model, od_config, metadata, stage_init_timeout, use_inline)
+ERROR 09-20 03:59:38 [stage_runtime.py:307]            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+ERROR 09-20 03:59:38 [stage_runtime.py:307]   File "/home/kxqandccx/omni-1217-20260919/rebased/native/vllm_omni/diffusion/stage_diffusion_client.py", line 58, in create_diffusion_client
+ERROR 09-20 03:59:38 [stage_runtime.py:307]     return InlineStageDiffusionClient(model, od_config, metadata)
+ERROR 09-20 03:59:38 [stage_runtime.py:307]            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+ERROR 09-20 03:59:38 [stage_runtime.py:307]   File "/home/kxqandccx/omni-1217-20260919/rebased/native/vllm_omni/diffusion/inline_stage_diffusion_client.py", line 70, in __init__
+ERROR 09-20 03:59:38 [stage_runtime.py:307]     self._engine = DiffusionEngine.make_engine(self.od_config)
+ERROR 09-20 03:59:38 [stage_runtime.py:307]                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+ERROR 09-20 03:59:38 [stage_runtime.py:307]   File "/home/kxqandccx/omni-1217-20260919/rebased/native/vllm_omni/diffusion/diffusion_engine.py", line 872, in make_engine
+ERROR 09-20 03:59:38 [stage_runtime.py:307]     engine.run_startup_warmup()
+ERROR 09-20 03:59:38 [stage_runtime.py:307]   File "/home/kxqandccx/omni-1217-20260919/rebased/native/vllm_omni/diffusion/diffusion_engine.py", line 1047, in run_startup_warmup
+ERROR 09-20 03:59:38 [stage_runtime.py:307]     self._dummy_run()
+ERROR 09-20 03:59:38 [stage_runtime.py:307]   File "/home/kxqandccx/omni-1217-20260919/rebased/native/vllm_omni/diffusion/diffusion_engine.py", line 1172, in _dummy_run
+ERROR 09-20 03:59:38 [stage_runtime.py:307]     raise RuntimeError(f"Dummy run failed: {output.error}")
+ERROR 09-20 03:59:38 [stage_runtime.py:307] RuntimeError: Dummy run failed: Ulysses-SP strict mode requires head_cnt divisible by ulysses_degree. query_head_cnt=21, ulysses_degree=2. Try ulysses_degree in [1, 3, 7, 21], or set ulysses_mode='advanced_uaa'.
+ERROR 09-20 03:59:38 [omni_engine_base.py:474] [OmniEngine] Orchestrator thread crashed
+ERROR 09-20 03:59:38 [omni_engine_base.py:474] Traceback (most recent call last):
+ERROR 09-20 03:59:38 [omni_engine_base.py:474]   File "/home/kxqandccx/omni-1217-20260919/rebased/native/vllm_omni/engine/omni_engine_base.py", line 468, in _bootstrap_orchestrator
+ERROR 09-20 03:59:38 [omni_engine_base.py:474]     loop.run_until_complete(_run_orchestrator())
+ERROR 09-20 03:59:38 [omni_engine_base.py:474]   File "/home/kxqandccx/.local/share/uv/python/cpython-3.12.13-linux-x86_64-gnu/lib/python3.12/asyncio/base_events.py", line 691, in run_until_complete
+ERROR 09-20 03:59:38 [omni_engine_base.py:474]     return future.result()
+ERROR 09-20 03:59:38 [omni_engine_base.py:474]            ^^^^^^^^^^^^^^^
+ERROR 09-20 03:59:38 [omni_engine_base.py:474]   File "/home/kxqandccx/omni-1217-20260919/rebased/native/vllm_omni/engine/omni_engine_base.py", line 442, in _run_orchestrator
+ERROR 09-20 03:59:38 [omni_engine_base.py:474]     self._initialize_stages(stage_init_timeout)
+ERROR 09-20 03:59:38 [omni_engine_base.py:474]   File "/home/kxqandccx/omni-1217-20260919/rebased/native/vllm_omni/engine/omni_engine_base.py", line 389, in _initialize_stages
+ERROR 09-20 03:59:38 [omni_engine_base.py:474]     self._runtime.initialize()
+ERROR 09-20 03:59:38 [omni_engine_base.py:474]   File "/home/kxqandccx/omni-1217-20260919/rebased/native/vllm_omni/engine/stage_runtime.py", line 313, in initialize
+ERROR 09-20 03:59:38 [omni_engine_base.py:474]     raise exc
+ERROR 09-20 03:59:38 [omni_engine_base.py:474]   File "/home/kxqandccx/omni-1217-20260919/rebased/native/vllm_omni/engine/stage_runtime.py", line 294, in initialize
+ERROR 09-20 03:59:38 [omni_engine_base.py:474]     initialized_clients = self._initialize_stage_replicas(stage_plans, self._stage_init_timeout)
+ERROR 09-20 03:59:38 [omni_engine_base.py:474]                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+ERROR 09-20 03:59:38 [omni_engine_base.py:474]   File "/home/kxqandccx/omni-1217-20260919/rebased/native/vllm_omni/engine/stage_runtime.py", line 782, in _initialize_stage_replicas
+ERROR 09-20 03:59:38 [omni_engine_base.py:474]     raise primary_exc
+ERROR 09-20 03:59:38 [omni_engine_base.py:474]   File "/home/kxqandccx/omni-1217-20260919/rebased/native/vllm_omni/engine/stage_runtime.py", line 743, in _init_group
+ERROR 09-20 03:59:38 [omni_engine_base.py:474]     client = self._initialize_replica(
+ERROR 09-20 03:59:38 [omni_engine_base.py:474]              ^^^^^^^^^^^^^^^^^^^^^^^^^
+ERROR 09-20 03:59:38 [omni_engine_base.py:474]   File "/home/kxqandccx/omni-1217-20260919/rebased/native/vllm_omni/engine/stage_runtime.py", line 972, in _initialize_replica
+ERROR 09-20 03:59:38 [omni_engine_base.py:474]     return self._initialize_local_diffusion_replica(plan, stage_init_timeout)
+ERROR 09-20 03:59:38 [omni_engine_base.py:474]            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+ERROR 09-20 03:59:38 [omni_engine_base.py:474]   File "/home/kxqandccx/omni-1217-20260919/rebased/native/vllm_omni/engine/stage_runtime.py", line 1095, in _initialize_local_diffusion_replica
+ERROR 09-20 03:59:38 [omni_engine_base.py:474]     client, resources = launch_diffusion_stage_replica(
+ERROR 09-20 03:59:38 [omni_engine_base.py:474]                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+ERROR 09-20 03:59:38 [omni_engine_base.py:474]   File "/home/kxqandccx/omni-1217-20260919/rebased/native/vllm_omni/engine/stage_engine_startup.py", line 1599, in launch_diffusion_stage_replica
+ERROR 09-20 03:59:38 [omni_engine_base.py:474]     client = initialize_diffusion_stage(
+ERROR 09-20 03:59:38 [omni_engine_base.py:474]              ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+ERROR 09-20 03:59:38 [omni_engine_base.py:474]   File "/home/kxqandccx/omni-1217-20260919/rebased/native/vllm_omni/engine/stage_init_utils.py", line 2024, in initialize_diffusion_stage
+ERROR 09-20 03:59:38 [omni_engine_base.py:474]     return create_diffusion_client(model, od_config, metadata, stage_init_timeout, use_inline)
+ERROR 09-20 03:59:38 [omni_engine_base.py:474]            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+ERROR 09-20 03:59:38 [omni_engine_base.py:474]   File "/home/kxqandccx/omni-1217-20260919/rebased/native/vllm_omni/diffusion/stage_diffusion_client.py", line 58, in create_diffusion_client
+ERROR 09-20 03:59:38 [omni_engine_base.py:474]     return InlineStageDiffusionClient(model, od_config, metadata)
+ERROR 09-20 03:59:38 [omni_engine_base.py:474]            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+ERROR 09-20 03:59:38 [omni_engine_base.py:474]   File "/home/kxqandccx/omni-1217-20260919/rebased/native/vllm_omni/diffusion/inline_stage_diffusion_client.py", line 70, in __init__
+ERROR 09-20 03:59:38 [omni_engine_base.py:474]     self._engine = DiffusionEngine.make_engine(self.od_config)
+ERROR 09-20 03:59:38 [omni_engine_base.py:474]                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+ERROR 09-20 03:59:38 [omni_engine_base.py:474]   File "/home/kxqandccx/omni-1217-20260919/rebased/native/vllm_omni/diffusion/diffusion_engine.py", line 872, in make_engine
+ERROR 09-20 03:59:38 [omni_engine_base.py:474]     engine.run_startup_warmup()
+ERROR 09-20 03:59:38 [omni_engine_base.py:474]   File "/home/kxqandccx/omni-1217-20260919/rebased/native/vllm_omni/diffusion/diffusion_engine.py", line 1047, in run_startup_warmup
+ERROR 09-20 03:59:38 [omni_engine_base.py:474]     self._dummy_run()
+ERROR 09-20 03:59:38 [omni_engine_base.py:474]   File "/home/kxqandccx/omni-1217-20260919/rebased/native/vllm_omni/diffusion/diffusion_engine.py", line 1172, in _dummy_run
+ERROR 09-20 03:59:38 [omni_engine_base.py:474]     raise RuntimeError(f"Dummy run failed: {output.error}")
+ERROR 09-20 03:59:38 [omni_engine_base.py:474] RuntimeError: Dummy run failed: Ulysses-SP strict mode requires head_cnt divisible by ulysses_degree. query_head_cnt=21, ulysses_degree=2. Try ulysses_degree in [1, 3, 7, 21], or set ulysses_mode='advanced_uaa'.
+INFO 09-20 03:59:38 [omni_engine_base.py:1144] [OmniEngine] Shutting down Orchestrator
+Exception in thread orchestrator:
+Traceback (most recent call last):
+  File "/home/kxqandccx/.local/share/uv/python/cpython-3.12.13-linux-x86_64-gnu/lib/python3.12/threading.py", line 1075, in _bootstrap_inner
+    self.run()
+  File "/home/kxqandccx/.local/share/uv/python/cpython-3.12.13-linux-x86_64-gnu/lib/python3.12/threading.py", line 1012, in run
+    self._target(*self._args, **self._kwargs)
+  File "/home/kxqandccx/omni-1217-20260919/rebased/native/vllm_omni/engine/omni_engine_base.py", line 468, in _bootstrap_orchestrator
+    loop.run_until_complete(_run_orchestrator())
+  File "/home/kxqandccx/.local/share/uv/python/cpython-3.12.13-linux-x86_64-gnu/lib/python3.12/asyncio/base_events.py", line 691, in run_until_complete
+    return future.result()
+           ^^^^^^^^^^^^^^^
+  File "/home/kxqandccx/omni-1217-20260919/rebased/native/vllm_omni/engine/omni_engine_base.py", line 442, in _run_orchestrator
+    self._initialize_stages(stage_init_timeout)
+  File "/home/kxqandccx/omni-1217-20260919/rebased/native/vllm_omni/engine/omni_engine_base.py", line 389, in _initialize_stages
+    self._runtime.initialize()
+  File "/home/kxqandccx/omni-1217-20260919/rebased/native/vllm_omni/engine/stage_runtime.py", line 313, in initialize
+    raise exc
+  File "/home/kxqandccx/omni-1217-20260919/rebased/native/vllm_omni/engine/stage_runtime.py", line 294, in initialize
+    initialized_clients = self._initialize_stage_replicas(stage_plans, self._stage_init_timeout)
+                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/kxqandccx/omni-1217-20260919/rebased/native/vllm_omni/engine/stage_runtime.py", line 782, in _initialize_stage_replicas
+    raise primary_exc
+  File "/home/kxqandccx/omni-1217-20260919/rebased/native/vllm_omni/engine/stage_runtime.py", line 743, in _init_group
+    client = self._initialize_replica(
+             ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/kxqandccx/omni-1217-20260919/rebased/native/vllm_omni/engine/stage_runtime.py", line 972, in _initialize_replica
+    return self._initialize_local_diffusion_replica(plan, stage_init_timeout)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/kxqandccx/omni-1217-20260919/rebased/native/vllm_omni/engine/stage_runtime.py", line 1095, in _initialize_local_diffusion_replica
+    client, resources = launch_diffusion_stage_replica(
+                        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/kxqandccx/omni-1217-20260919/rebased/native/vllm_omni/engine/stage_engine_startup.py", line 1599, in launch_diffusion_stage_replica
+    client = initialize_diffusion_stage(
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/kxqandccx/omni-1217-20260919/rebased/native/vllm_omni/engine/stage_init_utils.py", line 2024, in initialize_diffusion_stage
+    return create_diffusion_client(model, od_config, metadata, stage_init_timeout, use_inline)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/kxqandccx/omni-1217-20260919/rebased/native/vllm_omni/diffusion/stage_diffusion_client.py", line 58, in create_diffusion_client
+    return InlineStageDiffusionClient(model, od_config, metadata)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/kxqandccx/omni-1217-20260919/rebased/native/vllm_omni/diffusion/inline_stage_diffusion_client.py", line 70, in __init__
+    self._engine = DiffusionEngine.make_engine(self.od_config)
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/kxqandccx/omni-1217-20260919/rebased/native/vllm_omni/diffusion/diffusion_engine.py", line 872, in make_engine
+    engine.run_startup_warmup()
+  File "/home/kxqandccx/omni-1217-20260919/rebased/native/vllm_omni/diffusion/diffusion_engine.py", line 1047, in run_startup_warmup
+    self._dummy_run()
+  File "/home/kxqandccx/omni-1217-20260919/rebased/native/vllm_omni/diffusion/diffusion_engine.py", line 1172, in _dummy_run
+    raise RuntimeError(f"Dummy run failed: {output.error}")
+RuntimeError: Dummy run failed: Ulysses-SP strict mode requires head_cnt divisible by ulysses_degree. query_head_cnt=21, ulysses_degree=2. Try ulysses_degree in [1, 3, 7, 21], or set ulysses_mode='advanced_uaa'.
+Traceback (most recent call last):
+  File "/home/kxqandccx/.local/share/uv/python/cpython-3.12.13-linux-x86_64-gnu/lib/python3.12/threading.py", line 1075, in _bootstrap_inner
+    self.run()
+  File "/home/kxqandccx/.local/share/uv/python/cpython-3.12.13-linux-x86_64-gnu/lib/python3.12/threading.py", line 1012, in run
+    self._target(*self._args, **self._kwargs)
+  File "/home/kxqandccx/omni-1217-20260919/rebased/native/vllm_omni/engine/omni_engine_base.py", line 468, in _bootstrap_orchestrator
+    loop.run_until_complete(_run_orchestrator())
+  File "/home/kxqandccx/.local/share/uv/python/cpython-3.12.13-linux-x86_64-gnu/lib/python3.12/asyncio/base_events.py", line 691, in run_until_complete
+    return future.result()
+           ^^^^^^^^^^^^^^^
+  File "/home/kxqandccx/omni-1217-20260919/rebased/native/vllm_omni/engine/omni_engine_base.py", line 442, in _run_orchestrator
+    self._initialize_stages(stage_init_timeout)
+  File "/home/kxqandccx/omni-1217-20260919/rebased/native/vllm_omni/engine/omni_engine_base.py", line 389, in _initialize_stages
+    self._runtime.initialize()
+  File "/home/kxqandccx/omni-1217-20260919/rebased/native/vllm_omni/engine/stage_runtime.py", line 313, in initialize
+    raise exc
+  File "/home/kxqandccx/omni-1217-20260919/rebased/native/vllm_omni/engine/stage_runtime.py", line 294, in initialize
+    initialized_clients = self._initialize_stage_replicas(stage_plans, self._stage_init_timeout)
+                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/kxqandccx/omni-1217-20260919/rebased/native/vllm_omni/engine/stage_runtime.py", line 782, in _initialize_stage_replicas
+    raise primary_exc
+  File "/home/kxqandccx/omni-1217-20260919/rebased/native/vllm_omni/engine/stage_runtime.py", line 743, in _init_group
+    client = self._initialize_replica(
+             ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/kxqandccx/omni-1217-20260919/rebased/native/vllm_omni/engine/stage_runtime.py", line 972, in _initialize_replica
+    return self._initialize_local_diffusion_replica(plan, stage_init_timeout)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/kxqandccx/omni-1217-20260919/rebased/native/vllm_omni/engine/stage_runtime.py", line 1095, in _initialize_local_diffusion_replica
+    client, resources = launch_diffusion_stage_replica(
+                        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/kxqandccx/omni-1217-20260919/rebased/native/vllm_omni/engine/stage_engine_startup.py", line 1599, in launch_diffusion_stage_replica
+    client = initialize_diffusion_stage(
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/kxqandccx/omni-1217-20260919/rebased/native/vllm_omni/engine/stage_init_utils.py", line 2024, in initialize_diffusion_stage
+    return create_diffusion_client(model, od_config, metadata, stage_init_timeout, use_inline)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/kxqandccx/omni-1217-20260919/rebased/native/vllm_omni/diffusion/stage_diffusion_client.py", line 58, in create_diffusion_client
+    return InlineStageDiffusionClient(model, od_config, metadata)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/kxqandccx/omni-1217-20260919/rebased/native/vllm_omni/diffusion/inline_stage_diffusion_client.py", line 70, in __init__
+    self._engine = DiffusionEngine.make_engine(self.od_config)
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/kxqandccx/omni-1217-20260919/rebased/native/vllm_omni/diffusion/diffusion_engine.py", line 872, in make_engine
+    engine.run_startup_warmup()
+  File "/home/kxqandccx/omni-1217-20260919/rebased/native/vllm_omni/diffusion/diffusion_engine.py", line 1047, in run_startup_warmup
+    self._dummy_run()
+  File "/home/kxqandccx/omni-1217-20260919/rebased/native/vllm_omni/diffusion/diffusion_engine.py", line 1172, in _dummy_run
+    raise RuntimeError(f"Dummy run failed: {output.error}")
+RuntimeError: Dummy run failed: Ulysses-SP strict mode requires head_cnt divisible by ulysses_degree. query_head_cnt=21, ulysses_degree=2. Try ulysses_degree in [1, 3, 7, 21], or set ulysses_mode='advanced_uaa'.
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/home/kxqandccx/omni-1217-20260919/benchmark_omnigen2_vae.py", line 81, in <module>
+    main()
+  File "/home/kxqandccx/omni-1217-20260919/benchmark_omnigen2_vae.py", line 25, in main
+    engine = Omni(
+             ^^^^^
+  File "/home/kxqandccx/omni-1217-20260919/rebased/native/vllm_omni/entrypoints/omni_base.py", line 215, in __init__
+    self.engine = self._create_engine(
+                  ^^^^^^^^^^^^^^^^^^^^
+  File "/home/kxqandccx/omni-1217-20260919/rebased/native/vllm_omni/entrypoints/omni.py", line 33, in _create_engine
+    return AsyncOmniEngine(**engine_kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/kxqandccx/omni-1217-20260919/rebased/native/vllm_omni/engine/omni_engine_base.py", line 327, in __init__
+    self._wait_for_orchestrator_init(startup_future, startup_timeout)
+  File "/home/kxqandccx/omni-1217-20260919/rebased/native/vllm_omni/engine/omni_engine_base.py", line 526, in _wait_for_orchestrator_init
+    startup_future.result(
+  File "/home/kxqandccx/.local/share/uv/python/cpython-3.12.13-linux-x86_64-gnu/lib/python3.12/concurrent/futures/_base.py", line 456, in result
+    return self.__get_result()
+           ^^^^^^^^^^^^^^^^^^^
+  File "/home/kxqandccx/.local/share/uv/python/cpython-3.12.13-linux-x86_64-gnu/lib/python3.12/concurrent/futures/_base.py", line 401, in __get_result
+    raise self._exception
+RuntimeError: Orchestrator initialization failed: Dummy run failed: Ulysses-SP strict mode requires head_cnt divisible by ulysses_degree. query_head_cnt=21, ulysses_degree=2. Try ulysses_degree in [1, 3, 7, 21], or set ulysses_mode='advanced_uaa'.
