@@ -85,6 +85,35 @@ config = build_quant_config({
 })
 ```
 
+### Wan2.2 UMT5 encoder
+
+Opt in explicitly with a BF16/FP16 checkpoint:
+
+```python
+from vllm_omni import Omni
+
+omni = Omni(
+    model="Wan-AI/Wan2.2-TI2V-5B-Diffusers",
+    quantization_config={"text_encoder": {"method": "fp8"}},
+)
+```
+
+This covers the T2V/TI2V and I2V pipelines and the inherited VACE path. The separate S2V encoder path is not included.
+A global `quantization="fp8"` does not enable this encoder path.
+Only dynamic online FP8 is accepted; serialized FP8 and static activation
+scales are not supported here.
+
+Attention projections and FFN input projections use vLLM FP8 linear layers.
+Embeddings, relative position bias, normalization and FFN `wo` retain their
+original precision. Hugging Face casts activations to `wo.weight.dtype`, so
+quantizing `wo` would introduce an unscaled FP8 activation cast. `ignored_layers`
+uses full prefixes such as `text_encoder.encoder.block.0.layer.0.SelfAttention.q`.
+
+The encoder stays replicated, and its original checkpoint is loaded before
+conversion. This does not reduce checkpoint size or guarantee lower peak load
+memory. Validate generated output against the unquantized baseline for your
+model and workload before deployment.
+
 ## Parameters
 
 | Parameter | Methods | Description |
