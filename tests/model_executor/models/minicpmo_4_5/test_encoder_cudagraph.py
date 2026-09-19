@@ -103,7 +103,7 @@ def test_non_cuda_platform_does_not_create_encoder_manager(monkeypatch) -> None:
     mixin = _select_encoder_cudagraph_mixin()
     assert mixin is _NoEncoderCudaGraph
 
-    class NativeEncoderModel(torch.nn.Module, mixin):
+    class NativeEncoderModel(torch.nn.Module, _NoEncoderCudaGraph):
         pass
 
     model = NativeEncoderModel()
@@ -131,15 +131,6 @@ def test_default_budget_range_batches_more_than_one_item() -> None:
     min_budget, max_budget = model.get_encoder_cudagraph_budget_range(_EncoderTestVllmConfig())
     assert 0 < min_budget <= max_budget
     assert max_budget // min_budget > 1
-
-
-@pytest.mark.parametrize("budget,expected", [(8, (1, 2)), (16, (1, 2, 4)), (64, (1, 2, 4, 8, 16))])
-def test_slice_capture_tiers_follow_output_budget(budget, expected) -> None:
-    model = _EncoderModel().eval()
-    model.vllm_config = _EncoderTestVllmConfig(
-        compilation_config=CompilationConfig(encoder_cudagraph_token_budgets=[budget])
-    )
-    assert model._encoder_slice_caps() == expected
 
 
 def test_duplex_audio_bypasses_offline_graph_protocol_when_enabled(monkeypatch) -> None:
@@ -275,9 +266,9 @@ def test_protocol_buffers_match_encoder_entry_point(modality: str) -> None:
     }
     selected = model.select_encoder_cudagraph_items(kwargs, [0, 1])
     axes = selected.pop(_AXIS_KEY)
-    assert axes[0][1] == 4
+    assert axes[0] == ("vision", 1024)
     capture = model.prepare_encoder_cudagraph_capture_inputs(
-        128, 2, 2, torch.device("cpu"), torch.float32, "default", axes
+        16, 2, 2, torch.device("cpu"), torch.float32, "default", axes
     )
     replay = model.prepare_encoder_cudagraph_replay_buffers(selected, 2, 2)
     for key, buffer in capture.values.items():
@@ -288,7 +279,7 @@ def test_protocol_buffers_match_encoder_entry_point(modality: str) -> None:
         expected = model.get_multimodal_embeddings(**kwargs)
         output = model.encoder_cudagraph_forward(capture.values)
     specs = model.get_encoder_cudagraph_item_specs(kwargs)
-    dest = {}
+    dest: dict[int, torch.Tensor] = {}
     model.postprocess_encoder_output(
         {"default": output}, [0, 1], [spec.output_tokens for spec in specs], dest, batch_mm_kwargs=selected
     )
@@ -408,7 +399,7 @@ def test_over_budget_selection_keeps_the_manager_eager_path() -> None:
     sizes = [torch.tensor([[2, 2]] * 7)]
     kwargs = {"pixel_values": [[torch.randn(3, 2, 4)] * 7], "tgt_sizes": sizes}
     selected = model.select_encoder_cudagraph_items(kwargs, [0])
-    assert selected[_AXIS_KEY][0][1] == 7
+    assert model.get_encoder_cudagraph_item_specs(selected)[0].output_tokens == 28
 
 
 def test_unpadded_bf16_replay_matches_eager(monkeypatch) -> None:
@@ -427,9 +418,9 @@ def test_unpadded_bf16_replay_matches_eager(monkeypatch) -> None:
     kwargs = {"pixel_values": [[torch.randn(3, 2, 8, dtype=dtype)]], "tgt_sizes": [torch.tensor([[1, 4]])]}
     selected = model.select_encoder_cudagraph_items(kwargs, [0])
     axes = selected.pop(_AXIS_KEY)
-    assert axes[0] == ("vision", 1, 4), "fixture must be unpadded: extent == real patch count"
+    assert axes[0] == ("vision", 4), "fixture must be unpadded: extent == real patch count"
 
-    capture = model.prepare_encoder_cudagraph_capture_inputs(64, 1, 1, torch.device("cpu"), dtype, "default", axes)
+    capture = model.prepare_encoder_cudagraph_capture_inputs(4, 1, 1, torch.device("cpu"), dtype, "default", axes)
     replay = model.prepare_encoder_cudagraph_replay_buffers(selected, 1, 1)
     for key, buffer in capture.values.items():
         buffer.zero_()
@@ -454,3 +445,88 @@ def test_resampler_metadata_extends_cache_before_forward(monkeypatch) -> None:
         actual = resampler(hidden, pos_embed=positions, key_padding_mask=mask)
     assert tuple(resampler.max_size) == (3, 4)
     torch.testing.assert_close(actual, expected, rtol=0, atol=0)
+
+
+@pytest.mark.skipif("capture_axes" not in EncoderCudaGraphConfig.__dataclass_fields__, reason="Requires capture_axes")
+def test_default_capture_keys_have_one_slice_capacity_per_budget(monkeypatch):
+    from vllm.v1.worker.encoder_cudagraph import EncoderCudaGraphManager
+
+    model = _EncoderModel().eval()
+    model.config.query_num = 64
+    mm_config = MultiModalConfig()
+    model.multimodal_config = mm_config
+    config = _EncoderTestVllmConfig(
+        model_config=_EncoderTestModelConfig(multimodal_config=mm_config, max_model_len=512),
+        scheduler_config=_EncoderTestSchedulerConfig(max_num_batched_tokens=512),
+    )
+    model.vllm_config = config
+    manager = EncoderCudaGraphManager(config, torch.device("cpu"), torch.float32, model)
+    captured = {}
+
+    def record_capture(token_budget, path, axis_keys):
+        inputs = model.prepare_encoder_cudagraph_capture_inputs(
+            token_budget,
+            manager.max_batch_size,
+            manager.max_frames_per_batch,
+            torch.device("cpu"),
+            torch.float32,
+            path,
+            axis_keys,
+        )
+        captured[token_budget, axis_keys] = inputs.values["pixels"].shape[0]
+
+    monkeypatch.setattr(manager, "_capture_budget_graph", record_capture)
+    manager.capture(None)
+    assert captured == {
+        (budget, (("vision", patches),)): budget // model.config.query_num
+        for budget in (64, 128, 256)
+        for patches in (1024, 1152, 2048)
+    }
+    assert manager.get_num_graphs_to_capture() == 9
+
+
+@pytest.mark.skipif(
+    "capture_axes" not in EncoderCudaGraphConfig.__dataclass_fields__, reason="Requires encoder graph manager"
+)
+def test_flag_on_image_embeds_bypasses_manager_in_runner(monkeypatch):
+    from contextlib import nullcontext
+    from types import SimpleNamespace
+
+    from vllm.v1.worker import gpu_model_runner
+
+    from vllm_omni.worker.gpu_model_runner import OmniGPUModelRunner
+
+    embeddings = torch.randn(1, 4, 16)
+    model = _EncoderModel().eval()
+    runner = OmniGPUModelRunner.__new__(OmniGPUModelRunner)
+    runner.model = model
+    runner.compilation_config = CompilationConfig(cudagraph_mm_encoder=True)
+    runner.encoder_cudagraph_manager = SimpleNamespace(
+        supports_modality=lambda modality: modality in ("image", "video"),
+        execute=lambda kwargs: pytest.fail("precomputed embeddings entered graph manager"),
+    )
+    data = {"image_embeds": embeddings}
+    runner.requests = {
+        "req": SimpleNamespace(
+            mm_features=[SimpleNamespace(data=data, modality="image", identifier="image-0", mm_position=None)]
+        )
+    }
+    runner.observability_config = None
+    runner.lora_config = None
+    runner.is_multimodal_pruning_enabled = False
+    runner.requires_sequential_video_encoding = False
+    runner.device = torch.device("cpu")
+    runner.encoder_cache = {}
+    runner.timed_encoder_operation = lambda *args: nullcontext()
+    runner.maybe_save_ec_to_connector = lambda *args: None
+    monkeypatch.setattr(
+        gpu_model_runner,
+        "group_and_batch_mm_kwargs",
+        lambda inputs, **kwargs: iter((modality, 1, item) for modality, item in inputs),
+    )
+    scheduled = SimpleNamespace(
+        scheduled_encoder_inputs={"req": [0]}, ec_manager_metadata=None, free_encoder_mm_hashes=[]
+    )
+    with torch.no_grad():
+        runner._execute_mm_encoder(scheduled)
+    torch.testing.assert_close(runner.encoder_cache["image-0"], embeddings[0], rtol=0, atol=0)
