@@ -283,7 +283,7 @@ class Wan22I2VPipeline(
             torch_dtype=dtype,
         ).to(self.device)
 
-        prepare_t5_fp8(self.text_encoder, od_config.quantization_config, "text_encoder")
+        prepare_t5_fp8(self.text_encoder, od_config.quantization_config, "text_encoder", quantize_attention=False)
 
         if self.has_image_encoder:
             self.image_processor = from_pretrained_with_prefetch(

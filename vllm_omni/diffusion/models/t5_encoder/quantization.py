@@ -22,6 +22,8 @@ def prepare_t5_fp8(
     encoder: T5EncoderModel | UMT5EncoderModel,
     quant_config: QuantizationConfig | None,
     component: str,
+    *,
+    quantize_attention: bool = True,
 ) -> int:
     """Adapt loaded projections; the diffusion loader finalizes FP8 weights.
 
@@ -45,6 +47,8 @@ def prepare_t5_fp8(
     replaced = 0
     for name, layer in list(blocks.named_modules()):
         if not isinstance(layer, nn.Linear) or name.endswith(".wo"):
+            continue
+        if not quantize_attention and ".SelfAttention." in name:
             continue
         dtype = layer.weight.dtype if layer.weight.dtype in (torch.float16, torch.bfloat16) else torch.bfloat16
         with torch.device(layer.weight.device), set_default_torch_dtype(dtype):
