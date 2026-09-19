@@ -1,0 +1,1688 @@
+{
+  "repo": "DownFlow/Z-Image-Turbo-Fuli-LoRA",
+  "revision": "b1216f23d98df471e7b7c12dc662dae958b2c187",
+  "bytes": 284151432,
+  "sha256": "75c8f4c3c5e11f4f0782d4d472a24bfb5954dc1744150c3eace4297f88b8e78d",
+  "config": {
+    "alora_invocation_tokens": null,
+    "alpha_pattern": {},
+    "arrow_config": null,
+    "auto_mapping": {
+      "base_model_class": "ZImageTransformer2DModel",
+      "parent_library": "diffusers.models.transformers.transformer_z_image"
+    },
+    "base_model_name_or_path": "Tongyi-MAI/Z-Image-Turbo",
+    "bias": "none",
+    "corda_config": null,
+    "ensure_weight_tying": false,
+    "eva_config": null,
+    "exclude_modules": null,
+    "fan_in_fan_out": false,
+    "inference_mode": true,
+    "init_lora_weights": true,
+    "layer_replication": null,
+    "layers_pattern": null,
+    "layers_to_transform": null,
+    "loftq_config": {},
+    "lora_alpha": 32.0,
+    "lora_bias": false,
+    "lora_dropout": 0.05,
+    "megatron_config": null,
+    "megatron_core": "megatron.core",
+    "modules_to_save": null,
+    "peft_type": "LORA",
+    "peft_version": "0.18.1",
+    "qalora_group_size": 16,
+    "r": 32,
+    "rank_pattern": {},
+    "revision": null,
+    "target_modules": [
+      "to_v",
+      "w2",
+      "w1",
+      "w3",
+      "to_q",
+      "to_k"
+    ],
+    "target_parameters": null,
+    "task_type": "FEATURE_EXTRACTION",
+    "trainable_token_indices": null,
+    "use_dora": false,
+    "use_qalora": false,
+    "use_rslora": false
+  },
+  "tensor_shapes": {
+    "base_model.model.context_refiner.0.attention.to_k.lora_A.weight": [
+      32,
+      3840
+    ],
+    "base_model.model.context_refiner.0.attention.to_k.lora_B.weight": [
+      3840,
+      32
+    ],
+    "base_model.model.context_refiner.0.attention.to_q.lora_A.weight": [
+      32,
+      3840
+    ],
+    "base_model.model.context_refiner.0.attention.to_q.lora_B.weight": [
+      3840,
+      32
+    ],
+    "base_model.model.context_refiner.0.attention.to_v.lora_A.weight": [
+      32,
+      3840
+    ],
+    "base_model.model.context_refiner.0.attention.to_v.lora_B.weight": [
+      3840,
+      32
+    ],
+    "base_model.model.context_refiner.0.feed_forward.w1.lora_A.weight": [
+      32,
+      3840
+    ],
+    "base_model.model.context_refiner.0.feed_forward.w1.lora_B.weight": [
+      10240,
+      32
+    ],
+    "base_model.model.context_refiner.0.feed_forward.w2.lora_A.weight": [
+      32,
+      10240
+    ],
+    "base_model.model.context_refiner.0.feed_forward.w2.lora_B.weight": [
+      3840,
+      32
+    ],
+    "base_model.model.context_refiner.0.feed_forward.w3.lora_A.weight": [
+      32,
+      3840
+    ],
+    "base_model.model.context_refiner.0.feed_forward.w3.lora_B.weight": [
+      10240,
+      32
+    ],
+    "base_model.model.context_refiner.1.attention.to_k.lora_A.weight": [
+      32,
+      3840
+    ],
+    "base_model.model.context_refiner.1.attention.to_k.lora_B.weight": [
+      3840,
+      32
+    ],
+    "base_model.model.context_refiner.1.attention.to_q.lora_A.weight": [
+      32,
+      3840
+    ],
+    "base_model.model.context_refiner.1.attention.to_q.lora_B.weight": [
+      3840,
+      32
+    ],
+    "base_model.model.context_refiner.1.attention.to_v.lora_A.weight": [
+      32,
+      3840
+    ],
+    "base_model.model.context_refiner.1.attention.to_v.lora_B.weight": [
+      3840,
+      32
+    ],
+    "base_model.model.context_refiner.1.feed_forward.w1.lora_A.weight": [
+      32,
+      3840
+    ],
+    "base_model.model.context_refiner.1.feed_forward.w1.lora_B.weight": [
+      10240,
+      32
+    ],
+    "base_model.model.context_refiner.1.feed_forward.w2.lora_A.weight": [
+      32,
+      10240
+    ],
+    "base_model.model.context_refiner.1.feed_forward.w2.lora_B.weight": [
+      3840,
+      32
+    ],
+    "base_model.model.context_refiner.1.feed_forward.w3.lora_A.weight": [
+      32,
+      3840
+    ],
+    "base_model.model.context_refiner.1.feed_forward.w3.lora_B.weight": [
+      10240,
+      32
+    ],
+    "base_model.model.layers.0.attention.to_k.lora_A.weight": [
+      32,
+      3840
+    ],
+    "base_model.model.layers.0.attention.to_k.lora_B.weight": [
+      3840,
+      32
+    ],
+    "base_model.model.layers.0.attention.to_q.lora_A.weight": [
+      32,
+      3840
+    ],
+    "base_model.model.layers.0.attention.to_q.lora_B.weight": [
+      3840,
+      32
+    ],
+    "base_model.model.layers.0.attention.to_v.lora_A.weight": [
+      32,
+      3840
+    ],
+    "base_model.model.layers.0.attention.to_v.lora_B.weight": [
+      3840,
+      32
+    ],
+    "base_model.model.layers.0.feed_forward.w1.lora_A.weight": [
+      32,
+      3840
+    ],
+    "base_model.model.layers.0.feed_forward.w1.lora_B.weight": [
+      10240,
+      32
+    ],
+    "base_model.model.layers.0.feed_forward.w2.lora_A.weight": [
+      32,
+      10240
+    ],
+    "base_model.model.layers.0.feed_forward.w2.lora_B.weight": [
+      3840,
+      32
+    ],
+    "base_model.model.layers.0.feed_forward.w3.lora_A.weight": [
+      32,
+      3840
+    ],
+    "base_model.model.layers.0.feed_forward.w3.lora_B.weight": [
+      10240,
+      32
+    ],
+    "base_model.model.layers.1.attention.to_k.lora_A.weight": [
+      32,
+      3840
+    ],
+    "base_model.model.layers.1.attention.to_k.lora_B.weight": [
+      3840,
+      32
+    ],
+    "base_model.model.layers.1.attention.to_q.lora_A.weight": [
+      32,
+      3840
+    ],
+    "base_model.model.layers.1.attention.to_q.lora_B.weight": [
+      3840,
+      32
+    ],
+    "base_model.model.layers.1.attention.to_v.lora_A.weight": [
+      32,
+      3840
+    ],
+    "base_model.model.layers.1.attention.to_v.lora_B.weight": [
+      3840,
+      32
+    ],
+    "base_model.model.layers.1.feed_forward.w1.lora_A.weight": [
+      32,
+      3840
+    ],
+    "base_model.model.layers.1.feed_forward.w1.lora_B.weight": [
+      10240,
+      32
+    ],
+    "base_model.model.layers.1.feed_forward.w2.lora_A.weight": [
+      32,
+      10240
+    ],
+    "base_model.model.layers.1.feed_forward.w2.lora_B.weight": [
+      3840,
+      32
+    ],
+    "base_model.model.layers.1.feed_forward.w3.lora_A.weight": [
+      32,
+      3840
+    ],
+    "base_model.model.layers.1.feed_forward.w3.lora_B.weight": [
+      10240,
+      32
+    ],
+    "base_model.model.layers.10.attention.to_k.lora_A.weight": [
+      32,
+      3840
+    ],
+    "base_model.model.layers.10.attention.to_k.lora_B.weight": [
+      3840,
+      32
+    ],
+    "base_model.model.layers.10.attention.to_q.lora_A.weight": [
+      32,
+      3840
+    ],
+    "base_model.model.layers.10.attention.to_q.lora_B.weight": [
+      3840,
+      32
+    ],
+    "base_model.model.layers.10.attention.to_v.lora_A.weight": [
+      32,
+      3840
+    ],
+    "base_model.model.layers.10.attention.to_v.lora_B.weight": [
+      3840,
+      32
+    ],
+    "base_model.model.layers.10.feed_forward.w1.lora_A.weight": [
+      32,
+      3840
+    ],
+    "base_model.model.layers.10.feed_forward.w1.lora_B.weight": [
+      10240,
+      32
+    ],
+    "base_model.model.layers.10.feed_forward.w2.lora_A.weight": [
+      32,
+      10240
+    ],
+    "base_model.model.layers.10.feed_forward.w2.lora_B.weight": [
+      3840,
+      32
+    ],
+    "base_model.model.layers.10.feed_forward.w3.lora_A.weight": [
+      32,
+      3840
+    ],
+    "base_model.model.layers.10.feed_forward.w3.lora_B.weight": [
+      10240,
+      32
+    ],
+    "base_model.model.layers.11.attention.to_k.lora_A.weight": [
+      32,
+      3840
+    ],
+    "base_model.model.layers.11.attention.to_k.lora_B.weight": [
+      3840,
+      32
+    ],
+    "base_model.model.layers.11.attention.to_q.lora_A.weight": [
+      32,
+      3840
+    ],
+    "base_model.model.layers.11.attention.to_q.lora_B.weight": [
+      3840,
+      32
+    ],
+    "base_model.model.layers.11.attention.to_v.lora_A.weight": [
+      32,
+      3840
+    ],
+    "base_model.model.layers.11.attention.to_v.lora_B.weight": [
+      3840,
+      32
+    ],
+    "base_model.model.layers.11.feed_forward.w1.lora_A.weight": [
+      32,
+      3840
+    ],
+    "base_model.model.layers.11.feed_forward.w1.lora_B.weight": [
+      10240,
+      32
+    ],
+    "base_model.model.layers.11.feed_forward.w2.lora_A.weight": [
+      32,
+      10240
+    ],
+    "base_model.model.layers.11.feed_forward.w2.lora_B.weight": [
+      3840,
+      32
+    ],
+    "base_model.model.layers.11.feed_forward.w3.lora_A.weight": [
+      32,
+      3840
+    ],
+    "base_model.model.layers.11.feed_forward.w3.lora_B.weight": [
+      10240,
+      32
+    ],
+    "base_model.model.layers.12.attention.to_k.lora_A.weight": [
+      32,
+      3840
+    ],
+    "base_model.model.layers.12.attention.to_k.lora_B.weight": [
+      3840,
+      32
+    ],
+    "base_model.model.layers.12.attention.to_q.lora_A.weight": [
+      32,
+      3840
+    ],
+    "base_model.model.layers.12.attention.to_q.lora_B.weight": [
+      3840,
+      32
+    ],
+    "base_model.model.layers.12.attention.to_v.lora_A.weight": [
+      32,
+      3840
+    ],
+    "base_model.model.layers.12.attention.to_v.lora_B.weight": [
+      3840,
+      32
+    ],
+    "base_model.model.layers.12.feed_forward.w1.lora_A.weight": [
+      32,
+      3840
+    ],
+    "base_model.model.layers.12.feed_forward.w1.lora_B.weight": [
+      10240,
+      32
+    ],
+    "base_model.model.layers.12.feed_forward.w2.lora_A.weight": [
+      32,
+      10240
+    ],
+    "base_model.model.layers.12.feed_forward.w2.lora_B.weight": [
+      3840,
+      32
+    ],
+    "base_model.model.layers.12.feed_forward.w3.lora_A.weight": [
+      32,
+      3840
+    ],
+    "base_model.model.layers.12.feed_forward.w3.lora_B.weight": [
+      10240,
+      32
+    ],
+    "base_model.model.layers.13.attention.to_k.lora_A.weight": [
+      32,
+      3840
+    ],
+    "base_model.model.layers.13.attention.to_k.lora_B.weight": [
+      3840,
+      32
+    ],
+    "base_model.model.layers.13.attention.to_q.lora_A.weight": [
+      32,
+      3840
+    ],
+    "base_model.model.layers.13.attention.to_q.lora_B.weight": [
+      3840,
+      32
+    ],
+    "base_model.model.layers.13.attention.to_v.lora_A.weight": [
+      32,
+      3840
+    ],
+    "base_model.model.layers.13.attention.to_v.lora_B.weight": [
+      3840,
+      32
+    ],
+    "base_model.model.layers.13.feed_forward.w1.lora_A.weight": [
+      32,
+      3840
+    ],
+    "base_model.model.layers.13.feed_forward.w1.lora_B.weight": [
+      10240,
+      32
+    ],
+    "base_model.model.layers.13.feed_forward.w2.lora_A.weight": [
+      32,
+      10240
+    ],
+    "base_model.model.layers.13.feed_forward.w2.lora_B.weight": [
+      3840,
+      32
+    ],
+    "base_model.model.layers.13.feed_forward.w3.lora_A.weight": [
+      32,
+      3840
+    ],
+    "base_model.model.layers.13.feed_forward.w3.lora_B.weight": [
+      10240,
+      32
+    ],
+    "base_model.model.layers.14.attention.to_k.lora_A.weight": [
+      32,
+      3840
+    ],
+    "base_model.model.layers.14.attention.to_k.lora_B.weight": [
+      3840,
+      32
+    ],
+    "base_model.model.layers.14.attention.to_q.lora_A.weight": [
+      32,
+      3840
+    ],
+    "base_model.model.layers.14.attention.to_q.lora_B.weight": [
+      3840,
+      32
+    ],
+    "base_model.model.layers.14.attention.to_v.lora_A.weight": [
+      32,
+      3840
+    ],
+    "base_model.model.layers.14.attention.to_v.lora_B.weight": [
+      3840,
+      32
+    ],
+    "base_model.model.layers.14.feed_forward.w1.lora_A.weight": [
+      32,
+      3840
+    ],
+    "base_model.model.layers.14.feed_forward.w1.lora_B.weight": [
+      10240,
+      32
+    ],
+    "base_model.model.layers.14.feed_forward.w2.lora_A.weight": [
+      32,
+      10240
+    ],
+    "base_model.model.layers.14.feed_forward.w2.lora_B.weight": [
+      3840,
+      32
+    ],
+    "base_model.model.layers.14.feed_forward.w3.lora_A.weight": [
+      32,
+      3840
+    ],
+    "base_model.model.layers.14.feed_forward.w3.lora_B.weight": [
+      10240,
+      32
+    ],
+    "base_model.model.layers.15.attention.to_k.lora_A.weight": [
+      32,
+      3840
+    ],
+    "base_model.model.layers.15.attention.to_k.lora_B.weight": [
+      3840,
+      32
+    ],
+    "base_model.model.layers.15.attention.to_q.lora_A.weight": [
+      32,
+      3840
+    ],
+    "base_model.model.layers.15.attention.to_q.lora_B.weight": [
+      3840,
+      32
+    ],
+    "base_model.model.layers.15.attention.to_v.lora_A.weight": [
+      32,
+      3840
+    ],
+    "base_model.model.layers.15.attention.to_v.lora_B.weight": [
+      3840,
+      32
+    ],
+    "base_model.model.layers.15.feed_forward.w1.lora_A.weight": [
+      32,
+      3840
+    ],
+    "base_model.model.layers.15.feed_forward.w1.lora_B.weight": [
+      10240,
+      32
+    ],
+    "base_model.model.layers.15.feed_forward.w2.lora_A.weight": [
+      32,
+      10240
+    ],
+    "base_model.model.layers.15.feed_forward.w2.lora_B.weight": [
+      3840,
+      32
+    ],
+    "base_model.model.layers.15.feed_forward.w3.lora_A.weight": [
+      32,
+      3840
+    ],
+    "base_model.model.layers.15.feed_forward.w3.lora_B.weight": [
+      10240,
+      32
+    ],
+    "base_model.model.layers.16.attention.to_k.lora_A.weight": [
+      32,
+      3840
+    ],
+    "base_model.model.layers.16.attention.to_k.lora_B.weight": [
+      3840,
+      32
+    ],
+    "base_model.model.layers.16.attention.to_q.lora_A.weight": [
+      32,
+      3840
+    ],
+    "base_model.model.layers.16.attention.to_q.lora_B.weight": [
+      3840,
+      32
+    ],
+    "base_model.model.layers.16.attention.to_v.lora_A.weight": [
+      32,
+      3840
+    ],
+    "base_model.model.layers.16.attention.to_v.lora_B.weight": [
+      3840,
+      32
+    ],
+    "base_model.model.layers.16.feed_forward.w1.lora_A.weight": [
+      32,
+      3840
+    ],
+    "base_model.model.layers.16.feed_forward.w1.lora_B.weight": [
+      10240,
+      32
+    ],
+    "base_model.model.layers.16.feed_forward.w2.lora_A.weight": [
+      32,
+      10240
+    ],
+    "base_model.model.layers.16.feed_forward.w2.lora_B.weight": [
+      3840,
+      32
+    ],
+    "base_model.model.layers.16.feed_forward.w3.lora_A.weight": [
+      32,
+      3840
+    ],
+    "base_model.model.layers.16.feed_forward.w3.lora_B.weight": [
+      10240,
+      32
+    ],
+    "base_model.model.layers.17.attention.to_k.lora_A.weight": [
+      32,
+      3840
+    ],
+    "base_model.model.layers.17.attention.to_k.lora_B.weight": [
+      3840,
+      32
+    ],
+    "base_model.model.layers.17.attention.to_q.lora_A.weight": [
+      32,
+      3840
+    ],
+    "base_model.model.layers.17.attention.to_q.lora_B.weight": [
+      3840,
+      32
+    ],
+    "base_model.model.layers.17.attention.to_v.lora_A.weight": [
+      32,
+      3840
+    ],
+    "base_model.model.layers.17.attention.to_v.lora_B.weight": [
+      3840,
+      32
+    ],
+    "base_model.model.layers.17.feed_forward.w1.lora_A.weight": [
+      32,
+      3840
+    ],
+    "base_model.model.layers.17.feed_forward.w1.lora_B.weight": [
+      10240,
+      32
+    ],
+    "base_model.model.layers.17.feed_forward.w2.lora_A.weight": [
+      32,
+      10240
+    ],
+    "base_model.model.layers.17.feed_forward.w2.lora_B.weight": [
+      3840,
+      32
+    ],
+    "base_model.model.layers.17.feed_forward.w3.lora_A.weight": [
+      32,
+      3840
+    ],
+    "base_model.model.layers.17.feed_forward.w3.lora_B.weight": [
+      10240,
+      32
+    ],
+    "base_model.model.layers.18.attention.to_k.lora_A.weight": [
+      32,
+      3840
+    ],
+    "base_model.model.layers.18.attention.to_k.lora_B.weight": [
+      3840,
+      32
+    ],
+    "base_model.model.layers.18.attention.to_q.lora_A.weight": [
+      32,
+      3840
+    ],
+    "base_model.model.layers.18.attention.to_q.lora_B.weight": [
+      3840,
+      32
+    ],
+    "base_model.model.layers.18.attention.to_v.lora_A.weight": [
+      32,
+      3840
+    ],
+    "base_model.model.layers.18.attention.to_v.lora_B.weight": [
+      3840,
+      32
+    ],
+    "base_model.model.layers.18.feed_forward.w1.lora_A.weight": [
+      32,
+      3840
+    ],
+    "base_model.model.layers.18.feed_forward.w1.lora_B.weight": [
+      10240,
+      32
+    ],
+    "base_model.model.layers.18.feed_forward.w2.lora_A.weight": [
+      32,
+      10240
+    ],
+    "base_model.model.layers.18.feed_forward.w2.lora_B.weight": [
+      3840,
+      32
+    ],
+    "base_model.model.layers.18.feed_forward.w3.lora_A.weight": [
+      32,
+      3840
+    ],
+    "base_model.model.layers.18.feed_forward.w3.lora_B.weight": [
+      10240,
+      32
+    ],
+    "base_model.model.layers.19.attention.to_k.lora_A.weight": [
+      32,
+      3840
+    ],
+    "base_model.model.layers.19.attention.to_k.lora_B.weight": [
+      3840,
+      32
+    ],
+    "base_model.model.layers.19.attention.to_q.lora_A.weight": [
+      32,
+      3840
+    ],
+    "base_model.model.layers.19.attention.to_q.lora_B.weight": [
+      3840,
+      32
+    ],
+    "base_model.model.layers.19.attention.to_v.lora_A.weight": [
+      32,
+      3840
+    ],
+    "base_model.model.layers.19.attention.to_v.lora_B.weight": [
+      3840,
+      32
+    ],
+    "base_model.model.layers.19.feed_forward.w1.lora_A.weight": [
+      32,
+      3840
+    ],
+    "base_model.model.layers.19.feed_forward.w1.lora_B.weight": [
+      10240,
+      32
+    ],
+    "base_model.model.layers.19.feed_forward.w2.lora_A.weight": [
+      32,
+      10240
+    ],
+    "base_model.model.layers.19.feed_forward.w2.lora_B.weight": [
+      3840,
+      32
+    ],
+    "base_model.model.layers.19.feed_forward.w3.lora_A.weight": [
+      32,
+      3840
+    ],
+    "base_model.model.layers.19.feed_forward.w3.lora_B.weight": [
+      10240,
+      32
+    ],
+    "base_model.model.layers.2.attention.to_k.lora_A.weight": [
+      32,
+      3840
+    ],
+    "base_model.model.layers.2.attention.to_k.lora_B.weight": [
+      3840,
+      32
+    ],
+    "base_model.model.layers.2.attention.to_q.lora_A.weight": [
+      32,
+      3840
+    ],
+    "base_model.model.layers.2.attention.to_q.lora_B.weight": [
+      3840,
+      32
+    ],
+    "base_model.model.layers.2.attention.to_v.lora_A.weight": [
+      32,
+      3840
+    ],
+    "base_model.model.layers.2.attention.to_v.lora_B.weight": [
+      3840,
+      32
+    ],
+    "base_model.model.layers.2.feed_forward.w1.lora_A.weight": [
+      32,
+      3840
+    ],
+    "base_model.model.layers.2.feed_forward.w1.lora_B.weight": [
+      10240,
+      32
+    ],
+    "base_model.model.layers.2.feed_forward.w2.lora_A.weight": [
+      32,
+      10240
+    ],
+    "base_model.model.layers.2.feed_forward.w2.lora_B.weight": [
+      3840,
+      32
+    ],
+    "base_model.model.layers.2.feed_forward.w3.lora_A.weight": [
+      32,
+      3840
+    ],
+    "base_model.model.layers.2.feed_forward.w3.lora_B.weight": [
+      10240,
+      32
+    ],
+    "base_model.model.layers.20.attention.to_k.lora_A.weight": [
+      32,
+      3840
+    ],
+    "base_model.model.layers.20.attention.to_k.lora_B.weight": [
+      3840,
+      32
+    ],
+    "base_model.model.layers.20.attention.to_q.lora_A.weight": [
+      32,
+      3840
+    ],
+    "base_model.model.layers.20.attention.to_q.lora_B.weight": [
+      3840,
+      32
+    ],
+    "base_model.model.layers.20.attention.to_v.lora_A.weight": [
+      32,
+      3840
+    ],
+    "base_model.model.layers.20.attention.to_v.lora_B.weight": [
+      3840,
+      32
+    ],
+    "base_model.model.layers.20.feed_forward.w1.lora_A.weight": [
+      32,
+      3840
+    ],
+    "base_model.model.layers.20.feed_forward.w1.lora_B.weight": [
+      10240,
+      32
+    ],
+    "base_model.model.layers.20.feed_forward.w2.lora_A.weight": [
+      32,
+      10240
+    ],
+    "base_model.model.layers.20.feed_forward.w2.lora_B.weight": [
+      3840,
+      32
+    ],
+    "base_model.model.layers.20.feed_forward.w3.lora_A.weight": [
+      32,
+      3840
+    ],
+    "base_model.model.layers.20.feed_forward.w3.lora_B.weight": [
+      10240,
+      32
+    ],
+    "base_model.model.layers.21.attention.to_k.lora_A.weight": [
+      32,
+      3840
+    ],
+    "base_model.model.layers.21.attention.to_k.lora_B.weight": [
+      3840,
+      32
+    ],
+    "base_model.model.layers.21.attention.to_q.lora_A.weight": [
+      32,
+      3840
+    ],
+    "base_model.model.layers.21.attention.to_q.lora_B.weight": [
+      3840,
+      32
+    ],
+    "base_model.model.layers.21.attention.to_v.lora_A.weight": [
+      32,
+      3840
+    ],
+    "base_model.model.layers.21.attention.to_v.lora_B.weight": [
+      3840,
+      32
+    ],
+    "base_model.model.layers.21.feed_forward.w1.lora_A.weight": [
+      32,
+      3840
+    ],
+    "base_model.model.layers.21.feed_forward.w1.lora_B.weight": [
+      10240,
+      32
+    ],
+    "base_model.model.layers.21.feed_forward.w2.lora_A.weight": [
+      32,
+      10240
+    ],
+    "base_model.model.layers.21.feed_forward.w2.lora_B.weight": [
+      3840,
+      32
+    ],
+    "base_model.model.layers.21.feed_forward.w3.lora_A.weight": [
+      32,
+      3840
+    ],
+    "base_model.model.layers.21.feed_forward.w3.lora_B.weight": [
+      10240,
+      32
+    ],
+    "base_model.model.layers.22.attention.to_k.lora_A.weight": [
+      32,
+      3840
+    ],
+    "base_model.model.layers.22.attention.to_k.lora_B.weight": [
+      3840,
+      32
+    ],
+    "base_model.model.layers.22.attention.to_q.lora_A.weight": [
+      32,
+      3840
+    ],
+    "base_model.model.layers.22.attention.to_q.lora_B.weight": [
+      3840,
+      32
+    ],
+    "base_model.model.layers.22.attention.to_v.lora_A.weight": [
+      32,
+      3840
+    ],
+    "base_model.model.layers.22.attention.to_v.lora_B.weight": [
+      3840,
+      32
+    ],
+    "base_model.model.layers.22.feed_forward.w1.lora_A.weight": [
+      32,
+      3840
+    ],
+    "base_model.model.layers.22.feed_forward.w1.lora_B.weight": [
+      10240,
+      32
+    ],
+    "base_model.model.layers.22.feed_forward.w2.lora_A.weight": [
+      32,
+      10240
+    ],
+    "base_model.model.layers.22.feed_forward.w2.lora_B.weight": [
+      3840,
+      32
+    ],
+    "base_model.model.layers.22.feed_forward.w3.lora_A.weight": [
+      32,
+      3840
+    ],
+    "base_model.model.layers.22.feed_forward.w3.lora_B.weight": [
+      10240,
+      32
+    ],
+    "base_model.model.layers.23.attention.to_k.lora_A.weight": [
+      32,
+      3840
+    ],
+    "base_model.model.layers.23.attention.to_k.lora_B.weight": [
+      3840,
+      32
+    ],
+    "base_model.model.layers.23.attention.to_q.lora_A.weight": [
+      32,
+      3840
+    ],
+    "base_model.model.layers.23.attention.to_q.lora_B.weight": [
+      3840,
+      32
+    ],
+    "base_model.model.layers.23.attention.to_v.lora_A.weight": [
+      32,
+      3840
+    ],
+    "base_model.model.layers.23.attention.to_v.lora_B.weight": [
+      3840,
+      32
+    ],
+    "base_model.model.layers.23.feed_forward.w1.lora_A.weight": [
+      32,
+      3840
+    ],
+    "base_model.model.layers.23.feed_forward.w1.lora_B.weight": [
+      10240,
+      32
+    ],
+    "base_model.model.layers.23.feed_forward.w2.lora_A.weight": [
+      32,
+      10240
+    ],
+    "base_model.model.layers.23.feed_forward.w2.lora_B.weight": [
+      3840,
+      32
+    ],
+    "base_model.model.layers.23.feed_forward.w3.lora_A.weight": [
+      32,
+      3840
+    ],
+    "base_model.model.layers.23.feed_forward.w3.lora_B.weight": [
+      10240,
+      32
+    ],
+    "base_model.model.layers.24.attention.to_k.lora_A.weight": [
+      32,
+      3840
+    ],
+    "base_model.model.layers.24.attention.to_k.lora_B.weight": [
+      3840,
+      32
+    ],
+    "base_model.model.layers.24.attention.to_q.lora_A.weight": [
+      32,
+      3840
+    ],
+    "base_model.model.layers.24.attention.to_q.lora_B.weight": [
+      3840,
+      32
+    ],
+    "base_model.model.layers.24.attention.to_v.lora_A.weight": [
+      32,
+      3840
+    ],
+    "base_model.model.layers.24.attention.to_v.lora_B.weight": [
+      3840,
+      32
+    ],
+    "base_model.model.layers.24.feed_forward.w1.lora_A.weight": [
+      32,
+      3840
+    ],
+    "base_model.model.layers.24.feed_forward.w1.lora_B.weight": [
+      10240,
+      32
+    ],
+    "base_model.model.layers.24.feed_forward.w2.lora_A.weight": [
+      32,
+      10240
+    ],
+    "base_model.model.layers.24.feed_forward.w2.lora_B.weight": [
+      3840,
+      32
+    ],
+    "base_model.model.layers.24.feed_forward.w3.lora_A.weight": [
+      32,
+      3840
+    ],
+    "base_model.model.layers.24.feed_forward.w3.lora_B.weight": [
+      10240,
+      32
+    ],
+    "base_model.model.layers.25.attention.to_k.lora_A.weight": [
+      32,
+      3840
+    ],
+    "base_model.model.layers.25.attention.to_k.lora_B.weight": [
+      3840,
+      32
+    ],
+    "base_model.model.layers.25.attention.to_q.lora_A.weight": [
+      32,
+      3840
+    ],
+    "base_model.model.layers.25.attention.to_q.lora_B.weight": [
+      3840,
+      32
+    ],
+    "base_model.model.layers.25.attention.to_v.lora_A.weight": [
+      32,
+      3840
+    ],
+    "base_model.model.layers.25.attention.to_v.lora_B.weight": [
+      3840,
+      32
+    ],
+    "base_model.model.layers.25.feed_forward.w1.lora_A.weight": [
+      32,
+      3840
+    ],
+    "base_model.model.layers.25.feed_forward.w1.lora_B.weight": [
+      10240,
+      32
+    ],
+    "base_model.model.layers.25.feed_forward.w2.lora_A.weight": [
+      32,
+      10240
+    ],
+    "base_model.model.layers.25.feed_forward.w2.lora_B.weight": [
+      3840,
+      32
+    ],
+    "base_model.model.layers.25.feed_forward.w3.lora_A.weight": [
+      32,
+      3840
+    ],
+    "base_model.model.layers.25.feed_forward.w3.lora_B.weight": [
+      10240,
+      32
+    ],
+    "base_model.model.layers.26.attention.to_k.lora_A.weight": [
+      32,
+      3840
+    ],
+    "base_model.model.layers.26.attention.to_k.lora_B.weight": [
+      3840,
+      32
+    ],
+    "base_model.model.layers.26.attention.to_q.lora_A.weight": [
+      32,
+      3840
+    ],
+    "base_model.model.layers.26.attention.to_q.lora_B.weight": [
+      3840,
+      32
+    ],
+    "base_model.model.layers.26.attention.to_v.lora_A.weight": [
+      32,
+      3840
+    ],
+    "base_model.model.layers.26.attention.to_v.lora_B.weight": [
+      3840,
+      32
+    ],
+    "base_model.model.layers.26.feed_forward.w1.lora_A.weight": [
+      32,
+      3840
+    ],
+    "base_model.model.layers.26.feed_forward.w1.lora_B.weight": [
+      10240,
+      32
+    ],
+    "base_model.model.layers.26.feed_forward.w2.lora_A.weight": [
+      32,
+      10240
+    ],
+    "base_model.model.layers.26.feed_forward.w2.lora_B.weight": [
+      3840,
+      32
+    ],
+    "base_model.model.layers.26.feed_forward.w3.lora_A.weight": [
+      32,
+      3840
+    ],
+    "base_model.model.layers.26.feed_forward.w3.lora_B.weight": [
+      10240,
+      32
+    ],
+    "base_model.model.layers.27.attention.to_k.lora_A.weight": [
+      32,
+      3840
+    ],
+    "base_model.model.layers.27.attention.to_k.lora_B.weight": [
+      3840,
+      32
+    ],
+    "base_model.model.layers.27.attention.to_q.lora_A.weight": [
+      32,
+      3840
+    ],
+    "base_model.model.layers.27.attention.to_q.lora_B.weight": [
+      3840,
+      32
+    ],
+    "base_model.model.layers.27.attention.to_v.lora_A.weight": [
+      32,
+      3840
+    ],
+    "base_model.model.layers.27.attention.to_v.lora_B.weight": [
+      3840,
+      32
+    ],
+    "base_model.model.layers.27.feed_forward.w1.lora_A.weight": [
+      32,
+      3840
+    ],
+    "base_model.model.layers.27.feed_forward.w1.lora_B.weight": [
+      10240,
+      32
+    ],
+    "base_model.model.layers.27.feed_forward.w2.lora_A.weight": [
+      32,
+      10240
+    ],
+    "base_model.model.layers.27.feed_forward.w2.lora_B.weight": [
+      3840,
+      32
+    ],
+    "base_model.model.layers.27.feed_forward.w3.lora_A.weight": [
+      32,
+      3840
+    ],
+    "base_model.model.layers.27.feed_forward.w3.lora_B.weight": [
+      10240,
+      32
+    ],
+    "base_model.model.layers.28.attention.to_k.lora_A.weight": [
+      32,
+      3840
+    ],
+    "base_model.model.layers.28.attention.to_k.lora_B.weight": [
+      3840,
+      32
+    ],
+    "base_model.model.layers.28.attention.to_q.lora_A.weight": [
+      32,
+      3840
+    ],
+    "base_model.model.layers.28.attention.to_q.lora_B.weight": [
+      3840,
+      32
+    ],
+    "base_model.model.layers.28.attention.to_v.lora_A.weight": [
+      32,
+      3840
+    ],
+    "base_model.model.layers.28.attention.to_v.lora_B.weight": [
+      3840,
+      32
+    ],
+    "base_model.model.layers.28.feed_forward.w1.lora_A.weight": [
+      32,
+      3840
+    ],
+    "base_model.model.layers.28.feed_forward.w1.lora_B.weight": [
+      10240,
+      32
+    ],
+    "base_model.model.layers.28.feed_forward.w2.lora_A.weight": [
+      32,
+      10240
+    ],
+    "base_model.model.layers.28.feed_forward.w2.lora_B.weight": [
+      3840,
+      32
+    ],
+    "base_model.model.layers.28.feed_forward.w3.lora_A.weight": [
+      32,
+      3840
+    ],
+    "base_model.model.layers.28.feed_forward.w3.lora_B.weight": [
+      10240,
+      32
+    ],
+    "base_model.model.layers.29.attention.to_k.lora_A.weight": [
+      32,
+      3840
+    ],
+    "base_model.model.layers.29.attention.to_k.lora_B.weight": [
+      3840,
+      32
+    ],
+    "base_model.model.layers.29.attention.to_q.lora_A.weight": [
+      32,
+      3840
+    ],
+    "base_model.model.layers.29.attention.to_q.lora_B.weight": [
+      3840,
+      32
+    ],
+    "base_model.model.layers.29.attention.to_v.lora_A.weight": [
+      32,
+      3840
+    ],
+    "base_model.model.layers.29.attention.to_v.lora_B.weight": [
+      3840,
+      32
+    ],
+    "base_model.model.layers.29.feed_forward.w1.lora_A.weight": [
+      32,
+      3840
+    ],
+    "base_model.model.layers.29.feed_forward.w1.lora_B.weight": [
+      10240,
+      32
+    ],
+    "base_model.model.layers.29.feed_forward.w2.lora_A.weight": [
+      32,
+      10240
+    ],
+    "base_model.model.layers.29.feed_forward.w2.lora_B.weight": [
+      3840,
+      32
+    ],
+    "base_model.model.layers.29.feed_forward.w3.lora_A.weight": [
+      32,
+      3840
+    ],
+    "base_model.model.layers.29.feed_forward.w3.lora_B.weight": [
+      10240,
+      32
+    ],
+    "base_model.model.layers.3.attention.to_k.lora_A.weight": [
+      32,
+      3840
+    ],
+    "base_model.model.layers.3.attention.to_k.lora_B.weight": [
+      3840,
+      32
+    ],
+    "base_model.model.layers.3.attention.to_q.lora_A.weight": [
+      32,
+      3840
+    ],
+    "base_model.model.layers.3.attention.to_q.lora_B.weight": [
+      3840,
+      32
+    ],
+    "base_model.model.layers.3.attention.to_v.lora_A.weight": [
+      32,
+      3840
+    ],
+    "base_model.model.layers.3.attention.to_v.lora_B.weight": [
+      3840,
+      32
+    ],
+    "base_model.model.layers.3.feed_forward.w1.lora_A.weight": [
+      32,
+      3840
+    ],
+    "base_model.model.layers.3.feed_forward.w1.lora_B.weight": [
+      10240,
+      32
+    ],
+    "base_model.model.layers.3.feed_forward.w2.lora_A.weight": [
+      32,
+      10240
+    ],
+    "base_model.model.layers.3.feed_forward.w2.lora_B.weight": [
+      3840,
+      32
+    ],
+    "base_model.model.layers.3.feed_forward.w3.lora_A.weight": [
+      32,
+      3840
+    ],
+    "base_model.model.layers.3.feed_forward.w3.lora_B.weight": [
+      10240,
+      32
+    ],
+    "base_model.model.layers.4.attention.to_k.lora_A.weight": [
+      32,
+      3840
+    ],
+    "base_model.model.layers.4.attention.to_k.lora_B.weight": [
+      3840,
+      32
+    ],
+    "base_model.model.layers.4.attention.to_q.lora_A.weight": [
+      32,
+      3840
+    ],
+    "base_model.model.layers.4.attention.to_q.lora_B.weight": [
+      3840,
+      32
+    ],
+    "base_model.model.layers.4.attention.to_v.lora_A.weight": [
+      32,
+      3840
+    ],
+    "base_model.model.layers.4.attention.to_v.lora_B.weight": [
+      3840,
+      32
+    ],
+    "base_model.model.layers.4.feed_forward.w1.lora_A.weight": [
+      32,
+      3840
+    ],
+    "base_model.model.layers.4.feed_forward.w1.lora_B.weight": [
+      10240,
+      32
+    ],
+    "base_model.model.layers.4.feed_forward.w2.lora_A.weight": [
+      32,
+      10240
+    ],
+    "base_model.model.layers.4.feed_forward.w2.lora_B.weight": [
+      3840,
+      32
+    ],
+    "base_model.model.layers.4.feed_forward.w3.lora_A.weight": [
+      32,
+      3840
+    ],
+    "base_model.model.layers.4.feed_forward.w3.lora_B.weight": [
+      10240,
+      32
+    ],
+    "base_model.model.layers.5.attention.to_k.lora_A.weight": [
+      32,
+      3840
+    ],
+    "base_model.model.layers.5.attention.to_k.lora_B.weight": [
+      3840,
+      32
+    ],
+    "base_model.model.layers.5.attention.to_q.lora_A.weight": [
+      32,
+      3840
+    ],
+    "base_model.model.layers.5.attention.to_q.lora_B.weight": [
+      3840,
+      32
+    ],
+    "base_model.model.layers.5.attention.to_v.lora_A.weight": [
+      32,
+      3840
+    ],
+    "base_model.model.layers.5.attention.to_v.lora_B.weight": [
+      3840,
+      32
+    ],
+    "base_model.model.layers.5.feed_forward.w1.lora_A.weight": [
+      32,
+      3840
+    ],
+    "base_model.model.layers.5.feed_forward.w1.lora_B.weight": [
+      10240,
+      32
+    ],
+    "base_model.model.layers.5.feed_forward.w2.lora_A.weight": [
+      32,
+      10240
+    ],
+    "base_model.model.layers.5.feed_forward.w2.lora_B.weight": [
+      3840,
+      32
+    ],
+    "base_model.model.layers.5.feed_forward.w3.lora_A.weight": [
+      32,
+      3840
+    ],
+    "base_model.model.layers.5.feed_forward.w3.lora_B.weight": [
+      10240,
+      32
+    ],
+    "base_model.model.layers.6.attention.to_k.lora_A.weight": [
+      32,
+      3840
+    ],
+    "base_model.model.layers.6.attention.to_k.lora_B.weight": [
+      3840,
+      32
+    ],
+    "base_model.model.layers.6.attention.to_q.lora_A.weight": [
+      32,
+      3840
+    ],
+    "base_model.model.layers.6.attention.to_q.lora_B.weight": [
+      3840,
+      32
+    ],
+    "base_model.model.layers.6.attention.to_v.lora_A.weight": [
+      32,
+      3840
+    ],
+    "base_model.model.layers.6.attention.to_v.lora_B.weight": [
+      3840,
+      32
+    ],
+    "base_model.model.layers.6.feed_forward.w1.lora_A.weight": [
+      32,
+      3840
+    ],
+    "base_model.model.layers.6.feed_forward.w1.lora_B.weight": [
+      10240,
+      32
+    ],
+    "base_model.model.layers.6.feed_forward.w2.lora_A.weight": [
+      32,
+      10240
+    ],
+    "base_model.model.layers.6.feed_forward.w2.lora_B.weight": [
+      3840,
+      32
+    ],
+    "base_model.model.layers.6.feed_forward.w3.lora_A.weight": [
+      32,
+      3840
+    ],
+    "base_model.model.layers.6.feed_forward.w3.lora_B.weight": [
+      10240,
+      32
+    ],
+    "base_model.model.layers.7.attention.to_k.lora_A.weight": [
+      32,
+      3840
+    ],
+    "base_model.model.layers.7.attention.to_k.lora_B.weight": [
+      3840,
+      32
+    ],
+    "base_model.model.layers.7.attention.to_q.lora_A.weight": [
+      32,
+      3840
+    ],
+    "base_model.model.layers.7.attention.to_q.lora_B.weight": [
+      3840,
+      32
+    ],
+    "base_model.model.layers.7.attention.to_v.lora_A.weight": [
+      32,
+      3840
+    ],
+    "base_model.model.layers.7.attention.to_v.lora_B.weight": [
+      3840,
+      32
+    ],
+    "base_model.model.layers.7.feed_forward.w1.lora_A.weight": [
+      32,
+      3840
+    ],
+    "base_model.model.layers.7.feed_forward.w1.lora_B.weight": [
+      10240,
+      32
+    ],
+    "base_model.model.layers.7.feed_forward.w2.lora_A.weight": [
+      32,
+      10240
+    ],
+    "base_model.model.layers.7.feed_forward.w2.lora_B.weight": [
+      3840,
+      32
+    ],
+    "base_model.model.layers.7.feed_forward.w3.lora_A.weight": [
+      32,
+      3840
+    ],
+    "base_model.model.layers.7.feed_forward.w3.lora_B.weight": [
+      10240,
+      32
+    ],
+    "base_model.model.layers.8.attention.to_k.lora_A.weight": [
+      32,
+      3840
+    ],
+    "base_model.model.layers.8.attention.to_k.lora_B.weight": [
+      3840,
+      32
+    ],
+    "base_model.model.layers.8.attention.to_q.lora_A.weight": [
+      32,
+      3840
+    ],
+    "base_model.model.layers.8.attention.to_q.lora_B.weight": [
+      3840,
+      32
+    ],
+    "base_model.model.layers.8.attention.to_v.lora_A.weight": [
+      32,
+      3840
+    ],
+    "base_model.model.layers.8.attention.to_v.lora_B.weight": [
+      3840,
+      32
+    ],
+    "base_model.model.layers.8.feed_forward.w1.lora_A.weight": [
+      32,
+      3840
+    ],
+    "base_model.model.layers.8.feed_forward.w1.lora_B.weight": [
+      10240,
+      32
+    ],
+    "base_model.model.layers.8.feed_forward.w2.lora_A.weight": [
+      32,
+      10240
+    ],
+    "base_model.model.layers.8.feed_forward.w2.lora_B.weight": [
+      3840,
+      32
+    ],
+    "base_model.model.layers.8.feed_forward.w3.lora_A.weight": [
+      32,
+      3840
+    ],
+    "base_model.model.layers.8.feed_forward.w3.lora_B.weight": [
+      10240,
+      32
+    ],
+    "base_model.model.layers.9.attention.to_k.lora_A.weight": [
+      32,
+      3840
+    ],
+    "base_model.model.layers.9.attention.to_k.lora_B.weight": [
+      3840,
+      32
+    ],
+    "base_model.model.layers.9.attention.to_q.lora_A.weight": [
+      32,
+      3840
+    ],
+    "base_model.model.layers.9.attention.to_q.lora_B.weight": [
+      3840,
+      32
+    ],
+    "base_model.model.layers.9.attention.to_v.lora_A.weight": [
+      32,
+      3840
+    ],
+    "base_model.model.layers.9.attention.to_v.lora_B.weight": [
+      3840,
+      32
+    ],
+    "base_model.model.layers.9.feed_forward.w1.lora_A.weight": [
+      32,
+      3840
+    ],
+    "base_model.model.layers.9.feed_forward.w1.lora_B.weight": [
+      10240,
+      32
+    ],
+    "base_model.model.layers.9.feed_forward.w2.lora_A.weight": [
+      32,
+      10240
+    ],
+    "base_model.model.layers.9.feed_forward.w2.lora_B.weight": [
+      3840,
+      32
+    ],
+    "base_model.model.layers.9.feed_forward.w3.lora_A.weight": [
+      32,
+      3840
+    ],
+    "base_model.model.layers.9.feed_forward.w3.lora_B.weight": [
+      10240,
+      32
+    ],
+    "base_model.model.noise_refiner.0.attention.to_k.lora_A.weight": [
+      32,
+      3840
+    ],
+    "base_model.model.noise_refiner.0.attention.to_k.lora_B.weight": [
+      3840,
+      32
+    ],
+    "base_model.model.noise_refiner.0.attention.to_q.lora_A.weight": [
+      32,
+      3840
+    ],
+    "base_model.model.noise_refiner.0.attention.to_q.lora_B.weight": [
+      3840,
+      32
+    ],
+    "base_model.model.noise_refiner.0.attention.to_v.lora_A.weight": [
+      32,
+      3840
+    ],
+    "base_model.model.noise_refiner.0.attention.to_v.lora_B.weight": [
+      3840,
+      32
+    ],
+    "base_model.model.noise_refiner.0.feed_forward.w1.lora_A.weight": [
+      32,
+      3840
+    ],
+    "base_model.model.noise_refiner.0.feed_forward.w1.lora_B.weight": [
+      10240,
+      32
+    ],
+    "base_model.model.noise_refiner.0.feed_forward.w2.lora_A.weight": [
+      32,
+      10240
+    ],
+    "base_model.model.noise_refiner.0.feed_forward.w2.lora_B.weight": [
+      3840,
+      32
+    ],
+    "base_model.model.noise_refiner.0.feed_forward.w3.lora_A.weight": [
+      32,
+      3840
+    ],
+    "base_model.model.noise_refiner.0.feed_forward.w3.lora_B.weight": [
+      10240,
+      32
+    ],
+    "base_model.model.noise_refiner.1.attention.to_k.lora_A.weight": [
+      32,
+      3840
+    ],
+    "base_model.model.noise_refiner.1.attention.to_k.lora_B.weight": [
+      3840,
+      32
+    ],
+    "base_model.model.noise_refiner.1.attention.to_q.lora_A.weight": [
+      32,
+      3840
+    ],
+    "base_model.model.noise_refiner.1.attention.to_q.lora_B.weight": [
+      3840,
+      32
+    ],
+    "base_model.model.noise_refiner.1.attention.to_v.lora_A.weight": [
+      32,
+      3840
+    ],
+    "base_model.model.noise_refiner.1.attention.to_v.lora_B.weight": [
+      3840,
+      32
+    ],
+    "base_model.model.noise_refiner.1.feed_forward.w1.lora_A.weight": [
+      32,
+      3840
+    ],
+    "base_model.model.noise_refiner.1.feed_forward.w1.lora_B.weight": [
+      10240,
+      32
+    ],
+    "base_model.model.noise_refiner.1.feed_forward.w2.lora_A.weight": [
+      32,
+      10240
+    ],
+    "base_model.model.noise_refiner.1.feed_forward.w2.lora_B.weight": [
+      3840,
+      32
+    ],
+    "base_model.model.noise_refiner.1.feed_forward.w3.lora_A.weight": [
+      32,
+      3840
+    ],
+    "base_model.model.noise_refiner.1.feed_forward.w3.lora_B.weight": [
+      10240,
+      32
+    ]
+  }
+}

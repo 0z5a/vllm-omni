@@ -1,0 +1,34 @@
+[
+  {
+    "repo": "HelioAI/Helio-Z-Image-Turbo-LoRA",
+    "revision": "38826969e8cb78f91d963a1cf7910e7d14749363",
+    "weight": {
+      "type": "file",
+      "oid": "ec2910901f62a3798f30335a70182ff3235d655e",
+      "size": 284151840,
+      "lfs": {
+        "oid": "34016d816fc16dff354fe8b6afd1d89c283db08f5f4c962cae19ea56a17a32e2",
+        "size": 284151840,
+        "pointerSize": 134
+      },
+      "xetHash": "6cfbf2a6769edfd8b03765d010a52d6641d2dca183db5d373156df92f3bc10ae",
+      "path": "adapter_model.safetensors"
+    }
+  },
+  {
+    "repo": "DownFlow/Z-Image-Turbo-Fuli-LoRA",
+    "revision": "b1216f23d98df471e7b7c12dc662dae958b2c187",
+    "weight": {
+      "type": "file",
+      "oid": "eb719cb5e96747d19040820e80085213147c3012",
+      "size": 284151432,
+      "lfs": {
+        "oid": "75c8f4c3c5e11f4f0782d4d472a24bfb5954dc1744150c3eace4297f88b8e78d",
+        "size": 284151432,
+        "pointerSize": 134
+      },
+      "xetHash": "b5994ecc67e2a580d7efaf558184667877eb97c9474a9449e0ddde50bae3cc75",
+      "path": "adapter_model.safetensors"
+    }
+  }
+]
