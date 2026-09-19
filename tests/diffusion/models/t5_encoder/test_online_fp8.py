@@ -48,7 +48,7 @@ def test_rejects_unsupported_modes_before_mutation(encoder, config):
     assert all(dict(encoder.named_parameters())[name] is p for name, p in original.items())
 
 
-@pytest.mark.parametrize("component", ["text_encoder", "text_encoder_3"])
+@pytest.mark.parametrize("component", ["text_encoder", "text_encoder_2", "text_encoder_3"])
 @pytest.mark.parametrize("ignore_first_q", [False, True])
 def test_preserves_wo_and_non_linear_weights_and_forward(encoder, monkeypatch, component, ignore_first_q):
     original = dict(encoder.named_parameters())
