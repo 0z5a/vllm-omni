@@ -72,3 +72,23 @@ for mode in ("bf16", "fp8"):
     engine.close()
 PY
 ```
+
+## L20 validation
+
+The official checkpoint at revision `41be1c5821a92c970d63d7eb595a2fd3fe32b22e`
+completed the comparison above on one L20 and on two L20s with CFG parallelism.
+All 196 decoder projections used FP8; DiT and VAE parameters remained BF16.
+
+| Configuration | BF16 peak allocated per worker | FP8 peak allocated per worker |
+| --- | --- | --- |
+| 1×L20 | 18.008 GiB | 16.690 GiB |
+| 2×L20, CFG=2 | 17.999 GiB | 16.680 GiB |
+
+Three prompt pairs retained the requested objects, counts and OPEN text; paired
+image SSIM was 0.9667, 0.6998 and 0.9380. The storefront sign layout changed.
+Single-card and CFG-parallel ONGs matched exactly within each precision mode.
+These samples establish smoke coverage, not general quality equivalence.
+
+The text encoder was slower with FP8 at this request size. Shared GPU workloads
+caused substantial E2E timing variation, so these runs establish memory savings
+and functional coverage without a reliable latency speedup claim.
