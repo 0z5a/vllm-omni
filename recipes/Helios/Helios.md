@@ -92,11 +92,39 @@ Saved generated video to helios_t2v_base.mp4
   `text_to_video.py` example configures the pipeline through its arguments.
 - Helios-specific knobs (declared in `vllm_omni/model_extras/helios.py`) are
   passed via the generic `--extra-body` JSON flag:
-  - Helios-Mid: `--extra-body '{"is_enable_stage2": true, "pyramid_num_inference_steps_list": [20, 20, 20], "use_cfg_zero_star": true, "use_zero_init": true, "zero_steps": 1}'`
-  - Helios-Distilled: `--extra-body '{"is_enable_stage2": true, "pyramid_num_inference_steps_list": [2, 2, 2], "is_amplify_first_chunk": true}'`
+    - Helios-Mid: `--extra-body '{"is_enable_stage2": true, "pyramid_num_inference_steps_list": [20, 20, 20], "use_cfg_zero_star": true, "use_zero_init": true, "zero_steps": 1}'`
+    - Helios-Distilled: `--extra-body '{"is_enable_stage2": true, "pyramid_num_inference_steps_list": [2, 2, 2], "is_amplify_first_chunk": true}'`
 
 #### Known limitations
 
 - Helios generates video in 33-frame chunks. For best performance, set
   `--num-frames` to a multiple of `33`; non-multiple values are rounded up to
   the nearest multiple of `33`.
+
+### Text encoder online FP8
+
+Enable the UMT5 text encoder explicitly with
+`--quantization-config '{"text_encoder":{"method":"fp8"}}'`.
+This quantizes the gated FFN input projections (`wi_0`, `wi_1`) using
+vLLM's native online FP8 weights and dynamic activations. Attention, FFN
+output projections, embeddings and norms retain their original precision.
+The video transformer and VAE also retain their original precision.
+The checkpoint must contain BF16 or FP16 weights; static activation scales
+and pre-quantized FP8 text encoder checkpoints are not supported.
+
+For a distilled video with two-way sequence parallelism:
+
+```bash
+CUDA_VISIBLE_DEVICES=0,1 python examples/offline_inference/text_to_video/text_to_video.py \
+  --model BestWishYsh/Helios-Distilled \
+  --model-class-name HeliosPipeline \
+  --quantization-config '{"text_encoder":{"method":"fp8"}}' \
+  --ulysses-degree 2 --enable-layerwise-offload --vae-use-tiling \
+  --height 384 --width 640 --num-frames 33 --guidance-scale 1.0 \
+  --extra-body '{"is_enable_stage2":true,"pyramid_num_inference_steps_list":[2,2,2],"is_amplify_first_chunk":true}' \
+  --seed 42 --enforce-eager --output helios_encoder_fp8.mp4
+```
+
+FP8 requires an SM89+ NVIDIA GPU. Compare complete video requests against
+BF16 with identical prompts, seeds, generation settings and offload settings;
+encoder weight compression alone does not establish an E2E speedup.
