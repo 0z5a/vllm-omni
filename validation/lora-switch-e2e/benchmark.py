@@ -3,6 +3,7 @@
 import argparse
 import hashlib
 import json
+import os
 import time
 from pathlib import Path
 
@@ -23,8 +24,10 @@ def main() -> None:
         "--feature", choices=("none", "tea_cache", "cache_dit", "ulysses", "ring", "tp", "hsdp"), required=True
     )
     parser.add_argument("--repeats", type=int, default=5)
+    parser.add_argument("--probe", action="store_true")
     args = parser.parse_args()
     args.output.mkdir(parents=True, exist_ok=False)
+    os.environ["LORA_PROBE_DIR"] = str(args.output.resolve())
     parallel = DiffusionParallelConfig(
         tensor_parallel_size=2 if args.feature == "tp" else 1,
         ulysses_degree=2 if args.feature == "ulysses" else 1,
@@ -51,6 +54,7 @@ def main() -> None:
         parallel_config=parallel,
         cache_backend=cache,
         cache_config=cache_config if cache else None,
+        diffusion_model_runner_cls="probe.ProbeRunner" if args.probe else None,
         lora_backend="peft",
         max_cpu_loras=2,
         dtype="bfloat16",
@@ -62,7 +66,7 @@ def main() -> None:
     sequence = (("A", 1.0), ("A", 1.0), ("B", 1.0), ("None", 1.0), ("A", 1.0), ("A", 0.0), ("B", 0.0), ("A", 1.0))
     with (args.output / "results.jsonl").open("w") as records:
         for case, (width, height) in enumerate(((512, 512), (768, 512), (512, 512))):
-            for cycle in range(2 + args.repeats):
+            for cycle in range(1 if args.probe else 2 + args.repeats):
                 for position, (adapter, scale) in enumerate(sequence):
                     params = OmniDiffusionSamplingParams(
                         width=width,
@@ -97,6 +101,7 @@ def main() -> None:
                         height=height,
                         feature=args.feature,
                         warmup=cycle < 2,
+                        probe=args.probe,
                         seconds=seconds,
                         image_sha256=hashlib.sha256(path.read_bytes()).hexdigest(),
                     )

@@ -9,3 +9,5 @@ Prepared entry points cover native, TeaCache, Cache-DiT, Ulysses, Ring, TP and H
 All twelve K5 subcases remain separate. CFG and EP need a compatible real model and trained adapter; this Z-Image fixture does not establish them. Layerwise offload, module offload, VAE parallel and FP8 still need their own actual-path admission and configurations. No case is marked complete by these preparations.
 
 Retain the two task-owned trained adapters until their pending cases finish. Never remove the shared base checkpoint as part of cleanup.
+
+`--probe` selects a separate untimed 24-request process (one eight-transition cycle per shape). `probe.py` observes the actual worker manager activation and diffusion LoRA projection calls. It checks requested adapter/scale, nonempty active slices for enabled adapters, all slices disabled for None/zero, and at least one executed injected projection; each rank records layer names, masks, buffer shapes/devices and call counts. This does not yet establish cache hits/reset, output restoration or distributed numerical parity. The probe module imports successfully with CUDA hidden in the target runtime; GPU execution remains pending.
