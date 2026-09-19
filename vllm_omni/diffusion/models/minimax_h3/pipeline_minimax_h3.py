@@ -1994,8 +1994,14 @@ class MiniMaxH3Pipeline(
         sampling: Any,
         *,
         require_external_text: bool = False,
-    ) -> MiniMaxH3EncoderConditioning:
+    ) -> tuple[MiniMaxH3EncoderConditioning, list[tuple[torch.Tensor, torch.Tensor]] | None]:
+        """Prepare media once and encode either shared text or each window's text.
+
+        Returns initial conditioning and optional request-owned window embeddings.
+        Invalid continuation prompts are broadcast before any encoder collective.
+        """
         group, rank, world_size = _dit_rank_world()
+        prompts = (sampling.extra_args or {}).get("continuation_prompts")
         prepared = text_conditioning = None
         error = None
         if rank == 0:
@@ -2024,6 +2030,27 @@ class MiniMaxH3Pipeline(
                     task=task,
                     prepared_reference_videos=self._extract_prepared_reference_videos(raw_prompt),
                 )
+                if prompts is not None:
+                    continuation = resolve_continuation(
+                        sampling.extra_args or {},
+                        task=task,
+                        step_execution=bool(getattr(self.od_config, "step_execution", False)),
+                    )
+                    if continuation is None or not self.load_text_encoder:
+                        raise OmniClientError(
+                            "continuation_prompts requires continuation mode with a local text encoder"
+                        )
+                    window, overlap = continuation
+                    count = len(plan_continuation_windows(prepared.media.num_frames, window, overlap))
+                    if (
+                        not isinstance(prompts, list)
+                        or len(prompts) != count
+                        or any(not isinstance(prompt, str) or not prompt.strip() for prompt in prompts)
+                    ):
+                        raise OmniClientError(f"continuation_prompts must contain exactly {count} non-empty strings")
+                    prepared = replace(prepared, prompt=prompts[0])
+                    # External text belongs to the main prompt, not the first window.
+                    text_conditioning = None
             except Exception as exc:
                 error = exc
         _broadcast_rank0_exception(error)
@@ -2041,52 +2068,31 @@ class MiniMaxH3Pipeline(
             )
         else:
             hidden, tags = self.encode_prompt(prepared)
+        window_text = None
+        if prompts is not None:
+            window_text = [(hidden, tags)]
+            for index, prompt in enumerate(prompts[1:], start=2):
+                logger.info("MiniMax H3 encoding continuation prompt %d/%d", index, len(prompts))
+                window_text.append(self.encode_prompt(replace(prepared, prompt=prompt) if rank == 0 else None))
         media = self._encode_local_media(prepared.media if prepared is not None else None)
-        return MiniMaxH3EncoderConditioning.from_components(MiniMaxH3TextConditioning(hidden, tags), media)
+        return MiniMaxH3EncoderConditioning.from_components(MiniMaxH3TextConditioning(hidden, tags), media), window_text
 
     def _prepare_request_inputs(self, raw_prompt: Any, sampling: Any) -> dict[str, Any]:
-        if self.load_text_encoder:
-            conditioning = self._prepare_local_conditioning(raw_prompt, sampling)
-        elif self.load_vae_encoder:
-            conditioning = self._prepare_local_conditioning(
+        if (getattr(sampling, "extra_args", None) or {}).get(
+            "continuation_prompts"
+        ) is not None and not self.load_text_encoder:
+            raise OmniClientError("continuation_prompts requires continuation mode with a local text encoder")
+        window_text = None
+        if self.load_text_encoder or self.load_vae_encoder:
+            conditioning, window_text = self._prepare_local_conditioning(
                 raw_prompt,
                 sampling,
-                require_external_text=True,
+                require_external_text=not self.load_text_encoder,
             )
         else:
             conditioning = self._extract_encoder_conditioning(raw_prompt)
         context = self._prepare_encoder_conditioning_inputs(conditioning, sampling)
-        prompts = (getattr(sampling, "extra_args", None) or {}).get("continuation_prompts")
-        if prompts is not None:
-            if context["continuation"] is None or not self.load_text_encoder:
-                raise OmniClientError("continuation_prompts requires continuation mode with a local text encoder")
-            window, overlap = context["continuation"]
-            count = len(plan_continuation_windows(context["num_frames"], window, overlap))
-            if (
-                not isinstance(prompts, list)
-                or len(prompts) != count
-                or any(not isinstance(prompt, str) or not prompt.strip() for prompt in prompts)
-            ):
-                raise OmniClientError(f"continuation_prompts must contain exactly {count} non-empty strings")
-            _, rank, _ = _dit_rank_world()
-            prepared = None
-            error = None
-            if rank == 0:
-                try:
-                    prepared = prepare_encoder_inputs(
-                        raw_prompt,
-                        sampling,
-                        task=context["task"],
-                        prepared_reference_videos=self._extract_prepared_reference_videos(raw_prompt),
-                    )
-                except Exception as exc:
-                    error = exc
-            _broadcast_rank0_exception(error)
-            # Request-owned embeddings: no cross-request cache or mutable model state.
-            window_text = []
-            for index, prompt in enumerate(prompts):
-                logger.info("MiniMax H3 encoding continuation prompt %d/%d", index + 1, count)
-                window_text.append(self.encode_prompt(replace(prepared, prompt=prompt) if rank == 0 else None))
+        if window_text is not None:
             context["continuation_text_conditioning"] = window_text
         return context
 

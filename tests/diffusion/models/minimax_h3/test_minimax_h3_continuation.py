@@ -158,3 +158,74 @@ def test_different_chunk_prompt_lengths_keep_the_same_media_clock():
         b = second["img_position_ids"][second[key][second[mask]]]
         torch.testing.assert_close(b[:, 0] - a[:, 0], torch.full_like(a[:, 0], 425))
         torch.testing.assert_close(b[:, 1:], a[:, 1:])
+
+
+@pytest.mark.parametrize("prompt_count", [None, 7, 6])
+def test_request_encodes_only_window_prompts_and_prepares_references_once(monkeypatch, prompt_count):
+    from PIL import Image
+
+    from vllm_omni.diffusion.models.minimax_h3 import pipeline_minimax_h3 as module
+    from vllm_omni.inputs.data import OmniDiffusionSamplingParams
+    from vllm_omni.model_executor.models.minimax_h3.conditioning import MiniMaxH3EncoderMediaConditioning
+
+    pipeline = object.__new__(module.MiniMaxH3Pipeline)
+    torch.nn.Module.__init__(pipeline)
+    pipeline.load_text_encoder = True
+    pipeline.device = torch.device("cpu")
+    pipeline.od_config = None
+    pipeline._active_turbo_spec = lambda sampling: None
+    pipeline._has_active_native_lora = lambda sampling: False
+    pipeline._resolve_task = lambda *args, **kwargs: "ref2va"
+    encoded, prepared_inputs, encoded_media = [], [], []
+    prepare = module.prepare_encoder_inputs
+
+    def prepare_once(*args, **kwargs):
+        result = prepare(*args, **kwargs)
+        prepared_inputs.append(result)
+        return result
+
+    def encode_text(prepared):
+        encoded.append(prepared)
+        return torch.full((3, 5120), len(encoded), dtype=torch.bfloat16), torch.zeros(3, dtype=torch.long)
+
+    def encode_media(media):
+        encoded_media.append(media)
+        return MiniMaxH3EncoderMediaConditioning(
+            task=media.task,
+            height=media.height,
+            width=media.width,
+            num_frames=media.num_frames,
+            latent_t=media.latent_t,
+            audio_t=media.audio_t,
+        )
+
+    monkeypatch.setattr(module, "prepare_encoder_inputs", prepare_once)
+    pipeline.encode_prompt = encode_text
+    pipeline._encode_local_media = encode_media
+    pipeline._prepare_encoder_conditioning_inputs = lambda conditioning, sampling: {
+        "text_embeddings": conditioning.hidden_states,
+        "continuation": (277, 22),
+        "num_frames": conditioning.num_frames,
+        "task": conditioning.task,
+    }
+    extra = {"task": "ref2va", "long_video": True, "duration": 75}
+    if prompt_count is not None:
+        extra["continuation_prompts"] = [f"window {i}" for i in range(prompt_count)]
+    sampling = OmniDiffusionSamplingParams(width=64, height=64, fps=24, extra_args=extra)
+    request = {"prompt": "main prompt", "multi_modal_data": {"image": Image.new("RGB", (256, 256))}}
+    if prompt_count == 6:
+        with pytest.raises(OmniClientError, match="exactly 7"):
+            pipeline._prepare_request_inputs(request, sampling)
+        assert not encoded and not encoded_media
+        return
+    context = pipeline._prepare_request_inputs(request, sampling)
+    assert [item.prompt for item in encoded] == extra.get("continuation_prompts", ["main prompt"])
+    assert len(prepared_inputs) == len(encoded_media) == 1
+    assert all(item.media is prepared_inputs[0].media for item in encoded)
+    if prompt_count is not None:
+        texts = context["continuation_text_conditioning"]
+        assert len(texts) == 7
+        assert texts[0][0] is context["text_embeddings"]
+        assert [int(hidden[0, 0]) for hidden, _ in texts] == list(range(1, 8))
+    else:
+        assert "continuation_text_conditioning" not in context
