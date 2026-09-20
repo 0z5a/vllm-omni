@@ -1,0 +1,97 @@
+patching file tests/diffusion/test_diffusion_step_pipeline.py
+FF                                                                       [100%]
+=================================== FAILURES ===================================
+_________ TestRunner.test_terminal_request_releases_input_batch[False] _________
+
+self = <test_diffusion_step_pipeline.TestRunner object at 0x7fee43dcc4a0>
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7fee43dcf560>
+cancel = False
+
+    @pytest.mark.parametrize("cancel", [False, True])
+    def test_terminal_request_releases_input_batch(self, monkeypatch, cancel):
+        import weakref
+    
+        runner = _make_runner()
+        req = _make_step_request()
+        monkeypatch.setattr(model_runner_module, "set_forward_context", _noop_forward_context)
+        runner.execute_stepwise(_make_scheduler_output(req))
+        state_ref = weakref.ref(runner.state_cache[req.request_id])
+    
+        if cancel:
+            runner.execute_stepwise(
+                DiffusionSchedulerOutput(
+                    step_id=1,
+                    scheduled_new_reqs=[],
+                    scheduled_cached_reqs=CachedRequestData.make_empty(),
+                    finished_req_ids={req.request_id},
+                    num_running_reqs=0,
+                    num_waiting_reqs=0,
+                )
+            )
+        else:
+            output = runner.execute_stepwise(_make_cached_scheduler_output())
+            assert output.get_request_output(req.request_id).finished
+    
+        assert not runner.state_cache
+>       assert runner.input_batch is None
+E       AssertionError: assert InputBatch(request_ids=['req-1'], num_reqs=1, num_reqs_after_padding=1, idx_mapping=tensor([0], dtype=torch.int32), id...ens=[2], negative_txt_seq_lens=None, extra={}, stage_durations={}, peak_memory_mb=0.0),), _prompt_update_versions=(0,)) is None
+E        +  where InputBatch(request_ids=['req-1'], num_reqs=1, num_reqs_after_padding=1, idx_mapping=tensor([0], dtype=torch.int32), id...ens=[2], negative_txt_seq_lens=None, extra={}, stage_durations={}, peak_memory_mb=0.0),), _prompt_update_versions=(0,)) = <vllm_omni.diffusion.worker.diffusion_model_runner.DiffusionModelRunner object at 0x7fee43dcf590>.input_batch
+
+tests/diffusion/test_diffusion_step_pipeline.py:554: AssertionError
+---------------------------- Captured stdout setup -----------------------------
+INFO 09-20 09:33:28 [scheduler.py:277] Chunked prefill is enabled with max_num_batched_tokens=2048.
+INFO 09-20 09:33:28 [kernel.py:369] Final IR op priority after setting platform defaults: IrOpPriorityConfig(rms_norm=['native'], fused_add_rms_norm=['native'])
+--- Running test: test_terminal_request_releases_input_batch[False]
+------------------------------ Captured log setup ------------------------------
+INFO     vllm.config.scheduler:scheduler.py:277 Chunked prefill is enabled with max_num_batched_tokens=2048.
+INFO     vllm.config.kernel:kernel.py:369 Final IR op priority after setting platform defaults: IrOpPriorityConfig(rms_norm=['native'], fused_add_rms_norm=['native'])
+_________ TestRunner.test_terminal_request_releases_input_batch[True] __________
+
+self = <test_diffusion_step_pipeline.TestRunner object at 0x7fee43dcc770>
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7fee43ddaa80>
+cancel = True
+
+    @pytest.mark.parametrize("cancel", [False, True])
+    def test_terminal_request_releases_input_batch(self, monkeypatch, cancel):
+        import weakref
+    
+        runner = _make_runner()
+        req = _make_step_request()
+        monkeypatch.setattr(model_runner_module, "set_forward_context", _noop_forward_context)
+        runner.execute_stepwise(_make_scheduler_output(req))
+        state_ref = weakref.ref(runner.state_cache[req.request_id])
+    
+        if cancel:
+            runner.execute_stepwise(
+                DiffusionSchedulerOutput(
+                    step_id=1,
+                    scheduled_new_reqs=[],
+                    scheduled_cached_reqs=CachedRequestData.make_empty(),
+                    finished_req_ids={req.request_id},
+                    num_running_reqs=0,
+                    num_waiting_reqs=0,
+                )
+            )
+        else:
+            output = runner.execute_stepwise(_make_cached_scheduler_output())
+            assert output.get_request_output(req.request_id).finished
+    
+        assert not runner.state_cache
+>       assert runner.input_batch is None
+E       AssertionError: assert InputBatch(request_ids=['req-1'], num_reqs=1, num_reqs_after_padding=1, idx_mapping=tensor([0], dtype=torch.int32), id...ens=[2], negative_txt_seq_lens=None, extra={}, stage_durations={}, peak_memory_mb=0.0),), _prompt_update_versions=(0,)) is None
+E        +  where InputBatch(request_ids=['req-1'], num_reqs=1, num_reqs_after_padding=1, idx_mapping=tensor([0], dtype=torch.int32), id...ens=[2], negative_txt_seq_lens=None, extra={}, stage_durations={}, peak_memory_mb=0.0),), _prompt_update_versions=(0,)) = <vllm_omni.diffusion.worker.diffusion_model_runner.DiffusionModelRunner object at 0x7fee43dda9f0>.input_batch
+
+tests/diffusion/test_diffusion_step_pipeline.py:554: AssertionError
+---------------------------- Captured stdout setup -----------------------------
+--- Running test: test_terminal_request_releases_input_batch[True]
+=============================== warnings summary ===============================
+../../../home/kxqandccx/vllm-omni-7753-hidream-20260918/venv/lib/python3.12/site-packages/torch/jit/_script.py:365: 14 warnings
+  /home/kxqandccx/vllm-omni-7753-hidream-20260918/venv/lib/python3.12/site-packages/torch/jit/_script.py:365: DeprecationWarning: `torch.jit.script_method` is deprecated. Please switch to `torch.compile` or `torch.export`.
+    warnings.warn(
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+--- Running Summary
+=========================== short test summary info ============================
+FAILED tests/diffusion/test_diffusion_step_pipeline.py::TestRunner::test_terminal_request_releases_input_batch[False]
+FAILED tests/diffusion/test_diffusion_step_pipeline.py::TestRunner::test_terminal_request_releases_input_batch[True]
+2 failed, 36 deselected, 14 warnings in 2.51s

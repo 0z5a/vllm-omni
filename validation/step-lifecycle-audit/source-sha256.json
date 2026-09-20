@@ -1,0 +1,4 @@
+{
+  "vllm_omni/diffusion/worker/diffusion_model_runner.py": "4aff6eadb9ff102e4a08fe0b1a83aa05b8f654a64556dcb0c0fe3f18da106dc4",
+  "tests/diffusion/test_diffusion_step_pipeline.py": "d18c54d66d4effcd82f5992ac6019f23422d0b460ad2d0c3f15ed4dd0cda9946"
+}

@@ -1,0 +1,15 @@
+{
+  "baseline_errors": [
+    "tests/diffusion/test_diffusion_step_pipeline.py:LINE: error: \"_CapturingStepPipeline\" has no attribute \"device\"  [attr-defined]",
+    "tests/diffusion/test_diffusion_step_pipeline.py:LINE: error: Signature of \"denoise_step\" incompatible with supertype \"_StepPipeline\"  [override]",
+    "vllm_omni/diffusion/worker/diffusion_model_runner.py:LINE: error: Incompatible types in assignment (expression has type \"None\", variable has type \"str\")  [assignment]",
+    "vllm_omni/diffusion/worker/diffusion_model_runner.py:LINE: error: Module \"vllm_omni.diffusion.distributed.parallel_state\" has no attribute \"get_dit_group\"; maybe \"get_dp_group\", \"get_fs_group\", or \"get_pp_group\"?  [attr-defined]"
+  ],
+  "fixed_errors": [
+    "tests/diffusion/test_diffusion_step_pipeline.py:LINE: error: \"_CapturingStepPipeline\" has no attribute \"device\"  [attr-defined]",
+    "tests/diffusion/test_diffusion_step_pipeline.py:LINE: error: Signature of \"denoise_step\" incompatible with supertype \"_StepPipeline\"  [override]",
+    "vllm_omni/diffusion/worker/diffusion_model_runner.py:LINE: error: Incompatible types in assignment (expression has type \"None\", variable has type \"str\")  [assignment]",
+    "vllm_omni/diffusion/worker/diffusion_model_runner.py:LINE: error: Module \"vllm_omni.diffusion.distributed.parallel_state\" has no attribute \"get_dit_group\"; maybe \"get_dp_group\", \"get_fs_group\", or \"get_pp_group\"?  [attr-defined]"
+  ],
+  "new_errors": []
+}

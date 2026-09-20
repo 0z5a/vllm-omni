@@ -1,0 +1,5 @@
+W0920 09:38:56.539000 1539953 torch/utils/cpp_extension.py:178] No CUDA runtime is found, using CUDA_HOME='/usr/local/cuda'
+INFO 09-20 09:38:58 [patch.py:252] NVFP4 W4A4 weight_scale NaN-clamp: installed.
+INFO 09-20 09:38:58 [patch.py:503] inductor factorable-divisibility patch: installed.
+INFO 09-20 09:38:58 [patch.py:568] [cumem-cuda] CuMemAllocator._python_free_callback patched: asleep guard extended to all platforms.
+{"engine_returned_aborted": true, "scheduler_has_requests": false, "worker_cached_requests": ["abort-last"], "worker_batch_requests": ["abort-last"], "scope": "Synchronous engine and runner with CPU test pipeline; no GPU/asynchronous-service claim"}

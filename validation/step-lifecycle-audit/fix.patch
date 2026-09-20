@@ -1,0 +1,76 @@
+diff --git a/tests/diffusion/test_diffusion_step_pipeline.py b/tests/diffusion/test_diffusion_step_pipeline.py
+index 28bba6e..ecdfbc8 100644
+--- a/tests/diffusion/test_diffusion_step_pipeline.py
++++ b/tests/diffusion/test_diffusion_step_pipeline.py
+@@ -525,6 +525,49 @@ def test_step_profiler_reports_denoise_step_as_diffuse():
+ class TestRunner:
+     """DiffusionModelRunner.execute_stepwise"""
+ 
++    @pytest.mark.parametrize("cancel", [False, True])
++    def test_terminal_request_releases_input_batch(self, monkeypatch, cancel):
++        import weakref
++
++        runner = _make_runner()
++        req = _make_step_request()
++        monkeypatch.setattr(model_runner_module, "set_forward_context", _noop_forward_context)
++        runner.execute_stepwise(_make_scheduler_output(req))
++        state_ref = weakref.ref(runner.state_cache[req.request_id])
++        batch_ref = weakref.ref(runner.input_batch)
++        runner.execute_stepwise(
++            DiffusionSchedulerOutput(
++                step_id=1,
++                scheduled_new_reqs=[],
++                scheduled_cached_reqs=CachedRequestData.make_empty(),
++                finished_req_ids=set(),
++                num_running_reqs=1,
++                num_waiting_reqs=0,
++            )
++        )
++        assert runner.input_batch is batch_ref()
++        assert runner.state_cache[req.request_id] is state_ref()
++
++        if cancel:
++            runner.execute_stepwise(
++                DiffusionSchedulerOutput(
++                    step_id=1,
++                    scheduled_new_reqs=[],
++                    scheduled_cached_reqs=CachedRequestData.make_empty(),
++                    finished_req_ids={req.request_id},
++                    num_running_reqs=0,
++                    num_waiting_reqs=0,
++                )
++            )
++        else:
++            output = runner.execute_stepwise(_make_cached_scheduler_output())
++            assert output.get_request_output(req.request_id).finished
++
++        assert not runner.state_cache
++        assert runner.input_batch is None
++        assert batch_ref() is None
++        assert state_ref() is None
++
+     @pytest.mark.parametrize(
+         ("diffusion_kv_mode", "should_cleanup"),
+         [
+diff --git a/vllm_omni/diffusion/worker/diffusion_model_runner.py b/vllm_omni/diffusion/worker/diffusion_model_runner.py
+index 5fb124a..2c4c0f0 100644
+--- a/vllm_omni/diffusion/worker/diffusion_model_runner.py
++++ b/vllm_omni/diffusion/worker/diffusion_model_runner.py
+@@ -1100,6 +1100,8 @@ class DiffusionModelRunner(OmniConnectorModelRunnerMixin):
+             prepared_states.append(state)
+ 
+         if not prepared_states:
++            if not self.state_cache:
++                self.input_batch = None
+             return prepared_states, None, error_outputs
+         input_batch = InputBatch.make_batch(
+             prepared_states,
+@@ -1131,6 +1133,8 @@ class DiffusionModelRunner(OmniConnectorModelRunnerMixin):
+         for state in states:
+             if interrupted or state.request_denoise_completed:
+                 self.state_cache.pop(state.request_id, None)
++        if not self.state_cache:
++            self.input_batch = None
+ 
+     def execute_stepwise(self, scheduler_output: DiffusionSchedulerOutput) -> BatchRunnerOutput:
+         """Execute one step for one scheduled request and return runner output."""
