@@ -35,3 +35,16 @@ Fix `c01457badf7a093d0b04ed6eeaaffccbcb756c84` ([draft PR 7856](https://github.c
 These are checkpoint, loader and CPU contract results. Actual full-model wrapper injection, rank agreement, switching and CFG E2E remain pending. The running GPU pipelines and cached source snapshots were not modified.
 
 Follow-up `3ea51522ba780697f3670cadfdb117781b3ea7f3` also normalizes short PEFT suffix `to_out.0`; full and short canonical/diffusers names are tested before and after wrapper insertion. Updated CPU result: **34 passed**. Changed-file checks including mypy passed again. The complete real adapter loader/scaling contract also passed on this revision, and all six files match the frozen remote snapshot `/dev/shm/0z5a-qwen-lora-3ea5152`. This supersedes the mutable admission staging path used during development. PR 7856 remains draft with GPU validation pending.
+
+## Second CFG adapter
+
+[CoCoEdit](https://huggingface.co/wyh6666/CoCoEdit/tree/be945097c8f9c3f643620f0d22ce9b30ce3aa0c8/qwen-cocoedit-lora/lora) has a nested PEFT model card identifying a Qwen-Image-Edit-2509 transformer training directory. Revision `be945097c8f9c3f643620f0d22ce9b30ce3aa0c8` was prefetched before GPU admission. Its original `adapter_model_converted.safetensors` is preserved unchanged; local symlinks expose the conventional adapter filename and configuration to the loader. No conversion script was executed.
+
+| Adapter | Safetensors bytes | Rank / alpha | Loaded modules / tensors | Real checkpoint dimensions | Tensor difference versus Edit-R1 |
+|---|---:|---:|---:|---|---:|
+| Edit-R1 | 377,615,760 | 32 / 64 | 480 / 960 | All match | Reference |
+| CoCoEdit | 377,615,760 | 32 / 64 | 480 / 960 | All match | 957 / 960 |
+
+CoCoEdit SHA-256 `d364540d2c555519ba4373e56bcf567e28cc7736b363aaffe082bbe4db371998` and size match the upstream LFS manifest. On source `3ea5152`, all 960 loaded tensors match exact FP32 alpha/rank scaling and all 60 output projections resolve. Both adapters share the same 960 keys, shapes and dtypes; 957 tensors have different values, confirming the two files are not merely different headers around identical weights. This is loader/metadata evidence, not GPU switching or quality validation.
+
+Owned path `/home/kxqandccx/omni-1217-20260919/models/lora/cocoedit` stays until its pending K5.5 tests and evidence are complete, then should be removed together with the completed-task Edit-R1 adapter. The shared/full base model cleanup follows the remaining base-model tests.
