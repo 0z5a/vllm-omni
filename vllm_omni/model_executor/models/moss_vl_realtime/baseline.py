@@ -85,7 +85,46 @@ def native_row(case: str, run_dir: Path | None) -> dict[str, Any]:
     return row
 
 
-def markdown(reference: list[dict[str, Any]], native: list[dict[str, Any]]) -> str:
+def realtime_row(artifact_root: Path, case: str) -> dict[str, Any]:
+    """Paced metrics for one case, from the reference and native traces."""
+    case_dir = artifact_root / case
+    # The reference capture nests by case; the native paced driver writes its runs
+    # straight into the root, so accept both layouts.
+    runs = (
+        sorted(case_dir.iterdir())
+        if case_dir.is_dir()
+        else sorted(entry for entry in artifact_root.iterdir() if entry.is_dir() and (entry / "events.jsonl").is_file())
+    )
+    if not runs:
+        return {"case": case, "status": "no paced run"}
+    run = runs[-1]
+    report = read_json(run / "realtime-report.json") or read_json(run / "paced-report.json")
+    events = [
+        json.loads(line) for line in (run / "events.jsonl").read_text(encoding="utf-8").splitlines() if line.strip()
+    ]
+    opened = next((event for event in events if event["kind"] == "session_open"), None)
+    closed = next((event for event in events if event["kind"] == "session_closed"), None)
+    outputs = [event for event in events if event["kind"] == "output"]
+    frames = [event for event in events if event["kind"] == "frame_pushed"]
+    row: dict[str, Any] = {
+        "case": case,
+        "status": "captured",
+        # The native driver records one entry per published batch, listing its frames.
+        "frames": sum(len(str(event.get("asset", "")).split(",")) for event in frames),
+        "dropped_older": sum(1 for event in frames if event.get("dropped_older")),
+        "output_chunks": len(outputs),
+        "max_backlog_at_accept": max((event.get("pending_frames") or 0) for event in frames) if frames else 0,
+        "prompt_to_first_output_seconds": (
+            round(outputs[0]["wall"] - opened["wall"], 3) if outputs and opened else None
+        ),
+        "session_seconds": round(closed["wall"] - opened["wall"], 3) if closed and opened else None,
+    }
+    if report is not None:
+        row["combined_output"] = report.get("combined_output")
+    return row
+
+
+def markdown(reference: list[dict[str, Any]], native: list[dict[str, Any]], realtime: dict[str, Any]) -> str:
     lines = ["# MOSS-VL-Realtime baseline", "", "## Reference capture", ""]
     lines += [
         "| case | prompt tokens | generated | wall (s) | decode (tok/s) | backend | device |",
@@ -120,6 +159,22 @@ def markdown(reference: list[dict[str, Any]], native: list[dict[str, Any]]) -> s
             f"{reference_wall} | {speedup} | {tokens} | {logits} |"
         )
 
+    lines += ["", "## Paced realtime", ""]
+    lines += [
+        "| side | frames accepted | dropped | output chunks | first output (s) | session (s) | output |",
+        "| --- | --- | --- | --- | --- | --- | --- |",
+    ]
+    for side in ("reference", "native"):
+        row = realtime.get(side)
+        if not row or row.get("status") != "captured":
+            lines.append(f"| {side} | — | — | — | — | — | {row['status'] if row else 'missing'} |")
+            continue
+        lines.append(
+            f"| {side} | {row['frames']} | {row['dropped_older']} | {row['output_chunks']} | "
+            f"{row['prompt_to_first_output_seconds']} | {row['session_seconds']} | "
+            f"{(row.get('combined_output') or '')[:80]} |"
+        )
+
     lines += ["", "## Loading", ""]
     for row in native:
         if row.get("status") != "replayed":
@@ -136,6 +191,13 @@ def main() -> int:
     parser.add_argument("--artifacts", required=True, help="artifact root holding <case>/<run-id> reference runs")
     parser.add_argument("--native-root", default=None, help="directory holding <case>/native-report.json")
     parser.add_argument("--cases", default="prompt_only,image,short_video")
+    parser.add_argument("--realtime-root", default=None, help="artifact root holding the paced run")
+    parser.add_argument("--realtime-case", default="timestamped_stream")
+    parser.add_argument(
+        "--realtime-native-root",
+        default=None,
+        help="artifact root holding the native paced run, when it differs from the reference root",
+    )
     parser.add_argument("--out", default=None)
     args = parser.parse_args()
 
@@ -152,13 +214,24 @@ def main() -> int:
         for case in cases
     ]
 
+    realtime_root = Path(args.realtime_root).resolve() if args.realtime_root else None
+    native_realtime_root = Path(args.realtime_native_root).resolve() if args.realtime_native_root else realtime_root
+    realtime = {
+        "reference": realtime_row(realtime_root, args.realtime_case) if realtime_root else {"status": "not requested"},
+        "native": (
+            realtime_row(native_realtime_root, args.realtime_case)
+            if native_realtime_root
+            else {"status": "not requested"}
+        ),
+    }
     report = {
         "artifacts": str(artifacts),
         "native_root": str(native_root) if native_root else None,
         "reference": reference,
         "native": native,
+        "realtime": realtime,
     }
-    text = markdown(reference, native)
+    text = markdown(reference, native, realtime)
     if args.out:
         out = Path(args.out).resolve()
         out.parent.mkdir(parents=True, exist_ok=True)
