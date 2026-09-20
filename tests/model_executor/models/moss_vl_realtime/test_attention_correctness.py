@@ -341,3 +341,25 @@ def test_appended_positions_continue_the_vision_timeline() -> None:
     assert positions[0, 0, 5:].tolist() == [10, 10, 10, 10, 12]
     assert positions[1, 0, 5:].tolist() == [10, 10, 11, 11, 12]
     assert positions[2, 0, 5:].tolist() == [10, 11, 10, 11, 12]
+
+
+def test_paced_segment_positions_follow_the_reference_rule() -> None:
+    """A realtime segment starts at the running position; image-pad takes the block."""
+    model = build_model()
+    # vision_start, time_start, "0", ".", "0", " seconds", time_end, image_pad, vision_end
+    segment = torch.tensor([[20, 21, 22, 23, 24, 25, 26, IMAGE_PAD, 27]])
+    grid_thw = torch.tensor([[1, 4, 4]])
+    positions, grid_start, next_position = model.paced_segment_positions(segment, grid_thw, start_position=100)
+    assert positions.shape == (3, 1, 9)
+    # Seven text tokens take 100..106, the image-pad takes 107 + max(2, 2) = 109,
+    # and the trailing token continues at 110.
+    assert positions[0, 0].tolist() == [100, 101, 102, 103, 104, 105, 106, 109, 110]
+    assert grid_start == 107
+    assert next_position == 111
+
+
+def test_paced_segment_positions_reject_frame_mismatch() -> None:
+    model = build_model()
+    segment = torch.tensor([[20, IMAGE_PAD, 21]])
+    with pytest.raises(ValueError, match="frame metadata"):
+        model.paced_segment_positions(segment, torch.tensor([[1, 4, 4], [1, 4, 4]]), start_position=0)

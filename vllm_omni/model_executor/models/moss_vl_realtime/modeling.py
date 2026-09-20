@@ -657,6 +657,52 @@ class MossVLNativeModel(nn.Module):
         keys = self.vision_cache.keys[self.config.text.cross_attention_layers[0]]
         return 0 if keys is None else keys.shape[2]
 
+    def paced_segment_positions(
+        self, segment_ids: torch.Tensor, grid_thw: torch.Tensor, start_position: int
+    ) -> tuple[torch.Tensor, int, int]:
+        """Positions for one realtime segment, mirroring the reference rule.
+
+        ``start_position`` is the position of the segment's first text token. A
+        regular token takes the running position and advances it by one; an
+        ``<|image_pad|>`` token takes ``running + max(eh, ew)``, the frame grid is
+        placed at the running position, and the next token continues one past the
+        separator.
+
+        Returns ``(text_positions, first_frame_grid_start, next_position)``; the grid
+        start is what the frame's vision positions must use.
+        """
+        merge = self.config.vision.spatial_merge_size
+        device = segment_ids.device
+        length = segment_ids.shape[1]
+        positions = torch.zeros(3, 1, length, dtype=torch.long, device=device)
+        running = start_position
+        frame_index = 0
+        grid_start: int | None = None
+
+        for index in range(length):
+            token_id = int(segment_ids[0, index].item())
+            if token_id == self.config.image_token_id and frame_index < grid_thw.shape[0]:
+                grid_h = int(grid_thw[frame_index, 1].item())
+                grid_w = int(grid_thw[frame_index, 2].item())
+                max_hw = max(grid_h // merge, grid_w // merge)
+                if grid_start is None:
+                    grid_start = running
+                positions[:, 0, index] = running + max_hw
+                running = running + max_hw + 1
+                frame_index += 1
+            else:
+                positions[:, 0, index] = running
+                running += 1
+
+        if frame_index != grid_thw.shape[0]:
+            raise ValueError(
+                f"frame metadata does not match the segment: {grid_thw.shape[0]} frames for "
+                f"{frame_index} image-pad tokens"
+            )
+        if grid_start is None:
+            raise ValueError("a segment without an image-pad token has no frame grid to place")
+        return positions, grid_start, running
+
     def paced_position_ids(self, advance: int = 1) -> torch.Tensor:
         """Position for the next paced step, then advance the running cursor.
 
