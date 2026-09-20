@@ -182,6 +182,11 @@ def main() -> int:
     parser.add_argument("--out", required=True)
     parser.add_argument("--device", default="cuda:0")
     parser.add_argument(
+        "--batch-plan",
+        default=None,
+        help="JSON publication plan: one entry per segment with its prompt and frames, mirroring the reference grouping",
+    )
+    parser.add_argument(
         "--reference-steps",
         default=None,
         help="steps.jsonl from capture_realtime.py --dump-steps; teacher-force it instead of pacing",
@@ -232,57 +237,133 @@ def main() -> int:
     record("session_open", initial_prompt=args.prompt, frames=len(frames))
     logits = model(prompt_ids, model.compute_text_position_ids(prompt_ids), offset=0)
     record("prefill", prompt_tokens=int(prompt_ids.shape[1]), next_position=model.next_position)
-
     state = {"logits": logits}
+    frames_published = 0
 
-    def turn(budget: int) -> str:
-        """Greedy turn. Every generated token is fed back, silence included: the
-        reference appends its own silence decision to the stream, and the next
-        turn is conditioned on it."""
+    pending_tokens: list[int] = []
+
+    def turn(budget: int) -> tuple[str, bool]:
+        """Greedy turn: returns the text it produced and whether it fell silent.
+
+        Text generated before a silence decision is real output and is returned;
+        the silence token itself is *not* fed here because the reference carries it
+        into the next segment (its silence token opens the segment that follows the
+        new input), and feeding it twice would desynchronise the stream.
+        """
         pieces: list[str] = []
         for _ in range(budget):
             token_id = int(state["logits"][0, -1].float().argmax())
+            if token_id == SILENCE_TOKEN_ID:
+                pending_tokens.append(token_id)
+                return "".join(pieces), True
             step = model.paced_position_ids(advance=1)
             token = torch.tensor([[token_id]], dtype=torch.long, device=device)
             state["logits"] = model(token, step, offset=model.text_cache.length(0))
-            if token_id == SILENCE_TOKEN_ID:
-                return "<|silence|>"
             pieces.append(tokenizer.decode([token_id], skip_special_tokens=True))
-        return "".join(pieces)
+        return "".join(pieces), False
 
-    for index, (frame, timestamp) in enumerate(zip(frames, timestamps)):
-        vision = encode_frame(processor, frame, timestamp, device)
-        segment = vision["segment_ids"]
-        text_positions, grid_start, next_position = model.paced_segment_positions(
-            segment, vision["grid_thw"], model.next_position
-        )
-        published = model.append_frames(vision["pixel_values"], vision["grid_thw"], grid_start)
+    def build_segment(prompts: list[str], pending: list[tuple[Path, int]]) -> tuple[Any, list[dict[str, Any]]]:
+        """The reference's realtime segment: optional user turn, a silence marker,
+        then one segment per frame that arrived."""
+        ids: list[int] = list(pending_tokens)
+        pending_tokens.clear()
+        if prompts:
+            # `<|im_end|>\n` closes the previous assistant turn, then the chat
+            # template renders the new user turn; tokenizing the markers as plain
+            # text would produce different ids than the reference stream.
+            im_end = tokenizer.convert_tokens_to_ids("<|im_end|>")
+            im_end = tokenizer.eos_token_id if im_end is None else im_end
+            newline = tokenizer("\n", add_special_tokens=False)["input_ids"][0]
+            for prompt in prompts:
+                ids.append(int(im_end))
+                ids.append(int(newline))
+                ids.extend(
+                    tokenizer.apply_chat_template(
+                        [{"role": "user", "content": prompt}], tokenize=True, add_generation_prompt=True
+                    )
+                )
+        ids.append(SILENCE_TOKEN_ID)
+        visions: list[dict[str, Any]] = []
+        for pending_frame, pending_timestamp in pending:
+            vision = encode_frame(processor, pending_frame, pending_timestamp, device)
+            ids.extend(vision["segment_ids"][0].tolist())
+            visions.append(vision)
+        return torch.tensor([ids], dtype=torch.long, device=device), visions
+
+    # The model's first decision is made on the prefilled prompt alone.
+    first_text, first_silent = turn(args.max_new_tokens_per_turn)
+    if first_text:
+        record("output", event_id="p0", text=first_text)
+    if first_silent:
+        record("silence", event_id="p0")
+
+    if args.batch_plan:
+        plan = json.loads(Path(args.batch_plan).read_text(encoding="utf-8"))["segments"]
+        batches = [
+            (
+                list(entry.get("prompts") or []),
+                [
+                    (Path(name) if Path(name).is_absolute() else ASSETS / name, ts)
+                    for name, ts in zip(entry["frames"], entry["timestamps"])
+                ],
+            )
+            for entry in plan
+        ]
+    else:
+        # Arrival order: each frame is its own segment, and the fixture's follow-up
+        # prompt rides with the third frame. The reference groups by queue drain
+        # timing; a deterministic driver needs an explicit plan to match it.
+        batches = [([], [(frame, timestamps[index])]) for index, frame in enumerate(frames)]
+        batches[2] = (["Focus on the current color."], batches[2][1])
+
+    for index, (prompts, batch) in enumerate(batches):
+        segment, visions = build_segment(prompts, batch)
+        grid_thw = torch.cat([vision["grid_thw"] for vision in visions], dim=0)
+        text_positions, _, next_position = model.paced_segment_positions(segment, grid_thw, model.next_position)
+
+        slots = (segment[0] == model.config.image_token_id).nonzero().flatten().tolist()
+        merge = model.config.vision.spatial_merge_size
+        for slot, vision in zip(slots, visions):
+            grid_h = int(vision["grid_thw"][0, 1].item())
+            grid_w = int(vision["grid_thw"][0, 2].item())
+            max_hw = max(grid_h // merge, grid_w // merge)
+            model.append_frames(
+                vision["pixel_values"], vision["grid_thw"], int(text_positions[0, 0, slot].item()) - max_hw
+            )
+            frames_published += 1
         model.next_position = next_position
-        # The rows before this frame's marker cannot see the frame that just
-        # arrived; the reference enforces that per row, so the native paced path
-        # must too instead of letting every segment token attend to it.
+
+        mask = (
+            None
+            if frames_published == 0
+            else visibility_from_ids(segment, frames_published, model.config.image_token_id)
+        )
         state["logits"] = model(
             segment,
             text_positions,
             offset=model.text_cache.length(0),
-            cross_attention_mask=segment_frame_mask(segment, index, model.config.image_token_id),
+            cross_attention_mask=mask,
         )
+        top = state["logits"][0, -1].float()
         record(
             "frame_pushed",
             event_id=f"f{index}",
-            asset=frame.name,
-            media_timestamp_ms=timestamp,
-            vision_length=published,
+            segment_max=round(float(top.max()), 4),
+            segment_argmax=int(top.argmax()),
+            segment_top5=[int(v) for v in top.topk(5).indices],
+            asset=",".join(path.name for path, _ in batch),
+            media_timestamp_ms=[ts for _, ts in batch],
+            vision_length=model.vision_length,
             segment_tokens=int(segment.shape[1]),
             next_position=model.next_position,
             pending_frames=0,
             dropped_older=False,
         )
-        text = turn(args.max_new_tokens_per_turn)
-        if text == "<|silence|>":
+        text, silent = turn(args.max_new_tokens_per_turn)
+        if text:
+            record("output", text=text, event_id=f"f{index}")
+        if silent:
             record("silence", event_id=f"f{index}")
-            continue
-        record("output", text=text, event_id=f"f{index}")
 
     record("session_closed", active=False, pending_frames=0)
     outputs = [event for event in events if event["kind"] == "output"]

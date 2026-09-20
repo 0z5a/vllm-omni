@@ -88,6 +88,28 @@ def run(args: argparse.Namespace) -> dict[str, Any]:
     )
     model.eval()
 
+    steps: list[dict[str, Any]] = []
+    if args.dump_steps:
+        original_forward = model.forward
+
+        def forward_wrapper(*fargs: Any, **fkwargs: Any) -> Any:
+            out = original_forward(*fargs, **fkwargs)
+            logits = out.logits if hasattr(out, "logits") else out[0]
+            input_ids = fkwargs.get("input_ids")
+            position_ids = fkwargs.get("position_ids")
+            steps.append(
+                {
+                    "step": len(steps),
+                    "input_ids": None if input_ids is None else input_ids[0].tolist(),
+                    "position_ids": None if position_ids is None else position_ids[:, 0].tolist(),
+                    "argmax": int(logits[0, -1].float().argmax()),
+                    "max": float(logits[0, -1].float().max()),
+                }
+            )
+            return out
+
+        model.forward = forward_wrapper
+
     from PIL import Image
 
     prompts = [event for event in case["events"] if event["kind"] == "prompt"]
@@ -162,6 +184,9 @@ def run(args: argparse.Namespace) -> dict[str, Any]:
     }
     (out_dir / "events.jsonl").write_text("".join(json.dumps(event) + "\n" for event in events), encoding="utf-8")
     (out_dir / "environment.json").write_text(json.dumps(report["environment"], indent=2) + "\n", encoding="utf-8")
+    if args.dump_steps:
+        report["steps"] = len(steps)
+        (out_dir / "steps.jsonl").write_text("".join(json.dumps(step) + "\n" for step in steps), encoding="utf-8")
     (out_dir / "realtime-report.json").write_text(json.dumps(report, indent=2) + "\n", encoding="utf-8")
     (out_dir / "result.md").write_text(
         "\n".join(
@@ -201,6 +226,11 @@ def main() -> int:
     parser.add_argument("--playback-speed", type=float, default=1.0)
     parser.add_argument("--frame-queue-size", type=int, default=256)
     parser.add_argument("--drain-seconds", type=float, default=15.0)
+    parser.add_argument(
+        "--dump-steps",
+        action="store_true",
+        help="record every forward's inputs, positions and argmax for step-level comparison",
+    )
     parser.add_argument("--close-timeout", type=float, default=5.0)
     args = parser.parse_args()
     run(args)

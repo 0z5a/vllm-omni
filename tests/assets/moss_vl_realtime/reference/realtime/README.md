@@ -8,7 +8,9 @@ Captured on RTX 5090 (SM120), BF16, greedy, checkpoint revision
 | `events.jsonl` | reference session trace for the `timestamped_stream` timeline: frame acceptance, output chunks, lifecycle |
 | `realtime-report.json` | reference session summary: 4 frames accepted, 15 output chunks, prompt-to-first-output |
 | `steps.jsonl` | every reference forward: input tokens, the exact 3-axis positions it used, and its argmax |
-| `native-paced-events.jsonl` | native paced driver trace for the same timeline |
+| `native-paced-events.jsonl` | native paced driver trace, first version (frame-per-segment) |
+| `native-paced-plan-events.jsonl` | native paced driver trace using the reference's publication plan |
+| `batch-plan.json` | the publication plan that mirrors the reference's grouping |
 | `realtime-step-parity.json` | native replay of the reference's steps: 12 of 13 argmax decisions agree |
 | `timeline-comparison.json` | phase-aligned comparison of the two traces |
 
@@ -26,6 +28,20 @@ Captured on RTX 5090 (SM120), BF16, greedy, checkpoint revision
   and the `<|image_pad|>` token takes `running + max(eh, ew)` with the frame grid
   placed at the running position;
 - `<|response|>` opens a text answer, `<|silence|>` returns to waiting.
+
+## Native paced replay
+
+`replay_paced.py --batch-plan batch-plan.json` reproduces the reference protocol:
+prompt prefill, a silence decision while waiting, then a segment of
+`[silence][im_end]\n[im_start]user\n{prompt}[im_end]\n[im_start]assistant\n[silence][frame segments]`
+for each batch of input. With the plan above the native run reproduces the
+reference's first two decisions exactly — silence on the prompt, then
+`<|response|>` on the batch (segment argmax 151672, max logit 26.5 against the
+reference's 26.625) — and then generates "The color is red." where the reference
+generated "The color is alternating between red and blue.". The segment tokens
+and the 3-axis positions are verified bit-identical to the reference's own
+(`steps.jsonl`), so the remaining text difference is the same near-tie mechanism
+seen in the offline cases, not a protocol error.
 
 ## Replaying the steps natively
 
