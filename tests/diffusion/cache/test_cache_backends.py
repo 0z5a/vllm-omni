@@ -481,6 +481,23 @@ class TestTeaCacheBackend:
         TeaCacheBackend(DiffusionCacheConfig()).enable(pipeline)
         assert mock_apply_hook.call_args.args[1].rel_l1_thresh == 0.2
 
+    def test_enable_and_refresh_helios(self):
+        class HeliosPipeline:
+            def __init__(self):
+                self.transformer = Mock()
+
+        pipeline = HeliosPipeline()
+        backend = TeaCacheBackend(DiffusionCacheConfig(rel_l1_thresh=0.3))
+
+        backend.enable(pipeline)
+        backend.refresh(pipeline, num_inference_steps=20)
+
+        config = pipeline.transformer.enable_teacache.call_args.args[0]
+        assert config.transformer_type == "HeliosTransformer3DModel"
+        assert config.rel_l1_thresh == 0.3
+        assert config.coefficients == [0.0, 0.0, 0.0, 1.0, 0.0]
+        pipeline.transformer.reset_teacache.assert_called_once_with()
+
     @pytest.mark.parametrize("partition", ["fl2va", "combined"])
     @pytest.mark.parametrize(
         ("configured_threshold", "expected_threshold"),
