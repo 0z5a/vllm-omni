@@ -31,9 +31,9 @@ def prepare_hunyuan15_text_encoder_fp8(
         )
     layers = encoder.layers
     replaced = 0
-    for name, layer in list(layers.named_modules()):
-        if not isinstance(layer, nn.Linear):
-            continue
+    linear_names = [name for name, layer in layers.named_modules() if isinstance(layer, nn.Linear)]
+    for name in linear_names:
+        layer = layers.get_submodule(name)
         dtype = layer.weight.dtype
         if dtype not in (torch.bfloat16, torch.float16):
             raise ValueError("HunyuanVideo-1.5 text_encoder FP8 requires BF16 or FP16 weights.")
