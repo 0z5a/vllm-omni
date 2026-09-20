@@ -1,6 +1,6 @@
-# HunyuanVideo-1.5 text encoder online FP8
+# HunyuanVideo-1.5 T2V text encoder online FP8
 
-HunyuanVideo-1.5 supports opt-in online FP8 for its Qwen text encoder:
+The HunyuanVideo-1.5 T2V pipeline supports opt-in online FP8 for its Qwen text encoder:
 `--quantization-config '{"text_encoder":{"method":"fp8"}}'`.
 Attention and MLP projections use native vLLM FP8 linear layers with dynamic
 activation quantization. Embeddings, norms, the second ByT5 encoder, video
@@ -16,6 +16,7 @@ CUDA_VISIBLE_DEVICES=0,1 python examples/offline_inference/text_to_video/text_to
   --model-class-name HunyuanVideo15Pipeline \
   --quantization-config '{"text_encoder":{"method":"fp8"}}' \
   --ulysses-degree 2 --enable-layerwise-offload --vae-use-tiling \
+  --diffusion-offload-config '{"mode":"layer","components":["dit","text_encoder"]}' \
   --height 480 --width 832 --num-frames 33 --num-inference-steps 50 \
   --guidance-scale 1.0 --seed 42 --enforce-eager \
   --prompt "A golden retriever walks through a grassy meadow in gentle sunlight." \

@@ -33,6 +33,7 @@ from vllm_omni.diffusion.models.interface import SupportsComponentDiscovery
 from vllm_omni.diffusion.models.progress_bar import ProgressBarMixin
 from vllm_omni.diffusion.models.t5_encoder import T5EncoderModel
 from vllm_omni.diffusion.offloader.config import DIT_COMPONENT, resolve_offload
+from vllm_omni.diffusion.offloader.offload_plan import OffloadPlan
 from vllm_omni.diffusion.profiler.diffusion_pipeline_profiler import DiffusionPipelineProfilerMixin
 from vllm_omni.diffusion.utils.tf_utils import get_transformer_config_kwargs
 from vllm_omni.diffusion.worker.request_batch import DiffusionRequestBatch
@@ -97,6 +98,7 @@ class HunyuanVideo15Pipeline(
     _dit_modules: ClassVar[list[str]] = ["transformer"]
     _encoder_modules: ClassVar[list[str]] = ["text_encoder", "text_encoder_2"]
     _vae_modules: ClassVar[list[str]] = ["vae"]
+    _offload_plan = OffloadPlan(encoder_block_attrs={"text_encoder": ("layers",), "text_encoder_2": ("encoder.block",)})
 
     def __init__(
         self,
