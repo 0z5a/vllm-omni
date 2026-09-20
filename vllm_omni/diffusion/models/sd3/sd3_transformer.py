@@ -1,3 +1,6 @@
+# SPDX-License-Identifier: Apache-2.0
+# SPDX-FileCopyrightText: Copyright contributors to the vLLM-Omni project
+
 from collections.abc import Iterable
 
 import torch
@@ -396,6 +399,14 @@ class SD3Transformer2DModel(nn.Module):
 
     _repeated_blocks = ["SD3TransformerBlock"]
     _layerwise_offload_blocks_attrs = ["transformer_blocks"]
+
+    @staticmethod
+    def _is_transformer_block(name: str, module: nn.Module) -> bool:
+        return (
+            name.startswith("transformer_blocks.") and name.count(".") == 1 and isinstance(module, SD3TransformerBlock)
+        )
+
+    _hsdp_shard_conditions = [_is_transformer_block]
 
     def __init__(
         self,
