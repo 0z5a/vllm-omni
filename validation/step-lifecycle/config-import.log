@@ -1,0 +1,10 @@
+W0920 10:28:50.576000 1841460 torch/utils/cpp_extension.py:178] No CUDA runtime is found, using CUDA_HOME='/usr/local/cuda'
+INFO 09-20 10:28:52 [patch.py:252] NVFP4 W4A4 weight_scale NaN-clamp: installed.
+INFO 09-20 10:28:52 [patch.py:503] inductor factorable-divisibility patch: installed.
+INFO 09-20 10:28:52 [patch.py:568] [cumem-cuda] CuMemAllocator._python_free_callback patched: asleep guard extended to all platforms.
+Traceback (most recent call last):
+  File "<stdin>", line 5, in <module>
+  File "/home/kxqandccx/omni-1217-20260919/step-lifecycle-validation/benchmark.py", line 41, in make_config
+    assert config.model_class_name == "HeliosPipeline"
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError

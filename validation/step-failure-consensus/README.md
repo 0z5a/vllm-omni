@@ -19,7 +19,7 @@ The real Gloo tests use one and two CPU processes, report failures from every ra
 
 This cannot recover failures occurring inside a pipeline collective before every rank reaches the consensus call. It does not validate full-model HSDP/offload, GPU failure recovery, or cross-rank cancellation. Those remain part of K6. The request lifecycle cleanup candidate is tracked separately at `463eb88`.
 
-Final source hashes match `/dev/shm/0z5a-step-failure-17d3837`. Runtime: Python 3.12, torch 2.13, vLLM 0.29; CUDA_VISIBLE_DEVICES empty and OMP_NUM_THREADS=1. Applicable pre-commit hooks other than the existing mypy failures pass. A fresh baseline pre-commit run is still in progress; the comparison above uses the retained earlier complete baseline log.
+Final source hashes match `/dev/shm/0z5a-step-failure-17d3837`. Runtime: Python 3.12, torch 2.13, vLLM 0.29; CUDA_VISIBLE_DEVICES empty and OMP_NUM_THREADS=1. Applicable pre-commit hooks other than the existing mypy failures pass. The fresh baseline pre-commit run also completed: the same four baseline diagnostics versus three candidate diagnostics, with no new diagnostics.
 
 Reproduce locally or in a CI CPU environment with the repository runtime and pytest dependencies:
 

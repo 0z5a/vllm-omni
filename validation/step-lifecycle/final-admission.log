@@ -1,0 +1,23 @@
+benchmark.py: 成功
+probe.py: 成功
+verify.py: 成功
+run_matrix.sh: 成功
+after_lora_parallel.sh: 成功
+/dev/shm/0z5a-step-lifecycle-bbd391d/vllm_omni/diffusion/diffusion_engine.py: 成功
+/dev/shm/0z5a-step-lifecycle-bbd391d/vllm_omni/diffusion/worker/diffusion_model_runner.py: 成功
+/dev/shm/0z5a-step-lifecycle-bbd391d/vllm_omni/diffusion/worker/diffusion_worker.py: 成功
+/dev/shm/0z5a-step-lifecycle-bbd391d/tests/diffusion/test_diffusion_engine_cleanup.py: 成功
+/dev/shm/0z5a-step-lifecycle-bbd391d/tests/diffusion/test_diffusion_model_runner.py: 成功
+/dev/shm/0z5a-step-lifecycle-bbd391d/tests/diffusion/test_diffusion_scheduler.py: 成功
+/dev/shm/0z5a-step-lifecycle-bbd391d/tests/diffusion/test_diffusion_step_pipeline.py: 成功
+W0920 10:36:18.405000 1902000 torch/utils/cpp_extension.py:178] No CUDA runtime is found, using CUDA_HOME='/usr/local/cuda'
+INFO 09-20 10:36:20 [patch.py:252] NVFP4 W4A4 weight_scale NaN-clamp: installed.
+INFO 09-20 10:36:20 [patch.py:503] inductor factorable-divisibility patch: installed.
+INFO 09-20 10:36:20 [patch.py:568] [cumem-cuda] CuMemAllocator._python_free_callback patched: asleep guard extended to all platforms.
+native 1 False False OffloadStrategy.NONE
+step 1 True True OffloadStrategy.NONE
+hsdp 2 False False OffloadStrategy.NONE
+step-hsdp 2 True True OffloadStrategy.NONE
+module 1 False False OffloadStrategy.MODEL_LEVEL
+step-module 1 True True OffloadStrategy.MODEL_LEVEL
+Imports, worker extension names, empty scheduler wave and six actual configs verified; no GPU run
