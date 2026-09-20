@@ -412,8 +412,14 @@ class MossVLNativeModel(nn.Module):
         self.vision_token_info: list[VisionTokenInfo] = []
 
     # ---- vision -----------------------------------------------------------
-    def convert_packed_to_batch(self, hidden_states: torch.Tensor, grid_thw: torch.Tensor) -> torch.Tensor:
-        """Insert one separator token after every frame's vision tokens (batch size 1)."""
+    def pack_with_separators(
+        self, hidden_states: torch.Tensor, grid_thw: torch.Tensor, start_offset: int = 0
+    ) -> tuple[torch.Tensor, list[VisionTokenInfo]]:
+        """Insert one separator token after every frame's vision tokens (batch size 1).
+
+        ``start_offset`` places the media in the session-wide vision sequence, which
+        is what the paced path appends to.
+        """
         merge = self.config.vision.spatial_merge_size
         tokens_per_media = (grid_thw[:, 0] * grid_thw[:, 1] * grid_thw[:, 2]) // (merge * merge)
         hidden_size = hidden_states.shape[-1]
@@ -433,9 +439,22 @@ class MossVLNativeModel(nn.Module):
             target = batch[0, cursor : cursor + chunk].view(t, tokens_per_frame + 1, hidden_size)
             target[:, :tokens_per_frame].copy_(frames)
             target[:, tokens_per_frame] = separator
-            info.append(VisionTokenInfo(grid_h=h, grid_w=w, num_frames=t, start=cursor, vision_tokens_per_frame=tokens_per_frame))
+            info.append(
+                VisionTokenInfo(
+                    grid_h=h,
+                    grid_w=w,
+                    num_frames=t,
+                    start=start_offset + cursor,
+                    vision_tokens_per_frame=tokens_per_frame,
+                )
+            )
             cursor += chunk
             token_offset += num_tokens
+        return batch, info
+
+    def convert_packed_to_batch(self, hidden_states: torch.Tensor, grid_thw: torch.Tensor) -> torch.Tensor:
+        """Insert separator tokens and record this media as the session's vision layout."""
+        batch, info = self.pack_with_separators(hidden_states, grid_thw)
         self.vision_token_info = info
         return batch
 
@@ -551,6 +570,71 @@ class MossVLNativeModel(nn.Module):
             expanded_mask,
         )
         return self.lm_head(hidden_states)
+
+    @torch.no_grad()
+    def append_frames(
+        self,
+        pixel_values: torch.Tensor,
+        grid_thw: torch.Tensor,
+        vision_position_start: int,
+    ) -> int:
+        """Publish newly arrived frames to the cross-attention cache.
+
+        This is the initial publication contract: encoding and cache publication
+        happen at a decode-step boundary, so no attention step ever observes a
+        partially written frame. Returns the vision sequence length after the
+        append, which is the visible extent for subsequent steps.
+
+        Vision positions follow the reference rule: a frame with an effective grid
+        of ``(eh, ew)`` starts at the running position, advances by row/column
+        inside the frame, and reserves one separator slot at
+        ``start + max(eh, ew)``; the next frame starts one position later.
+        """
+        weight = self.model.visual.patch_embed.proj.weight
+        packed = self.model.visual(pixel_values.to(weight.dtype), grid_thw)
+        states, info = self.pack_with_separators(packed, grid_thw, start_offset=self.vision_length)
+        positions = self.vision_positions_for(info, vision_position_start, states.shape[1])
+        cos, sin = self.model.language_model.rotary_emb(states, positions)
+
+        for layer_idx in self.config.text.cross_attention_layers:
+            attention = self.model.language_model.layers[layer_idx].cross_attn
+            key = attention.k_proj(states).view(1, -1, attention.num_kv_heads, attention.head_dim).transpose(1, 2)
+            value = attention.v_proj(states).view(1, -1, attention.num_kv_heads, attention.head_dim).transpose(1, 2)
+            key = apply_rotary(attention.k_norm(key), cos, sin)
+            self.vision_cache.update(layer_idx, key, value)
+
+        self.vision_token_info.extend(info)
+        return self.vision_length
+
+    def vision_positions_for(
+        self, info: list[VisionTokenInfo], position_start: int, num_vision_tokens: int
+    ) -> torch.Tensor:
+        """Positions for a freshly appended media block, continuing the vision timeline."""
+        merge = self.config.vision.spatial_merge_size
+        device = self.model.separator_token.device
+        positions = torch.zeros(3, 1, num_vision_tokens, dtype=torch.long, device=device)
+        cursor = position_start
+        # ``media.start`` is a session-wide offset; positions are indexed into the
+        # block being published, so rebase on the block's own origin.
+        origin = info[0].start if info else 0
+        for media in info:
+            grid_h, grid_w = media.grid_h // merge, media.grid_w // merge
+            for frame in range(media.num_frames):
+                base = media.start - origin + frame * (media.vision_tokens_per_frame + 1)
+                rows = torch.arange(grid_h, device=device).view(grid_h, 1).expand(grid_h, grid_w)
+                cols = torch.arange(grid_w, device=device).view(1, grid_w).expand(grid_h, grid_w)
+                flat = slice(base, base + grid_h * grid_w)
+                positions[0, 0, flat] = cursor
+                positions[1, 0, flat] = (cursor + rows).reshape(-1)
+                positions[2, 0, flat] = (cursor + cols).reshape(-1)
+                positions[:, 0, base + grid_h * grid_w] = cursor + max(grid_h, grid_w)
+                cursor += max(grid_h, grid_w) + 1
+        return positions
+
+    @property
+    def vision_length(self) -> int:
+        keys = self.vision_cache.keys[self.config.text.cross_attention_layers[0]]
+        return 0 if keys is None else keys.shape[2]
 
     def decode_position_ids(self, offset: int, input_ids: torch.Tensor | None = None) -> torch.Tensor:
         """Positions for one decode step.

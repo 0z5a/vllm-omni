@@ -278,3 +278,50 @@ def test_image_pad_at_sequence_end_keeps_positions_monotonic() -> None:
     text = shifted[0, 0].tolist()
     assert text == sorted(text)
     assert text[-1] == max(vision_positions[0, 0].tolist())
+
+
+# --------------------------------------------------------------- T10 publication
+def test_append_frames_publishes_at_a_step_boundary() -> None:
+    """A frame appended after step N is invisible to step N and visible to step N+1."""
+    pixel_values = torch.randn(16, 3 * 1 * 16 * 16, dtype=torch.bfloat16)
+    grid_thw = torch.tensor([[1, 4, 4]])
+
+    torch.manual_seed(0)
+    steady = build_model()
+    torch.manual_seed(0)
+    stepped = build_model()
+    input_ids = torch.tensor([[10, IMAGE_PAD, 11]])
+    with torch.no_grad():
+        steady_first = steady(input_ids, steady.compute_text_position_ids(input_ids), 0, pixel_values, grid_thw)
+        stepped_first = stepped(input_ids, stepped.compute_text_position_ids(input_ids), 0, pixel_values, grid_thw)
+        assert torch.allclose(steady_first, stepped_first, atol=1e-3)
+        assert stepped.vision_length == 5
+
+        token = torch.tensor([[12]])
+        before = stepped(token, stepped.decode_position_ids(3, token), 3)
+        steady_before = steady(token, steady.decode_position_ids(3, token), 3)
+        assert torch.allclose(before, steady_before, atol=1e-3)
+
+        # Publish a second frame at the step boundary: nothing before it can change.
+        published = stepped.append_frames(pixel_values, grid_thw, vision_position_start=5)
+        assert published == 10
+        assert stepped.vision_length == 10
+
+        after = stepped(token, stepped.decode_position_ids(4, token), 4)
+        steady_after = steady(token, steady.decode_position_ids(4, token), 4)
+        assert not torch.allclose(after, steady_after, atol=1e-3)
+
+
+def test_appended_positions_continue_the_vision_timeline() -> None:
+    model = build_model()
+    info = [VisionTokenInfo(grid_h=4, grid_w=4, num_frames=2, start=0, vision_tokens_per_frame=4)]
+    positions = model.vision_positions_for(info, position_start=7, num_vision_tokens=10)
+    assert positions.shape == (3, 1, 10)
+    # Frame 0 occupies 7..7 with column/row spread, separator at 7 + max(2, 2) = 9,
+    # and the reference's realtime rule restarts the next frame at separator + 1.
+    assert positions[0, 0, :5].tolist() == [7, 7, 7, 7, 9]
+    assert positions[1, 0, :5].tolist() == [7, 7, 8, 8, 9]
+    assert positions[2, 0, :5].tolist() == [7, 8, 7, 8, 9]
+    assert positions[0, 0, 5:].tolist() == [10, 10, 10, 10, 12]
+    assert positions[1, 0, 5:].tolist() == [10, 10, 11, 11, 12]
+    assert positions[2, 0, 5:].tolist() == [10, 11, 10, 11, 12]
