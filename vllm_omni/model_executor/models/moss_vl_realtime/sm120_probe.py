@@ -107,6 +107,77 @@ def reference_causal(query: torch.Tensor, key: torch.Tensor, value: torch.Tensor
     return torch.matmul(weights, value.float())
 
 
+def probe_model_shapes(device: torch.device) -> list[dict[str, Any]]:
+    """Operators at the checkpoint's real shapes, not convenient ones.
+
+    32 query heads against 8 KV heads at head_dim 128 is where a GQA mapping bug
+    or an additive-mask layout bug actually shows up, so the probe runs those
+    shapes and measures the error against float32.
+    """
+    torch.manual_seed(0)
+    heads, kv_heads, head_dim = 32, 8, 128
+    text_len, vision_len = 1024, 512
+    query = torch.randn(1, heads, text_len, head_dim, device=device, dtype=torch.bfloat16)
+    key = torch.randn(1, kv_heads, vision_len, head_dim, device=device, dtype=torch.bfloat16)
+    value = torch.randn(1, kv_heads, vision_len, head_dim, device=device, dtype=torch.bfloat16)
+    scale = head_dim**-0.5
+
+    def repeat_kv(tensor: torch.Tensor) -> torch.Tensor:
+        groups = heads // kv_heads
+        return (
+            tensor[:, :, None].expand(1, kv_heads, groups, vision_len, head_dim).reshape(1, heads, vision_len, head_dim)
+        )
+
+    key_full, value_full = repeat_kv(key), repeat_kv(value)
+    mask = torch.zeros(1, 1, text_len, vision_len, device=device, dtype=torch.bfloat16)
+    mask[..., vision_len // 2 :] = torch.finfo(torch.bfloat16).min
+
+    results = [
+        measure(
+            "cross_attention_gqa_additive_mask",
+            lambda: F.scaled_dot_product_attention(query, key_full, value_full, attn_mask=mask, scale=scale),
+            reference_attention(query, key_full, value_full, mask, scale),
+        )
+    ]
+
+    # vision tower: fused qkv and per-frame segmented attention
+    tokens = 1024
+    hidden = 1152
+    qkv_weight = torch.randn(hidden * 3, hidden, device=device, dtype=torch.bfloat16) * 0.02
+    vision_input = torch.randn(tokens, hidden, device=device, dtype=torch.bfloat16)
+    results.append(
+        measure(
+            "vision_fused_qkv",
+            lambda: F.linear(vision_input, qkv_weight),
+            F.linear(vision_input.float(), qkv_weight.float()),
+        )
+    )
+
+    frames, frame_tokens, frame_heads, frame_head_dim = 4, 256, 16, 72
+    frame_query = torch.randn(1, frame_heads, frame_tokens, frame_head_dim, device=device, dtype=torch.bfloat16)
+    frame_key = torch.randn(1, frame_heads, frame_tokens, frame_head_dim, device=device, dtype=torch.bfloat16)
+    frame_value = torch.randn(1, frame_heads, frame_tokens, frame_head_dim, device=device, dtype=torch.bfloat16)
+    results.append(
+        measure(
+            "vision_per_frame_segment",
+            lambda: F.scaled_dot_product_attention(frame_query, frame_key, frame_value, scale=frame_head_dim**-0.5),
+            reference_attention(frame_query, frame_key, frame_value, None, frame_head_dim**-0.5),
+        )
+    )
+
+    # 3-axis mRoPE over a realistic context
+    head_dim_text, theta = 128, 5_000_000.0
+    inv_freq = 1.0 / (theta ** (torch.arange(0, head_dim_text, 2, dtype=torch.float32, device=device) / head_dim_text))
+    positions = torch.arange(4096, device=device, dtype=torch.float32)
+    results.append(
+        measure("mrope_outer_product_4096", lambda: torch.outer(positions, inv_freq), torch.outer(positions, inv_freq))
+    )
+    results.append(
+        {"name": "model_shapes", "heads": heads, "kv_heads": kv_heads, "head_dim": head_dim, "frames_quadruple": frames}
+    )
+    return results
+
+
 def probe_operators(device: torch.device) -> list[dict[str, Any]]:
     """Functional float32 references only: nn.Module.float() would mutate the bf16 module."""
     torch.manual_seed(0)
@@ -173,6 +244,7 @@ def main() -> int:
         "arch_list": torch.cuda.get_arch_list(),
         "attention": probe_attention(device),
         "operators": probe_operators(device),
+        "model_shapes": probe_model_shapes(device),
     }
     text = json.dumps(report, indent=2)
     if args.out:

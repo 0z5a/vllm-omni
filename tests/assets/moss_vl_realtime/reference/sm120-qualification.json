@@ -25,7 +25,7 @@
       "max_abs_error": 0.007955789566040039,
       "mean_abs_error": 0.00020743875938933343,
       "reference_scale": 3.484375,
-      "milliseconds": 0.12264074757695198
+      "milliseconds": 0.09559514001011848
     },
     {
       "name": "cross_attention_additive_mask",
@@ -33,7 +33,7 @@
       "max_abs_error": 0.0018938779830932617,
       "mean_abs_error": 0.00016767799388617277,
       "reference_scale": 0.6823421716690063,
-      "milliseconds": 0.10347319766879082
+      "milliseconds": 0.07977429777383804
     },
     {
       "name": "flash_attention",
@@ -59,7 +59,7 @@
       "max_abs_error": 0.009712696075439453,
       "mean_abs_error": 0.000830592296551913,
       "reference_scale": 2.3965373039245605,
-      "milliseconds": 0.18428778275847435
+      "milliseconds": 0.1475331373512745
     },
     {
       "name": "layernorm",
@@ -67,7 +67,7 @@
       "max_abs_error": 0.015436172485351562,
       "mean_abs_error": 0.0011287719244137406,
       "reference_scale": 5.559536933898926,
-      "milliseconds": 0.03329804167151451
+      "milliseconds": 0.024516135454177856
     },
     {
       "name": "gelu_tanh",
@@ -75,7 +75,7 @@
       "max_abs_error": 0.007754802703857422,
       "mean_abs_error": 0.0005941823474131525,
       "reference_scale": 4.281232833862305,
-      "milliseconds": 0.022697262465953827
+      "milliseconds": 0.014197546988725662
     },
     {
       "name": "linear_wide",
@@ -83,7 +83,7 @@
       "max_abs_error": 0.007814645767211914,
       "mean_abs_error": 0.0007630361360497773,
       "reference_scale": 3.7456769943237305,
-      "milliseconds": 0.20981207489967346
+      "milliseconds": 0.17016613855957985
     },
     {
       "name": "rope_outer_product",
@@ -91,7 +91,7 @@
       "max_abs_error": 0.0,
       "mean_abs_error": 0.0,
       "reference_scale": 63.0,
-      "milliseconds": 0.02411799505352974
+      "milliseconds": 0.01850305125117302
     },
     {
       "name": "rope_freq_head",
@@ -100,6 +100,47 @@
         64
       ],
       "dtype": "torch.float32"
+    }
+  ],
+  "model_shapes": [
+    {
+      "name": "cross_attention_gqa_additive_mask",
+      "output_dtype": "torch.bfloat16",
+      "max_abs_error": 0.0029093027114868164,
+      "mean_abs_error": 0.0001680344867054373,
+      "reference_scale": 1.0419718027114868,
+      "milliseconds": 0.17116637900471687
+    },
+    {
+      "name": "vision_fused_qkv",
+      "output_dtype": "torch.bfloat16",
+      "max_abs_error": 0.007814407348632812,
+      "mean_abs_error": 0.0007623152923770249,
+      "reference_scale": 3.566956043243408,
+      "milliseconds": 0.08435593917965889
+    },
+    {
+      "name": "vision_per_frame_segment",
+      "output_dtype": "torch.bfloat16",
+      "max_abs_error": 0.002077639102935791,
+      "mean_abs_error": 0.00016700371634215117,
+      "reference_scale": 0.8505627512931824,
+      "milliseconds": 0.10127807036042213
+    },
+    {
+      "name": "mrope_outer_product_4096",
+      "output_dtype": "torch.float32",
+      "max_abs_error": 0.0,
+      "mean_abs_error": 0.0,
+      "reference_scale": 4095.0,
+      "milliseconds": 0.018277205526828766
+    },
+    {
+      "name": "model_shapes",
+      "heads": 32,
+      "kv_heads": 8,
+      "head_dim": 128,
+      "frames_quadruple": 4
     }
   ]
 }
