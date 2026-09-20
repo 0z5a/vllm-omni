@@ -38,6 +38,7 @@ MODULES = (
     "test_native_contract",
     "test_attention_correctness",
     "test_reference_fixtures",
+    "test_realtime_contract",
     "test_checkpoint_contract",
 )
 
