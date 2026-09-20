@@ -445,3 +445,22 @@ def test_chunked_prefill_keeps_cross_attention_visible_set() -> None:
     assert before == 5
     assert model.vision_length == 5
     assert model.text_cache.length(0) == 4
+
+
+def test_memory_report_separates_weights_and_caches() -> None:
+    """The breakdown must attribute bytes to weights and each cache separately."""
+    model = build_model()
+    input_ids = torch.tensor([[10, IMAGE_PAD, 11]])
+    pixel_values = torch.randn(16, 3 * 1 * 16 * 16, dtype=torch.bfloat16)
+    with torch.no_grad():
+        model(input_ids, model.compute_text_position_ids(input_ids), 0, pixel_values, torch.tensor([[1, 4, 4]]))
+        token = torch.tensor([[12]])
+        model(token, model.decode_position_ids(3, token), 3)
+    report = model.memory_report()
+    weights = sum(parameter.numel() * parameter.element_size() for parameter in model.parameters())
+    assert report["weights_bytes"] == weights
+    assert report["text_cache_bytes"] > 0
+    assert report["vision_cache_bytes"] > 0
+    # four text positions and five vision slots, two layers each holding keys and values
+    assert report["text_cache_bytes"] == 2 * 2 * 4 * 2 * 8 * 2  # layers x K/V x tokens x heads x head_dim x bf16
+    assert report["vision_cache_bytes"] == 2 * 2 * 5 * 2 * 8 * 2

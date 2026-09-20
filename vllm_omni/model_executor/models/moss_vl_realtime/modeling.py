@@ -771,6 +771,29 @@ class MossVLNativeModel(nn.Module):
         position = torch.full((1,), offset, dtype=torch.long, device=self.rope_delta.device) + self.rope_delta
         return position.view(1, 1, 1).expand(3, 1, 1)
 
+    def memory_report(self) -> dict[str, int]:
+        """Where the device memory goes: weights, the two caches, and the peak.
+
+        The caches are plain tensors here, so their footprint is exact rather than
+        estimated from block tables.
+        """
+        weights = sum(parameter.numel() * parameter.element_size() for parameter in self.parameters())
+
+        def cache_bytes(keys: list[torch.Tensor | None], values: list[torch.Tensor | None]) -> int:
+            total = 0
+            for tensor in [*keys, *values]:
+                if tensor is not None:
+                    total += tensor.numel() * tensor.element_size()
+            return total
+
+        peak = torch.accelerator.max_memory_allocated() if torch.accelerator.is_available() else 0
+        return {
+            "weights_bytes": weights,
+            "text_cache_bytes": cache_bytes(self.text_cache.keys, self.text_cache.values),
+            "vision_cache_bytes": cache_bytes(self.vision_cache.keys, self.vision_cache.values),
+            "peak_allocated_bytes": int(peak),
+        }
+
     def budget_report(self) -> dict[str, int | None]:
         """Current usage against the declared budgets."""
         return {

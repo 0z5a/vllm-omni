@@ -213,6 +213,7 @@ def main() -> int:
         "decode_seconds": native["decode_seconds"],
         "decode_tokens_per_second": native["decode_tokens_per_second"],
         "peak_memory_bytes": native["peak_memory_bytes"],
+        "memory_breakdown": model.memory_report(),
         "step_logits": native["step_logits"],
     }
     if args.compare:
