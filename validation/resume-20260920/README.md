@@ -3,7 +3,7 @@
 Author: 0z5a. Main pinned to `698f7160125d3071b8c0eef69b1b03fa8dfba766`.
 
 | Scope | Source commit | Verification | Full E2E status |
-|---|---|---|---|
+| --- | --- | --- | --- |
 | Ovis HSDP request residency | `97d2a75` | 3 CPU lifecycle tests; two-rank CUDA parity, collective count and cleanup; all pre-commit checks | Prior six-arm E2E completed; rebase repeat interrupted by unrelated GPU2 process allocating 33.76 GiB |
 | ERNIE distributed VAE decode | `e4a200f` | Wiring regression passes; two real-weight serial CUDA shapes exact; all pre-commit checks | Checkpoint completed; waiting for GPU 2,3 |
 | OmniGen2 distributed VAE decode | `15840a6` | Wiring test fails on baseline and passes on patch; two real-weight serial CUDA shapes exact; all pre-commit checks | Nonzero-rank empty result handled before interpolation; waiting for GPU 2,3 |
@@ -25,3 +25,7 @@ Both bounded GPU waits expired without starting an engine. The six-case two-rank
 ## Rebased E2E follow-up at 03:25 CST
 
 Ovis six-arm validation has completed on `97d2a75`: all 84 outputs agree within resolution. See [full evidence and speed table](../ovis-rebased-20260920/README.md). Additional active GPU processes occurred in N0/P0/P1, so performance remains a shared-host observation. The same sequential driver is now running ERNIE full-model E2E, followed by OmniGen2 and NextStep; those scopes are not marked complete.
+
+## Authenticated access follow-up at 11:00 CST
+
+Official Hugging Face access is now granted for both FLUX.1 checkpoints, FLUX.1-Kontext-dev, and SD3.5-medium at their pinned revisions. A memory-only authenticated downloader is fetching and verifying them ahead of A2/A4/A5/H1 E2E. See [prefetch evidence](../model-prefetch-20260920/README.md). This removes the earlier model-access blocker but does not mark any of those E2E scopes complete.
