@@ -1,0 +1,13 @@
+after_fp8.sh: 成功
+benchmark.py: 成功
+lora_probe.py: 成功
+probe.py: 成功
+run_features.sh: 成功
+verify_parallel.py: 成功
+verify_switch.py: 成功
+W0920 09:21:42.219000 1428130 torch/utils/cpp_extension.py:178] No CUDA runtime is found, using CUDA_HOME='/usr/local/cuda'
+INFO 09-20 09:21:44 [patch.py:252] NVFP4 W4A4 weight_scale NaN-clamp: installed.
+INFO 09-20 09:21:44 [patch.py:503] inductor factorable-divisibility patch: installed.
+INFO 09-20 09:21:44 [patch.py:568] [cumem-cuda] CuMemAllocator._python_free_callback patched: asleep guard extended to all platforms.
+(<class 'probe.ProbeRunner'>, <class 'lora_probe.ProbeRunner'>, <class 'vllm_omni.diffusion.worker.diffusion_model_runner.DiffusionModelRunner'>)
+[1, 2, 2, 2, 2]
