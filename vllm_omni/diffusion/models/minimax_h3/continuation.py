@@ -16,6 +16,7 @@ import torch
 from vllm.logger import init_logger
 
 from vllm_omni.errors import OmniClientError
+from vllm_omni.model_executor.models.minimax_h3.long_video import resolve_long_video_mode
 
 from .packed_tokens import minimax_h3_pack_audio_latent, minimax_h3_patchify_video_latent
 
@@ -50,12 +51,9 @@ class ContinuationWindow:
 
 
 def resolve_continuation(extra: Mapping[str, Any], *, task: str, step_execution: bool) -> tuple[int, int] | None:
-    default_mode = "continuation" if extra.get("long_video") and task == "ref2va" else "full"
-    mode = extra.get("long_video_mode", default_mode)
+    mode = resolve_long_video_mode(extra, task)
     if mode == "full":
         return None
-    if mode != "continuation":
-        raise OmniClientError("MiniMax H3 long_video_mode must be full or continuation")
     if task != "ref2va" or step_execution:
         raise OmniClientError("MiniMax H3 continuation requires Ref2VA request execution (not step execution)")
     window = extra.get("continuation_window_frames", 277)

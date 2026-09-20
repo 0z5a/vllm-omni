@@ -846,7 +846,14 @@ retain the native `17n+5` video-frame grid, `5n+2` video-latent grid, and 40 Hz
 audio latents. A request for 75 seconds becomes 1,807 frames (75.292 seconds at
 24 FPS). In full mode, attention cost and activation memory grow with the full
 sequence length. Reference-video and reference-audio limits remain unchanged.
-Other task types retain full-mode behavior.
+Other task types retain full-mode behavior. Requests are limited to 30 seconds
+in full mode and 300 seconds in continuation mode; without `long_video=true`,
+the limit remains 15 seconds. The limits cover duration aliases and explicit
+`num_frames`, and externally encoded requests are checked again before diffusion.
+Native frame-grid alignment can round the output slightly above the requested
+limit. These are request sanity bounds, not a guarantee that a given resolution
+fits GPU memory. Full mode still allocates the whole sequence, and continuation
+retains cumulative latents and reference inputs.
 
 Use `audio_mode=lock_source` with one `audio_reference` to drive generation
 with a soundtrack, rather than treating it as a short reference. The encoder
@@ -890,7 +897,10 @@ not supplied by this feature.
 explicitly with `long_video_mode=continuation`. This experimental mode supports
 Ref2VA request execution with uncached denoising (`quality=lossless`); step
 execution is rejected. Use `long_video_mode=full` explicitly for whole-target
-sampling, including long requests that require step execution.
+sampling, including requests up to 30 seconds that require step execution.
+Continuation currently rejects latent-mask editing (`video_noise_mask` or
+`audio_noise_mask` with retained source regions). Full mode supports editing;
+`audio_mode=lock_source` cannot be combined with audio latent-mask editing.
 
 ```json
 {
@@ -944,6 +954,33 @@ Global positions can still exceed the model's trained temporal range. This
 mode does not guarantee seamless cuts or adherence to absolute shot timestamps in
 a repeated prompt. For comparison, keep the model, seed, prompt, source media,
 steps, shifts, and output size fixed, changing only `long_video_mode`.
+
+For a reproducible approximately 20-second comparison, use a request-mode
+Ref2VA server with caching disabled and the same `prompt.txt` and `REF_IMAGE`
+for both requests. Use a single prompt without `continuation_prompts` so that
+both modes receive identical text. The commands below generate native audio:
+
+```bash
+for mode in full continuation; do
+  curl --fail-with-body -sS --max-time 14400 "${API_URL}" \
+    -F 'prompt=<prompt.txt' \
+    -F "input_reference=@${REF_IMAGE};type=image/png" \
+    -F 'width=960' -F 'height=544' -F 'fps=24' \
+    -F 'num_inference_steps=50' -F 'flow_shift=12' -F 'seed=19960422' \
+    -F 'quality=lossless' \
+    -F "extra_params={\"task\":\"ref2va\",\"duration\":20,\"long_video\":true,\"long_video_mode\":\"${mode}\",\"audio_flow_shift\":3,\"preencode_mp4\":true}" \
+    -o "h3-20s-${mode}.mp4" || break
+done
+```
+
+Both outputs should contain 481 frames (20.042 seconds at 24 FPS).
+Continuation uses windows `[0,277)` and `[255,481)`; inspect frames 276/277
+(about 11.54 seconds) for visual and audio discontinuities. Compare the complete
+clips for motion, identity, prompt adherence, and sound, not just frame similarity:
+the trajectories differ by design. Report the tested commit, checkpoint, hardware,
+settings, and both videos with any comparison; the command alone is not quality
+evidence. A matching seed does not imply matching noise over differently sized
+full and windowed latents.
 
 ## Request-scoped quality
 
