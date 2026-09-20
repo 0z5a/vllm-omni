@@ -51,3 +51,8 @@ run_arm H1 new1 "$sd3" 892df593a09395d2852c9c98433c59df769caaa1 "$root/models/sd
 run_arm H1 ref1 "$base" 698f7160125d3071b8c0eef69b1b03fa8dfba766 "$root/models/sd35-medium" sd3 b940f670f0eda2d07fbb75229e779da1ad11eb80 no
 "$python_bin" "$run_root/summarize.py" "$run_root/evidence"
 printf 'complete\n' > "$run_root/evidence/gated-models.status"
+du -sb "$root/models/flux1-schnell" "$root/models/flux1-dev" \
+    "$root/models/flux1-kontext" "$root/models/sd35-medium" > "$run_root/evidence/model-cleanup.tsv"
+rm -rf "$root/models/flux1-schnell" "$root/models/flux1-dev" \
+    "$root/models/flux1-kontext" "$root/models/sd35-medium"
+printf 'complete\n' > "$run_root/evidence/model-cleanup.status"
