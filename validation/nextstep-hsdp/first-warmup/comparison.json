@@ -1,0 +1,16 @@
+{
+  "status": "preliminary warmup only; H0/H1/TP1 pending",
+  "source_sha": "43c4e79",
+  "baseline_sha256": "915eed27dcf8c986b8c01efe0764c3932a9a17c8c749a5d8af2c48983647dcaf",
+  "candidate_sha256": "935587c8b845c41262bc99adf1b437e5a75964c08786d7df7404a9492bb618f1",
+  "size": [
+    512,
+    512
+  ],
+  "max_absolute_error": 245,
+  "mean_absolute_error": 38.03779220581055,
+  "rmse": 52.884807942571186,
+  "psnr_db": 13.664184978670335,
+  "H0_warmup_seconds": 2472.9274572590075,
+  "H0_ready_seconds": 2109.093615011996
+}
