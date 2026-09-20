@@ -110,9 +110,15 @@ Committing to a real device rather than an architecture macro:
 
 | case | reference wall (s) | native wall (s) | wall speedup | native decode (tok/s) |
 | --- | --- | --- | --- | --- |
-| prompt_only | 2.374 | 0.440 | 5.40x | 24.5 |
-| image | 2.448 | 1.560 | 1.57x | 23.9 |
-| short_video | 3.794 | 2.710 | 1.40x | 23.9 |
+| prompt_only | 2.338 | 0.462 | 5.06x | 22.5 |
+| image | 2.281 | 1.758 | 1.30x | 21.2 |
+| short_video | 3.669 | 2.913 | 1.26x | 22.2 |
+
+Device memory for the image case, from the run report: weights
+21622.41 MiB, text cache 6.89 MiB, vision cache 0.23 MiB, peak allocated
+21676.98 MiB. The caches are negligible at the validated bounded sizes; the model
+weights are the entire footprint, which is why capacity work belongs to weight
+residency rather than cache tuning.
 
 The hardware qualification probe
 (`python -m vllm_omni.model_executor.models.moss_vl_realtime.sm120_probe`)
