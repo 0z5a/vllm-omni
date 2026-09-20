@@ -10,9 +10,15 @@ import pytest
 import torch
 from vllm.v1.engine.exceptions import EngineDeadError
 
+from vllm_omni.diffusion.data import DiffusionOutput
+from vllm_omni.diffusion.diffusion_engine import DiffusionEngine
 from vllm_omni.diffusion.executor.abstract import DiffusionExecutor
 from vllm_omni.diffusion.executor.multiproc_executor import MultiprocDiffusionExecutor
 from vllm_omni.diffusion.executor.uniproc_executor import UniProcDiffusionExecutor
+from vllm_omni.diffusion.request import OmniDiffusionRequest
+from vllm_omni.diffusion.sched.interface import CachedRequestData, DiffusionSchedulerOutput, NewRequestData
+from vllm_omni.errors import GuardrailViolationError, OmniClientError
+from vllm_omni.inputs.data import OmniDiffusionSamplingParams
 
 pytestmark = [pytest.mark.core_model, pytest.mark.cpu]
 
@@ -260,3 +266,48 @@ def test_shutdown_is_idempotent_and_closes_executor(executor, monkeypatch):
     empty_cache.assert_called_once_with()
     with pytest.raises(RuntimeError, match="closed"):
         exec_.collective_rpc("some_method", unique_reply_rank=0)
+
+
+@pytest.mark.parametrize(
+    "error,status_code,error_type",
+    [
+        (OmniClientError("full duration exceeds 30 seconds"), 400, "BadRequestError"),
+        (OmniClientError("invalid input", status_code=422, error_type="InvalidInput"), 422, "InvalidInput"),
+        (GuardrailViolationError("content rejected"), 400, "BadRequestError"),
+        (RuntimeError("CUDA out of memory"), None, None),
+    ],
+)
+def test_execute_request_preserves_error_classification(executor, monkeypatch, error, status_code, error_type):
+    exec_, worker = executor
+    monkeypatch.setattr(exec_, "_device_is_usable", lambda: True)
+    worker.execute_method.side_effect = error
+    request = OmniDiffusionRequest(
+        prompt="test", sampling_params=OmniDiffusionSamplingParams(), request_id="error-test"
+    )
+    scheduled = DiffusionSchedulerOutput(
+        step_id=0,
+        scheduled_new_reqs=[NewRequestData(request_id=request.request_id, req=request)],
+        scheduled_cached_reqs=CachedRequestData.make_empty(),
+        finished_req_ids=set(),
+        num_running_reqs=1,
+        num_waiting_reqs=0,
+    )
+
+    output = exec_.execute_request(scheduled).runner_outputs[0].result
+    assert output.error == str(error)
+    assert output.error_status_code == status_code
+    assert output.error_type == error_type
+    engine = object.__new__(DiffusionEngine)
+    expected_error = OmniClientError if status_code is not None else RuntimeError
+    with pytest.raises(expected_error, match=str(error)) as raised:
+        engine.postprocess_output(request, output)
+    if status_code is not None:
+        assert raised.value.status_code == status_code
+        assert raised.value.error_type == error_type
+
+    # A rejected request must not prevent the next request from completing.
+    worker.execute_method.side_effect = None
+    successful_output = DiffusionOutput()
+    worker.execute_method.return_value = successful_output
+    assert exec_.execute_request(scheduled).runner_outputs[0].result is successful_output
+    assert not exec_.is_dead

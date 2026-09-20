@@ -31,6 +31,7 @@ from vllm.v1.engine.exceptions import EngineDeadError
 
 from vllm_omni.diffusion.data import DiffusionOutput
 from vllm_omni.diffusion.executor.abstract import DiffusionExecutor
+from vllm_omni.errors import client_error_metadata
 from vllm_omni.platforms import current_omni_platform
 
 if TYPE_CHECKING:
@@ -143,12 +144,17 @@ class UniProcDiffusionExecutor(DiffusionExecutor):
                     )
                 )
             except Exception as exc:
+                status_code, error_type = client_error_metadata(exc)
                 runner_outputs.append(
                     RunnerOutput(
                         request_id=new_req.request_id,
                         step_index=None,
                         finished=True,
-                        result=DiffusionOutput(error=str(exc)),
+                        result=DiffusionOutput(
+                            error=str(exc),
+                            error_status_code=status_code,
+                            error_type=error_type,
+                        ),
                     )
                 )
         return BatchRunnerOutput.from_list(runner_outputs)
