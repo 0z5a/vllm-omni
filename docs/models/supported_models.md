@@ -90,6 +90,7 @@ th {
 | `MossTTSNanoForCausalLM` | MOSS-TTS-Nano | `OpenMOSS-Team/MOSS-TTS-Nano` | ✅︎ | | ✅︎ | | [Repository](https://github.com/vllm-project/vllm-omni/blob/main/recipes/OpenMOSS/MOSS-TTS-Nano-NPU.md) |
 | `MossTTSDelayModel` | MOSS-TTS, MOSS-TTSD, MOSS-SoundEffect, MOSS-VoiceGenerator | `OpenMOSS-Team/MOSS-VoiceGenerator` | ✅︎ | | | | — |
 | `MossTTSRealtime` | MOSS-TTS-Realtime | `OpenMOSS-Team/MOSS-TTS-Realtime` | ✅︎ | | | | — |
+| `MossVLForConditionalGeneration` | MOSS-VL-Realtime (native offline executor<sup>MVL1</sup>) | `OpenMOSS-Team/MOSS-VL-Realtime` | ✅︎ | | | | — |
 | `HiggsAudioV2ForConditionalGeneration` | Higgs-Audio v2 | `bosonai/higgs-audio-v2-generation-3B-base` | ✅︎ | | | | — |
 | `HiggsMultimodalQwen3ForConditionalGeneration` | Higgs-Audio v3 (TTS) | `bosonai/higgs-audio-v3-tts-4b` | ✅︎ | | | | [Published](https://recipes.vllm.ai/bosonai/higgs-audio-v3-tts-4b) |
 | `IndexTTS2TalkerForConditionalGeneration` | IndexTTS-2 | `IndexTeam/IndexTTS-2` | ✅︎ | | | | — |
@@ -134,3 +135,13 @@ Other AMD SKUs (e.g. MI325X) are not listed until their
 own validation evidence is added. See the
 [MiniMax H3 recipe](https://recipes.vllm.ai/MiniMaxAI/MiniMax-H3) for
 per-architecture serving commands.
+
+<sup>MVL1</sup> MOSS-VL-Realtime is validated as a single-device BF16 offline
+executor (prompt-only, single image, and a two-frame sequence) on RTX 5090
+(SM120), with positions, visibility metadata, vision embeddings, prefill logits
+and greedy token ids compared against a captured reference run. Serving
+endpoints, paged attention, tensor parallelism, quantization, and the paced
+realtime session are not implemented yet, so the checkmark does not imply a
+supported chat endpoint. See
+[docs/models/moss_vl_realtime.md](moss_vl_realtime.md) for the exact scope and
+measured evidence.
