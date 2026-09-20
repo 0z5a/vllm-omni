@@ -148,6 +148,15 @@ blue.") through the same near-tie mechanism as the offline cases.
 | reference session | 4 | 15 | `<|silence|>`, `<|silence|>`, `<|response|>` | "The color is alternating between red and blue." |
 | native paced driver (plan) | 4 | 1 | `<|silence|>`, `<|response|>` | "The color is red." |
 
+## Tolerance basis
+
+Two independent reference captures are bit-identical: all 31 compared tensors per
+case, the token ids and the decoded text match exactly
+(`tests/assets/moss_vl_realtime/reference/reference-repeatability.json`). The
+tolerances therefore describe how close a *different implementation* can be, not
+reference noise, and the checks in
+`tests/model_executor/models/moss_vl_realtime` enforce that claim on CPU.
+
 ## Notes for contributors
 
 - Cross-attention visibility is an additive mask, not a window. A query with no
