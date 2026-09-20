@@ -321,7 +321,7 @@ python text_to_image.py \
 images = pipeline(
     prompt="a cat",
     negative_prompt="",  # Must provide (even if empty)
-    guidance_scale=3.5,   # Must be > 1.0
+    guidance_scale=3.5,  # Must be > 1.0
 )
 ```
 

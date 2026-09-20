@@ -18,7 +18,12 @@ from vllm_omni.model_executor.models.moss_vl_realtime.config import (
     MossVLTextConfig,
     MossVLVisionConfig,
 )
-from vllm_omni.model_executor.models.moss_vl_realtime.modeling import MossVLNativeModel, VisionTokenInfo
+from vllm_omni.model_executor.models.moss_vl_realtime.modeling import (
+    BudgetExceededError,
+    MossVLNativeModel,
+    SessionLimits,
+    VisionTokenInfo,
+)
 
 IMAGE_PAD = 3
 NEGATIVE = torch.finfo(torch.bfloat16).min
@@ -363,3 +368,43 @@ def test_paced_segment_positions_reject_frame_mismatch() -> None:
     segment = torch.tensor([[20, IMAGE_PAD, 21]])
     with pytest.raises(ValueError, match="frame metadata"):
         model.paced_segment_positions(segment, torch.tensor([[1, 4, 4], [1, 4, 4]]), start_position=0)
+
+
+# ------------------------------------------------------------- T12 admission
+def test_vision_budget_is_refused_not_silently_trimmed() -> None:
+    model = build_model()
+    model.limits = SessionLimits(max_vision_tokens=6, max_text_tokens=None, max_frames_per_append=None)
+    pixel_values = torch.randn(16, 3 * 1 * 16 * 16, dtype=torch.bfloat16)
+    grid_thw = torch.tensor([[1, 4, 4]])
+    with torch.no_grad():
+        model.append_frames(pixel_values, grid_thw, vision_position_start=0)
+        with pytest.raises(BudgetExceededError, match="max_vision_tokens=6"):
+            model.append_frames(pixel_values, grid_thw, vision_position_start=5)
+
+
+def test_frame_burst_limit_is_refused() -> None:
+    model = build_model()
+    model.limits = SessionLimits(max_vision_tokens=None, max_text_tokens=None, max_frames_per_append=1)
+    pixel_values = torch.randn(32, 3 * 1 * 16 * 16, dtype=torch.bfloat16)
+    grid_thw = torch.tensor([[1, 4, 4], [1, 4, 4]])
+    with pytest.raises(BudgetExceededError, match="max_frames_per_append=1"):
+        model.append_frames(pixel_values, grid_thw, vision_position_start=0)
+
+
+def test_text_context_limit_is_refused() -> None:
+    model = build_model()
+    model.limits = SessionLimits(max_vision_tokens=None, max_text_tokens=3, max_frames_per_append=None)
+    input_ids = torch.tensor([[10, 11, 12, 13]])
+    with pytest.raises(BudgetExceededError, match="max_text_tokens=3"):
+        model(input_ids, model.compute_text_position_ids(input_ids), offset=0)
+
+
+def test_budget_report_tracks_usage() -> None:
+    model = build_model()
+    model.limits = SessionLimits(max_vision_tokens=64, max_text_tokens=64, max_frames_per_append=4)
+    input_ids = torch.tensor([[10, IMAGE_PAD, 11]])
+    pixel_values = torch.randn(16, 3 * 1 * 16 * 16, dtype=torch.bfloat16)
+    with torch.no_grad():
+        model(input_ids, model.compute_text_position_ids(input_ids), 0, pixel_values, torch.tensor([[1, 4, 4]]))
+    report = model.budget_report()
+    assert report == {"vision_tokens": 5, "max_vision_tokens": 64, "text_tokens": 3, "max_text_tokens": 64}

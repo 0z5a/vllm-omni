@@ -68,5 +68,5 @@ python openai_chat_completion_client_for_multimodal_generation.py \
     ``````
 ??? abstract "openai_chat_completion_client_for_multimodal_generation.py"
     ``````py
-    --8<-- "examples/online_serving/mimo_audio/openai_chat_completion_client_for_multimodal_generation.py"
+    --8 < --"examples/online_serving/mimo_audio/openai_chat_completion_client_for_multimodal_generation.py"
     ``````

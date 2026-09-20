@@ -128,15 +128,17 @@ This decorator is intended to make hardware-aware, cross-platform test authoring
 ```python
 from tests.helpers.mark import hardware_marks
 
-MULTI_CARD_MARKS = hardware_marks(
-    res={"cuda": "H100", "rocm": "MI325", "npu": "A2"}, num_cards=2
-)
+MULTI_CARD_MARKS = hardware_marks(res={"cuda": "H100", "rocm": "MI325", "npu": "A2"}, num_cards=2)
 
-@pytest.mark.parametrize("omni_server", [
-    pytest.param(OmniServerParams(...), id="case_001", marks=MULTI_CARD_MARKS),
-], indirect=True)
-def test_feature(omni_server):
-    ...
+
+@pytest.mark.parametrize(
+    "omni_server",
+    [
+        pytest.param(OmniServerParams(...), id="case_001", marks=MULTI_CARD_MARKS),
+    ],
+    indirect=True,
+)
+def test_feature(omni_server): ...
 ```
 
 #### JSON `mark` field (L4 perf configs)
@@ -187,6 +189,7 @@ If you want to add support for a new platform (e.g., "tpu" for a new accelerator
    ```python
    # In vllm-omni/tests/helpers/mark.py
 
+
    def _tpu_marks(*, res: str, num_cards: int):
        _require_sku("tpu", res)
        return [pytest.mark.tpu, getattr(pytest.mark, res), _cards_mark(num_cards)]
@@ -205,8 +208,7 @@ If you want to add support for a new platform (e.g., "tpu" for a new accelerator
        res={"tpu": "TPU_V3"},
        num_cards=2,
    )
-   def test_my_tpu_feature():
-       ...
+   def test_my_tpu_feature(): ...
    ```
 
 **Summary**:  
@@ -272,6 +274,7 @@ Examples from `tests/model_executor/models/qwen2_5_omni/test_audio_length.py`
 import pytest
 
 pytestmark = [pytest.mark.core_model, pytest.mark.cpu]
+
 
 def test_resolve_max_mel_frames_default():
     from vllm_omni.model_executor.models.qwen2_5_omni.audio_length import resolve_max_mel_frames
@@ -448,7 +451,7 @@ L3 level testing executes after code is merged into the main branch. Its core pu
             "audio": ["water", "cricket"],
             "video": ["sphere", "globe", "circle", "round"],
             "image": ["square", "quadrate"],
-            "text": ["beijing"]
+            "text": ["beijing"],
         },
     }
     ```

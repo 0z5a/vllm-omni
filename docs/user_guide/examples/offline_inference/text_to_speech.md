@@ -86,8 +86,8 @@ uv pip install -e .
 Download the model snapshot:
 ```python
 from huggingface_hub import snapshot_download
-snapshot_download('FunAudioLLM/Fun-CosyVoice3-0.5B-2512',
-                  local_dir='pretrained_models/Fun-CosyVoice3-0.5B')
+
+snapshot_download("FunAudioLLM/Fun-CosyVoice3-0.5B-2512", local_dir="pretrained_models/Fun-CosyVoice3-0.5B")
 ```
 
 If your downloaded checkpoint lacks `config.json`, add it:
@@ -374,11 +374,11 @@ python examples/offline_inference/text_to_speech/higgs_audio_v2/end2end.py \
 
 ??? abstract "cosyvoice3/end2end.py"
     ``````py
-    --8<-- "examples/offline_inference/text_to_speech/cosyvoice3/end2end.py"
+    --8 < --"examples/offline_inference/text_to_speech/cosyvoice3/end2end.py"
     ``````
 ??? abstract "fish_speech/end2end.py"
     ``````py
-    --8<-- "examples/offline_inference/text_to_speech/fish_speech/end2end.py"
+    --8 < --"examples/offline_inference/text_to_speech/fish_speech/end2end.py"
     ``````
 ??? abstract "higgs_audio_v2/end2end.py"
     ``````py
@@ -389,7 +389,7 @@ python examples/offline_inference/text_to_speech/higgs_audio_v2/end2end.py \
     ``````
 ??? abstract "omnivoice/end2end.py"
     ``````py
-    --8<-- "examples/offline_inference/text_to_speech/omnivoice/end2end.py"
+    --8 < --"examples/offline_inference/text_to_speech/omnivoice/end2end.py"
     ``````
 ??? abstract "qwen3_tts/benchmark_prompts.txt"
     ``````txt
@@ -397,13 +397,13 @@ python examples/offline_inference/text_to_speech/higgs_audio_v2/end2end.py \
     ``````
 ??? abstract "qwen3_tts/end2end.py"
     ``````py
-    --8<-- "examples/offline_inference/text_to_speech/qwen3_tts/end2end.py"
+    --8 < --"examples/offline_inference/text_to_speech/qwen3_tts/end2end.py"
     ``````
 ??? abstract "voxcpm2/end2end.py"
     ``````py
-    --8<-- "examples/offline_inference/text_to_speech/voxcpm2/end2end.py"
+    --8 < --"examples/offline_inference/text_to_speech/voxcpm2/end2end.py"
     ``````
 ??? abstract "voxtral_tts/end2end.py"
     ``````py
-    --8<-- "examples/offline_inference/text_to_speech/voxtral_tts/end2end.py"
+    --8 < --"examples/offline_inference/text_to_speech/voxtral_tts/end2end.py"
     ``````

@@ -41,16 +41,13 @@ Omni Sleep Mode is optimized for high-performance computing backends:
 You can programmatically control the lifecycle of stages using the `AsyncOmni` engine.
 
 ```python
-
 import asyncio
 from vllm_omni.entrypoints.async_omni import AsyncOmni
 
+
 async def run_sleep_demo():
     # 1. initialization
-    engine = AsyncOmni(
-        model="ByteDance-Seed/BAGEL-7B-MoT",
-        enable_sleep_mode=True
-    )
+    engine = AsyncOmni(model="ByteDance-Seed/BAGEL-7B-MoT", enable_sleep_mode=True)
 
     # 2. sleep mode level2
     acks = await engine.sleep(stage_ids=[0], level=2)
@@ -59,9 +56,9 @@ async def run_sleep_demo():
     # 3. wake up
     await engine.wake_up(stage_ids=[0])
 
+
 if __name__ == "__main__":
     asyncio.run(run_sleep_demo())
-
 ```
 
 ### server command Example

@@ -390,6 +390,41 @@ class MossVLTextModel(nn.Module):
         return self.norm(hidden_states)
 
 
+class BudgetExceededError(RuntimeError):
+    """A session asked for more than its declared budget.
+
+    Raised instead of silently dropping frames or trimming context: the reference
+    contract is to refuse the work and let the caller decide.
+    """
+
+
+@dataclass(frozen=True)
+class SessionLimits:
+    """Declared budgets for one native session.
+
+    ``None`` means unbounded. The defaults match what a single RTX 5090 session
+    was validated with, not a hardware-maximum claim.
+    """
+
+    max_vision_tokens: int | None = 8192
+    max_text_tokens: int | None = 32768
+    max_frames_per_append: int | None = 32
+
+    def check_vision(self, requested: int) -> None:
+        if self.max_vision_tokens is not None and requested > self.max_vision_tokens:
+            raise BudgetExceededError(f"vision extent {requested} exceeds max_vision_tokens={self.max_vision_tokens}")
+
+    def check_text(self, requested: int) -> None:
+        if self.max_text_tokens is not None and requested > self.max_text_tokens:
+            raise BudgetExceededError(f"text context {requested} exceeds max_text_tokens={self.max_text_tokens}")
+
+    def check_frames(self, requested: int) -> None:
+        if self.max_frames_per_append is not None and requested > self.max_frames_per_append:
+            raise BudgetExceededError(
+                f"{requested} frames in one append exceeds max_frames_per_append={self.max_frames_per_append}"
+            )
+
+
 @dataclass
 class VisionTokenInfo:
     """Per-media vision layout used for position and visibility metadata."""
@@ -416,6 +451,7 @@ class MossVLNativeModel(nn.Module):
         self.vision_cache = VisionKVCache(cfg.text.num_hidden_layers)
         self.rope_delta: torch.Tensor | None = None
         self.vision_token_info: list[VisionTokenInfo] = []
+        self.limits = SessionLimits()
         # Running position of the paced session: text tokens consume one position
         # each, a published frame block consumes max(eh, ew) + 1 per frame.
         self.next_position: int = 0
@@ -569,6 +605,7 @@ class MossVLNativeModel(nn.Module):
             dtype = self.model.language_model.embed_tokens.weight.dtype
             expanded_mask = self.expand_cross_attention_mask(cross_attention_mask, dtype)
 
+        self.limits.check_text(self.text_cache.length(0) + input_ids.shape[1])
         hidden_states = self.model.language_model(
             input_ids,
             position_ids,
@@ -601,8 +638,10 @@ class MossVLNativeModel(nn.Module):
         ``start + max(eh, ew)``; the next frame starts one position later.
         """
         weight = self.model.visual.patch_embed.proj.weight
+        self.limits.check_frames(int(grid_thw.shape[0]))
         packed = self.model.visual(pixel_values.to(weight.dtype), grid_thw)
         states, info = self.pack_with_separators(packed, grid_thw, start_offset=self.vision_length)
+        self.limits.check_vision(self.vision_length + states.shape[1])
         positions = self.vision_positions_for(info, vision_position_start, states.shape[1])
         cos, sin = self.model.language_model.rotary_emb(states, positions)
 
@@ -731,6 +770,15 @@ class MossVLNativeModel(nn.Module):
             return self.compute_text_position_ids(input_ids)
         position = torch.full((1,), offset, dtype=torch.long, device=self.rope_delta.device) + self.rope_delta
         return position.view(1, 1, 1).expand(3, 1, 1)
+
+    def budget_report(self) -> dict[str, int | None]:
+        """Current usage against the declared budgets."""
+        return {
+            "vision_tokens": self.vision_length,
+            "max_vision_tokens": self.limits.max_vision_tokens,
+            "text_tokens": self.text_cache.length(0),
+            "max_text_tokens": self.limits.max_text_tokens,
+        }
 
     def reset(self) -> None:
         self.text_cache.reset()

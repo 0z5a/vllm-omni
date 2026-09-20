@@ -278,11 +278,10 @@ dim. That leftover copy is the async-builder read replica for this step; it
 does not write the pool or carry abort/preempt occupancy.
 
 ```python
-cache.register_policy(ModelCachePolicy.from_model(model))   # load_model
-cache.new_step_starts(scheduler_output)   # before _update_states
-sid = cache.save_outputs(hidden, mm_outputs, num_tokens_unpadded=n,
-                         num_tokens_padded=n_pad)
-outs = cache.materialize(sid, req_ids)    # or discard_step(sid)
+cache.register_policy(ModelCachePolicy.from_model(model))  # load_model
+cache.new_step_starts(scheduler_output)  # before _update_states
+sid = cache.save_outputs(hidden, mm_outputs, num_tokens_unpadded=n, num_tokens_padded=n_pad)
+outs = cache.materialize(sid, req_ids)  # or discard_step(sid)
 ```
 
 Each step id is consumed exactly once. `req_ids` must be a subset of the save

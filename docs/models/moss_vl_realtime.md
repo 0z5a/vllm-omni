@@ -24,10 +24,10 @@ Named after the tasks in [RFC #7890](https://github.com/vllm-project/vllm-omni/i
 | T07 native offline parity | done for the offline path | `runner.py`/`parity.py`; no served endpoint yet |
 | T08 timestamped video input | not started | needs the shared duplex input extension |
 | T09 non-audio duplex capability and plugin | not started | needs the shared engine plugin contract |
-| T10 incremental visual state | initial contract | `append_frames` publishes at a step boundary; reference-timeline segment splicing is not implemented |
-| T11 text output, silence, interruption | partial | the paced driver treats `<|silence|>` as a turn end; the full control/state mapping is not implemented |
-| T12 admission limits and lifecycle | not started | needs the engine session lifecycle |
-| T13 paced single-session validation | partial, with a known gap | a paced run exists on both sides and the timeline comparator works; the native paced path currently answers every frame with `<|silence|>` while the reference responded on the third frame, so paced semantic parity is **not** established |
+| T10 incremental visual state | initial contract plus paced driver | `append_frames` publishes at a step boundary; reference-timeline segment splicing is not implemented |
+| T11 text output, silence, interruption | protocol implemented, text diverges on near-ties | the paced driver carries the silence decision into the next segment, renders the user turn and reports text separately from silence; the answer text still differs from the reference on near-ties |
+| T12 admission limits and lifecycle | native budgets implemented | vision-extent, text-context and per-append frame budgets are declared per session and refused with `BudgetExceededError` instead of silently dropping frames; the engine session lifecycle is not wired |
+| T13 paced single-session validation | partial | 12 of 13 teacher-forced step decisions agree; the paced driver reproduces the reference's first two decisions and generates text, and `timeline.py` compares the traces phase by phase |
 | T14 baseline evidence | partial | baseline tables for the offline cases; the realtime metrics are recorded but not yet aggregated |
 | T23 SM120 qualification | done | `sm120_probe.py` executes the operators on RTX 5090 and measures error |
 | T24 tests, examples, docs | partial | 34 CPU checks, this page, the recipe and one example; no CI wiring yet |
