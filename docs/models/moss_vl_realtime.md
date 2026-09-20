@@ -23,14 +23,14 @@ Named after the tasks in [RFC #7890](https://github.com/vllm-project/vllm-omni/i
 | T06 cross-attention correctness | done for the eager path | visibility matrix, GQA mapping, ragged media, additive-mask parity |
 | T07 native offline parity | done for the offline path | `runner.py`/`parity.py`; no served endpoint yet |
 | T08 timestamped video input | proposal only | `duplex.py` states and validates the frame-only payload (bounded size, event identity, media-timestamp ordering, accepted ≠ visible) as a reviewable proposal; the shared command vocabulary and wire names stay with #6592 |
-| T09 non-audio duplex capability and plugin | not started | needs the shared engine plugin contract |
-| T10 incremental visual state | initial contract plus paced driver | `append_frames` publishes at a step boundary; reference-timeline segment splicing is not implemented |
+| T09 non-audio duplex capability and plugin | model-local session implemented, engine plugin not wired | `session.py` owns the token stream, the paced cursor, publication and the turn budget for one conversation, and exposes no loop of its own, so the engine stays the only scheduler; the engine-side plugin and its capability extension are still T09's to add |
+| T10 incremental visual state | initial contract, paced driver and session path | `append_frames` publishes at a step boundary; `replay_paced.py --via-session` drives the real checkpoint through the session and `compare_paced_paths.py` records that both native paths produce the same decisions |
 | T11 text output, silence, interruption | protocol implemented, text diverges on near-ties | the paced driver carries the silence decision into the next segment, renders the user turn and reports text separately from silence; the answer text still differs from the reference on near-ties |
 | T12 admission limits and lifecycle | native budgets implemented | vision-extent, text-context and per-append frame budgets are declared per session and refused with `BudgetExceededError` instead of silently dropping frames; the engine session lifecycle is not wired |
-| T13 paced single-session validation | partial | 12 of 13 teacher-forced step decisions agree; the paced driver reproduces the reference's first two decisions and generates text, and `timeline.py` compares the traces phase by phase |
+| T13 paced single-session validation | partial | 12 of 13 teacher-forced step decisions agree; the paced driver reproduces the reference's first two decisions and generates text, and `timeline.py` compares the traces phase by phase; the driver and the session path agree decision for decision on the real checkpoint |
 | T14 baseline evidence | partial | baseline tables for the offline cases; the realtime metrics are recorded but not yet aggregated |
 | T23 SM120 qualification | done | `sm120_probe.py` executes the operators on RTX 5090 and measures error |
-| T24 tests, examples, docs | partial | 34 CPU checks, this page, the recipe and one example; no CI wiring yet |
+| T24 tests, examples, docs | partial | 89 CPU checks, this page, the recipe and one example; no CI wiring yet |
 
 ## Current capability
 
@@ -42,7 +42,7 @@ Named after the tasks in [RFC #7890](https://github.com/vllm-project/vllm-omni/i
 | Vision encoder and processor | Consumed from the pinned checkpoint; the native split is tracked as T04 |
 | Paged attention, continuous batching, TP, quantization | Not implemented |
 | Serving entry point (chat completions) | Not implemented |
-| Paced realtime session, incremental visual KV, silence/interruption | Not implemented |
+| Paced realtime session, incremental visual KV, silence/interruption | Model-local session and its contract checks; the engine-side session, and therefore a served duplex endpoint, are not implemented |
 
 The implementation lives in
 [`vllm_omni/model_executor/models/moss_vl_realtime`](https://github.com/vllm-project/vllm-omni/tree/main/vllm_omni/model_executor/models/moss_vl_realtime).
@@ -130,6 +130,36 @@ fused qkv 0.0078, a per-frame attention segment 0.0021, and the three-axis mRoPE
 is exact. The full report is committed as
 `tests/assets/moss_vl_realtime/reference/sm120-qualification.json`.
 
+## Session contract
+
+`moss_vl_realtime.session.MossVLNativeSession` is the model-local half of a
+duplex session: it owns one conversation's token stream, paced position cursor,
+frame publication, silence bookkeeping and budgets. It deliberately owns no loop
+and no registry — `append()` and `step()` are the only entry points, so the engine
+stays the only scheduler and the only lifecycle.
+
+```python
+from vllm_omni.model_executor.models.moss_vl_realtime.session import MossVLNativeSession
+
+session = MossVLNativeSession(model, frame_encoder=encode, detokenize=decode)
+session.start(prompt_ids)                      # one prefill
+session.append(frames=[(path, ts_ms)], prompts=["What changed?"], prompt_ids_for=render)
+stats = session.segment_decision               # why the model answered as it did
+text, silent = session.step()                  # one bounded turn
+session.poll_output()                          # text queued for the transport
+session.close()                                # releases caches, reports what ran
+```
+
+Rules the implementation follows, and the checks that hold it to them:
+
+| Rule | Why | Check |
+| --- | --- | --- |
+| Publication happens at a step boundary and the append result is the visible extent | no attention step may observe a half-written frame | `test_publication_happens_before_the_step_that_consumes_it` |
+| An append is all or nothing: budgets are checked before anything is published or consumed | a refusal must not drop the carried silence marker or leave an unreferenced frame in the cache | `test_a_refused_append_publishes_nothing`, `test_a_refused_append_keeps_the_carried_silence_marker` |
+| A silence decision is carried into the next segment and consumes no position | feeding it twice desynchronises the stream | `test_silence_ends_the_turn_without_consuming_a_position`, `test_silence_is_replayed_at_the_head_of_the_next_segment` |
+| Visibility is rebuilt per step from that step's tokens, with the frame index spanning every published frame | this is the reference rule the step parity was measured against | `test_the_frame_mask_spans_every_published_frame` |
+| The session exposes no loop of its own | one scheduler, one lifecycle in the process | `test_a_session_exposes_no_loop_of_its_own` |
+
 ## Paced run (timestamped stream)
 
 Two comparisons are recorded under
@@ -156,6 +186,15 @@ blue.") through the same near-tie mechanism as the offline cases.
 | --- | --- | --- | --- | --- |
 | reference session | 4 | 15–19 | `<|silence|>`, `<|silence|>`, `<|response|>` | "The color is alternating between red and blue." on one run, "The color is red." on another |
 | native paced driver (plan) | 4 | 1 | `<|silence|>`, `<|response|>` | "The color is red." |
+| native paced session (plan) | 4 | 1 | `<|silence|>`, `<|response|>` | "The color is red." |
+
+**Session path.** `replay_paced.py --via-session` drives the same timeline through
+`MossVLNativeSession` — the contract a duplex engine consumes — and
+`compare_paced_paths.py` records the two native traces against each other:
+identical event sequences, identical per-segment decisions (argmax 151672 at max
+logit 26.5, then 151671 at 24.75), identical published vision extents and
+identical position cursors. The session adds the fields an engine needs to report
+(`path`, the prefill decision, and a close report), and nothing else differs.
 
 The reference answer is not stable across runs: two paced captures on the same
 device and timeline produced two different sentences, and the native driver's

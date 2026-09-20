@@ -44,6 +44,7 @@ MODULES = (
     "test_family_registration",
     "test_frame_contract",
     "test_lifecycle",
+    "test_session",
 )
 
 

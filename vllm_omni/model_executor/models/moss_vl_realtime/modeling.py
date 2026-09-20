@@ -468,7 +468,7 @@ class MossVLNativeModel(nn.Module):
         merge = self.config.vision.spatial_merge_size
         tokens_per_media = (grid_thw[:, 0] * grid_thw[:, 1] * grid_thw[:, 2]) // (merge * merge)
         hidden_size = hidden_states.shape[-1]
-        total = sum(tokens_per_media[i].item() + grid_thw[i, 0].item() for i in range(grid_thw.shape[0]))
+        total = self.vision_tokens_for(grid_thw)
         batch = hidden_states.new_zeros(1, total, hidden_size)
         separator = self.model.separator_token.to(hidden_states.dtype)
 
@@ -502,6 +502,17 @@ class MossVLNativeModel(nn.Module):
         batch, info = self.pack_with_separators(hidden_states, grid_thw)
         self.vision_token_info = info
         return batch
+
+    def vision_tokens_for(self, grid_thw: torch.Tensor) -> int:
+        """Vision tokens these frames would publish, separator slots included.
+
+        The session checks an append against its budget with this before it
+        publishes anything, so a refused append cannot leave a partially
+        published frame behind.
+        """
+        merge = self.config.vision.spatial_merge_size
+        per_media = (grid_thw[:, 0] * grid_thw[:, 1] * grid_thw[:, 2]) // (merge * merge)
+        return int(sum(per_media[i].item() + grid_thw[i, 0].item() for i in range(grid_thw.shape[0])))
 
     # ---- positions --------------------------------------------------------
     def compute_text_position_ids(self, input_ids: torch.Tensor) -> torch.Tensor:

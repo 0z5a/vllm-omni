@@ -69,6 +69,12 @@ class MossVLConfig:
     vision_start_token_id: int = 151652
     vision_end_token_id: int = 151653
     vision_seq_pad_multiple: int = 1
+    #: Realtime control tokens. ``<|silence|>`` is the model's "keep observing"
+    #: decision, and it opens the segment that follows new input rather than ending
+    #: the session; ``<|response|>`` announces generated text. The family
+    #: registration keeps both out of the stop-token set for the same reason.
+    silence_token_id: int = 151671
+    response_token_id: int = 151672
     tie_word_embeddings: bool = False
     architectures: tuple[str, ...] = ("MossVLForConditionalGeneration",)
     model_type: str = "moss_vl"

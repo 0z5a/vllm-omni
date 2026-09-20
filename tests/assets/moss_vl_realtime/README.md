@@ -75,6 +75,9 @@ the reference/derived differences below were localised.
 | `capture_reference.py` | runs the pinned HF implementation over these fixtures and records the full artifact set |
 | `capture_realtime.py` | drives the reference realtime session along the `timestamped_stream` timeline and records every acceptance, output chunk and lifecycle event |
 | `prepare_inputs.py` | mirrors the checkpoint's offline input helper so prompts and frames can be prepared without loading 22.7 GB of weights; `--verify-against` checks it reproduces a captured run bit-exactly |
+| `replay_paced.py` | native paced replay; `--via-session` drives the same timeline through `MossVLNativeSession` instead of the inline driver, and `--reference-steps` teacher-forces the reference's own steps |
+| `compare_paced_paths.py` | diffs the driver trace against the session trace field by field and records the decisions both produced |
+| `run_evidence.sh` | runs the whole evidence set on one host: hashes, reference capture, native replay and parity, both paced paths, the step parity, the trace comparisons and the baseline aggregation |
 
 Model-side tooling lives in `vllm_omni/model_executor/models/moss_vl_realtime/`:
 `runner.py` (replay and compare), `parity.py` (stage deltas), `baseline.py`
@@ -102,6 +105,11 @@ also the runner used during development of this model:
 ```bash
 python tests/model_executor/models/moss_vl_realtime/run_checks.py
 ```
+
+The suite covers the native contract, attention correctness, the captured
+reference fixtures, the realtime protocol, the timeline, the checkpoint refusal
+matrix, family registration, the frame payload proposal, the session lifecycle
+stress and the model-local session contract (89 checks in total).
 
 Everything that needs the 22.7 GB checkpoint (`capture_reference.py`,
 `capture_realtime.py`, `replay_paced.py`, `runner.py`, `parity.py`,
