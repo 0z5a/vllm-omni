@@ -793,6 +793,7 @@ class HeliosTransformer3DModel(nn.Module):
         self._projected_encoder_cache: OrderedDict[tuple, torch.Tensor] = OrderedDict()
         self._cross_attn_kv_cache: OrderedDict[tuple, list[tuple[torch.Tensor, torch.Tensor]]] = OrderedDict()
         self._cross_attn_cache_size = 2
+        self.cache_cross_attention = True
 
     @property
     def dtype(self) -> torch.dtype:
@@ -852,7 +853,7 @@ class HeliosTransformer3DModel(nn.Module):
         self,
         encoder_hidden_states: torch.Tensor,
     ) -> list[tuple[torch.Tensor, torch.Tensor]] | None:
-        if not self._cache_enabled():
+        if not self.cache_cross_attention or not self._cache_enabled():
             return None
 
         cache_key = self._tensor_cache_key(encoder_hidden_states)

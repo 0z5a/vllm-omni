@@ -232,6 +232,9 @@ class HeliosPipeline(
                 transformer_config, quant_config=od_config.quantization_config
             )
 
+        # Cross-block KV precomputation bypasses the block offload hooks.
+        self.transformer.cache_cross_attention = not resolve_offload(od_config).offloads(DIT_COMPONENT)
+
         # Read scheduler config to determine scheduler type
         sched_cfg = load_json_config(model, "scheduler", "scheduler_config.json", local_files_only)
         scheduler_kwargs = {}
