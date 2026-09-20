@@ -68,6 +68,24 @@ cross-attention shapes).
 inputs through the native executor and reports a per-stage delta, which is how
 the reference/derived differences below were localised.
 
+## Tools in this directory
+
+| file | purpose |
+| --- | --- |
+| `capture_reference.py` | runs the pinned HF implementation over these fixtures and records the full artifact set |
+| `capture_realtime.py` | drives the reference realtime session along the `timestamped_stream` timeline and records every acceptance, output chunk and lifecycle event |
+| `prepare_inputs.py` | mirrors the checkpoint's offline input helper so prompts and frames can be prepared without loading 22.7 GB of weights; `--verify-against` checks it reproduces a captured run bit-exactly |
+
+Model-side tooling lives in `vllm_omni/model_executor/models/moss_vl_realtime/`:
+`runner.py` (replay and compare), `parity.py` (stage deltas), `baseline.py`
+(artifact aggregation), `timeline.py` (paced trace phases), `sm120_probe.py`
+(operator qualification on the target device), and
+`tests/model_executor/models/moss_vl_realtime/run_checks.py` for environments
+without the repository pytest plugins.
+
+The paced realtime case is driven by a background session loop, so its capture is
+a behavioural trace: compare it by timeline, not by identical text.
+
 ## Recorded reference run (RTX 5090, SM120, BF16)
 
 `do_sample=false`, `max_new_tokens=64`, `attn_implementation=sdpa`.
