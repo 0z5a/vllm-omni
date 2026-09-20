@@ -5,6 +5,7 @@
 
 from __future__ import annotations
 
+import contextlib
 import inspect
 import json
 import logging
@@ -29,7 +30,9 @@ from vllm_omni.diffusion.distributed.autoencoders.autoencoder_kl_ltx2 import Dis
 from vllm_omni.diffusion.distributed.utils import get_local_device
 from vllm_omni.diffusion.model_loader.diffusers_loader import DiffusersPipelineLoader
 from vllm_omni.diffusion.model_loader.hub_prefetch import from_pretrained_with_prefetch, prefetch_subfolders
+from vllm_omni.diffusion.offloader.config import DIT_COMPONENT, resolve_offload
 from vllm_omni.diffusion.offloader.module_collector import ModuleDiscovery
+from vllm_omni.diffusion.offloader.offload_plan import OffloadPlan
 from vllm_omni.quantization.component_config import resolve_component_quant_config
 from vllm_omni.transformers_utils.repo_utils import hf_api
 
@@ -674,6 +677,8 @@ def initialize_pipeline_components(pipeline: Any, od_config: Any) -> None:
             dtype=dtype,
             revision=revision,
         )
+    if isinstance(pipeline.text_encoder, Gemma3ForConditionalGeneration):
+        pipeline._offload_plan = OffloadPlan(encoder_block_attrs={"text_encoder": ("model.language_model.layers",)})
     prepare_gemma3_fp8(pipeline.text_encoder, od_config.quantization_config, pipeline.device)
     pipeline.connectors = _load_component(
         LTX2TextConnectors,
@@ -787,8 +792,13 @@ def initialize_pipeline_components(pipeline: Any, od_config: Any) -> None:
     transformer_config = load_transformer_config(
         model, profile.transformer_subfolder, local_files_only, revision=revision
     )
-    quant_config = getattr(od_config, "quantization_config", None)
-    pipeline.transformer = create_transformer_from_config(transformer_config, quant_config=quant_config)
+    quant_config = od_config.quantization_config
+    # Encoder-only quantization must not materialize the full BF16 DiT on GPU
+    # when its weights are scheduled for CPU offload.
+    offload_dit = resolve_offload(od_config).offloads(DIT_COMPONENT)
+    cpu_dit = offload_dit and resolve_component_quant_config(quant_config, "transformer") is None
+    with torch.device("cpu") if cpu_dit else contextlib.nullcontext():
+        pipeline.transformer = create_transformer_from_config(transformer_config, quant_config=quant_config)
     _place_aux_components(pipeline)
     pipeline.scheduler = FlowMatchEulerDiscreteScheduler.from_pretrained(
         model,
