@@ -4,6 +4,7 @@
 
 from __future__ import annotations
 
+import contextlib
 import json
 import logging
 import math
@@ -32,6 +33,7 @@ from vllm_omni.diffusion.models.helios.quantization import prepare_helios_text_e
 from vllm_omni.diffusion.models.helios.scheduling_helios import HeliosScheduler
 from vllm_omni.diffusion.models.interface import SupportsComponentDiscovery
 from vllm_omni.diffusion.models.progress_bar import ProgressBarMixin
+from vllm_omni.diffusion.offloader.config import DIT_COMPONENT, resolve_offload
 from vllm_omni.diffusion.profiler.diffusion_pipeline_profiler import DiffusionPipelineProfilerMixin
 from vllm_omni.diffusion.request import OmniDiffusionRequest
 from vllm_omni.diffusion.worker.request_batch import DiffusionRequestBatch
@@ -222,9 +224,13 @@ class HeliosPipeline(
         ).to(self.device)
 
         transformer_config = load_transformer_config(model, "transformer", local_files_only)
-        self.transformer = create_transformer_from_config(
-            transformer_config, quant_config=od_config.quantization_config
-        )
+        # Keep an offloaded BF16 DiT on CPU when only the encoder is quantized.
+        dit_quant_config = resolve_component_quant_config(od_config.quantization_config, "transformer")
+        cpu_dit = resolve_offload(od_config).offloads(DIT_COMPONENT) and dit_quant_config is None
+        with torch.device("cpu") if cpu_dit else contextlib.nullcontext():
+            self.transformer = create_transformer_from_config(
+                transformer_config, quant_config=od_config.quantization_config
+            )
 
         # Read scheduler config to determine scheduler type
         sched_cfg = load_json_config(model, "scheduler", "scheduler_config.json", local_files_only)
