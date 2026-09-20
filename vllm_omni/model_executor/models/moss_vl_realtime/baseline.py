@@ -46,9 +46,7 @@ def reference_row(case: str, run: Path | None) -> dict[str, Any]:
         "generated_tokens": performance.get("generated_tokens"),
         "wall_seconds": round(performance.get("wall_seconds", 0.0), 3),
         "decode_tokens_per_second": (
-            round(performance["decode_tokens_per_second"], 2)
-            if performance.get("decode_tokens_per_second")
-            else None
+            round(performance["decode_tokens_per_second"], 2) if performance.get("decode_tokens_per_second") else None
         ),
         "device": environment.get("device_name"),
         "attention_backend": environment.get("attn_implementation"),
@@ -103,19 +101,23 @@ def markdown(reference: list[dict[str, Any]], native: list[dict[str, Any]]) -> s
         )
 
     lines += ["", "## Native replay", ""]
-    lines += [
-        "| case | prompt | generated | prefill (s) | decode (s) | decode (tok/s) | wall (s) | reference wall (s) | speedup | tokens | logits max Δ |",
-        "| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |",
-    ]
+    header = (
+        "| case | prompt | generated | prefill (s) | decode (s) | decode (tok/s) | wall (s) "
+        "| reference wall (s) | speedup | tokens | logits max Δ |"
+    )
+    lines += [header, "| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |"]
     for row in native:
         if row.get("status") != "replayed":
             lines.append(f"| {row['case']} | — | — | — | — | — | — | — | — | — | {row['status']} |")
             continue
+        reference_wall = row.get("reference_wall_seconds", "—")
+        speedup = row.get("wall_speedup", "—")
+        tokens = row.get("token_prefix_matches", "—")
+        logits = row.get("prefill_logits_max_abs", "—")
         lines.append(
             f"| {row['case']} | {row['prompt_tokens']} | {row['generated_tokens']} | {row['prefill_seconds']} | "
             f"{row['decode_seconds']} | {row['decode_tokens_per_second']} | {row['wall_seconds']} | "
-            f"{row.get('reference_wall_seconds', '—')} | {row.get('wall_speedup', '—')} | "
-            f"{row.get('token_prefix_matches', '—')} | {row.get('prefill_logits_max_abs', '—')} |"
+            f"{reference_wall} | {speedup} | {tokens} | {logits} |"
         )
 
     lines += ["", "## Loading", ""]
@@ -141,14 +143,21 @@ def main() -> int:
     native_root = Path(args.native_root).resolve() if args.native_root else None
     cases = [case.strip() for case in args.cases.split(",") if case.strip()]
 
-    reference = [reference_row(case, latest_run(artifacts / case) if (artifacts / case).is_dir() else None) for case in cases]
+    reference = []
+    for case in cases:
+        case_dir = artifacts / case
+        reference.append(reference_row(case, latest_run(case_dir) if case_dir.is_dir() else None))
     native = [
         native_row(case, native_root / case if native_root and (native_root / case).is_dir() else None)
         for case in cases
     ]
 
-    report = {"artifacts": str(artifacts), "native_root": str(native_root) if native_root else None,
-              "reference": reference, "native": native}
+    report = {
+        "artifacts": str(artifacts),
+        "native_root": str(native_root) if native_root else None,
+        "reference": reference,
+        "native": native,
+    }
     text = markdown(reference, native)
     if args.out:
         out = Path(args.out).resolve()

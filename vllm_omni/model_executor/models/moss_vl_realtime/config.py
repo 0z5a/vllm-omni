@@ -74,7 +74,7 @@ class MossVLConfig:
     model_type: str = "moss_vl"
 
     @classmethod
-    def from_json(cls, path: str | Path) -> "MossVLConfig":
+    def from_json(cls, path: str | Path) -> MossVLConfig:
         raw = json.loads(Path(path).read_text(encoding="utf-8"))
         text = MossVLTextConfig(
             hidden_size=raw["text_config"]["hidden_size"],

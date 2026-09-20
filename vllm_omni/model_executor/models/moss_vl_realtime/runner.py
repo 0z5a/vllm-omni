@@ -67,7 +67,7 @@ def run_greedy(
     prompt_len = input_ids.shape[1]
 
     model.reset()
-    torch.cuda.synchronize()
+    torch.accelerator.synchronize()
     prefill_start = time.time()
     positions = model.compute_text_position_ids(input_ids)
     logits = model(
@@ -78,7 +78,7 @@ def run_greedy(
         grid_thw=grid_thw,
         cross_attention_mask=frame_mask,
     )
-    torch.cuda.synchronize()
+    torch.accelerator.synchronize()
     prefill_seconds = time.time() - prefill_start
 
     prefill_logits = logits[0, -1].float()
@@ -109,19 +109,20 @@ def run_greedy(
                 "top5": [int(v) for v in step_logit.topk(5).indices],
             }
         )
-    torch.cuda.synchronize()
+    torch.accelerator.synchronize()
     decode_seconds = time.time() - decode_start
 
+    decode_rate = (len(generated) - 1) / decode_seconds if decode_seconds > 0 and len(generated) > 1 else None
     return {
         "prompt_len": prompt_len,
         "generated_token_ids": generated,
         "prefill_seconds": prefill_seconds,
         "decode_seconds": decode_seconds,
         "decode_tokens": max(0, len(generated) - 1),
-        "decode_tokens_per_second": (len(generated) - 1) / decode_seconds if decode_seconds > 0 and len(generated) > 1 else None,
+        "decode_tokens_per_second": decode_rate,
         "step_logits": step_logits,
         "prefill_logits": prefill_logits.cpu(),
-        "peak_memory_bytes": int(torch.cuda.max_memory_allocated()),
+        "peak_memory_bytes": int(torch.accelerator.max_memory_allocated()),
     }
 
 
@@ -195,10 +196,10 @@ def main() -> int:
 
     # Warm-up pass: the first CUDA forward in a process pays cuBLAS workspace and
     # kernel-selection costs that have nothing to do with the workload.
-    warmup = run_greedy(model, inputs, device, 2, None)
+    run_greedy(model, inputs, device, 2, None)
     model.reset()
-    torch.cuda.synchronize()
-    torch.cuda.reset_peak_memory_stats()
+    torch.accelerator.synchronize()
+    torch.accelerator.reset_peak_memory_stats()
     native = run_greedy(model, inputs, device, args.max_new_tokens, read_eos_token(Path(args.checkpoint)))
 
     report = {

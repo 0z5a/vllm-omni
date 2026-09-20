@@ -190,7 +190,16 @@ def install_hooks(model: torch.nn.Module, capture: Capture) -> None:
 
     eager_attention = remote.eager_attention_forward
 
-    def eager_wrapper(module: Any, query: Any, key: Any, value: Any, attention_mask: Any, scaling: float, dropout: float = 0.0, **kwargs: Any):
+    def eager_wrapper(
+        module: Any,
+        query: Any,
+        key: Any,
+        value: Any,
+        attention_mask: Any,
+        scaling: float,
+        dropout: float = 0.0,
+        **kwargs: Any,
+    ):
         out = eager_attention(module, query, key, value, attention_mask, scaling, dropout, **kwargs)
         capture.save_tensor("vision.eager_out", out[0])
         return out
@@ -240,7 +249,9 @@ def _wrap_cross_attn(original, capture: Capture, layer_idx: int):
             "attention_mask_shape": list(mask.shape) if isinstance(mask, torch.Tensor) else None,
             "attention_mask_dtype": str(mask.dtype) if isinstance(mask, torch.Tensor) else None,
             "masked_fraction": (
-                float((mask < 0).float().mean()) if isinstance(mask, torch.Tensor) and mask.dtype.is_floating_point else None
+                float((mask < 0).float().mean())
+                if isinstance(mask, torch.Tensor) and mask.dtype.is_floating_point
+                else None
             ),
             "output_shape": list(out[0].shape) if isinstance(out, tuple) else list(out.shape),
         }
@@ -279,7 +290,7 @@ def build_environment(checkpoint: Path, revision: str | None, attn_impl: str) ->
         "devices": [],
     }
     if torch.cuda.is_available():
-        for idx in range(torch.cuda.device_count()):
+        for idx in range(torch.accelerator.device_count()):
             props = torch.cuda.get_device_properties(idx)
             info["devices"].append(
                 {
@@ -341,12 +352,16 @@ def run_case(
         else:
             inputs[key] = value
     capture.details["input_text"] = prepared["input_text"]
-    capture.details["call_kwargs"] = {k: v for k, v in prepared["call_kwargs"].items() if not isinstance(v, torch.Tensor)}
+    capture.details["call_kwargs"] = {
+        k: v for k, v in prepared["call_kwargs"].items() if not isinstance(v, torch.Tensor)
+    }
 
     from safetensors.torch import save_file
 
     run_dir.mkdir(parents=True, exist_ok=True)
-    save_file({k: v.contiguous() for k, v in inputs.items() if isinstance(v, torch.Tensor)}, run_dir / "inputs.safetensors")
+    save_file(
+        {k: v.contiguous() for k, v in inputs.items() if isinstance(v, torch.Tensor)}, run_dir / "inputs.safetensors"
+    )
 
     moved = model._offline_move_inputs_to_devices(inputs_cpu)
     prompt_len = int(moved["input_ids"].shape[1])
@@ -415,11 +430,13 @@ def run_case(
         "decode_tokens_per_second": (
             float((generated.shape[1] - 1) / elapsed) if elapsed > 0 and generated.shape[1] > 1 else None
         ),
-        "peak_device_bytes": int(torch.cuda.max_memory_allocated()) if torch.cuda.is_available() else None,
+        "peak_device_bytes": int(torch.accelerator.max_memory_allocated()) if torch.cuda.is_available() else None,
     }
     memory = {
         "case": case_id,
-        "max_memory_allocated_bytes": int(torch.cuda.max_memory_allocated()) if torch.cuda.is_available() else None,
+        "max_memory_allocated_bytes": int(torch.accelerator.max_memory_allocated())
+        if torch.cuda.is_available()
+        else None,
         "max_memory_reserved_bytes": int(torch.cuda.max_memory_reserved()) if torch.cuda.is_available() else None,
     }
 
@@ -450,7 +467,7 @@ def run_case(
     result = [
         f"# {case_id}",
         "",
-        f"- status: captured",
+        "- status: captured",
         f"- prompt tokens: {prompt_len}",
         f"- generated tokens: {int(generated.shape[1])}",
         f"- wall seconds: {elapsed:.2f}",

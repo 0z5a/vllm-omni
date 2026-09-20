@@ -44,15 +44,11 @@ def summarise(events: list[dict[str, Any]]) -> dict[str, Any]:
                 "pending_frames_at_accept": frame.get("pending_frames"),
                 "dropped_older": frame.get("dropped_older"),
                 "first_output_after_s": round(following["wall"], 3) if following else None,
-                "accept_to_first_output_s": (
-                    round(following["wall"] - frame["wall"], 3) if following else None
-                ),
+                "accept_to_first_output_s": (round(following["wall"] - frame["wall"], 3) if following else None),
             }
         )
 
-    first_output_after_open = (
-        round(outputs[0]["wall"] - opened["wall"], 3) if outputs and opened else None
-    )
+    first_output_after_open = round(outputs[0]["wall"] - opened["wall"], 3) if outputs and opened else None
     return {
         "session_wall_seconds": round(closed["wall"] - opened["wall"], 3) if closed and opened else None,
         "frames_pushed": len(frames),

@@ -92,7 +92,9 @@ def main() -> int:
 
     inputs = read_inputs(inputs_dir)
     model, report, config = build_native_model(checkpoint, device)
-    print(f"loaded {report.loaded_keys} tensors; missing={len(report.missing_keys)} unexpected={len(report.unexpected_keys)}")
+    print(
+        f"loaded {report.loaded_keys} tensors; missing={len(report.missing_keys)} unexpected={len(report.unexpected_keys)}"
+    )
 
     tokens = generate(model, inputs, device, args.max_new_tokens, eos_token(checkpoint))
     tokenizer = Tokenizer.from_file(str(checkpoint / "tokenizer.json"))

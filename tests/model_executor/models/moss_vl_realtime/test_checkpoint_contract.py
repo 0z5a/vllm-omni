@@ -19,8 +19,15 @@ from vllm_omni.model_executor.models.moss_vl_realtime.registry import inspect_ch
 ASSET_SCRIPTS = Path(__file__).resolve().parents[3] / "assets" / "moss_vl_realtime"
 
 
-def write_checkpoint(root: Path, *, model_type: str = "moss_vl", architecture: str = "MossVLForConditionalGeneration",
-                     gates: bool = True, vision_fields: bool = True, index: bool = True) -> Path:
+def write_checkpoint(
+    root: Path,
+    *,
+    model_type: str = "moss_vl",
+    architecture: str = "MossVLForConditionalGeneration",
+    gates: bool = True,
+    vision_fields: bool = True,
+    index: bool = True,
+) -> Path:
     root.mkdir(parents=True, exist_ok=True)
     config = {
         "model_type": model_type,
@@ -55,7 +62,9 @@ def test_converted_checkpoint_is_refused(tmp_path: Path) -> None:
 
 
 def test_wrong_architecture_is_refused(tmp_path: Path) -> None:
-    verdict = inspect_checkpoint(write_checkpoint(tmp_path / "other", model_type="qwen3", architecture="Qwen3ForCausalLM"))
+    verdict = inspect_checkpoint(
+        write_checkpoint(tmp_path / "other", model_type="qwen3", architecture="Qwen3ForCausalLM")
+    )
     assert not verdict.supported
     assert len(verdict.reasons) == 2
 

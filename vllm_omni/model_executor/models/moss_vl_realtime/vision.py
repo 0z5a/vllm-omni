@@ -23,7 +23,9 @@ def rotate_half(x: torch.Tensor) -> torch.Tensor:
     return torch.cat((-x2, x1), dim=-1)
 
 
-def apply_rotary_vision(q: torch.Tensor, k: torch.Tensor, cos: torch.Tensor, sin: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
+def apply_rotary_vision(
+    q: torch.Tensor, k: torch.Tensor, cos: torch.Tensor, sin: torch.Tensor
+) -> tuple[torch.Tensor, torch.Tensor]:
     q_dtype, k_dtype = q.dtype, k.dtype
     q, k = q.float(), k.float()
     cos, sin = cos.unsqueeze(-2).float(), sin.unsqueeze(-2).float()
@@ -85,7 +87,9 @@ class MossVLVisionAttention(nn.Module):
         self.qkv = nn.Linear(self.dim, self.dim * 3, bias=True)
         self.proj = nn.Linear(self.dim, self.dim)
 
-    def forward(self, hidden_states: torch.Tensor, lengths: list[int], cos: torch.Tensor, sin: torch.Tensor) -> torch.Tensor:
+    def forward(
+        self, hidden_states: torch.Tensor, lengths: list[int], cos: torch.Tensor, sin: torch.Tensor
+    ) -> torch.Tensor:
         seq_length = hidden_states.shape[0]
         query, key, value = (
             self.qkv(hidden_states).reshape(seq_length, 3, self.num_heads, self.head_dim).permute(1, 0, 2, 3).unbind(0)
@@ -118,7 +122,9 @@ class MossVLVisionBlock(nn.Module):
         self.attn = MossVLVisionAttention(cfg)
         self.mlp = MossVLVisionMLP(cfg)
 
-    def forward(self, hidden_states: torch.Tensor, lengths: list[int], cos: torch.Tensor, sin: torch.Tensor) -> torch.Tensor:
+    def forward(
+        self, hidden_states: torch.Tensor, lengths: list[int], cos: torch.Tensor, sin: torch.Tensor
+    ) -> torch.Tensor:
         hidden_states = hidden_states + self.attn(self.norm1(hidden_states), lengths, cos, sin)
         return hidden_states + self.mlp(self.norm2(hidden_states))
 
@@ -129,9 +135,7 @@ class MossVLVisionPatchMerger(nn.Module):
         base_hidden_size = cfg.hidden_size * (cfg.spatial_merge_size**2)
         self.input_hidden_size = base_hidden_size * (1 + num_deepstack_features)
         self.hidden_size = cfg.hidden_size
-        self.norms = nn.ModuleList(
-            nn.LayerNorm(cfg.hidden_size, eps=1e-6) for _ in range(1 + num_deepstack_features)
-        )
+        self.norms = nn.ModuleList(nn.LayerNorm(cfg.hidden_size, eps=1e-6) for _ in range(1 + num_deepstack_features))
         self.linear_fc1 = nn.Linear(self.input_hidden_size, self.input_hidden_size)
         self.linear_fc2 = nn.Linear(self.input_hidden_size, cfg.out_hidden_size)
 

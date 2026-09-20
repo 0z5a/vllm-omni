@@ -17,6 +17,7 @@ import pytest
 import torch
 from safetensors import safe_open
 
+
 def _reference_dir() -> Path:
     for parent in Path(__file__).resolve().parents:
         candidate = parent / "assets" / "moss_vl_realtime" / "reference"

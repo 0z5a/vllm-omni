@@ -19,7 +19,8 @@ import argparse
 import json
 import platform
 import time
-from typing import Any, Callable
+from collections.abc import Callable
+from typing import Any
 
 import torch
 import torch.nn.functional as F
@@ -37,10 +38,10 @@ def reference_attention(
 
 def measure(name: str, fn: Callable[[], torch.Tensor], reference: torch.Tensor) -> dict[str, Any]:
     fn()
-    torch.cuda.synchronize()
+    torch.accelerator.synchronize()
     started = time.perf_counter()
     out = fn()
-    torch.cuda.synchronize()
+    torch.accelerator.synchronize()
     elapsed = time.perf_counter() - started
     delta = (out.float() - reference.float()).abs()
     return {

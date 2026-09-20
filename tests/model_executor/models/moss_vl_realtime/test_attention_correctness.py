@@ -90,12 +90,28 @@ def test_zero_visibility_rows_stay_inert() -> None:
         zeros_text = torch.zeros(1, 3, 8, dtype=torch.bfloat16)
         zeros_vision = torch.zeros(1, 5, 8, dtype=torch.bfloat16)
         out_masked = model.model.language_model.layers[1](
-            hidden, zeros_text, zeros_text, vision,
-            zeros_vision, zeros_vision, mask, model.vision_cache, 1, None,
+            hidden,
+            zeros_text,
+            zeros_text,
+            vision,
+            zeros_vision,
+            zeros_vision,
+            mask,
+            model.vision_cache,
+            1,
+            None,
         )
         baseline = model.model.language_model.layers[1](
-            hidden, zeros_text, zeros_text, None,
-            None, None, None, model.vision_cache, 1, None,
+            hidden,
+            zeros_text,
+            zeros_text,
+            None,
+            None,
+            None,
+            None,
+            model.vision_cache,
+            1,
+            None,
         )
     assert torch.allclose(out_masked, baseline, atol=1e-5)
 
@@ -118,8 +134,9 @@ def test_mixed_visibility_blocks_later_frames() -> None:
         vision_cos = torch.zeros(1, 10, 8, dtype=torch.bfloat16)
         vision_sin = torch.zeros(1, 10, 8, dtype=torch.bfloat16)
         with torch.no_grad():
-            return layer(hidden, query_cos, query_sin, vision, vision_cos, vision_sin, mask,
-                         model.vision_cache, 1, None)
+            return layer(
+                hidden, query_cos, query_sin, vision, vision_cos, vision_sin, mask, model.vision_cache, 1, None
+            )
 
     torch.manual_seed(0)
     only_first = torch.cat(
@@ -136,7 +153,7 @@ def test_mixed_visibility_blocks_later_frames() -> None:
     full = run(all_frames)
     model.vision_cache.reset()
     torch.manual_seed(1)
-    unmasked = run(None)
+    run(None)
 
     assert not torch.allclose(blocked, full)
     # An all-visible mask is the same computation as no mask at all. Checked in
@@ -167,7 +184,6 @@ def test_gqa_head_mapping_repeats_kv_groups() -> None:
     model = build_model()
     attention = model.model.language_model.layers[1].cross_attn
     vision = torch.randn(1, 4, 32, dtype=torch.bfloat16)
-    hidden = torch.randn(1, 2, 32, dtype=torch.bfloat16)
     with torch.no_grad():
         key = attention.k_norm(attention.k_proj(vision).view(1, -1, attention.num_kv_heads, attention.head_dim))
         key = key.transpose(1, 2)

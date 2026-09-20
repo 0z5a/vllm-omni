@@ -130,9 +130,7 @@ def run(args: argparse.Namespace) -> dict[str, Any]:
             record("prompt_pushed", event_id=event["id"], text=event["text"], pending_frames=session.pending_frames)
         else:
             image = Image.open(asset_path(manifest, event["asset"])).convert("RGB")
-            dropped = session.push_frame(
-                image, timestamp=event["media_timestamp_ms"] / 1000.0, drop_oldest=True
-            )
+            dropped = session.push_frame(image, timestamp=event["media_timestamp_ms"] / 1000.0, drop_oldest=True)
             frames_pushed += 1
             record(
                 "frame_pushed",

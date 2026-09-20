@@ -14,7 +14,6 @@ vision features plus tanh-gated residuals.
 
 from __future__ import annotations
 
-import math
 from dataclasses import dataclass
 
 import torch
@@ -39,7 +38,8 @@ def repeat_kv(x: torch.Tensor, groups: int) -> torch.Tensor:
     if groups == 1:
         return x
     batch, heads, seq_len, head_dim = x.shape
-    return x[:, :, None].expand(batch, heads, groups, seq_len, head_dim).reshape(batch, heads * groups, seq_len, head_dim)
+    expanded = x[:, :, None].expand(batch, heads, groups, seq_len, head_dim)
+    return expanded.reshape(batch, heads * groups, seq_len, head_dim)
 
 
 class MossVLTextRMSNorm(nn.Module):
@@ -186,8 +186,10 @@ class MossVLTextSelfAttention(nn.Module):
         offset: int,
     ) -> torch.Tensor:
         batch, seq_len, _ = hidden_states.shape
-        query = self.q_norm(self.q_proj(hidden_states).view(batch, seq_len, self.num_heads, self.head_dim)).transpose(1, 2)
-        key = self.k_norm(self.k_proj(hidden_states).view(batch, seq_len, self.num_kv_heads, self.head_dim)).transpose(1, 2)
+        projected = self.q_proj(hidden_states).view(batch, seq_len, self.num_heads, self.head_dim)
+        query = self.q_norm(projected).transpose(1, 2)
+        projected_key = self.k_proj(hidden_states).view(batch, seq_len, self.num_kv_heads, self.head_dim)
+        key = self.k_norm(projected_key).transpose(1, 2)
         value = self.v_proj(hidden_states).view(batch, seq_len, self.num_kv_heads, self.head_dim).transpose(1, 2)
 
         query = apply_rotary(query, cos, sin)
@@ -234,11 +236,13 @@ class MossVLTextCrossAttention(nn.Module):
         layer_idx: int,
     ) -> torch.Tensor:
         batch, seq_len, _ = hidden_states.shape
-        query = self.q_norm(self.q_proj(hidden_states).view(batch, seq_len, self.num_heads, self.head_dim)).transpose(1, 2)
+        projected = self.q_proj(hidden_states).view(batch, seq_len, self.num_heads, self.head_dim)
+        query = self.q_norm(projected).transpose(1, 2)
         query = apply_rotary(query, query_cos, query_sin)
 
         if vision_states is not None:
-            key = self.k_norm(self.k_proj(vision_states).view(batch, -1, self.num_kv_heads, self.head_dim)).transpose(1, 2)
+            projected_key = self.k_proj(vision_states).view(batch, -1, self.num_kv_heads, self.head_dim)
+            key = self.k_norm(projected_key).transpose(1, 2)
             value = self.v_proj(vision_states).view(batch, -1, self.num_kv_heads, self.head_dim).transpose(1, 2)
             key = apply_rotary(key, vision_cos, vision_sin)
             key, value = cache.update(layer_idx, key, value)
@@ -334,7 +338,9 @@ class MossVLTextModel(nn.Module):
         self.cross_attention_layers = set(cfg.cross_attention_layers)
         self.embed_tokens = nn.Embedding(cfg.vocab_size, cfg.hidden_size)
         self.layers = nn.ModuleList(
-            MossVLCrossAttentionDecoderLayer(cfg) if idx in self.cross_attention_layers else MossVLSelfAttentionDecoderLayer(cfg)
+            MossVLCrossAttentionDecoderLayer(cfg)
+            if idx in self.cross_attention_layers
+            else MossVLSelfAttentionDecoderLayer(cfg)
             for idx in range(cfg.num_hidden_layers)
         )
         self.norm = MossVLTextRMSNorm(cfg.hidden_size, cfg.rms_norm_eps)
@@ -491,7 +497,6 @@ class MossVLNativeModel(nn.Module):
 
         effective_h = torch.tensor([f[0] for f in frames], device=input_ids.device)
         effective_w = torch.tensor([f[1] for f in frames], device=input_ids.device)
-        starts = torch.tensor([f[2] for f in frames], device=input_ids.device)
         max_hw = torch.maximum(effective_h, effective_w)
         shifts = max_hw + 1
 
