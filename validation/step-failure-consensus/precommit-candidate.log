@@ -1,0 +1,40 @@
+check yaml................................................(no files to check)Skipped
+debug statements (python).....................................................Passed
+fix end of files..............................................................Passed
+mixed line ending.............................................................Passed
+trim trailing whitespace......................................................Passed
+ruff check....................................................................Passed
+ruff format...................................................................Passed
+typos.........................................................................Passed
+Lint GitHub Actions workflow files........................(no files to check)Skipped
+markdownlint-cli2.........................................(no files to check)Skipped
+Run mypy for Python 3.10......................................................Failed
+- hook id: mypy-3.10
+- exit code: 1
+
+vllm_omni/diffusion/worker/diffusion_model_runner.py:398: error: Incompatible types in assignment (expression has type "None", variable has type "str")  [assignment]
+Found 1 error in 1 file (checked 1 source file)
+tests/diffusion/test_diffusion_step_pipeline.py:172: error: Signature of "denoise_step" incompatible with supertype "_StepPipeline"  [override]
+tests/diffusion/test_diffusion_step_pipeline.py:172: note:      Superclass:
+tests/diffusion/test_diffusion_step_pipeline.py:172: note:          def denoise_step(self, input_batch: Any, **kwargs: Any) -> Any
+tests/diffusion/test_diffusion_step_pipeline.py:172: note:      Subclass:
+tests/diffusion/test_diffusion_step_pipeline.py:172: note:          def denoise_step(self, state: Any, **kwargs: Any) -> Any
+tests/diffusion/test_diffusion_step_pipeline.py:802: error: "_CapturingStepPipeline" has no attribute "device"  [attr-defined]
+Found 2 errors in 1 file (checked 1 source file)
+$ mypy --python-version 3.10 
+$ mypy --python-version 3.10 --follow-imports skip tests
+
+Ensure test files have CI marks (no direct SKU)...............................Passed
+Ratchet TTS per-model branches out of serving_speech.py...(no files to check)Skipped
+- hook id: check-tts-adapter-migration
+Lint shell scripts........................................(no files to check)Skipped
+Check SPDX headers............................................................Passed
+Check forbidden imports.......................................................Passed
+Prevent new torch.cuda API calls..............................................Passed
+Validate Buildkite Pipelines..............................(no files to check)Skipped
+Suggestion....................................................................Passed
+- hook id: suggestion
+- duration: 0s
+
+To bypass all the pre-commit hooks, add --no-verify to git commit. To skip a specific hook, prefix the commit command with SKIP=<hook-id>.
+

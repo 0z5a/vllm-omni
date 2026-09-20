@@ -1,0 +1,2 @@
+82454fa2c7e8bb1b8cc814fab5b187566170f291d64e86bd824a8f04c8341008  vllm_omni/diffusion/worker/diffusion_model_runner.py
+19e7c10a78a9268853cbd0c760a88108a92857ff5b97bc7f57bd2233ac43e503  tests/diffusion/test_diffusion_step_pipeline.py

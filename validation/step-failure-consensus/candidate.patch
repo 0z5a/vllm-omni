@@ -1,0 +1,127 @@
+diff --git a/tests/diffusion/test_diffusion_step_pipeline.py b/tests/diffusion/test_diffusion_step_pipeline.py
+index 28bba6e..fbbae79 100644
+--- a/tests/diffusion/test_diffusion_step_pipeline.py
++++ b/tests/diffusion/test_diffusion_step_pipeline.py
+@@ -7,6 +7,8 @@ import os
+ import queue
+ import threading
+ from contextlib import contextmanager
++from datetime import timedelta
++from pathlib import Path
+ from types import SimpleNamespace
+ 
+ import pytest
+@@ -1031,6 +1033,9 @@ class TestExecutor:
+         output = MultiprocDiffusionExecutor.execute_step(executor, scheduler_output)
+ 
+         assert output is expected
++        executor.collective_rpc.assert_called_once_with(
++            "execute_stepwise", args=(scheduler_output,), unique_reply_rank=0, exec_all_ranks=True
++        )
+ 
+ 
+ @pytest.mark.cpu
+@@ -1248,3 +1253,54 @@ def test_execute_stepwise_with_cfg_parallel():
+         args=(world_size, "cfg", "29542"),
+         nprocs=world_size,
+     )
++
++
++def _run_step_failure_consensus(rank: int, world_size: int, init_method: str) -> None:
++    from vllm_omni.diffusion.distributed import parallel_state
++    from vllm_omni.diffusion.distributed.group_coordinator import GroupCoordinator
++
++    torch.distributed.init_process_group(
++        "gloo", rank=rank, world_size=world_size, init_method=init_method, timeout=timedelta(seconds=30)
++    )
++    with pytest.MonkeyPatch.context() as monkeypatch:
++        monkeypatch.setattr(current_omni_platform, "get_torch_device", lambda _rank: torch.device("cpu"))
++        group = GroupCoordinator([list(range(world_size))], rank, "gloo")
++        monkeypatch.setattr(parallel_state, "_WORLD", group)
++        try:
++            assert not model_runner_module._dit_any_rank_failed(False)
++            for failed_rank in range(world_size):
++                assert model_runner_module._dit_any_rank_failed(rank == failed_rank)
++                assert not model_runner_module._dit_any_rank_failed(False)
++
++            runner = _make_runner()
++            original_prepare = runner.pipeline.prepare_encode
++
++            def prepare(state: StepRequestState) -> StepRequestState:
++                if state.request_id == "bad" and rank == world_size - 1:
++                    raise ValueError("rank-local preparation failure")
++                return original_prepare(state)
++
++            monkeypatch.setattr(runner.pipeline, "prepare_encode", prepare)
++            bad = StepRequestState("bad", OmniDiffusionSamplingParams())
++            good = StepRequestState("good", OmniDiffusionSamplingParams())
++            runner.state_cache = {state.request_id: state for state in (bad, good)}
++            prepared, batch, errors = runner._prepare_batch_inputs([bad, good], ["bad", "good"])
++            assert [state.request_id for state in prepared] == ["good"]
++            assert batch is not None and batch.request_ids == ["good"]
++            assert len(errors) == 1 and errors[0].request_id == "bad" and errors[0].finished
++            assert errors[0].result is not None and errors[0].result.error is not None
++            assert set(runner.state_cache) == {"good"}
++        finally:
++            group.destroy()
++            torch.distributed.destroy_process_group()
++
++
++@pytest.mark.cpu
++@pytest.mark.parametrize("world_size", [1, 2])
++def test_step_failure_consensus_gloo(tmp_path: Path, world_size: int) -> None:
++    torch.multiprocessing.spawn(
++        _run_step_failure_consensus,
++        args=(world_size, f"file://{tmp_path / 'rendezvous'}"),
++        nprocs=world_size,
++        join=True,
++    )
+diff --git a/vllm_omni/diffusion/worker/diffusion_model_runner.py b/vllm_omni/diffusion/worker/diffusion_model_runner.py
+index 5fb124a..84c9405 100644
+--- a/vllm_omni/diffusion/worker/diffusion_model_runner.py
++++ b/vllm_omni/diffusion/worker/diffusion_model_runner.py
+@@ -40,7 +40,7 @@ from vllm_omni.diffusion.diffusion_kv.paged_attention_adapter import (
+     DiffusionPagedAttentionMetadata,
+     DiffusionPagedAttentionRow,
+ )
+-from vllm_omni.diffusion.distributed.parallel_state import get_classifier_free_guidance_rank
++from vllm_omni.diffusion.distributed.parallel_state import get_classifier_free_guidance_rank, get_world_group
+ from vllm_omni.diffusion.forward_context import set_forward_context
+ from vllm_omni.diffusion.interaction.coordinator import InteractionCoordinator
+ from vllm_omni.diffusion.model_loader.diffusers_loader import DiffusersPipelineLoader
+@@ -86,27 +86,19 @@ logger = init_logger(__name__)
+ 
+ 
+ def _dit_any_rank_failed(local_failed: bool) -> bool:
+-    """All-reduce a per-request failure flag across the DiT process group.
++    """Agree on preparation failure across the workers executing a step wave.
+ 
+-    Every DiT rank must reach this point in lockstep; the caller wraps
+-    ``pipeline.prepare_encode`` so both the success and the exception paths
+-    call the helper. In single-rank execution this collapses to the local
+-    flag with no collectives issued.
++    Step RPCs broadcast the same scheduler output to all workers, including
++    DP replicas, and return only rank 0's result. Use that complete worker
++    group so every rank skips a failed request and can run the next wave.
+     """
+     if not torch.distributed.is_initialized():
+         return local_failed
+-    try:
+-        from vllm_omni.diffusion.distributed.parallel_state import get_dit_group
+-
+-        group = get_dit_group()
+-    except (AssertionError, ImportError):
+-        group = None
+-    if group is None:
++    group = get_world_group()
++    if group.world_size == 1:
+         return local_failed
+-    signal = torch.tensor(1 if local_failed else 0, dtype=torch.int32)
+-    if current_omni_platform.is_available():
+-        signal = signal.to(device=current_omni_platform.device_type)
+-    torch.distributed.all_reduce(signal, op=torch.distributed.ReduceOp.MAX, group=group)
++    signal = torch.tensor(int(local_failed), dtype=torch.int32)
++    torch.distributed.all_reduce(signal, op=torch.distributed.ReduceOp.MAX, group=group.cpu_group)
+     return bool(signal.item())
+ 
+ 

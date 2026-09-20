@@ -1,0 +1,167 @@
+.F                                                                       [100%]
+=================================== FAILURES ===================================
+_____________________ test_step_failure_consensus_gloo[2] ______________________
+
+tmp_path = PosixPath('/tmp/pytest-of-kxqandccx/pytest-50/test_step_failure_consensus_gl1')
+world_size = 2
+
+    @pytest.mark.cpu
+    @pytest.mark.parametrize("world_size", [1, 2])
+    def test_step_failure_consensus_gloo(tmp_path: Path, world_size: int) -> None:
+>       torch.multiprocessing.spawn(
+            _run_step_failure_consensus,
+            args=(world_size, f"file://{tmp_path / 'rendezvous'}"),
+            nprocs=world_size,
+            join=True,
+        )
+
+tests/diffusion/test_diffusion_step_pipeline.py:1298: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+/home/kxqandccx/vllm-omni-7753-hidream-20260918/venv/lib/python3.12/site-packages/torch/multiprocessing/spawn.py:340: in spawn
+    return start_processes(fn, args, nprocs, join, daemon, start_method="spawn")
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/home/kxqandccx/vllm-omni-7753-hidream-20260918/venv/lib/python3.12/site-packages/torch/multiprocessing/spawn.py:296: in start_processes
+    while not context.join():
+              ^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <torch.multiprocessing.spawn.ProcessContext object at 0x7b4789fe3830>
+timeout = None, grace_period = None
+
+    def join(self, timeout: float | None = None, grace_period: float | None = None):
+        r"""Join one or more processes within spawn context.
+    
+        Attempt to join one or more processes in this spawn context.
+        If one of them exited with a non-zero exit status, this function
+        kills the remaining processes (optionally with a grace period)
+        and raises an exception with the cause of the first process exiting.
+    
+        Returns ``True`` if all processes have been joined successfully,
+        ``False`` if there are more processes that need to be joined.
+    
+        Args:
+            timeout (float): Wait this long (in seconds) before giving up on waiting.
+            grace_period (float): When any processes fail, wait this long (in seconds)
+                for others to shutdown gracefully before terminating them. If they
+                still don't exit, wait another grace period before killing them.
+        """
+        # Ensure this function can be called even when we're done.
+        if len(self.sentinels) == 0:
+            return True
+    
+        # Wait for any process to fail or all of them to succeed.
+        ready = multiprocessing.connection.wait(
+            self.sentinels.keys(),
+            timeout=timeout,
+        )
+    
+        error_index = None
+        for sentinel in ready:
+            index = self.sentinels.pop(sentinel)
+            process = self.processes[index]
+            process.join()
+            if process.exitcode != 0:
+                error_index = index
+                break
+    
+        # Return if there was no error.
+        if error_index is None:
+            # Return whether or not all processes have been joined.
+            return len(self.sentinels) == 0
+        # An error occurred. Clean-up all processes before returning.
+        # First, allow a grace period for processes to shutdown themselves.
+        if grace_period is not None:
+            self._join_procs_with_timeout(grace_period)
+        # Then, terminate processes that are still alive. Try SIGTERM first.
+        for process in self.processes:
+            if process.is_alive():
+                log.warning("Terminating process %s via signal SIGTERM", process.pid)
+                process.terminate()
+    
+        # Try SIGKILL if the process isn't going down after another grace_period.
+        # The reason is related to python signal handling is limited
+        # to main thread and if that is in c/c++ land and stuck it won't
+        # to handle it. We have seen processes getting stuck not handling
+        # SIGTERM for the above reason.
+        self._join_procs_with_timeout(30 if grace_period is None else grace_period)
+        for process in self.processes:
+            if process.is_alive():
+                log.warning(
+                    "Unable to shutdown process %s via SIGTERM , forcefully exiting via SIGKILL",
+                    process.pid,
+                )
+                process.kill()
+            process.join()
+    
+        # The file will only be created if the process crashed.
+        failed_process = self.processes[error_index]
+        if not os.access(self.error_files[error_index], os.R_OK):
+            exitcode = self.processes[error_index].exitcode
+            if exitcode < 0:
+                try:
+                    name = signal.Signals(-exitcode).name
+                except ValueError:
+                    name = f"<Unknown signal {-exitcode}>"
+                raise ProcessExitedException(
+                    f"process {error_index:d} terminated with signal {name}",
+                    error_index=error_index,
+                    error_pid=failed_process.pid,
+                    exit_code=exitcode,
+                    signal_name=name,
+                )
+            else:
+                raise ProcessExitedException(
+                    f"process {error_index:d} terminated with exit code {exitcode:d}",
+                    error_index=error_index,
+                    error_pid=failed_process.pid,
+                    exit_code=exitcode,
+                )
+    
+        with open(self.error_files[error_index], "rb") as fh:
+            original_trace = pickle.load(fh)
+        msg = f"\n\n-- Process {error_index:d} terminated with the following error:\n"
+        msg += original_trace
+>       raise ProcessRaisedException(msg, error_index, failed_process.pid)
+E       torch.multiprocessing.spawn.ProcessRaisedException: 
+E       
+E       -- Process 1 terminated with the following error:
+E       Traceback (most recent call last):
+E         File "/home/kxqandccx/vllm-omni-7753-hidream-20260918/venv/lib/python3.12/site-packages/torch/multiprocessing/spawn.py", line 87, in _wrap
+E           fn(i, *args)
+E         File "/dev/shm/0z5a-step-failure-baseline/tests/diffusion/test_diffusion_step_pipeline.py", line 1269, in _run_step_failure_consensus
+E           assert model_runner_module._dit_any_rank_failed(rank == failed_rank)
+E                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       AssertionError
+
+/home/kxqandccx/vllm-omni-7753-hidream-20260918/venv/lib/python3.12/site-packages/torch/multiprocessing/spawn.py:211: ProcessRaisedException
+---------------------------- Captured stdout setup -----------------------------
+--- Running test: test_step_failure_consensus_gloo[2]
+----------------------------- Captured stdout call -----------------------------
+WARNING 09-20 10:14:30 [cpu.py:572] Failed to import from vllm._C_AVX512: ModuleNotFoundError("No module named 'vllm._C_AVX512'")
+WARNING 09-20 10:14:30 [cpu.py:572] Failed to import from vllm._C_AVX512: ModuleNotFoundError("No module named 'vllm._C_AVX512'")
+WARNING 09-20 10:14:31 [cpu.py:572] Failed to import from vllm._C_AVX512: ModuleNotFoundError("No module named 'vllm._C_AVX512'")
+WARNING 09-20 10:14:31 [cpu.py:572] Failed to import from vllm._C_AVX512: ModuleNotFoundError("No module named 'vllm._C_AVX512'")
+WARNING 09-20 10:14:31 [cpu.py:572] Failed to import from vllm._C_AVX512: ModuleNotFoundError("No module named 'vllm._C_AVX512'")
+WARNING 09-20 10:14:31 [cpu.py:572] Failed to import from vllm._C_AVX512: ModuleNotFoundError("No module named 'vllm._C_AVX512'")
+INFO 09-20 10:14:31 [patch.py:252] NVFP4 W4A4 weight_scale NaN-clamp: installed.
+INFO 09-20 10:14:31 [patch.py:252] NVFP4 W4A4 weight_scale NaN-clamp: installed.
+INFO 09-20 10:14:32 [patch.py:503] inductor factorable-divisibility patch: installed.
+INFO 09-20 10:14:32 [patch.py:503] inductor factorable-divisibility patch: installed.
+INFO 09-20 10:14:32 [patch.py:568] [cumem-cuda] CuMemAllocator._python_free_callback patched: asleep guard extended to all platforms.
+INFO 09-20 10:14:32 [patch.py:568] [cumem-cuda] CuMemAllocator._python_free_callback patched: asleep guard extended to all platforms.
+----------------------------- Captured stderr call -----------------------------
+W0920 10:14:28.335000 1745830 torch/utils/cpp_extension.py:178] No CUDA runtime is found, using CUDA_HOME='/usr/local/cuda'
+W0920 10:14:28.335000 1745831 torch/utils/cpp_extension.py:178] No CUDA runtime is found, using CUDA_HOME='/usr/local/cuda'
+W0920 10:14:39.704000 1742253 torch/multiprocessing/spawn.py:165] Terminating process 1745830 via signal SIGTERM
+------------------------------ Captured log call -------------------------------
+WARNING  torch.multiprocessing.spawn:spawn.py:165 Terminating process 1745830 via signal SIGTERM
+=============================== warnings summary ===============================
+../../../home/kxqandccx/vllm-omni-7753-hidream-20260918/venv/lib/python3.12/site-packages/torch/jit/_script.py:365: 14 warnings
+  /home/kxqandccx/vllm-omni-7753-hidream-20260918/venv/lib/python3.12/site-packages/torch/jit/_script.py:365: DeprecationWarning: `torch.jit.script_method` is deprecated. Please switch to `torch.compile` or `torch.export`.
+    warnings.warn(
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+--- Running Summary
+=========================== short test summary info ============================
+FAILED tests/diffusion/test_diffusion_step_pipeline.py::test_step_failure_consensus_gloo[2]
+1 failed, 1 passed, 36 deselected, 14 warnings in 39.58s
