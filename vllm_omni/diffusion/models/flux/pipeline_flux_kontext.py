@@ -37,6 +37,7 @@ from vllm_omni.diffusion.models.t5_encoder.quantization import prepare_t5_fp8
 from vllm_omni.diffusion.profiler.diffusion_pipeline_profiler import DiffusionPipelineProfilerMixin
 from vllm_omni.diffusion.utils.tf_utils import get_transformer_config_kwargs
 from vllm_omni.diffusion.worker.request_batch import DiffusionRequestBatch
+from vllm_omni.quantization import resolve_component_quant_config
 from vllm_omni.logger import init_logger
 
 logger = init_logger(__name__)
@@ -149,7 +150,11 @@ class FluxKontextPipeline(
 
         transformer_kwargs = get_transformer_config_kwargs(od_config.tf_model_config, FluxKontextTransformer2DModel)
         transformer_kwargs["od_config"] = od_config
-        transformer_kwargs["quant_config"] = od_config.quantization_config
+        # A per-component config must be narrowed to the transformer entry; vLLM
+        # linear layers reject a config that returns no quant method.
+        transformer_kwargs["quant_config"] = resolve_component_quant_config(
+            od_config.quantization_config, "transformer"
+        )
         self.transformer = FluxKontextTransformer2DModel(**transformer_kwargs)
 
         self.vae_scale_factor = 2 ** (len(self.vae.config.block_out_channels) - 1) if getattr(self, "vae", None) else 8
