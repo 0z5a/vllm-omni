@@ -9,6 +9,29 @@ text layers.
 
 Tracking: [RFC #7890](https://github.com/vllm-project/vllm-omni/issues/7890).
 
+## Task status
+
+Named after the tasks in [RFC #7890](https://github.com/vllm-project/vllm-omni/issues/7890).
+
+| Task | State on this branch | Evidence or gap |
+| --- | --- | --- |
+| T01 reference revisions and fixtures | captured | `tests/assets/moss_vl_realtime/reference/`, capture and paced-capture adapters |
+| T02 placement and interface audit | not here | owned by another contributor; this branch consumes its contract |
+| T03 configuration, registration, loading | done | 895/895 keys, refusal matrix, `registry.py` |
+| T04 processor and vision encoding | not here | processor consumed from the pinned checkpoint; owned by another contributor |
+| T05 text executor and positions | done | positions exact against the capture; prefill/decode consistency checks |
+| T06 cross-attention correctness | done for the eager path | visibility matrix, GQA mapping, ragged media, additive-mask parity |
+| T07 native offline parity | done for the offline path | `runner.py`/`parity.py`; no served endpoint yet |
+| T08 timestamped video input | not started | needs the shared duplex input extension |
+| T09 non-audio duplex capability and plugin | not started | needs the shared engine plugin contract |
+| T10 incremental visual state | initial contract | `append_frames` publishes at a step boundary; reference-timeline segment splicing is not implemented |
+| T11 text output, silence, interruption | partial | the paced driver treats `<|silence|>` as a turn end; the full control/state mapping is not implemented |
+| T12 admission limits and lifecycle | not started | needs the engine session lifecycle |
+| T13 paced single-session validation | partial | paced capture, native paced driver and the timeline comparator exist; no end-to-end paced acceptance run yet |
+| T14 baseline evidence | partial | baseline tables for the offline cases; the realtime metrics are recorded but not yet aggregated |
+| T23 SM120 qualification | done | `sm120_probe.py` executes the operators on RTX 5090 and measures error |
+| T24 tests, examples, docs | partial | 34 CPU checks, this page, the recipe and one example; no CI wiring yet |
+
 ## Current capability
 
 | Item | State |
