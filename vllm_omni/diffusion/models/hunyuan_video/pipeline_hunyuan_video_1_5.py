@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+import contextlib
 import logging
 import os
 import re
@@ -31,6 +32,7 @@ from vllm_omni.diffusion.models.hunyuan_video.quantization import prepare_hunyua
 from vllm_omni.diffusion.models.interface import SupportsComponentDiscovery
 from vllm_omni.diffusion.models.progress_bar import ProgressBarMixin
 from vllm_omni.diffusion.models.t5_encoder import T5EncoderModel
+from vllm_omni.diffusion.offloader.config import DIT_COMPONENT, resolve_offload
 from vllm_omni.diffusion.profiler.diffusion_pipeline_profiler import DiffusionPipelineProfilerMixin
 from vllm_omni.diffusion.utils.tf_utils import get_transformer_config_kwargs
 from vllm_omni.diffusion.worker.request_batch import DiffusionRequestBatch
@@ -154,11 +156,15 @@ class HunyuanVideo15Pipeline(
             self.scheduler._shift = od_config.flow_shift
 
         transformer_kwargs = get_transformer_config_kwargs(od_config.tf_model_config, HunyuanVideo15Transformer3DModel)
-        self.transformer = HunyuanVideo15Transformer3DModel(
-            od_config=od_config,
-            quant_config=resolve_component_quant_config(od_config.quantization_config, "transformer"),
-            **transformer_kwargs,
-        )
+        # Keep an offloaded BF16 DiT on CPU when only the encoder is quantized.
+        dit_quant_config = resolve_component_quant_config(od_config.quantization_config, "transformer")
+        cpu_dit = resolve_offload(od_config).offloads(DIT_COMPONENT) and dit_quant_config is None
+        with torch.device("cpu") if cpu_dit else contextlib.nullcontext():
+            self.transformer = HunyuanVideo15Transformer3DModel(
+                od_config=od_config,
+                quant_config=dit_quant_config,
+                **transformer_kwargs,
+            )
 
         # Check if model uses meanflow (distilled variants)
         self.use_meanflow = getattr(od_config.tf_model_config, "use_meanflow", False)
