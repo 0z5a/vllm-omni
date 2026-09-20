@@ -44,5 +44,57 @@ checkpoint weights.
 For the tested dog-in-meadow prompt, both videos retained the subject and
 motion, with visible texture differences. Mean decoded-frame SSIM was 0.5414
 and audio waveform cosine similarity was 0.9254. These measurements from one
-seeded prompt do not establish general perceptual quality. Encoder TP,
-multi-GPU execution and steady-state latency remain unvalidated.
+seeded prompt do not establish general perceptual quality. The encoder remains
+replicated; encoder TP is not implemented.
+
+## Encoder layerwise offload
+
+To stream both Gemma3 decoder blocks and the video Transformer from CPU,
+select both components. This also keeps the unquantized Transformer on CPU
+during initialization when encoder-only FP8 is enabled.
+
+```bash
+CUDA_VISIBLE_DEVICES=0,1 DIFFUSION_ATTENTION_BACKEND=TORCH_SDPA \
+python examples/offline_inference/text_to_video/text_to_video.py \
+  --model Lightricks/LTX-2 --model-class-name LTX2Pipeline \
+  --quantization-config '{"text_encoder":{"method":"fp8"}}' \
+  --enable-layerwise-offload \
+  --diffusion-offload-config '{"mode":"layer","components":["dit","text_encoder"]}' \
+  --ulysses-degree 2 --vae-use-tiling --enforce-eager \
+  --height 512 --width 768 --num-frames 17 --num-inference-steps 40 \
+  --guidance-scale 4 --fps 24 --seed 42 \
+  --prompt "A golden retriever walks through a grassy meadow in gentle sunlight. Birds chirp in the distance." \
+  --output ltx2_encoder_fp8.mp4
+```
+
+The text encoder is replicated across workers; `ulysses_degree` shards video
+Transformer computation. Block offload reduces encoder residency in both
+precision modes, so its GPU-memory comparison differs from keeping the
+complete encoder resident.
+
+### Repeated two-GPU validation
+
+Two L20 workers with Ulysses=2, the component offload configuration above,
+17 frames, 512×768, 40 steps, CFG 4, 24 FPS and seed 42. Each independent
+process completed one warmup followed by three measured requests. The prompt
+is the dog/meadow prompt in the command above. Source: `05da0e18e`.
+
+| Metric | BF16 | Encoder FP8 | Comparison |
+| --- | ---: | ---: | --- |
+| E2E mean ± sample SD (s) | 133.029 ± 1.045 | 131.108 ± 0.093 | 1.015× |
+| Text encoder mean (s) | 1.750 | 0.934 | 1.875× |
+| Rank-0 peak allocated (GiB) | 12.397 | 12.188 | 0.209 GiB lower |
+| Rank-0 peak reserved (GiB) | 15.932 | 15.457 | 0.475 GiB lower |
+
+Measured E2E samples were 131.846 / 133.825 / 133.417 s for BF16 and
+131.143 / 131.002 / 131.178 s for FP8. Timings exclude model loading and MP4
+export. These are observations from three requests on a shared host, not an
+isolated general speedup claim. The profiler and eager mode were enabled in
+both arms. Memory numbers are rank-0 PyTorch allocator peaks, not total
+process memory or a maximum across workers.
+
+Both MP4 files decode to 17 RGB frames and stereo 24 kHz audio. Frame SSIM is
+0.9447 and audio waveform cosine is 0.9750; the dog, meadow and motion are
+retained. The repeated BF16 MP4 matches the earlier two-GPU BF16 output
+byte-for-byte. Shutdown emitted worker termination warnings after successful
+export in both precision modes.
