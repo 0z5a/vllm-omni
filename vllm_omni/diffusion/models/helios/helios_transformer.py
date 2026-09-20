@@ -834,7 +834,12 @@ class HeliosTransformer3DModel(nn.Module):
         self._cross_attn_kv_cache.clear()
 
     def _cache_enabled(self) -> bool:
-        return not self.training and not torch.is_grad_enabled() and not torch.compiler.is_compiling()
+        return (
+            self.cache_cross_attention
+            and not self.training
+            and not torch.is_grad_enabled()
+            and not torch.compiler.is_compiling()
+        )
 
     def _project_encoder_hidden_states(self, encoder_hidden_states: torch.Tensor) -> torch.Tensor:
         if not self._cache_enabled():
@@ -853,7 +858,7 @@ class HeliosTransformer3DModel(nn.Module):
         self,
         encoder_hidden_states: torch.Tensor,
     ) -> list[tuple[torch.Tensor, torch.Tensor]] | None:
-        if not self.cache_cross_attention or not self._cache_enabled():
+        if not self._cache_enabled():
             return None
 
         cache_key = self._tensor_cache_key(encoder_hidden_states)

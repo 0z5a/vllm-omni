@@ -35,3 +35,22 @@ def test_cross_attention_precompute_respects_offload_setting(enabled):
     else:
         assert first is second is None
         block.attn2.project_kv.assert_not_called()
+
+
+@pytest.mark.parametrize("enabled", [False, True])
+def test_projected_prompt_cache_respects_offload_setting(enabled):
+    model = HeliosTransformer3DModel.__new__(HeliosTransformer3DModel)
+    torch.nn.Module.__init__(model)
+    model.eval()
+    model.cache_cross_attention = enabled
+    model._projected_encoder_cache = OrderedDict()
+    model._cross_attn_cache_size = 2
+    model.condition_embedder = Mock()
+    hidden = torch.randn(1, 2, 4)
+    model.condition_embedder.text_embedder.return_value = hidden
+
+    with torch.no_grad():
+        model._project_encoder_hidden_states(hidden)
+        model._project_encoder_hidden_states(hidden)
+
+    assert model.condition_embedder.text_embedder.call_count == (1 if enabled else 2)
