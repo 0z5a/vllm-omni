@@ -30,4 +30,5 @@ run_arm native0
 run_arm hsdp0 --hsdp
 run_arm hsdp1 --hsdp
 run_arm native1
+"$python_bin" "$run_root/summarize.py"
 printf 'complete\n' > "$run_root/evidence/ring-hsdp.status"
