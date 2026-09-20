@@ -25,6 +25,8 @@ from vllm_omni.model_executor.models.moss_vl_realtime.modeling import (
     VisionTokenInfo,
 )
 
+pytestmark = [pytest.mark.core_model, pytest.mark.cpu]
+
 IMAGE_PAD = 3
 NEGATIVE = torch.finfo(torch.bfloat16).min
 

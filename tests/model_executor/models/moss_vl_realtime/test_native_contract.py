@@ -10,6 +10,7 @@ geometry, and the prefill/decode cache contract.
 
 from __future__ import annotations
 
+import pytest
 import torch
 
 from vllm_omni.model_executor.models.moss_vl_realtime.config import (
@@ -19,6 +20,8 @@ from vllm_omni.model_executor.models.moss_vl_realtime.config import (
 )
 from vllm_omni.model_executor.models.moss_vl_realtime.modeling import MossVLNativeModel, VisionTokenInfo
 from vllm_omni.model_executor.models.moss_vl_realtime.vision import MossVLVisionTower
+
+pytestmark = [pytest.mark.core_model, pytest.mark.cpu]
 
 # The published checkpoint uses 151655; the tiny config keeps ids inside a small vocab.
 TINY_IMAGE_PAD = 3

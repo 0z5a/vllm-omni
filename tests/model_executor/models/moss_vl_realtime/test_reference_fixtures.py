@@ -17,6 +17,8 @@ import pytest
 import torch
 from safetensors import safe_open
 
+pytestmark = [pytest.mark.core_model, pytest.mark.cpu]
+
 
 def _reference_dir() -> Path:
     for parent in Path(__file__).resolve().parents:

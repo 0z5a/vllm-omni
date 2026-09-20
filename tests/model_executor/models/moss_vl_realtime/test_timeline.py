@@ -13,7 +13,11 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+import pytest
+
 from vllm_omni.model_executor.models.moss_vl_realtime import timeline
+
+pytestmark = [pytest.mark.core_model, pytest.mark.cpu]
 
 
 def _realtime_dir() -> Path:

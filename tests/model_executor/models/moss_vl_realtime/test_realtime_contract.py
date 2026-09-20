@@ -18,6 +18,7 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+import pytest
 import torch
 
 from vllm_omni.model_executor.models.moss_vl_realtime.config import (
@@ -26,6 +27,8 @@ from vllm_omni.model_executor.models.moss_vl_realtime.config import (
     MossVLVisionConfig,
 )
 from vllm_omni.model_executor.models.moss_vl_realtime.modeling import MossVLNativeModel
+
+pytestmark = [pytest.mark.core_model, pytest.mark.cpu]
 
 
 def _realtime_dir() -> Path:

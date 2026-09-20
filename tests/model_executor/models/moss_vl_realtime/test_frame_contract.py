@@ -21,6 +21,8 @@ from vllm_omni.model_executor.models.moss_vl_realtime.duplex import (
     validate_append,
 )
 
+pytestmark = [pytest.mark.core_model, pytest.mark.cpu]
+
 
 def frame(event_id: str, media_timestamp_ms: int, size: int = 64, width: int = 32, height: int = 32) -> FrameEvent:
     return FrameEvent(

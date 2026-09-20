@@ -16,6 +16,8 @@ import pytest
 
 from vllm_omni.model_executor.models.moss_vl_realtime.registry import inspect_checkpoint
 
+pytestmark = [pytest.mark.core_model, pytest.mark.cpu]
+
 ASSET_SCRIPTS = Path(__file__).resolve().parents[3] / "assets" / "moss_vl_realtime"
 
 

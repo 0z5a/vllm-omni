@@ -86,6 +86,28 @@ without the repository pytest plugins.
 The paced realtime case is driven by a background session loop, so its capture is
 a behavioural trace: compare it by timeline, not by identical text.
 
+## Running the checks
+
+The CPU checks are ordinary pytest modules marked with the repository's
+`core_model` / `cpu` markers, so the normal test job picks them up:
+
+```bash
+pytest tests/model_executor/models/moss_vl_realtime -q
+```
+
+They need neither a checkpoint nor a GPU. Where the repository pytest plugins are
+not installed, the same functions run through the standalone driver, which is
+also the runner used during development of this model:
+
+```bash
+python tests/model_executor/models/moss_vl_realtime/run_checks.py
+```
+
+Everything that needs the 22.7 GB checkpoint (`capture_reference.py`,
+`capture_realtime.py`, `replay_paced.py`, `runner.py`, `parity.py`,
+`sm120_probe.py`) is deliberately not a pytest target: those are run manually
+against a real device and their outputs are what the fixtures record.
+
 ## Recorded reference run (RTX 5090, SM120, BF16)
 
 `do_sample=false`, `max_new_tokens=64`, `attn_implementation=sdpa`.

@@ -10,6 +10,7 @@ accounting, not throughput.
 
 from __future__ import annotations
 
+import pytest
 import torch
 
 from vllm_omni.model_executor.models.moss_vl_realtime.config import (
@@ -22,6 +23,8 @@ from vllm_omni.model_executor.models.moss_vl_realtime.modeling import (
     MossVLNativeModel,
     SessionLimits,
 )
+
+pytestmark = [pytest.mark.core_model, pytest.mark.cpu]
 
 IMAGE_PAD = 3
 WARMUP_ROUNDS = 20

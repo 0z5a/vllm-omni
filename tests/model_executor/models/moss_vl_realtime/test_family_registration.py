@@ -12,6 +12,7 @@ from __future__ import annotations
 
 from contextlib import contextmanager
 
+import pytest
 import vllm.transformers_utils.config as vllm_config
 
 import vllm_omni.model_extras.registry as registry
@@ -21,6 +22,8 @@ from vllm_omni.model_extras.moss_vl import (
     SILENCE_TOKEN_ID,
     build_x_to_text_prompt,
 )
+
+pytestmark = [pytest.mark.core_model, pytest.mark.cpu]
 
 
 @contextmanager
