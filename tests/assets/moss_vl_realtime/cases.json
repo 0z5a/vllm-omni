@@ -1,0 +1,108 @@
+{
+  "schema_version": 1,
+  "generation": {
+    "do_sample": false,
+    "max_new_tokens": 64
+  },
+  "cases": [
+    {
+      "id": "prompt_only",
+      "events": [
+        {
+          "id": "p0",
+          "at_ms": 0,
+          "kind": "prompt",
+          "text": "Say hello."
+        }
+      ]
+    },
+    {
+      "id": "image",
+      "events": [
+        {
+          "id": "p0",
+          "at_ms": 0,
+          "kind": "prompt",
+          "text": "Describe the image."
+        },
+        {
+          "id": "f0",
+          "at_ms": 0,
+          "kind": "frame",
+          "media_timestamp_ms": 0,
+          "asset": "red"
+        }
+      ]
+    },
+    {
+      "id": "short_video",
+      "events": [
+        {
+          "id": "p0",
+          "at_ms": 0,
+          "kind": "prompt",
+          "text": "Describe changes in color."
+        },
+        {
+          "id": "f0",
+          "at_ms": 0,
+          "kind": "frame",
+          "media_timestamp_ms": 0,
+          "asset": "red"
+        },
+        {
+          "id": "f1",
+          "at_ms": 1000,
+          "kind": "frame",
+          "media_timestamp_ms": 1000,
+          "asset": "blue"
+        }
+      ]
+    },
+    {
+      "id": "timestamped_stream",
+      "events": [
+        {
+          "id": "p0",
+          "at_ms": 0,
+          "kind": "prompt",
+          "text": "Describe important changes."
+        },
+        {
+          "id": "f0",
+          "at_ms": 0,
+          "kind": "frame",
+          "media_timestamp_ms": 0,
+          "asset": "red"
+        },
+        {
+          "id": "f1",
+          "at_ms": 1000,
+          "kind": "frame",
+          "media_timestamp_ms": 1000,
+          "asset": "blue"
+        },
+        {
+          "id": "p1",
+          "at_ms": 1250,
+          "kind": "prompt",
+          "text": "Focus on the current color."
+        },
+        {
+          "id": "f2",
+          "at_ms": 1500,
+          "kind": "frame",
+          "media_timestamp_ms": 1000,
+          "asset": "red"
+        },
+        {
+          "id": "f3",
+          "at_ms": 2000,
+          "kind": "frame",
+          "media_timestamp_ms": 2000,
+          "asset": "blue"
+        }
+      ]
+    }
+  ]
+}

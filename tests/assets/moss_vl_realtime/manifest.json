@@ -1,0 +1,79 @@
+{
+  "schema_version": 1,
+  "status": "draft_inputs_only",
+  "references": {
+    "moss_vl": {
+      "repository": "OpenMOSS/MOSS-VL",
+      "revision": "0e016ef74ad595a793a7dbab1deb9055a8944ba7"
+    },
+    "checkpoint": {
+      "repository": "OpenMOSS-Team/MOSS-VL-Realtime",
+      "revision": "2cb8df5c2adae6b59653bbdd783dc580cf440175",
+      "metadata_source": "https://hf-mirror.com/api/models/OpenMOSS-Team/MOSS-VL-Realtime",
+      "precision": "BF16",
+      "tokenizer_processor_remote_code": "same checkpoint revision"
+    },
+    "converted_checkpoint": {
+      "repository": "OpenMOSS-Team/MOSS-VL-Realtime-SGLANG",
+      "revision": null,
+      "status": "excluded; equivalence not established"
+    },
+    "vllm": {
+      "repository": "vllm-project/vllm",
+      "revision": "0e110f696db450f5645ce1daf9945241212d6ef3"
+    },
+    "vllm_omni": {
+      "repository": "vllm-project/vllm-omni",
+      "revision": "9f5521351e4471d6538e74ca66cb63cde23b9140"
+    },
+    "attention_reference": {
+      "repository": "OpenMOSS/MOSS-VL",
+      "revision": "0e016ef74ad595a793a7dbab1deb9055a8944ba7",
+      "path": "third_party/flash-attention-src",
+      "git_tree": "0d0aeb079a04438bec1e07aae6f651a6462404a9"
+    }
+  },
+  "assets": {
+    "red": {
+      "path": "red.ppm",
+      "sha256": "22ed217388b81893a28eaf1b2d967e9d7f27919e91dcda1b01ec4c72ba26aeb5",
+      "shape_hwc": [
+        32,
+        32,
+        3
+      ],
+      "dtype": "uint8",
+      "rgb": [
+        255,
+        0,
+        0
+      ]
+    },
+    "blue": {
+      "path": "blue.ppm",
+      "sha256": "71a03d44d7cec0ff1d2069bbb239afdd02c6cc6b453ae5fa7ba3141f911bf40e",
+      "shape_hwc": [
+        32,
+        32,
+        3
+      ],
+      "dtype": "uint8",
+      "rgb": [
+        0,
+        0,
+        255
+      ]
+    }
+  },
+  "reference_capture": {
+    "status": "pending",
+    "required": [
+      "processor tensors",
+      "text and visual positions",
+      "query visibility boundaries",
+      "logits and control decisions",
+      "runtime and hardware versions",
+      "per-tensor comparison tolerances"
+    ]
+  }
+}
