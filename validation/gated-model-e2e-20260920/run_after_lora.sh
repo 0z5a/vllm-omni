@@ -6,7 +6,7 @@ set -euo pipefail
 root=/home/kxqandccx/omni-1217-20260919
 run_root="$root/gated-model-validation"
 python_bin=/home/kxqandccx/vllm-omni-7753-hidream-20260918/venv/bin/python
-while ps -p 2477741 -o args= | rg -Fxq "bash $root/lora-remaining-validation/after_step_lifecycle.sh"; do sleep 30; done
+while ps -p 2477741 -o args= | rg -q 'after_step_lifecycle\.sh$'; do sleep 30; done
 test "$(cat "$root/lora-remaining-validation/evidence/remaining-cases.status")" = complete
 test "$(cat "$root/models/.gated-downloads.status")" = complete
 export CUDA_VISIBLE_DEVICES=2,3 OMP_NUM_THREADS=4 HF_HUB_OFFLINE=1 TOKENIZERS_PARALLELISM=false
