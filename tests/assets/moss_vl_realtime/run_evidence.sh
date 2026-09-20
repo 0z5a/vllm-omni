@@ -4,8 +4,9 @@
 # In order: checkpoint hash verification, the reference offline capture, the
 # native replay with comparison, the stage parity probes, the paced realtime
 # capture, the native paced replay, the timeline comparison, and the baseline
-# aggregation. The device is picked as the freest of the allowed ones; pass
-# MOSS_GPU to pin it. Nothing here installs packages or touches other GPUs.
+# aggregation. The device comes from MOSS_ALLOWED_GPUS (default "1 2 3", i.e.
+# never GPU 0 or 4-7 on a shared host) and the freest of those is used; pass
+# MOSS_GPU to pin one. Nothing here installs packages or touches other GPUs.
 #
 # Usage:
 #   MOSS_REPO=~/vllm-omni MOSS_CKPT=~/ckpt/MOSS-VL-Realtime \
@@ -21,10 +22,15 @@ LOG=${MOSS_LOGS:-$ART/logs}
 REV=${MOSS_REVISION:-2cb8df5c2adae6b59653bbdd783dc580cf440175}
 OUT=${1:-$ART/2cb8df5c-0e016ef7f}
 mkdir -p "$LOG" "$OUT"
+# The device is chosen from an explicit allow-list, never from "whatever is
+# free": on a shared host the free devices may belong to someone else's work.
+ALLOWED=${MOSS_ALLOWED_GPUS:-"1 2 3"}
 if [ -n "${MOSS_GPU:-}" ]; then
   GPU=$MOSS_GPU
 else
-  GPU=$(nvidia-smi --query-gpu=index,memory.used --format=csv,noheader,nounits | sort -t, -k2 -n | head -1 | cut -d, -f1)
+  GPU=$(for index in $ALLOWED; do
+    nvidia-smi --query-gpu=index,memory.used --format=csv,noheader,nounits -i "$index"
+  done | sort -t, -k2 -n | head -1 | cut -d, -f1)
 fi
 echo "using GPU $GPU"
 
