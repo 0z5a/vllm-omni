@@ -13,6 +13,7 @@ Captured on RTX 5090 (SM120), BF16, greedy, checkpoint revision
 | `batch-plan.json` | the publication plan that mirrors the reference's grouping |
 | `realtime-step-parity.json` | native replay of the reference's steps: 12 of 13 argmax decisions agree |
 | `timeline-comparison.json` | phase-aligned comparison of the two traces |
+| `session-contract.json` | driver trace against session trace: identical events, decisions, published extents and cursors |
 
 ## What the reference protocol does
 
@@ -42,6 +43,28 @@ generated "The color is alternating between red and blue.". The segment tokens
 and the 3-axis positions are verified bit-identical to the reference's own
 (`steps.jsonl`), so the remaining text difference is the same near-tie mechanism
 seen in the offline cases, not a protocol error.
+
+## Native paced replay through the session
+
+`replay_paced.py --via-session` runs the same timeline through
+`MossVLNativeSession`, the contract a duplex engine consumes, and
+`compare_paced_paths.py` records the two native traces against each other in
+`session-contract.json`: the event sequences are identical, the per-segment
+decisions are identical (argmax 151672 at max logit 26.5, then 151671 at 24.75),
+as are the published vision extents and the position cursors. The session adds
+the fields an engine reports — the input path, the prefill decision and a close
+report — and the comparator declares exactly those as expected differences.
+
+```bash
+CUDA_VISIBLE_DEVICES=1 PYTHONPATH=$PWD/refsite:$PWD python tests/assets/moss_vl_realtime/replay_paced.py \
+  --checkpoint /path/to/MOSS-VL-Realtime --via-session \
+  --frame red.ppm --frame blue.ppm --frame red.ppm --frame blue.ppm \
+  --batch-plan tests/assets/moss_vl_realtime/reference/realtime/batch-plan.json \
+  --out artifacts/moss/native-paced-session
+python tests/assets/moss_vl_realtime/compare_paced_paths.py \
+  --driver artifacts/moss/native-paced --session artifacts/moss/native-paced-session \
+  --out artifacts/moss/session-contract.json
+```
 
 ## Replaying the steps natively
 

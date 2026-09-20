@@ -1,0 +1,125 @@
+{
+  "artifacts": "/home/gongji/0z5a-work/moss-vl/artifacts/moss/2cb8df5c-round6",
+  "native_root": "/home/gongji/0z5a-work/moss-vl/artifacts/moss/2cb8df5c-round6/native",
+  "reference": [
+    {
+      "case": "prompt_only",
+      "status": "captured",
+      "run": "20260920T221310Z",
+      "prompt_tokens": 11,
+      "generated_tokens": 10,
+      "wall_seconds": 1.461,
+      "decode_tokens_per_second": 6.16,
+      "device": null,
+      "attention_backend": "sdpa",
+      "text": "Hello! How can I assist you today?"
+    },
+    {
+      "case": "image",
+      "status": "captured",
+      "run": "20260920T221310Z",
+      "prompt_tokens": 13,
+      "generated_tokens": 37,
+      "wall_seconds": 1.482,
+      "decode_tokens_per_second": 24.29,
+      "device": null,
+      "attention_backend": "sdpa",
+      "text": "The image is a solid, vibrant red square with no additional elements, textures, or variations in color. It is a uniform block of red without any discernible features or details."
+    },
+    {
+      "case": "short_video",
+      "status": "captured",
+      "run": "20260920T221310Z",
+      "prompt_tokens": 15,
+      "generated_tokens": 64,
+      "wall_seconds": 2.432,
+      "decode_tokens_per_second": 25.9,
+      "device": null,
+      "attention_backend": "sdpa",
+      "text": "A change in color is the result of a change in the way light is absorbed, emitted, or reflected by an object. This can occur due to various factors such as the composition of the object, the presence of pigments or dyes, the temperature, the pressure, or the exposure to light or other forms of"
+    }
+  ],
+  "native": [
+    {
+      "case": "prompt_only",
+      "status": "replayed",
+      "prompt_tokens": 11,
+      "generated_tokens": 10,
+      "prefill_seconds": 0.059,
+      "decode_seconds": 0.357,
+      "decode_tokens_per_second": 25.19,
+      "wall_seconds": 0.416,
+      "peak_memory_bytes": 22727996416,
+      "loaded_keys": 895,
+      "missing_keys": 0,
+      "unexpected_keys": 0,
+      "reference_wall_seconds": 1.461,
+      "wall_speedup": 3.51,
+      "token_prefix_matches": "10/10",
+      "step_argmax_agreement": "10/10",
+      "prefill_logits_max_abs": 0.1562
+    },
+    {
+      "case": "image",
+      "status": "replayed",
+      "prompt_tokens": 13,
+      "generated_tokens": 37,
+      "prefill_seconds": 0.067,
+      "decode_seconds": 1.587,
+      "decode_tokens_per_second": 22.68,
+      "wall_seconds": 1.655,
+      "peak_memory_bytes": 22729963008,
+      "loaded_keys": 895,
+      "missing_keys": 0,
+      "unexpected_keys": 0,
+      "reference_wall_seconds": 1.482,
+      "wall_speedup": 0.9,
+      "token_prefix_matches": "37/37",
+      "step_argmax_agreement": "37/37",
+      "prefill_logits_max_abs": 0.3438
+    },
+    {
+      "case": "short_video",
+      "status": "replayed",
+      "prompt_tokens": 15,
+      "generated_tokens": 64,
+      "prefill_seconds": 0.064,
+      "decode_seconds": 2.661,
+      "decode_tokens_per_second": 23.68,
+      "wall_seconds": 2.725,
+      "peak_memory_bytes": 22735009280,
+      "loaded_keys": 895,
+      "missing_keys": 0,
+      "unexpected_keys": 0,
+      "reference_wall_seconds": 2.432,
+      "wall_speedup": 0.89,
+      "token_prefix_matches": "32/64",
+      "step_argmax_agreement": "32/64",
+      "prefill_logits_max_abs": 0.584
+    }
+  ],
+  "realtime": {
+    "reference": {
+      "case": "timestamped_stream",
+      "status": "captured",
+      "frames": 4,
+      "dropped_older": 0,
+      "output_chunks": 12,
+      "max_backlog_at_accept": 2,
+      "prompt_to_first_output_seconds": 1.276,
+      "session_seconds": 17.387,
+      "combined_output": "<|silence|><|round_start|><|silence|><|response|><|response|>The color is red.<|silence|><|silence|>"
+    },
+    "native": {
+      "case": "timestamped_stream",
+      "status": "captured",
+      "frames": 4,
+      "dropped_older": 0,
+      "output_chunks": 1,
+      "max_backlog_at_accept": 0,
+      "prompt_to_first_output_seconds": 2.073,
+      "session_seconds": 2.187,
+      "combined_output": "The color is red."
+    }
+  }
+}

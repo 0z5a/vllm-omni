@@ -1,0 +1,39 @@
+{
+  "identical": true,
+  "driver_events": 9,
+  "session_events": 9,
+  "decisions": [
+    {
+      "event_id": "f0,f1,f2",
+      "segment_argmax": 151672,
+      "segment_max": 26.5,
+      "segment_top5": [
+        151672,
+        151671,
+        151644,
+        151645,
+        220
+      ],
+      "vision_length": 15,
+      "next_position": 123
+    },
+    {
+      "event_id": "f3",
+      "segment_argmax": 151671,
+      "segment_max": 24.75,
+      "segment_top5": [
+        151671,
+        151672,
+        151645,
+        151644,
+        220
+      ],
+      "vision_length": 20,
+      "next_position": 142
+    }
+  ],
+  "divergences": [],
+  "driver_output": "The color is red.",
+  "session_output": "The color is red.",
+  "outputs_match": true
+}

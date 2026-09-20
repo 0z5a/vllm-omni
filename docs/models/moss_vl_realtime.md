@@ -114,6 +114,17 @@ Committing to a real device rather than an architecture macro:
 | image | 2.281 | 1.758 | 1.30x | 21.2 |
 | short_video | 3.669 | 2.913 | 1.26x | 22.2 |
 
+A repeat measurement on the same host and device is committed as
+`tests/assets/moss_vl_realtime/reference/baseline-repeat.md`. It records the part
+of the comparison that moves: the native decode rate stayed at 21-24 tok/s in both
+runs, while the reference's own rate on the image case went from 15.8 to 24.3
+tok/s with nothing changed on either side. The host is shared, so at longer
+sequences the speedup is a statement about that host at that moment (0.9x to
+1.3x); the short-sequence case is the one whose margin survives the variance.
+The native path amortises its advantage differently: it scores logits for the new
+position only, while the reference offline path projects the full sequence every
+step, which is why the margin shrinks as the generated sequence grows.
+
 Device memory for the image case, from the run report: weights
 21622.41 MiB, text cache 6.89 MiB, vision cache 0.23 MiB, peak allocated
 21676.98 MiB. The caches are negligible at the validated bounded sizes; the model
