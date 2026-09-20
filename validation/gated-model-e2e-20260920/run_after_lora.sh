@@ -33,7 +33,7 @@ run_arm() {
 }
 
 base=/dev/shm/0z5a-compat-698f716
-flux=/dev/shm/0z5a-flux1-93cbe5d
+flux=/dev/shm/0z5a-flux1-9054999
 sd3=/dev/shm/0z5a-sd35-892df59
 for spec in \
     "A2S flux1-schnell flux 741f7c3ce8b383c54771c7003378a50191e9efe9" \
@@ -41,8 +41,8 @@ for spec in \
     "A45 flux1-kontext kontext 24e9dedc4ef646698dc8eb4e18ae2cec3c9fea0d"; do
     read -r scope slug pipeline revision <<< "$spec"
     run_arm "$scope" ref0 "$base" 698f7160125d3071b8c0eef69b1b03fa8dfba766 "$root/models/$slug" "$pipeline" "$revision" no
-    run_arm "$scope" new0 "$flux" 93cbe5ddef816ff111b2ffe86e6e202f76257694 "$root/models/$slug" "$pipeline" "$revision" yes
-    run_arm "$scope" new1 "$flux" 93cbe5ddef816ff111b2ffe86e6e202f76257694 "$root/models/$slug" "$pipeline" "$revision" yes
+    run_arm "$scope" new0 "$flux" 9054999b62866635246c88204cb514863134a242 "$root/models/$slug" "$pipeline" "$revision" yes
+    run_arm "$scope" new1 "$flux" 9054999b62866635246c88204cb514863134a242 "$root/models/$slug" "$pipeline" "$revision" yes
     run_arm "$scope" ref1 "$base" 698f7160125d3071b8c0eef69b1b03fa8dfba766 "$root/models/$slug" "$pipeline" "$revision" no
 done
 run_arm H1 ref0 "$base" 698f7160125d3071b8c0eef69b1b03fa8dfba766 "$root/models/sd35-medium" sd3 b940f670f0eda2d07fbb75229e779da1ad11eb80 no
