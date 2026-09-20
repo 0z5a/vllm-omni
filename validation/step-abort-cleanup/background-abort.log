@@ -1,0 +1,94 @@
+.F                                                                       [100%]
+=================================== FAILURES ===================================
+_____ test_background_abort_delivers_output_when_queue_becomes_idle[True] ______
+
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x71fa14945580>
+during_step = True
+
+    @pytest.mark.parametrize("during_step", [False, True])
+    def test_background_abort_delivers_output_when_queue_becomes_idle(
+        monkeypatch: pytest.MonkeyPatch, during_step: bool
+    ) -> None:
+        engine = _make_engine()
+        request = _make_request("abort-idle")
+        engine.scheduler.add_request(request)
+        request_ids = {request.request_id}
+        engine.execution_mode = DiffusionExecutionMode.REQUEST_BATCH
+        engine.dp_concurrent = False
+        engine._rpc_queue = queue.Queue()
+        stop_event = threading.Event()
+        engine.stop_event = stop_event
+        outputs: list[DiffusionOutput] = []
+    
+        def deliver(request_id: str, output: DiffusionOutput) -> None:
+            assert request_id in request_ids
+            assert output.aborted
+            outputs.append(output)
+            if len(outputs) == len(request_ids):
+                stop_event.set()
+    
+        monkeypatch.setattr(engine, "_put_output", deliver)
+        if during_step:
+            waiting = _make_request("abort-waiting")
+            engine.scheduler.add_request(waiting)
+            request_ids.add(waiting.request_id)
+    
+            def execute(schedule: DiffusionSchedulerOutput) -> RunnerOutput:
+                assert schedule.scheduled_request_ids == [request.request_id]
+                engine.abort(list(request_ids))
+                return RunnerOutput(request_id=request.request_id, step_index=1, finished=False)
+    
+            engine.execute_fn = execute
+        else:
+            engine.abort([request.request_id, request.request_id, "unknown"])
+        thread = threading.Thread(target=engine._busy_loop, daemon=True)
+        thread.start()
+        try:
+            thread.join(timeout=5)
+        finally:
+            stop_event.set()
+            with engine._cv:
+                engine._cv.notify_all()
+            thread.join(timeout=5)
+    
+        assert not thread.is_alive()
+>       assert len(outputs) == len(request_ids)
+E       AssertionError: assert 0 == 2
+E        +  where 0 = len([])
+E        +  and   2 = len({'abort-idle', 'abort-waiting'})
+
+tests/diffusion/test_diffusion_engine_cleanup.py:386: AssertionError
+---------------------------- Captured stdout setup -----------------------------
+--- Running test: test_background_abort_delivers_output_when_queue_becomes_idle[True]
+=============================== warnings summary ===============================
+../../../home/kxqandccx/vllm-omni-7753-hidream-20260918/venv/lib/python3.12/site-packages/torch/jit/_script.py:365: 14 warnings
+  /home/kxqandccx/vllm-omni-7753-hidream-20260918/venv/lib/python3.12/site-packages/torch/jit/_script.py:365: DeprecationWarning: `torch.jit.script_method` is deprecated. Please switch to `torch.compile` or `torch.export`.
+    warnings.warn(
+
+tests/diffusion/test_diffusion_engine_cleanup.py::test_background_abort_delivers_output_when_queue_becomes_idle[True]
+  /home/kxqandccx/vllm-omni-7753-hidream-20260918/venv/lib/python3.12/site-packages/_pytest/threadexception.py:58: PytestUnhandledThreadExceptionWarning: Exception in thread Thread-2 (_busy_loop)
+  
+  Traceback (most recent call last):
+    File "/home/kxqandccx/.local/share/uv/python/cpython-3.12.13-linux-x86_64-gnu/lib/python3.12/threading.py", line 1075, in _bootstrap_inner
+      self.run()
+    File "/home/kxqandccx/.local/share/uv/python/cpython-3.12.13-linux-x86_64-gnu/lib/python3.12/threading.py", line 1012, in run
+      self._target(*self._args, **self._kwargs)
+    File "/dev/shm/0z5a-step-abort-source/vllm_omni/diffusion/diffusion_engine.py", line 605, in _busy_loop
+      self._wait_for_admission_if_needed_locked()
+    File "/dev/shm/0z5a-step-abort-source/vllm_omni/diffusion/diffusion_engine.py", line 660, in _wait_for_admission_if_needed_locked
+      decision = self.scheduler.get_admission_wait_decision(
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    File "/dev/shm/0z5a-step-abort-source/vllm_omni/diffusion/sched/request_scheduler.py", line 69, in get_admission_wait_decision
+      max_wait_ms = self.od_config.request_batch_max_wait_ms
+                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  AttributeError: 'types.SimpleNamespace' object has no attribute 'request_batch_max_wait_ms'
+  
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+    warnings.warn(pytest.PytestUnhandledThreadExceptionWarning(msg))
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+--- Running Summary
+=========================== short test summary info ============================
+FAILED tests/diffusion/test_diffusion_engine_cleanup.py::test_background_abort_delivers_output_when_queue_becomes_idle[True]
+1 failed, 1 passed, 16 deselected, 15 warnings in 1.26s

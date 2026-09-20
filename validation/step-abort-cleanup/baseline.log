@@ -1,0 +1,101 @@
+tar: 忽略未知的扩展头关键字‘LIBARCHIVE.xattr.com.apple.provenance’
+tar: 忽略未知的扩展头关键字‘LIBARCHIVE.xattr.com.apple.decmpfs’
+tar: 忽略未知的扩展头关键字‘LIBARCHIVE.xattr.com.apple.provenance’
+tar: 忽略未知的扩展头关键字‘LIBARCHIVE.xattr.com.apple.decmpfs’
+tar: 忽略未知的扩展头关键字‘LIBARCHIVE.xattr.com.apple.provenance’
+tar: 忽略未知的扩展头关键字‘LIBARCHIVE.xattr.com.apple.decmpfs’
+FF                                                                       [100%]
+=================================== FAILURES ===================================
+____ TestWorker.test_last_request_abort_clears_worker_without_another_step _____
+
+self = <test_diffusion_step_pipeline.TestWorker object at 0x7e221edcc350>
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7e221ed40f80>
+
+    def test_last_request_abort_clears_worker_without_another_step(self, monkeypatch):
+        runner = _make_runner()
+        monkeypatch.setattr(model_runner_module, "set_forward_context", _noop_forward_context)
+        worker = _make_step_worker()
+        worker.model_runner = runner
+        scheduler = StepScheduler()
+        scheduler.initialize(SimpleNamespace())
+        engine = _make_engine(scheduler)
+        request = _make_engine_request("abort-last", num_inference_steps=4)
+        cleanup_calls = []
+    
+        def dispatch(method, args):
+            assert method == "clear_step_requests"
+            cleanup_calls.append(args[0])
+            worker.clear_step_requests(*args)
+    
+        def execute(schedule):
+            output = worker.execute_stepwise(schedule)
+            engine.abort([request.request_id, request.request_id])
+            return output
+    
+        engine.executor.collective_rpc = dispatch
+        engine.execute_fn = execute
+        output = engine.add_req_and_wait_for_response(request)
+    
+        assert output.aborted
+        assert runner.pipeline.denoise_calls == 1
+        assert not scheduler.has_requests()
+>       assert not runner.state_cache
+E       AssertionError: assert not {'abort-last': StepRequestState(request_id='abort-last', sampling=OmniDiffusionSamplingParams(max_sequence_length=None...None, img_shapes=None, txt_seq_lens=[2], negative_txt_seq_lens=None, extra={}, stage_durations={}, peak_memory_mb=0.0)}
+E        +  where {'abort-last': StepRequestState(request_id='abort-last', sampling=OmniDiffusionSamplingParams(max_sequence_length=None...None, img_shapes=None, txt_seq_lens=[2], negative_txt_seq_lens=None, extra={}, stage_durations={}, peak_memory_mb=0.0)} = <vllm_omni.diffusion.worker.diffusion_model_runner.DiffusionModelRunner object at 0x7e221ed41160>.state_cache
+
+tests/diffusion/test_diffusion_step_pipeline.py:1001: AssertionError
+---------------------------- Captured stdout setup -----------------------------
+INFO 09-20 09:49:37 [scheduler.py:277] Chunked prefill is enabled with max_num_batched_tokens=2048.
+INFO 09-20 09:49:37 [kernel.py:369] Final IR op priority after setting platform defaults: IrOpPriorityConfig(rms_norm=['native'], fused_add_rms_norm=['native'])
+--- Running test: test_last_request_abort_clears_worker_without_another_step
+------------------------------ Captured log setup ------------------------------
+INFO     vllm.config.scheduler:scheduler.py:277 Chunked prefill is enabled with max_num_batched_tokens=2048.
+INFO     vllm.config.kernel:kernel.py:369 Final IR op priority after setting platform defaults: IrOpPriorityConfig(rms_norm=['native'], fused_add_rms_norm=['native'])
+________ test_background_abort_delivers_output_when_queue_becomes_idle _________
+
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7e221edd9670>
+
+    def test_background_abort_delivers_output_when_queue_becomes_idle(monkeypatch: pytest.MonkeyPatch) -> None:
+        engine = _make_engine()
+        request = _make_request("abort-idle")
+        engine.scheduler.add_request(request)
+        engine._rpc_queue = queue.Queue()
+        engine.stop_event = threading.Event()
+        outputs: list[DiffusionOutput] = []
+    
+        def deliver(request_id: str, output: DiffusionOutput) -> None:
+            assert request_id == request.request_id
+            outputs.append(output)
+            engine.stop_event.set()
+    
+        monkeypatch.setattr(engine, "_put_output", deliver)
+        engine.abort([request.request_id, request.request_id, "unknown"])
+        thread = threading.Thread(target=engine._busy_loop, daemon=True)
+        thread.start()
+        try:
+            thread.join(timeout=5)
+        finally:
+            engine.stop_event.set()
+            with engine._cv:
+                engine._cv.notify_all()
+            thread.join(timeout=5)
+    
+        assert not thread.is_alive()
+>       assert len(outputs) == 1 and outputs[0].aborted
+E       assert (0 == 1)
+E        +  where 0 = len([])
+
+tests/diffusion/test_diffusion_engine_cleanup.py:363: AssertionError
+---------------------------- Captured stdout setup -----------------------------
+--- Running test: test_background_abort_delivers_output_when_queue_becomes_idle
+=============================== warnings summary ===============================
+../../../home/kxqandccx/vllm-omni-7753-hidream-20260918/venv/lib/python3.12/site-packages/torch/jit/_script.py:365: 14 warnings
+  /home/kxqandccx/vllm-omni-7753-hidream-20260918/venv/lib/python3.12/site-packages/torch/jit/_script.py:365: DeprecationWarning: `torch.jit.script_method` is deprecated. Please switch to `torch.compile` or `torch.export`.
+    warnings.warn(
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+--- Running Summary
+=========================== short test summary info ============================
+FAILED tests/diffusion/test_diffusion_step_pipeline.py::TestWorker::test_last_request_abort_clears_worker_without_another_step
+FAILED tests/diffusion/test_diffusion_engine_cleanup.py::test_background_abort_delivers_output_when_queue_becomes_idle
+2 failed, 54 deselected, 14 warnings in 14.19s

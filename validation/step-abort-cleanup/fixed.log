@@ -1,0 +1,531 @@
+tar: 忽略未知的扩展头关键字‘LIBARCHIVE.xattr.com.apple.provenance’
+tar: 忽略未知的扩展头关键字‘LIBARCHIVE.xattr.com.apple.decmpfs’
+tar: 忽略未知的扩展头关键字‘LIBARCHIVE.xattr.com.apple.provenance’
+tar: 忽略未知的扩展头关键字‘LIBARCHIVE.xattr.com.apple.provenance’
+tar: 忽略未知的扩展头关键字‘LIBARCHIVE.xattr.com.apple.provenance’
+tar: 忽略未知的扩展头关键字‘LIBARCHIVE.xattr.com.apple.decmpfs’
+tar: 忽略未知的扩展头关键字‘LIBARCHIVE.xattr.com.apple.provenance’
+tar: 忽略未知的扩展头关键字‘LIBARCHIVE.xattr.com.apple.decmpfs’
+tar: 忽略未知的扩展头关键字‘LIBARCHIVE.xattr.com.apple.provenance’
+tar: 忽略未知的扩展头关键字‘LIBARCHIVE.xattr.com.apple.decmpfs’
+........................................................................ [ 39%]
+........................................................................ [ 78%]
+.......FFF......FFFFF.F................                                  [100%]
+=================================== FAILURES ===================================
+_ test_execute_stepwise_falls_back_to_full_forward_without_creating_step_state _
+
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x701c8f771b50>
+
+    @pytest.mark.core_model
+    @pytest.mark.cpu
+    def test_execute_stepwise_falls_back_to_full_forward_without_creating_step_state(monkeypatch):
+        runner = _make_runner(cache_backend=None, cache_backend_name="none")
+        runner.pipeline = _SingleRequestDiffusionOutputPipeline()
+        request = _make_request()
+        request.request_id = "text-request"
+        request.use_step_execution = False
+        scheduler_output = SimpleNamespace(
+            finished_req_ids=set(),
+            scheduled_new_reqs=[
+                SimpleNamespace(
+                    request_id=request.request_id,
+                    req=request,
+                    diffusion_kv_metadata=None,
+                )
+            ],
+            scheduled_cached_reqs=SimpleNamespace(request_ids=[]),
+        )
+        monkeypatch.setattr(model_runner_module, "set_forward_context", _noop_forward_context)
+        monkeypatch.setattr(model_runner_module, "current_omni_platform", _fake_platform_for_peak_memory())
+    
+>       result = DiffusionModelRunner.execute_stepwise(runner, scheduler_output)
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/diffusion/test_diffusion_model_runner.py:347: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+vllm_omni/diffusion/worker/diffusion_model_runner.py:1147: in execute_stepwise
+    return self._execute_stepwise(
+vllm_omni/diffusion/worker/diffusion_model_runner.py:1199: in _execute_stepwise
+    self._cleanup_finished_step_requests(scheduler_output)
+vllm_omni/diffusion/worker/diffusion_model_runner.py:999: in _cleanup_finished_step_requests
+    self.clear_step_requests(list(finished_req_ids))
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <vllm_omni.diffusion.worker.diffusion_model_runner.DiffusionModelRunner object at 0x701c8f7734a0>
+request_ids = []
+
+    def clear_step_requests(self, request_ids: list[str]) -> None:
+        """Release retired request state without executing another denoise step."""
+        for request_id in request_ids:
+            self.state_cache.pop(request_id, None)
+>       if self.input_batch is not None and any(rid in self.input_batch.request_ids for rid in request_ids):
+           ^^^^^^^^^^^^^^^^
+E       AttributeError: 'DiffusionModelRunner' object has no attribute 'input_batch'
+
+vllm_omni/diffusion/worker/diffusion_model_runner.py:993: AttributeError
+---------------------------- Captured stdout setup -----------------------------
+--- Running test: test_execute_stepwise_falls_back_to_full_forward_without_creating_step_state
+_____ test_non_step_fallback_cleans_finished_step_wave_state_and_paged_kv ______
+
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x701c86d85010>
+
+    @pytest.mark.core_model
+    @pytest.mark.cpu
+    def test_non_step_fallback_cleans_finished_step_wave_state_and_paged_kv(monkeypatch):
+        """A finished step request must not survive into a text fallback wave."""
+        runner = _make_runner(cache_backend=None, cache_backend_name="none")
+        runner.pipeline = _SingleRequestDiffusionOutputPipeline()
+        runner.state_cache = {"aborted-step-request": object()}
+        old_step_batch = object()
+        runner.input_batch = old_step_batch
+        runner.od_config.diffusion_kv_mode = DiffusionKVCacheMode.PAGED_SCHEDULER
+        runner.remove_diffusion_kv_requests = Mock()
+    
+        text_request = _make_request()
+        text_request.request_id = "text-fallback-request"
+        text_request.use_step_execution = False
+        scheduler_output = SimpleNamespace(
+            finished_req_ids={"aborted-step-request"},
+            scheduled_new_reqs=[
+                SimpleNamespace(
+                    request_id=text_request.request_id,
+                    req=text_request,
+                    diffusion_kv_metadata=None,
+                )
+            ],
+            scheduled_cached_reqs=SimpleNamespace(request_ids=[]),
+        )
+        monkeypatch.setattr(model_runner_module, "set_forward_context", _noop_forward_context)
+        monkeypatch.setattr(model_runner_module, "current_omni_platform", _fake_platform_for_peak_memory())
+    
+>       result = DiffusionModelRunner.execute_stepwise(runner, scheduler_output)
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/diffusion/test_diffusion_model_runner.py:388: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+vllm_omni/diffusion/worker/diffusion_model_runner.py:1147: in execute_stepwise
+    return self._execute_stepwise(
+vllm_omni/diffusion/worker/diffusion_model_runner.py:1199: in _execute_stepwise
+    self._cleanup_finished_step_requests(scheduler_output)
+vllm_omni/diffusion/worker/diffusion_model_runner.py:999: in _cleanup_finished_step_requests
+    self.clear_step_requests(list(finished_req_ids))
+vllm_omni/diffusion/worker/diffusion_model_runner.py:993: in clear_step_requests
+    if self.input_batch is not None and any(rid in self.input_batch.request_ids for rid in request_ids):
+                                        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+.0 = <list_iterator object at 0x701c86d85210>
+
+>   if self.input_batch is not None and any(rid in self.input_batch.request_ids for rid in request_ids):
+                                                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E   AttributeError: 'object' object has no attribute 'request_ids'
+
+vllm_omni/diffusion/worker/diffusion_model_runner.py:993: AttributeError
+---------------------------- Captured stdout setup -----------------------------
+--- Running test: test_non_step_fallback_cleans_finished_step_wave_state_and_paged_kv
+_______ test_execute_stepwise_rejects_mixed_step_and_full_forward_batch ________
+
+    @pytest.mark.core_model
+    @pytest.mark.cpu
+    def test_execute_stepwise_rejects_mixed_step_and_full_forward_batch():
+        runner = _make_runner(cache_backend=None, cache_backend_name="none")
+        non_step_request = _make_request()
+        non_step_request.use_step_execution = False
+        step_request = _make_request()
+        step_request.request_id = "step-request"
+        scheduler_output = SimpleNamespace(
+            finished_req_ids=set(),
+            scheduled_new_reqs=[
+                SimpleNamespace(
+                    request_id=non_step_request.request_id,
+                    req=non_step_request,
+                    diffusion_kv_metadata=None,
+                ),
+                SimpleNamespace(
+                    request_id=step_request.request_id,
+                    req=step_request,
+                    diffusion_kv_metadata=None,
+                ),
+            ],
+            scheduled_cached_reqs=SimpleNamespace(request_ids=[]),
+        )
+    
+        with pytest.raises(ValueError, match="Cannot mix stepwise and non-step fallback"):
+>           DiffusionModelRunner.execute_stepwise(runner, scheduler_output)
+
+tests/diffusion/test_diffusion_model_runner.py:422: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+vllm_omni/diffusion/worker/diffusion_model_runner.py:1147: in execute_stepwise
+    return self._execute_stepwise(
+vllm_omni/diffusion/worker/diffusion_model_runner.py:1199: in _execute_stepwise
+    self._cleanup_finished_step_requests(scheduler_output)
+vllm_omni/diffusion/worker/diffusion_model_runner.py:999: in _cleanup_finished_step_requests
+    self.clear_step_requests(list(finished_req_ids))
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <vllm_omni.diffusion.worker.diffusion_model_runner.DiffusionModelRunner object at 0x701c86d85dc0>
+request_ids = []
+
+    def clear_step_requests(self, request_ids: list[str]) -> None:
+        """Release retired request state without executing another denoise step."""
+        for request_id in request_ids:
+            self.state_cache.pop(request_id, None)
+>       if self.input_batch is not None and any(rid in self.input_batch.request_ids for rid in request_ids):
+           ^^^^^^^^^^^^^^^^
+E       AttributeError: 'DiffusionModelRunner' object has no attribute 'input_batch'
+
+vllm_omni/diffusion/worker/diffusion_model_runner.py:993: AttributeError
+---------------------------- Captured stdout setup -----------------------------
+--- Running test: test_execute_stepwise_rejects_mixed_step_and_full_forward_batch
+_________ test_execute_stepwise_streaming_returns_chunks_at_boundaries _________
+
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x701c86d84c80>
+
+    @pytest.mark.core_model
+    @pytest.mark.cpu
+    def test_execute_stepwise_streaming_returns_chunks_at_boundaries(monkeypatch):
+        """Step streaming returns empty step results until a chunk decode boundary."""
+        chunks = [
+            DiffusionOutput(output="chunk-0", finished=False, chunk_index=0, total_chunks=2),
+            DiffusionOutput(output="chunk-1", finished=True, chunk_index=1, total_chunks=2),
+        ]
+        runner = _make_runner(cache_backend=None, cache_backend_name=None)
+        runner.pipeline = _ChunkStepPipeline(chunks)
+        runner.od_config.streaming_output = True
+        runner.od_config.step_execution = True
+        req = _make_request()
+        req.request_id = "req"
+    
+        monkeypatch.setattr(model_runner_module, "set_forward_context", _noop_forward_context)
+        monkeypatch.setattr(model_runner_module.current_omni_platform, "reset_peak_memory_stats", lambda: None)
+        monkeypatch.setattr(model_runner_module.current_omni_platform, "max_memory_reserved", lambda: 0)
+        monkeypatch.setattr(model_runner_module.current_omni_platform, "max_memory_allocated", lambda: 0)
+        scheduler_output = SimpleNamespace(
+            finished_req_ids=set(),
+            scheduled_new_reqs=[SimpleNamespace(request_id="req", req=req, diffusion_kv_metadata=None)],
+            scheduled_cached_reqs=SimpleNamespace(request_ids=[]),
+        )
+    
+>       first = DiffusionModelRunner.execute_stepwise(runner, scheduler_output)
+                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/diffusion/test_diffusion_model_runner.py:555: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+vllm_omni/diffusion/worker/diffusion_model_runner.py:1147: in execute_stepwise
+    return self._execute_stepwise(
+vllm_omni/diffusion/worker/diffusion_model_runner.py:1199: in _execute_stepwise
+    self._cleanup_finished_step_requests(scheduler_output)
+vllm_omni/diffusion/worker/diffusion_model_runner.py:999: in _cleanup_finished_step_requests
+    self.clear_step_requests(list(finished_req_ids))
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <vllm_omni.diffusion.worker.diffusion_model_runner.DiffusionModelRunner object at 0x701ce4df0470>
+request_ids = []
+
+    def clear_step_requests(self, request_ids: list[str]) -> None:
+        """Release retired request state without executing another denoise step."""
+        for request_id in request_ids:
+            self.state_cache.pop(request_id, None)
+>       if self.input_batch is not None and any(rid in self.input_batch.request_ids for rid in request_ids):
+           ^^^^^^^^^^^^^^^^
+E       AttributeError: 'DiffusionModelRunner' object has no attribute 'input_batch'
+
+vllm_omni/diffusion/worker/diffusion_model_runner.py:993: AttributeError
+---------------------------- Captured stdout setup -----------------------------
+--- Running test: test_execute_stepwise_streaming_returns_chunks_at_boundaries
+__________________ test_execute_stepwise_prepares_typed_media __________________
+
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x701c86d854f0>
+
+    @pytest.mark.core_model
+    @pytest.mark.cpu
+    def test_execute_stepwise_prepares_typed_media(monkeypatch):
+        runner = _make_runner(cache_backend=None, cache_backend_name=None)
+        runner.pipeline = _ChunkStepPipeline([DiffusionOutput(media=_raw_video_media())])
+        runner.od_config.streaming_output = True
+        runner.od_config.step_execution = True
+        runner.od_config.video_output_transport = VideoOutputTransportConfig(enable_device_postprocess=True)
+        req = OmniDiffusionRequest(
+            prompt="a prompt",
+            sampling_params=OmniDiffusionSamplingParams(num_inference_steps=4),
+            request_id="req",
+        )
+    
+        monkeypatch.setattr(model_runner_module, "set_forward_context", _noop_forward_context)
+        monkeypatch.setattr(model_runner_module.current_omni_platform, "reset_peak_memory_stats", lambda: None)
+        monkeypatch.setattr(model_runner_module.current_omni_platform, "max_memory_reserved", lambda: 0)
+        monkeypatch.setattr(model_runner_module.current_omni_platform, "max_memory_allocated", lambda: 0)
+        scheduler_output = DiffusionSchedulerOutput(
+            step_id=0,
+            scheduled_new_reqs=[NewRequestData(request_id="req", req=req)],
+            scheduled_cached_reqs=CachedRequestData.make_empty(),
+            finished_req_ids=set(),
+            num_running_reqs=1,
+            num_waiting_reqs=0,
+        )
+    
+>       DiffusionModelRunner.execute_stepwise(runner, scheduler_output)
+
+tests/diffusion/test_diffusion_model_runner.py:600: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+vllm_omni/diffusion/worker/diffusion_model_runner.py:1147: in execute_stepwise
+    return self._execute_stepwise(
+vllm_omni/diffusion/worker/diffusion_model_runner.py:1199: in _execute_stepwise
+    self._cleanup_finished_step_requests(scheduler_output)
+vllm_omni/diffusion/worker/diffusion_model_runner.py:999: in _cleanup_finished_step_requests
+    self.clear_step_requests(list(finished_req_ids))
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <vllm_omni.diffusion.worker.diffusion_model_runner.DiffusionModelRunner object at 0x701c86d85370>
+request_ids = []
+
+    def clear_step_requests(self, request_ids: list[str]) -> None:
+        """Release retired request state without executing another denoise step."""
+        for request_id in request_ids:
+            self.state_cache.pop(request_id, None)
+>       if self.input_batch is not None and any(rid in self.input_batch.request_ids for rid in request_ids):
+           ^^^^^^^^^^^^^^^^
+E       AttributeError: 'DiffusionModelRunner' object has no attribute 'input_batch'
+
+vllm_omni/diffusion/worker/diffusion_model_runner.py:993: AttributeError
+---------------------------- Captured stdout setup -----------------------------
+--- Running test: test_execute_stepwise_prepares_typed_media
+_________ test_execute_stepwise_streaming_decodes_final_only_pipeline __________
+
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x701c86d875f0>
+
+    @pytest.mark.core_model
+    @pytest.mark.cpu
+    def test_execute_stepwise_streaming_decodes_final_only_pipeline(monkeypatch):
+        """Step streaming still returns a final output when no chunk boundaries exist."""
+        runner = _make_runner(cache_backend=None, cache_backend_name=None)
+        runner.pipeline = _FinalOnlyStepPipeline()
+        runner.od_config.streaming_output = True
+        runner.od_config.step_execution = True
+        req = _make_request()
+        req.request_id = "req"
+        req.sampling_params.num_inference_steps = 1
+    
+        monkeypatch.setattr(model_runner_module, "set_forward_context", _noop_forward_context)
+        monkeypatch.setattr(model_runner_module.current_omni_platform, "reset_peak_memory_stats", lambda: None)
+        monkeypatch.setattr(model_runner_module.current_omni_platform, "max_memory_reserved", lambda: 0)
+        monkeypatch.setattr(model_runner_module.current_omni_platform, "max_memory_allocated", lambda: 0)
+        scheduler_output = SimpleNamespace(
+            finished_req_ids=set(),
+            scheduled_new_reqs=[SimpleNamespace(request_id="req", req=req, diffusion_kv_metadata=None)],
+            scheduled_cached_reqs=SimpleNamespace(request_ids=[]),
+        )
+    
+>       output = DiffusionModelRunner.execute_stepwise(runner, scheduler_output).get_request_output("req")
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/diffusion/test_diffusion_model_runner.py:637: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+vllm_omni/diffusion/worker/diffusion_model_runner.py:1147: in execute_stepwise
+    return self._execute_stepwise(
+vllm_omni/diffusion/worker/diffusion_model_runner.py:1199: in _execute_stepwise
+    self._cleanup_finished_step_requests(scheduler_output)
+vllm_omni/diffusion/worker/diffusion_model_runner.py:999: in _cleanup_finished_step_requests
+    self.clear_step_requests(list(finished_req_ids))
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <vllm_omni.diffusion.worker.diffusion_model_runner.DiffusionModelRunner object at 0x701c86d87590>
+request_ids = []
+
+    def clear_step_requests(self, request_ids: list[str]) -> None:
+        """Release retired request state without executing another denoise step."""
+        for request_id in request_ids:
+            self.state_cache.pop(request_id, None)
+>       if self.input_batch is not None and any(rid in self.input_batch.request_ids for rid in request_ids):
+           ^^^^^^^^^^^^^^^^
+E       AttributeError: 'DiffusionModelRunner' object has no attribute 'input_batch'
+
+vllm_omni/diffusion/worker/diffusion_model_runner.py:993: AttributeError
+---------------------------- Captured stdout setup -----------------------------
+--- Running test: test_execute_stepwise_streaming_decodes_final_only_pipeline
+___ test_execute_model_passes_single_request_batch_to_non_admission_pipeline ___
+
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x701c86d94470>
+
+    @pytest.mark.core_model
+    @pytest.mark.cpu
+    def test_execute_model_passes_single_request_batch_to_non_admission_pipeline(monkeypatch):
+        runner = _make_runner(cache_backend=None, cache_backend_name="none")
+        runner.pipeline = _SingleRequestBatchPipeline()
+        req = _make_request()
+    
+        monkeypatch.setattr(model_runner_module, "set_forward_context", _noop_forward_context)
+    
+>       output = DiffusionModelRunner.execute_model(runner, req)
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/diffusion/test_diffusion_model_runner.py:731: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+vllm_omni/diffusion/worker/diffusion_model_runner.py:869: in execute_model
+    runner_output = self._execute_request_list(
+vllm_omni/diffusion/worker/diffusion_model_runner.py:763: in _execute_request_list
+    current_omni_platform.reset_peak_memory_stats()
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+device = None
+
+    def reset_peak_memory_stats(device: "Device" = None) -> None:
+        r"""Reset the "peak" stats tracked by the CUDA memory allocator.
+    
+        See :func:`~torch.cuda.memory_stats` for details. Peak stats correspond to the
+        `"peak"` key in each individual stat dict.
+    
+        Args:
+            device (torch.device or int, optional): selected device. Returns
+                statistic for the current device, given by :func:`~torch.cuda.current_device`,
+                if :attr:`device` is ``None`` (default).
+    
+        .. note::
+            See :ref:`cuda-memory-management` for more details about GPU memory
+            management.
+        """
+        device = _get_device_index(device, optional=True)
+>       return torch._C._cuda_resetPeakMemoryStats(device)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       RuntimeError: invalid argument to reset_peak_memory_stats
+
+/home/kxqandccx/vllm-omni-7753-hidream-20260918/venv/lib/python3.12/site-packages/torch/cuda/memory.py:396: RuntimeError
+---------------------------- Captured stdout setup -----------------------------
+--- Running test: test_execute_model_passes_single_request_batch_to_non_admission_pipeline
+_ test_execute_model_accepts_bare_diffusion_output_from_single_request_pipeline _
+
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x701c86d955e0>
+
+    @pytest.mark.core_model
+    @pytest.mark.cpu
+    def test_execute_model_accepts_bare_diffusion_output_from_single_request_pipeline(monkeypatch):
+        runner = _make_runner(cache_backend=None, cache_backend_name="none")
+        runner.pipeline = _SingleRequestDiffusionOutputPipeline()
+        req = _make_request()
+    
+        monkeypatch.setattr(model_runner_module, "set_forward_context", _noop_forward_context)
+    
+>       output = DiffusionModelRunner.execute_model(runner, req)
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/diffusion/test_diffusion_model_runner.py:747: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+vllm_omni/diffusion/worker/diffusion_model_runner.py:869: in execute_model
+    runner_output = self._execute_request_list(
+vllm_omni/diffusion/worker/diffusion_model_runner.py:763: in _execute_request_list
+    current_omni_platform.reset_peak_memory_stats()
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+device = None
+
+    def reset_peak_memory_stats(device: "Device" = None) -> None:
+        r"""Reset the "peak" stats tracked by the CUDA memory allocator.
+    
+        See :func:`~torch.cuda.memory_stats` for details. Peak stats correspond to the
+        `"peak"` key in each individual stat dict.
+    
+        Args:
+            device (torch.device or int, optional): selected device. Returns
+                statistic for the current device, given by :func:`~torch.cuda.current_device`,
+                if :attr:`device` is ``None`` (default).
+    
+        .. note::
+            See :ref:`cuda-memory-management` for more details about GPU memory
+            management.
+        """
+        device = _get_device_index(device, optional=True)
+>       return torch._C._cuda_resetPeakMemoryStats(device)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       RuntimeError: invalid argument to reset_peak_memory_stats
+
+/home/kxqandccx/vllm-omni-7753-hidream-20260918/venv/lib/python3.12/site-packages/torch/cuda/memory.py:396: RuntimeError
+---------------------------- Captured stdout setup -----------------------------
+--- Running test: test_execute_model_accepts_bare_diffusion_output_from_single_request_pipeline
+_____ test_profile_run_executes_maximum_step_batch_without_resetting_peak ______
+
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x701ce4da4710>
+
+    @pytest.mark.core_model
+    @pytest.mark.cpu
+    def test_profile_run_executes_maximum_step_batch_without_resetting_peak(monkeypatch):
+        runner = _make_runner(cache_backend=None, cache_backend_name=None)
+        runner.pipeline = _FinalOnlyStepPipeline()
+        runner.od_config.step_execution = True
+        requests = [_make_request(), _make_request()]
+        requests[0].request_id = "profile-0"
+        requests[1].request_id = "profile-1"
+        for request in requests:
+            request.sampling_params.num_inference_steps = 1
+    
+        observed_batch_rows = []
+        original_denoise_step = runner.pipeline.denoise_step
+    
+        def denoise_step(input_batch, states):
+            observed_batch_rows.append((len(states), int(input_batch.latents.shape[0])))
+            return original_denoise_step(input_batch, states)
+    
+        runner.pipeline.denoise_step = denoise_step
+        runner._validate_diffusion_kv_metadata = Mock(side_effect=AssertionError("profile must bypass admission"))
+        forward_context_calls = []
+    
+        @contextmanager
+        def record_forward_context(*args, **kwargs):
+            forward_context_calls.append((args, kwargs))
+            yield
+    
+        monkeypatch.setattr(model_runner_module, "set_forward_context", record_forward_context)
+        reset_peak_memory_stats = Mock()
+        monkeypatch.setattr(
+            model_runner_module.current_omni_platform,
+            "reset_peak_memory_stats",
+            reset_peak_memory_stats,
+        )
+        monkeypatch.setattr(model_runner_module.current_omni_platform, "max_memory_reserved", lambda: 0)
+        monkeypatch.setattr(model_runner_module.current_omni_platform, "max_memory_allocated", lambda: 0)
+        synchronize = Mock()
+        monkeypatch.setattr(model_runner_module.current_omni_platform, "synchronize", synchronize)
+    
+>       runner.profile_run(requests)
+
+tests/diffusion/test_diffusion_model_runner.py:838: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+vllm_omni/diffusion/worker/diffusion_model_runner.py:913: in profile_run
+    runner_output = self._execute_stepwise(
+vllm_omni/diffusion/worker/diffusion_model_runner.py:1199: in _execute_stepwise
+    self._cleanup_finished_step_requests(scheduler_output)
+vllm_omni/diffusion/worker/diffusion_model_runner.py:999: in _cleanup_finished_step_requests
+    self.clear_step_requests(list(finished_req_ids))
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <vllm_omni.diffusion.worker.diffusion_model_runner.DiffusionModelRunner object at 0x701ce4da4860>
+request_ids = []
+
+    def clear_step_requests(self, request_ids: list[str]) -> None:
+        """Release retired request state without executing another denoise step."""
+        for request_id in request_ids:
+            self.state_cache.pop(request_id, None)
+>       if self.input_batch is not None and any(rid in self.input_batch.request_ids for rid in request_ids):
+           ^^^^^^^^^^^^^^^^
+E       AttributeError: 'DiffusionModelRunner' object has no attribute 'input_batch'
+
+vllm_omni/diffusion/worker/diffusion_model_runner.py:993: AttributeError
+---------------------------- Captured stdout setup -----------------------------
+--- Running test: test_profile_run_executes_maximum_step_batch_without_resetting_peak
+=============================== warnings summary ===============================
+../../../home/kxqandccx/vllm-omni-7753-hidream-20260918/venv/lib/python3.12/site-packages/torch/jit/_script.py:365: 14 warnings
+  /home/kxqandccx/vllm-omni-7753-hidream-20260918/venv/lib/python3.12/site-packages/torch/jit/_script.py:365: DeprecationWarning: `torch.jit.script_method` is deprecated. Please switch to `torch.compile` or `torch.export`.
+    warnings.warn(
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+--- Running Summary
+=========================== short test summary info ============================
+FAILED tests/diffusion/test_diffusion_model_runner.py::test_execute_stepwise_falls_back_to_full_forward_without_creating_step_state
+FAILED tests/diffusion/test_diffusion_model_runner.py::test_non_step_fallback_cleans_finished_step_wave_state_and_paged_kv
+FAILED tests/diffusion/test_diffusion_model_runner.py::test_execute_stepwise_rejects_mixed_step_and_full_forward_batch
+FAILED tests/diffusion/test_diffusion_model_runner.py::test_execute_stepwise_streaming_returns_chunks_at_boundaries
+FAILED tests/diffusion/test_diffusion_model_runner.py::test_execute_stepwise_prepares_typed_media
+FAILED tests/diffusion/test_diffusion_model_runner.py::test_execute_stepwise_streaming_decodes_final_only_pipeline
+FAILED tests/diffusion/test_diffusion_model_runner.py::test_execute_model_passes_single_request_batch_to_non_admission_pipeline
+FAILED tests/diffusion/test_diffusion_model_runner.py::test_execute_model_accepts_bare_diffusion_output_from_single_request_pipeline
+FAILED tests/diffusion/test_diffusion_model_runner.py::test_profile_run_executes_maximum_step_batch_without_resetting_peak
+9 failed, 174 passed, 11 deselected, 14 warnings in 14.58s

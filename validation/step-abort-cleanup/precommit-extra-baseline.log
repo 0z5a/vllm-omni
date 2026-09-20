@@ -1,0 +1,39 @@
+check yaml................................................(no files to check)Skipped
+debug statements (python).....................................................Passed
+fix end of files..............................................................Passed
+mixed line ending.............................................................Passed
+trim trailing whitespace......................................................Passed
+ruff check....................................................................Passed
+ruff format...................................................................Passed
+typos.........................................................................Passed
+Lint GitHub Actions workflow files........................(no files to check)Skipped
+markdownlint-cli2.........................................(no files to check)Skipped
+Run mypy for Python 3.10......................................................Failed
+- hook id: mypy-3.10
+- exit code: 1
+
+tests/diffusion/test_diffusion_model_runner.py:428: error: Argument "cache_backend_name" to "_make_runner" has incompatible type "None"; expected "str"  [arg-type]
+tests/diffusion/test_diffusion_model_runner.py:538: error: Argument "cache_backend_name" to "_make_runner" has incompatible type "None"; expected "str"  [arg-type]
+tests/diffusion/test_diffusion_model_runner.py:576: error: Argument "cache_backend_name" to "_make_runner" has incompatible type "None"; expected "str"  [arg-type]
+tests/diffusion/test_diffusion_model_runner.py:619: error: Argument "cache_backend_name" to "_make_runner" has incompatible type "None"; expected "str"  [arg-type]
+tests/diffusion/test_diffusion_model_runner.py:801: error: Argument "cache_backend_name" to "_make_runner" has incompatible type "None"; expected "str"  [arg-type]
+tests/diffusion/test_diffusion_model_runner.py:817: error: Cannot assign to a method  [method-assign]
+tests/diffusion/test_diffusion_model_runner.py:1098: error: Argument "cache_backend_name" to "_make_runner" has incompatible type "None"; expected "str"  [arg-type]
+tests/diffusion/test_diffusion_model_runner.py:1317: error: Argument 1 to "append" of "list" has incompatible type "tuple[str, tuple[str, ...]]"; expected "tuple[str, None]"  [arg-type]
+Found 8 errors in 1 file (checked 1 source file)
+$ mypy --python-version 3.10 --follow-imports skip tests
+
+Ensure test files have CI marks (no direct SKU)...............................Passed
+Ratchet TTS per-model branches out of serving_speech.py...(no files to check)Skipped
+- hook id: check-tts-adapter-migration
+Lint shell scripts........................................(no files to check)Skipped
+Check SPDX headers............................................................Passed
+Check forbidden imports.......................................................Passed
+Prevent new torch.cuda API calls..............................................Passed
+Validate Buildkite Pipelines..............................(no files to check)Skipped
+Suggestion....................................................................Passed
+- hook id: suggestion
+- duration: 0s
+
+To bypass all the pre-commit hooks, add --no-verify to git commit. To skip a specific hook, prefix the commit command with SKIP=<hook-id>.
+

@@ -1,0 +1,104 @@
+check yaml................................................(no files to check)Skipped
+debug statements (python).....................................................Passed
+fix end of files..............................................................Passed
+mixed line ending.............................................................Passed
+trim trailing whitespace......................................................Passed
+ruff check....................................................................Passed
+ruff format...................................................................Passed
+typos.........................................................................Passed
+Lint GitHub Actions workflow files........................(no files to check)Skipped
+markdownlint-cli2.........................................(no files to check)Skipped
+Run mypy for Python 3.10......................................................Failed
+- hook id: mypy-3.10
+- exit code: 1
+
+vllm_omni/diffusion/worker/diffusion_model_runner.py:99: error: Module "vllm_omni.diffusion.distributed.parallel_state" has no attribute "get_dit_group"; maybe "get_dp_group", "get_fs_group", or "get_pp_group"?  [attr-defined]
+vllm_omni/diffusion/worker/diffusion_model_runner.py:406: error: Incompatible types in assignment (expression has type "None", variable has type "str")  [assignment]
+vllm_omni/diffusion/worker/diffusion_worker.py:338: error: Argument "world_size" to "init_distributed_environment" has incompatible type "int | None"; expected "int"  [arg-type]
+vllm_omni/diffusion/worker/diffusion_worker.py:411: error: Item "None" of "DiffusionModelRunner | None" has no attribute "load_model"  [union-attr]
+vllm_omni/diffusion/worker/diffusion_worker.py:428: error: Item "None" of "DiffusionModelRunner | None" has no attribute "pipeline"  [union-attr]
+vllm_omni/diffusion/worker/diffusion_worker.py:545: error: Item "None" of "DiffusionModelRunner | None" has no attribute "pipeline"  [union-attr]
+vllm_omni/diffusion/worker/diffusion_worker.py:564: error: Item "None" of "DiffusionModelRunner | None" has no attribute "pipeline"  [union-attr]
+vllm_omni/diffusion/worker/diffusion_worker.py:567: error: Argument "max_cached_adapters" to "DiffusionLoRAManager" has incompatible type "int | None"; expected "int"  [arg-type]
+vllm_omni/diffusion/worker/diffusion_worker.py:568: error: Argument "lora_path" to "DiffusionLoRAManager" has incompatible type "str | list[str] | None"; expected "str | None"  [arg-type]
+vllm_omni/diffusion/worker/diffusion_worker.py:569: error: Argument "lora_scale" to "DiffusionLoRAManager" has incompatible type "float | list[float]"; expected "float"  [arg-type]
+vllm_omni/diffusion/worker/diffusion_worker.py:572: error: Item "None" of "DiffusionModelRunner | None" has no attribute "pipeline"  [union-attr]
+vllm_omni/diffusion/worker/diffusion_worker.py:574: error: Unsupported operand types for > ("list[float]" and "float")  [operator]
+vllm_omni/diffusion/worker/diffusion_worker.py:574: note: Left operand is of type "float | list[float]"
+vllm_omni/diffusion/worker/diffusion_worker.py:652: error: Argument 1 to "len" has incompatible type "OmniDiffusionRequest | list[NewRequestData]"; expected "Sized"  [arg-type]
+vllm_omni/diffusion/worker/diffusion_worker.py:653: error: Value of type "OmniDiffusionRequest | list[NewRequestData]" is not indexable  [index]
+vllm_omni/diffusion/worker/diffusion_worker.py:660: error: Item "list[NewRequestData]" of "OmniDiffusionRequest | list[NewRequestData]" has no attribute "sampling_params"  [union-attr]
+vllm_omni/diffusion/worker/diffusion_worker.py:662: error: Item "list[NewRequestData]" of "OmniDiffusionRequest | list[NewRequestData]" has no attribute "sampling_params"  [union-attr]
+vllm_omni/diffusion/worker/diffusion_worker.py:671: error: Argument 1 to "execute_model" of "DiffusionModelRunner" has incompatible type "OmniDiffusionRequest | list[NewRequestData]"; expected "OmniDiffusionRequest"  [arg-type]
+vllm_omni/diffusion/worker/diffusion_worker.py:681: error: Incompatible return value type (got "dict[str, Any]", expected "DiffusionOutput")  [return-value]
+vllm_omni/diffusion/worker/diffusion_worker.py:794: error: "type" has no attribute "get_instance"  [attr-defined]
+vllm_omni/diffusion/worker/diffusion_worker.py:802: error: Item "None" of "Any | None" has no attribute "named_buffers"  [union-attr]
+vllm_omni/diffusion/worker/diffusion_worker.py:845: error: "type" has no attribute "get_instance"  [attr-defined]
+vllm_omni/diffusion/worker/diffusion_worker.py:852: error: Item "None" of "Any | None" has no attribute "named_buffers"  [union-attr]
+vllm_omni/diffusion/worker/diffusion_worker.py:915: error: Item "dict[Any, Any]" of "OmniSleepTask | dict[Any, Any]" has no attribute "task_id"  [union-attr]
+vllm_omni/diffusion/worker/diffusion_worker.py:960: error: Item "dict[Any, Any]" of "OmniWakeTask | dict[Any, Any]" has no attribute "task_id"  [union-attr]
+vllm_omni/diffusion/worker/diffusion_worker.py:969: error: "type" has no attribute "get_instance"  [attr-defined]
+vllm_omni/diffusion/worker/diffusion_worker.py:1012: error: "CustomPipelineWorkerExtension" has no attribute "model_runner"  [attr-defined]
+vllm_omni/diffusion/worker/diffusion_worker.py:1013: error: "CustomPipelineWorkerExtension" has no attribute "model_runner"  [attr-defined]
+vllm_omni/diffusion/worker/diffusion_worker.py:1021: error: "CustomPipelineWorkerExtension" has no attribute "load_model"  [attr-defined]
+vllm_omni/diffusion/worker/diffusion_worker.py:1025: error: "CustomPipelineWorkerExtension" has no attribute "init_lora_manager"  [attr-defined]
+vllm_omni/diffusion/worker/diffusion_worker.py:1036: error: Variable "multiprocessing.Event" is not valid as a type  [valid-type]
+vllm_omni/diffusion/worker/diffusion_worker.py:1036: note: See https://mypy.readthedocs.io/en/stable/common_issues.html#variables-vs-type-aliases
+vllm_omni/diffusion/worker/diffusion_worker.py:1110: error: Item "None" of "Any | None" has no attribute "enqueue"  [union-attr]
+vllm_omni/diffusion/worker/diffusion_worker.py:1126: error: Item "None" of "Queue[Any] | None" has no attribute "put"  [union-attr]
+vllm_omni/diffusion/worker/diffusion_worker.py:1160: error: Item "None" of "Queue[Any] | None" has no attribute "get"  [union-attr]
+vllm_omni/diffusion/worker/diffusion_worker.py:1374: error: mp.Event? has no attribute "is_set"  [attr-defined]
+vllm_omni/diffusion/worker/diffusion_worker.py:1375: error: mp.Event? has no attribute "clear"  [attr-defined]
+vllm_omni/diffusion/worker/diffusion_worker.py:1393: error: Incompatible types in assignment (expression has type "OmniWakeTask", variable has type "OmniSleepTask")  [assignment]
+vllm_omni/diffusion/worker/diffusion_worker.py:1394: error: Argument 1 to "handle_wake_task" of "WorkerWrapperBase" has incompatible type "OmniSleepTask"; expected "OmniWakeTask | dict[Any, Any]"  [arg-type]
+vllm_omni/diffusion/worker/diffusion_worker.py:1463: error: Argument 1 to "execute_model" of "WorkerWrapperBase" has incompatible type "dict[Any, Any] | Any"; expected "OmniDiffusionRequest | list[NewRequestData]"  [arg-type]
+vllm_omni/diffusion/worker/diffusion_worker.py:1486: error: Variable "multiprocessing.Event" is not valid as a type  [valid-type]
+vllm_omni/diffusion/worker/diffusion_worker.py:1486: note: See https://mypy.readthedocs.io/en/stable/common_issues.html#variables-vs-type-aliases
+vllm_omni/diffusion/worker/diffusion_worker.py:1560: error: Variable "multiprocessing.Event" is not valid as a type  [valid-type]
+vllm_omni/diffusion/worker/diffusion_worker.py:1560: note: See https://mypy.readthedocs.io/en/stable/common_issues.html#variables-vs-type-aliases
+vllm_omni/diffusion/worker/diffusion_worker.py:1612: error: Incompatible types in assignment (expression has type "type[CustomPipelineWorkerExtension]", variable has type "str | None")  [assignment]
+vllm_omni/diffusion/diffusion_engine.py:135: error: Argument 1 to "signature" has incompatible type "object"; expected "Callable[..., Any]"  [arg-type]
+vllm_omni/diffusion/diffusion_engine.py:449: error: "DiffusionExecutor" has no attribute "wait_output_ready"  [attr-defined]
+vllm_omni/diffusion/diffusion_engine.py:584: error: Item "None" of "Event | None" has no attribute "is_set"  [union-attr]
+vllm_omni/diffusion/diffusion_engine.py:593: error: Item "None" of "Event | None" has no attribute "is_set"  [union-attr]
+vllm_omni/diffusion/diffusion_engine.py:597: error: Item "None" of "Event | None" has no attribute "is_set"  [union-attr]
+vllm_omni/diffusion/diffusion_engine.py:635: error: Argument 2 to "update_from_output" of "BaseScheduler" has incompatible type "BaseRunnerOutput"; expected "RunnerOutput"  [arg-type]
+vllm_omni/diffusion/diffusion_engine.py:668: error: Item "None" of "Event | None" has no attribute "is_set"  [union-attr]
+vllm_omni/diffusion/diffusion_engine.py:1005: error: Argument 2 to "update_from_output" of "BaseScheduler" has incompatible type "BaseRunnerOutput"; expected "RunnerOutput"  [arg-type]
+vllm_omni/diffusion/diffusion_engine.py:1008: error: Argument 1 to "len" has incompatible type "BaseRunnerOutput"; expected "Sized"  [arg-type]
+vllm_omni/diffusion/diffusion_engine.py:1019: error: "DiffusionExecutor" has no attribute "wait_output_ready"  [attr-defined]
+Found 51 errors in 3 files (checked 3 source files)
+tests/diffusion/test_diffusion_step_pipeline.py:170: error: Signature of "denoise_step" incompatible with supertype "_StepPipeline"  [override]
+tests/diffusion/test_diffusion_step_pipeline.py:170: note:      Superclass:
+tests/diffusion/test_diffusion_step_pipeline.py:170: note:          def denoise_step(self, input_batch: Any, **kwargs: Any) -> Any
+tests/diffusion/test_diffusion_step_pipeline.py:170: note:      Subclass:
+tests/diffusion/test_diffusion_step_pipeline.py:170: note:          def denoise_step(self, state: Any, **kwargs: Any) -> Any
+tests/diffusion/test_diffusion_step_pipeline.py:800: error: "_CapturingStepPipeline" has no attribute "device"  [attr-defined]
+tests/diffusion/test_diffusion_scheduler.py:154: error: Incompatible types in assignment (expression has type "SimpleNamespace", variable has type "None")  [assignment]
+tests/diffusion/test_diffusion_scheduler.py:176: error: "None" has no attribute "status"  [attr-defined]
+tests/diffusion/test_diffusion_engine_cleanup.py:257: error: "append" of "list" does not return a value (it only ever returns None)  [func-returns-value]
+Found 5 errors in 3 files (checked 3 source files)
+$ mypy --python-version 3.10 
+$ mypy --python-version 3.10 --follow-imports skip tests
+
+Ensure test files have CI marks (no direct SKU)...............................Passed
+Ratchet TTS per-model branches out of serving_speech.py...(no files to check)Skipped
+- hook id: check-tts-adapter-migration
+Lint shell scripts........................................(no files to check)Skipped
+Check SPDX headers............................................................Failed
+- hook id: check-spdx-header
+- exit code: 1
+- files were modified by this hook
+
+The following files are missing the SPDX header:
+  tests/diffusion/test_diffusion_engine_cleanup.py
+
+Check forbidden imports.......................................................Passed
+Prevent new torch.cuda API calls..............................................Passed
+Validate Buildkite Pipelines..............................(no files to check)Skipped
+Suggestion....................................................................Passed
+- hook id: suggestion
+- duration: 0s
+
+To bypass all the pre-commit hooks, add --no-verify to git commit. To skip a specific hook, prefix the commit command with SKIP=<hook-id>.
+
