@@ -27,7 +27,16 @@ from vllm_omni.model_executor.models.moss_vl_realtime.config import (
 )
 from vllm_omni.model_executor.models.moss_vl_realtime.modeling import MossVLNativeModel
 
-REALTIME_DIR = Path(__file__).resolve().parents[3] / "assets" / "moss_vl_realtime" / "reference" / "realtime"
+
+def _realtime_dir() -> Path:
+    for parent in Path(__file__).resolve().parents:
+        candidate = parent / "assets" / "moss_vl_realtime" / "reference" / "realtime"
+        if candidate.is_dir():
+            return candidate
+    raise RuntimeError("realtime fixtures are not present in this checkout")
+
+
+REALTIME_DIR = _realtime_dir()
 
 IMAGE_TOKEN_ID = 151655
 VISION_START = 151652

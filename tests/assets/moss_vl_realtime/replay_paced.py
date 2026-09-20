@@ -345,9 +345,12 @@ def main() -> int:
             cross_attention_mask=mask,
         )
         top = state["logits"][0, -1].float()
+        # label frames by their global arrival index so traces line up with the fixture
+        first_frame_index = frames_published - len(batch)
+        event_ids = ",".join(f"f{first_frame_index + position}" for position in range(len(batch)))
         record(
             "frame_pushed",
-            event_id=f"f{index}",
+            event_id=event_ids,
             segment_max=round(float(top.max()), 4),
             segment_argmax=int(top.argmax()),
             segment_top5=[int(v) for v in top.topk(5).indices],

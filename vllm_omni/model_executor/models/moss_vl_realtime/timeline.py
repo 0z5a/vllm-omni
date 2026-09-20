@@ -35,23 +35,35 @@ def summarise(events: list[dict[str, Any]]) -> dict[str, Any]:
     timeline = []
     for frame in frames:
         following = next((output for output in outputs if output["wall"] >= frame["wall"]), None)
-        timeline.append(
-            {
-                "event_id": frame["event_id"],
-                "asset": frame["asset"],
-                "media_timestamp_ms": frame["media_timestamp_ms"],
-                "accepted_at_s": round(frame["wall"], 3),
-                "pending_frames_at_accept": frame.get("pending_frames"),
-                "dropped_older": frame.get("dropped_older"),
-                "first_output_after_s": round(following["wall"], 3) if following else None,
-                "accept_to_first_output_s": (round(following["wall"] - frame["wall"], 3) if following else None),
-            }
-        )
+        # A driver may publish several frames in one step, listing them together;
+        # expand to one row per frame so two traces compare frame by frame.
+        assets = str(frame.get("asset", "")).split(",")
+        stamps = frame.get("media_timestamp_ms")
+        stamps = stamps if isinstance(stamps, list) else [stamps] * len(assets)
+        ids = str(frame.get("event_id", "")).split(",")
+        for index, asset in enumerate(assets):
+            event_id = ids[index] if index < len(ids) else f"{frame.get('event_id')}#{index}"
+            timeline.append(
+                {
+                    "event_id": event_id,
+                    "asset": asset,
+                    "media_timestamp_ms": stamps[index] if index < len(stamps) else None,
+                    "accepted_at_s": round(frame["wall"], 3),
+                    "pending_frames_at_accept": frame.get("pending_frames"),
+                    "dropped_older": frame.get("dropped_older"),
+                    "first_output_after_s": round(following["wall"], 3) if following else None,
+                    "accept_to_first_output_s": (round(following["wall"] - frame["wall"], 3) if following else None),
+                }
+            )
 
     first_output_after_open = round(outputs[0]["wall"] - opened["wall"], 3) if outputs and opened else None
+    # A driver may publish several frames in one step, listing them together; the
+    # metric that matters is frames, not publications.
+    frames_accepted = sum(len(str(event.get("asset", "")).split(",")) for event in frames)
     return {
         "session_wall_seconds": round(closed["wall"] - opened["wall"], 3) if closed and opened else None,
-        "frames_pushed": len(frames),
+        "frames_pushed": frames_accepted,
+        "publications": len(frames),
         "frames_dropped_older": sum(1 for frame in frames if frame.get("dropped_older")),
         "prompts_pushed": len(prompts),
         "output_chunks": len(outputs),
