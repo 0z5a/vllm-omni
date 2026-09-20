@@ -79,8 +79,23 @@ def test_visibility_expansion_recomputed_from_frames(case: str) -> None:
     assert torch.equal(rebuilt.reshape(expanded.shape), expanded)
 
 
+def test_reference_is_bit_reproducible() -> None:
+    """Two independent captures agreed bit for bit; tolerances are not reference noise."""
+    repeat = json.loads((REFERENCE / "reference-repeatability.json").read_text(encoding="utf-8"))
+    assert repeat, "repeatability evidence is missing"
+    for case, entry in repeat.items():
+        tensors = {key: value for key, value in entry.items() if isinstance(value, dict)}
+        assert tensors, f"{case}: no tensors compared"
+        assert all(value["exact"] for value in tensors.values()), f"{case}: reference is not reproducible"
+        assert entry["token_ids_match"] and entry["decoded_text_match"]
+
+
 def test_tolerances_cover_every_case() -> None:
     tolerances = json.loads((REFERENCE / "tolerances.json").read_text(encoding="utf-8"))
+    assert (
+        tolerances["reference_repeatability"]["tensors_bit_identical"]
+        == tolerances["reference_repeatability"]["tensors_compared_per_case"]
+    )
     assert set(tolerances["measured_abs_max"]) == set(CASES)
     for case in CASES:
         assert tolerances["measured_abs_max"][case]["prefill_logits"] > 0

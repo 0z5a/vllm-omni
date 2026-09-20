@@ -1,0 +1,105 @@
+{
+  "host": "gj-5090-2",
+  "platform": "Linux-5.15.0-181-generic-x86_64-with-glibc2.35",
+  "python": "3.12.13",
+  "torch": "2.13.0+cu130",
+  "torch_cuda": "13.0",
+  "device_name": "NVIDIA GeForce RTX 5090",
+  "compute_capability": [
+    12,
+    0
+  ],
+  "total_memory_bytes": 33668988928,
+  "arch_list": [
+    "sm_75",
+    "sm_80",
+    "sm_86",
+    "sm_90",
+    "sm_100",
+    "sm_120"
+  ],
+  "attention": [
+    {
+      "name": "self_attention_causal",
+      "output_dtype": "torch.bfloat16",
+      "max_abs_error": 0.007955789566040039,
+      "mean_abs_error": 0.00020743875938933343,
+      "reference_scale": 3.484375,
+      "milliseconds": 0.12264074757695198
+    },
+    {
+      "name": "cross_attention_additive_mask",
+      "output_dtype": "torch.bfloat16",
+      "max_abs_error": 0.0018938779830932617,
+      "mean_abs_error": 0.00016767799388617277,
+      "reference_scale": 0.6823421716690063,
+      "milliseconds": 0.10347319766879082
+    },
+    {
+      "name": "flash_attention",
+      "available": true
+    },
+    {
+      "name": "efficient_attention",
+      "available": true
+    },
+    {
+      "name": "math",
+      "available": true
+    },
+    {
+      "name": "cudnn_attention",
+      "available": true
+    }
+  ],
+  "operators": [
+    {
+      "name": "conv3d_patch_embed",
+      "output_dtype": "torch.bfloat16",
+      "max_abs_error": 0.009712696075439453,
+      "mean_abs_error": 0.000830592296551913,
+      "reference_scale": 2.3965373039245605,
+      "milliseconds": 0.18428778275847435
+    },
+    {
+      "name": "layernorm",
+      "output_dtype": "torch.bfloat16",
+      "max_abs_error": 0.015436172485351562,
+      "mean_abs_error": 0.0011287719244137406,
+      "reference_scale": 5.559536933898926,
+      "milliseconds": 0.03329804167151451
+    },
+    {
+      "name": "gelu_tanh",
+      "output_dtype": "torch.bfloat16",
+      "max_abs_error": 0.007754802703857422,
+      "mean_abs_error": 0.0005941823474131525,
+      "reference_scale": 4.281232833862305,
+      "milliseconds": 0.022697262465953827
+    },
+    {
+      "name": "linear_wide",
+      "output_dtype": "torch.bfloat16",
+      "max_abs_error": 0.007814645767211914,
+      "mean_abs_error": 0.0007630361360497773,
+      "reference_scale": 3.7456769943237305,
+      "milliseconds": 0.20981207489967346
+    },
+    {
+      "name": "rope_outer_product",
+      "output_dtype": "torch.float32",
+      "max_abs_error": 0.0,
+      "mean_abs_error": 0.0,
+      "reference_scale": 63.0,
+      "milliseconds": 0.02411799505352974
+    },
+    {
+      "name": "rope_freq_head",
+      "shape": [
+        64,
+        64
+      ],
+      "dtype": "torch.float32"
+    }
+  ]
+}

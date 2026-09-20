@@ -1,0 +1,258 @@
+{
+  "image": {
+    "cross_attention_mask_expanded": {
+      "exact": true,
+      "max_abs": 0.0
+    },
+    "processor.attention_mask": {
+      "exact": true,
+      "max_abs": 0.0
+    },
+    "processor.cross_attention_mask": {
+      "exact": true,
+      "max_abs": 0.0
+    },
+    "processor.grid_thw": {
+      "exact": true,
+      "max_abs": 0.0
+    },
+    "processor.input_ids": {
+      "exact": true,
+      "max_abs": 0.0
+    },
+    "processor.pixel_values": {
+      "exact": true,
+      "max_abs": 0.0
+    },
+    "shifted_text_position_ids": {
+      "exact": true,
+      "max_abs": 0.0
+    },
+    "text_position_ids": {
+      "exact": true,
+      "max_abs": 0.0
+    },
+    "vision.block_0": {
+      "exact": true,
+      "max_abs": 0.0
+    },
+    "vision.block_0.attn": {
+      "exact": true,
+      "max_abs": 0.0
+    },
+    "vision.block_0.mlp": {
+      "exact": true,
+      "max_abs": 0.0
+    },
+    "vision.block_0.norm1": {
+      "exact": true,
+      "max_abs": 0.0
+    },
+    "vision.block_0.norm2": {
+      "exact": true,
+      "max_abs": 0.0
+    },
+    "vision.block_16": {
+      "exact": true,
+      "max_abs": 0.0
+    },
+    "vision.block_24": {
+      "exact": true,
+      "max_abs": 0.0
+    },
+    "vision.block_26": {
+      "exact": true,
+      "max_abs": 0.0
+    },
+    "vision.block_8": {
+      "exact": true,
+      "max_abs": 0.0
+    },
+    "vision.block_8.attn": {
+      "exact": true,
+      "max_abs": 0.0
+    },
+    "vision.block_8.mlp": {
+      "exact": true,
+      "max_abs": 0.0
+    },
+    "vision.block_8.norm1": {
+      "exact": true,
+      "max_abs": 0.0
+    },
+    "vision.block_8.norm2": {
+      "exact": true,
+      "max_abs": 0.0
+    },
+    "vision.merger_out": {
+      "exact": true,
+      "max_abs": 0.0
+    },
+    "vision.patch_embed": {
+      "exact": true,
+      "max_abs": 0.0
+    },
+    "vision.pos_embeds": {
+      "exact": true,
+      "max_abs": 0.0
+    },
+    "vision.rope_cos": {
+      "exact": true,
+      "max_abs": 0.0
+    },
+    "vision.rope_k": {
+      "exact": true,
+      "max_abs": 0.0
+    },
+    "vision.rope_q": {
+      "exact": true,
+      "max_abs": 0.0
+    },
+    "vision.rope_sin": {
+      "exact": true,
+      "max_abs": 0.0
+    },
+    "vision.rotary": {
+      "exact": true,
+      "max_abs": 0.0
+    },
+    "vision_embeds": {
+      "exact": true,
+      "max_abs": 0.0
+    },
+    "vision_position_ids": {
+      "exact": true,
+      "max_abs": 0.0
+    },
+    "token_ids_match": true,
+    "decoded_text_match": true
+  },
+  "short_video": {
+    "cross_attention_mask_expanded": {
+      "exact": true,
+      "max_abs": 0.0
+    },
+    "processor.attention_mask": {
+      "exact": true,
+      "max_abs": 0.0
+    },
+    "processor.cross_attention_mask": {
+      "exact": true,
+      "max_abs": 0.0
+    },
+    "processor.grid_thw": {
+      "exact": true,
+      "max_abs": 0.0
+    },
+    "processor.input_ids": {
+      "exact": true,
+      "max_abs": 0.0
+    },
+    "processor.pixel_values": {
+      "exact": true,
+      "max_abs": 0.0
+    },
+    "shifted_text_position_ids": {
+      "exact": true,
+      "max_abs": 0.0
+    },
+    "text_position_ids": {
+      "exact": true,
+      "max_abs": 0.0
+    },
+    "vision.block_0": {
+      "exact": true,
+      "max_abs": 0.0
+    },
+    "vision.block_0.attn": {
+      "exact": true,
+      "max_abs": 0.0
+    },
+    "vision.block_0.mlp": {
+      "exact": true,
+      "max_abs": 0.0
+    },
+    "vision.block_0.norm1": {
+      "exact": true,
+      "max_abs": 0.0
+    },
+    "vision.block_0.norm2": {
+      "exact": true,
+      "max_abs": 0.0
+    },
+    "vision.block_16": {
+      "exact": true,
+      "max_abs": 0.0
+    },
+    "vision.block_24": {
+      "exact": true,
+      "max_abs": 0.0
+    },
+    "vision.block_26": {
+      "exact": true,
+      "max_abs": 0.0
+    },
+    "vision.block_8": {
+      "exact": true,
+      "max_abs": 0.0
+    },
+    "vision.block_8.attn": {
+      "exact": true,
+      "max_abs": 0.0
+    },
+    "vision.block_8.mlp": {
+      "exact": true,
+      "max_abs": 0.0
+    },
+    "vision.block_8.norm1": {
+      "exact": true,
+      "max_abs": 0.0
+    },
+    "vision.block_8.norm2": {
+      "exact": true,
+      "max_abs": 0.0
+    },
+    "vision.merger_out": {
+      "exact": true,
+      "max_abs": 0.0
+    },
+    "vision.patch_embed": {
+      "exact": true,
+      "max_abs": 0.0
+    },
+    "vision.pos_embeds": {
+      "exact": true,
+      "max_abs": 0.0
+    },
+    "vision.rope_cos": {
+      "exact": true,
+      "max_abs": 0.0
+    },
+    "vision.rope_k": {
+      "exact": true,
+      "max_abs": 0.0
+    },
+    "vision.rope_q": {
+      "exact": true,
+      "max_abs": 0.0
+    },
+    "vision.rope_sin": {
+      "exact": true,
+      "max_abs": 0.0
+    },
+    "vision.rotary": {
+      "exact": true,
+      "max_abs": 0.0
+    },
+    "vision_embeds": {
+      "exact": true,
+      "max_abs": 0.0
+    },
+    "vision_position_ids": {
+      "exact": true,
+      "max_abs": 0.0
+    },
+    "token_ids_match": true,
+    "decoded_text_match": true
+  }
+}

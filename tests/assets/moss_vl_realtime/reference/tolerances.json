@@ -25,5 +25,17 @@
   "notes": [
     "vision_embeds accumulate bf16 rounding across 27 blocks and the merger; compare with an absolute tolerance scaled by the per-case reference magnitude",
     "greedy token ids are compared as equality on the prefix and reported with the first-divergence margin"
-  ]
+  ],
+  "reference_repeatability": {
+    "method": "two independent reference captures with the same seed, deterministic algorithms and the same attention backend",
+    "tensors_compared_per_case": 31,
+    "tensors_bit_identical": 31,
+    "token_ids_identical": true,
+    "decoded_text_identical": true,
+    "cases": [
+      "image",
+      "short_video"
+    ],
+    "conclusion": "the reference is bit-reproducible on this device, so native deltas are implementation differences, not reference noise"
+  }
 }
