@@ -416,6 +416,9 @@ class MossVLNativeModel(nn.Module):
         self.vision_cache = VisionKVCache(cfg.text.num_hidden_layers)
         self.rope_delta: torch.Tensor | None = None
         self.vision_token_info: list[VisionTokenInfo] = []
+        # Running position of the paced session: text tokens consume one position
+        # each, a published frame block consumes max(eh, ew) + 1 per frame.
+        self.next_position: int = 0
 
     # ---- vision -----------------------------------------------------------
     def pack_with_separators(
@@ -558,6 +561,8 @@ class MossVLNativeModel(nn.Module):
             )
             if offset == 0:
                 self.rope_delta = position_ids.max() + 1 - input_ids.shape[1]
+        if offset == 0:
+            self.next_position = int(position_ids.max().item()) + 1
 
         expanded_mask = None
         if cross_attention_mask is not None:
@@ -609,6 +614,17 @@ class MossVLNativeModel(nn.Module):
             self.vision_cache.update(layer_idx, key, value)
 
         self.vision_token_info.extend(info)
+        self.next_position = vision_position_start + sum(
+            media.num_frames
+            * (
+                max(
+                    media.grid_h // self.config.vision.spatial_merge_size,
+                    media.grid_w // self.config.vision.spatial_merge_size,
+                )
+                + 1
+            )
+            for media in info
+        )
         return self.vision_length
 
     def vision_positions_for(
@@ -641,6 +657,18 @@ class MossVLNativeModel(nn.Module):
         keys = self.vision_cache.keys[self.config.text.cross_attention_layers[0]]
         return 0 if keys is None else keys.shape[2]
 
+    def paced_position_ids(self, advance: int = 1) -> torch.Tensor:
+        """Position for the next paced step, then advance the running cursor.
+
+        The paced session has no fixed ``cache_position``: text tokens and frame
+        blocks share one position space, and each generated token consumes one
+        position. ``advance`` covers the generated token plus any text spliced in
+        the same step.
+        """
+        position = torch.full((1,), self.next_position, dtype=torch.long, device=self.model.separator_token.device)
+        self.next_position += advance
+        return position.view(1, 1, 1).expand(3, 1, 1)
+
     def decode_position_ids(self, offset: int, input_ids: torch.Tensor | None = None) -> torch.Tensor:
         """Positions for one decode step.
 
@@ -663,3 +691,4 @@ class MossVLNativeModel(nn.Module):
         self.vision_cache.reset()
         self.rope_delta = None
         self.vision_token_info = []
+        self.next_position = 0
