@@ -145,8 +145,15 @@ blue.") through the same near-tie mechanism as the offline cases.
 
 | side | frames accepted | output chunks | first decision | answer |
 | --- | --- | --- | --- | --- |
-| reference session | 4 | 15 | `<|silence|>`, `<|silence|>`, `<|response|>` | "The color is alternating between red and blue." |
+| reference session | 4 | 15–19 | `<|silence|>`, `<|silence|>`, `<|response|>` | "The color is alternating between red and blue." on one run, "The color is red." on another |
 | native paced driver (plan) | 4 | 1 | `<|silence|>`, `<|response|>` | "The color is red." |
+
+The reference answer is not stable across runs: two paced captures on the same
+device and timeline produced two different sentences, and the native driver's
+answer matches one of them. Paced behaviour therefore differs by *timing* on both
+sides, which is why the step-level comparison above — same tokens, same
+positions, 12 of 13 decisions — is the claim that is actually checkable.
+`tests/assets/moss_vl_realtime/run_evidence.sh` reproduces the whole set.
 
 ## Tolerance basis
 
