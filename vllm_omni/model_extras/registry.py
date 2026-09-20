@@ -75,6 +75,7 @@ from vllm_omni.model_extras.ming_flash_omni import (
 from vllm_omni.model_extras.ming_flash_omni import (
     build_text_to_image_prompt as build_ming_flash_omni_text_to_image_prompt,
 )
+from vllm_omni.model_extras.moss_vl import build_x_to_text_prompt as build_moss_vl_x_to_text_prompt
 from vllm_omni.model_extras.sana_video import SANA_VIDEO_EXTRA_BODY_PARAMS
 from vllm_omni.model_extras.sensenova_u1 import (
     SENSENOVA_U1_EXTRA_BODY_PARAMS,
@@ -143,6 +144,7 @@ _X_TO_TEXT_SPECS: dict[str, XToTextPromptBuilder] = {
     "bagel": build_bagel_x_to_text_prompt,
     "hunyuan_image3": build_hunyuan_x_to_text_prompt,
     "mammoth_moda2": build_mammothmoda2_x_to_text_prompt,
+    "moss_vl": build_moss_vl_x_to_text_prompt,
 }
 
 
@@ -159,6 +161,8 @@ def get_x_to_text_model_family(model: str) -> str:
         return "hunyuan_image3"
     if "mammoth" in model_type or any("mammothmoda2" in value for value in architectures):
         return "mammoth_moda2"
+    if model_type == "moss_vl" or any("mossvl" in value for value in architectures):
+        return "moss_vl"
     return "generic"
 
 

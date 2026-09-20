@@ -41,6 +41,7 @@ MODULES = (
     "test_realtime_contract",
     "test_timeline",
     "test_checkpoint_contract",
+    "test_family_registration",
 )
 
 
@@ -56,6 +57,8 @@ def call(module, name: str, function) -> None:
     if "prepare_module" in function.__code__.co_varnames[: function.__code__.co_argcount]:
         function(load_prepare_module())
         return
+    if "monkeypatch" in function.__code__.co_varnames[: function.__code__.co_argcount]:
+        raise RuntimeError(f"{name} needs pytest's monkeypatch fixture; run it under pytest")
     function()
 
 

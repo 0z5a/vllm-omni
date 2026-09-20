@@ -17,7 +17,7 @@ Named after the tasks in [RFC #7890](https://github.com/vllm-project/vllm-omni/i
 | --- | --- | --- |
 | T01 reference revisions and fixtures | captured | `tests/assets/moss_vl_realtime/reference/`, capture and paced-capture adapters |
 | T02 placement and interface audit | not here | owned by another contributor; this branch consumes its contract |
-| T03 configuration, registration, loading | done | 895/895 keys, refusal matrix, `registry.py` |
+| T03 configuration, registration, loading | done for the offline path | 895/895 keys, refusal matrix, native resolver, and a `moss_vl` family entry in the shared text-output registry (stop-token contract); the worker-model registry entry stays with T02's placement audit |
 | T04 processor and vision encoding | not here | processor consumed from the pinned checkpoint; owned by another contributor |
 | T05 text executor and positions | done | positions exact against the capture; prefill/decode consistency checks |
 | T06 cross-attention correctness | done for the eager path | visibility matrix, GQA mapping, ragged media, additive-mask parity |
