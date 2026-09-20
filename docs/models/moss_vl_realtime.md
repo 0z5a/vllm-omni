@@ -22,7 +22,7 @@ Named after the tasks in [RFC #7890](https://github.com/vllm-project/vllm-omni/i
 | T05 text executor and positions | done | positions exact against the capture; prefill/decode consistency checks |
 | T06 cross-attention correctness | done for the eager path | visibility matrix, GQA mapping, ragged media, additive-mask parity |
 | T07 native offline parity | done for the offline path | `runner.py`/`parity.py`; no served endpoint yet |
-| T08 timestamped video input | not started | needs the shared duplex input extension |
+| T08 timestamped video input | proposal only | `duplex.py` states and validates the frame-only payload (bounded size, event identity, media-timestamp ordering, accepted ≠ visible) as a reviewable proposal; the shared command vocabulary and wire names stay with #6592 |
 | T09 non-audio duplex capability and plugin | not started | needs the shared engine plugin contract |
 | T10 incremental visual state | initial contract plus paced driver | `append_frames` publishes at a step boundary; reference-timeline segment splicing is not implemented |
 | T11 text output, silence, interruption | protocol implemented, text diverges on near-ties | the paced driver carries the silence decision into the next segment, renders the user turn and reports text separately from silence; the answer text still differs from the reference on near-ties |

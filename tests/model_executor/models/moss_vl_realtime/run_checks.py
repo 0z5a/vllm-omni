@@ -42,6 +42,7 @@ MODULES = (
     "test_timeline",
     "test_checkpoint_contract",
     "test_family_registration",
+    "test_frame_contract",
 )
 
 

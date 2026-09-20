@@ -408,3 +408,40 @@ def test_budget_report_tracks_usage() -> None:
         model(input_ids, model.compute_text_position_ids(input_ids), 0, pixel_values, torch.tensor([[1, 4, 4]]))
     report = model.budget_report()
     assert report == {"vision_tokens": 5, "max_vision_tokens": 64, "text_tokens": 3, "max_text_tokens": 64}
+
+
+def test_chunked_prefill_matches_single_prefill() -> None:
+    """Two prefill chunks must equal one prefill of the same logical input.
+
+    The cache grows across chunks, so this exercises the non-zero-offset causal
+    path in self-attention rather than the single-shot prefill shortcut.
+    """
+    model = build_model()
+    input_ids = torch.tensor([[10, 11, 12, 13, 14, 15]])
+    positions = model.compute_text_position_ids(input_ids)
+    with torch.no_grad():
+        whole = model(input_ids, positions, offset=0)
+        model.reset()
+        first = model(input_ids[:, :2], positions[:, :, :2], offset=0)
+        second = model(input_ids[:, 2:5], positions[:, :, 2:5], offset=2)
+        third = model(input_ids[:, 5:], positions[:, :, 5:], offset=5)
+    assert torch.allclose(first[0, -1].float(), whole[0, 1].float(), atol=5e-2)
+    assert torch.allclose(second[0, -1].float(), whole[0, 4].float(), atol=5e-2)
+    assert torch.allclose(third[0, -1].float(), whole[0, 5].float(), atol=5e-2)
+
+
+def test_chunked_prefill_keeps_cross_attention_visible_set() -> None:
+    """A frame published in the first chunk stays visible to later chunks."""
+    model = build_model()
+    pixel_values = torch.randn(16, 3 * 1 * 16 * 16, dtype=torch.bfloat16)
+    grid_thw = torch.tensor([[1, 4, 4]])
+    frame_mask = torch.tensor([[[[False], [False]]]])
+    head_ids = torch.tensor([[10, IMAGE_PAD]])
+    tail_ids = torch.tensor([[11, 12]])
+    with torch.no_grad():
+        model(head_ids, model.compute_text_position_ids(head_ids), 0, pixel_values, grid_thw, frame_mask)
+        before = model.vision_length
+        model(tail_ids, model.compute_text_position_ids(tail_ids) + 2, offset=2)
+    assert before == 5
+    assert model.vision_length == 5
+    assert model.text_cache.length(0) == 4
