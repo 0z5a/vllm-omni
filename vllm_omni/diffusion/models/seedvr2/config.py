@@ -14,8 +14,8 @@ def validate_seedvr2_config(config: OmniDiffusionConfig) -> None:
         raise ValueError("SeedVR2 requires enforce_eager=True; compiled execution is not supported")
     if config.cache_backend != "none" or config.quantization_config is not None:
         raise ValueError("SeedVR2 requires unquantized weights and cache_backend=none for its single Euler step")
-    if config.vae_use_slicing or config.vae_use_tiling:
-        raise ValueError("SeedVR2 whole-clip VAE does not support slicing or tiling")
+    if config.vae_use_slicing:
+        raise ValueError("SeedVR2 whole-clip VAE does not support batch slicing")
     if config.enable_cpu_offload or config.enable_layerwise_offload or config.enable_distributed_layerwise_offload:
         raise ValueError("SeedVR2 native whole-clip execution does not support CPU offload")
     parallel = config.parallel_config
@@ -23,7 +23,6 @@ def validate_seedvr2_config(config: OmniDiffusionConfig) -> None:
         "cfg_parallel_size": parallel.cfg_parallel_size,
         "tensor_parallel_size": parallel.tensor_parallel_size,
         "pipeline_parallel_size": parallel.pipeline_parallel_size,
-        "vae_patch_parallel_size": parallel.vae_patch_parallel_size,
         "text_encoder_tp_size": parallel.text_encoder_tp_size,
         "ulysses_degree": parallel.ulysses_degree,
         "ring_degree": parallel.ring_degree,
@@ -32,6 +31,10 @@ def validate_seedvr2_config(config: OmniDiffusionConfig) -> None:
     for name, degree in degrees.items():
         if degree != 1:
             raise ValueError(f"SeedVR2 requires {name}=1; use window_parallel_size for its model-owned SP")
+    if parallel.vae_patch_parallel_size > 1 and parallel.vae_patch_parallel_size != parallel.window_parallel_size:
+        raise ValueError("SeedVR2 requires vae_patch_parallel_size to match window_parallel_size")
+    if parallel.vae_parallel_mode == "spatial_shard_width":
+        raise ValueError("SeedVR2 VAE supports spatial_shard_height or tile mode")
     if parallel.use_hsdp or parallel.enable_expert_parallel:
         raise ValueError("SeedVR2 does not support HSDP or expert parallelism")
     if config.lora_path is not None:

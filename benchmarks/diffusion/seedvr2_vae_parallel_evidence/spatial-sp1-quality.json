@@ -1,0 +1,44 @@
+[
+  {
+    "case": "2x",
+    "mae": 0.0,
+    "max_error": 0.0,
+    "psnr_db": null,
+    "exact": true
+  },
+  {
+    "case": "4x",
+    "mae": 0.0,
+    "max_error": 0.0,
+    "psnr_db": null,
+    "exact": true
+  },
+  {
+    "case": "different-seed",
+    "mae": 0.0,
+    "max_error": 0.0,
+    "psnr_db": null,
+    "exact": true
+  },
+  {
+    "case": "five",
+    "mae": 0.0,
+    "max_error": 0.0,
+    "psnr_db": null,
+    "exact": true
+  },
+  {
+    "case": "repeat",
+    "mae": 0.0,
+    "max_error": 0.0,
+    "psnr_db": null,
+    "exact": true
+  },
+  {
+    "case": "six",
+    "mae": 4.433061258168891e-05,
+    "max_error": 0.0009765625,
+    "psnr_db": 81.30210413562907,
+    "exact": false
+  }
+]

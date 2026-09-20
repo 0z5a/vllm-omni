@@ -1,0 +1,32 @@
+[
+  {
+    "file": "vae-trace-0.json",
+    "sha256": "1f895fe5dde34dcd358b1e5b03490004809208ad0b095451a6cea0bead61cdf5",
+    "event_count": 103633,
+    "selected_events": {
+      "nccl:coalesced": 117,
+      "aten::conv3d": 65,
+      "nccl:all_reduce": 266,
+      "nccl:all_gather": 12,
+      "nccl:all_to_all": 63,
+      "ncclDevKernel_SendRecv(ncclDevKernelArgsStorage<4096ul>)": 89,
+      "ncclDevKernel_AllReduce_Sum_f32_RING_LL(ncclDevKernelArgsStorage<4096ul>)": 132,
+      "ncclDevKernel_AllGather_RING_LL(ncclDevKernelArgsStorage<4096ul>)": 6
+    }
+  },
+  {
+    "file": "vae-trace-1.json",
+    "sha256": "175a15eaead80ac652a09982d4f567b6f8120654bc8afb8505f22724b0f73f02",
+    "event_count": 105708,
+    "selected_events": {
+      "nccl:coalesced": 117,
+      "aten::conv3d": 65,
+      "nccl:all_reduce": 266,
+      "nccl:all_gather": 12,
+      "nccl:all_to_all": 63,
+      "ncclDevKernel_SendRecv(ncclDevKernelArgsStorage<4096ul>)": 89,
+      "ncclDevKernel_AllReduce_Sum_f32_RING_LL(ncclDevKernelArgsStorage<4096ul>)": 132,
+      "ncclDevKernel_AllGather_RING_LL(ncclDevKernelArgsStorage<4096ul>)": 6
+    }
+  }
+]

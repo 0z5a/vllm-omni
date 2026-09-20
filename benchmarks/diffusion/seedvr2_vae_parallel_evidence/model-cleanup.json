@@ -1,0 +1,24 @@
+{
+  "path": "/dev/shm/seedvr2-native-0z5a-models",
+  "files": [
+    {
+      "name": "model_index.json",
+      "bytes": 34
+    },
+    {
+      "name": "pos_emb.pt",
+      "bytes": 595100
+    },
+    {
+      "name": "ema_vae_fp16.safetensors",
+      "bytes": 501324814
+    },
+    {
+      "name": "seedvr2_ema_3b_fp16.safetensors",
+      "bytes": 6783018808
+    }
+  ],
+  "removed_bytes": 7284938756,
+  "time_utc": "2026-09-20T03:18:24.842068+00:00",
+  "exists_after": false
+}

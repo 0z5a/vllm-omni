@@ -30,7 +30,7 @@ def gpu_snapshot():
     )
 
 
-def request(fixture, url, width, height):
+def request(fixture, url, width, height, frames):
     started = time.perf_counter()
     with fixture.open("rb") as uploaded:
         response = requests.post(
@@ -39,7 +39,7 @@ def request(fixture, url, width, height):
                 "prompt": " ",
                 "size": f"{width}x{height}",
                 "seed": "7723",
-                "num_frames": "5",
+                "num_frames": str(frames),
                 "num_inference_steps": "1",
                 "guidance_scale": "1.0",
             },
@@ -51,17 +51,22 @@ def request(fixture, url, width, height):
     return seconds, response.content
 
 
-def check_media(body, width, height):
+def check_media(body, width, height, expected_frames):
     with av.open(io.BytesIO(body)) as container:
         stream = container.streams.video[0]
         frames = list(container.decode(video=0))
-        assert (len(frames), stream.width, stream.height, str(stream.average_rate)) == (5, width, height, "25")
-        assert [frame.pts for frame in frames] == [0, 512, 1024, 1536, 2048]
+        assert (len(frames), stream.width, stream.height, str(stream.average_rate)) == (
+            expected_frames,
+            width,
+            height,
+            "25",
+        )
+        assert [frame.pts for frame in frames] == [512 * i for i in range(expected_frames)]
         pixels = np.stack([frame.to_ndarray(format="rgb24") for frame in frames])
     with av.open(io.BytesIO(body)) as container:
         stream = container.streams.audio[0]
         assert stream.codec_context.sample_rate == 16000
-        assert float(stream.duration * stream.time_base) == 0.2
+        assert float(stream.duration * stream.time_base) == expected_frames / 25
         audio = np.concatenate([frame.to_ndarray() for frame in container.decode(audio=0)], axis=-1)
     return hashlib.sha256(pixels.tobytes()).hexdigest(), hashlib.sha256(audio.tobytes()).hexdigest()
 
@@ -90,14 +95,23 @@ def run_arm(directory, arm, args):
         "float16",
         "--enforce-eager",
         "--num-gpus",
-        "1",
+        str(args.sp),
         "--host",
         "127.0.0.1",
         "--port",
         str(args.port),
         "--worker-extension-cls",
-        "seedvr2_native_worker_audit.NativeWorkerAudit",
+        "seedvr2_spatial_worker_audit.SpatialWorkerAudit"
+        if arm == "P" and args.candidate_spatial
+        else "seedvr2_native_worker_audit.NativeWorkerAudit",
     ]
+    if args.sp > 1:
+        parallel = {"window_parallel_size": args.sp}
+        if arm == "P" and args.candidate_spatial:
+            parallel.update(vae_patch_parallel_size=args.sp, vae_parallel_mode="spatial_shard_height")
+        command.extend(["--distributed-executor-backend", "mp", "--stage-overrides", json.dumps({"0": parallel})])
+    if arm == "P" and args.candidate_tiling:
+        command.append("--vae-use-tiling")
     if args.server_cpus:
         command = ["taskset", "-c", args.server_cpus, *command]
     record = {
@@ -113,7 +127,7 @@ def run_arm(directory, arm, args):
         )
         record["pid"] = process.pid
         try:
-            deadline = time.monotonic() + 180
+            deadline = time.monotonic() + args.startup_timeout
             ready = False
             while time.monotonic() < deadline:
                 if process.poll() is not None:
@@ -128,20 +142,26 @@ def run_arm(directory, arm, args):
                 time.sleep(1)
             assert ready, "server readiness timeout"
             audits = list(directory.glob("worker-*.json"))
-            assert len(audits) == 1, "missing worker execution-source evidence"
-            audit = json.loads(audits[0].read_text())
-            rope = audit["modules"]["vllm_omni.diffusion.models.seedvr2.rope"]
-            assert Path(rope["path"]).is_relative_to(checkout)
-            assert (
-                rope["sha256"]
-                == hashlib.sha256((checkout / "vllm_omni/diffusion/models/seedvr2/rope.py").read_bytes()).hexdigest()
+            assert len(audits) == args.sp, "missing worker execution-source evidence"
+            for audit_path in audits:
+                audit = json.loads(audit_path.read_text())
+                for module in audit["modules"].values():
+                    source = Path(module["path"])
+                    assert source.is_relative_to(checkout)
+                    assert module["sha256"] == hashlib.sha256(source.read_bytes()).hexdigest()
+                if arm == "P" and args.candidate_spatial:
+                    assert audit["vae_execution"]["spatial_world_size"] == args.sp
+                    assert audit["vae_execution"]["use_tiling"]
+            record["warmup_seconds"] = [
+                request(args.input, url, args.width, args.height, args.frames)[0] for _ in range(5)
+            ]
+            assert all(json.loads(audit.read_text())["audited_forwards"] == 6 for audit in audits), (
+                "warmup audit did not finish"
             )
-            record["warmup_seconds"] = [request(args.input, url, args.width, args.height)[0] for _ in range(5)]
-            assert json.loads(audits[0].read_text())["audited_forwards"] == 6, "warmup audit did not finish"
             record["samples"] = []
-            for repeat in range(24):
-                seconds, body = request(args.input, url, args.width, args.height)
-                video_hash, audio_hash = check_media(body, args.width, args.height)
+            for repeat in range(args.samples):
+                seconds, body = request(args.input, url, args.width, args.height, args.frames)
+                video_hash, audio_hash = check_media(body, args.width, args.height, args.frames)
                 if repeat == 0:
                     (directory / "output.mp4").write_bytes(body)
                 record["samples"].append({"seconds": seconds, "video_sha256": video_hash, "audio_sha256": audio_hash})
@@ -165,9 +185,16 @@ def run_arm(directory, arm, args):
 
 def main():
     parser = argparse.ArgumentParser()
+    parser.add_argument("--frames", type=int, default=5)
+    parser.add_argument("--candidate-tiling", action="store_true")
     parser.add_argument("--pilot", action="store_true")
-    parser.add_argument("--gpu", type=int, required=True)
+    parser.add_argument("--screen", action="store_true")
+    parser.add_argument("--samples", type=int, default=24)
+    parser.add_argument("--gpu", required=True)
+    parser.add_argument("--sp", type=int, default=1)
+    parser.add_argument("--candidate-spatial", action="store_true")
     parser.add_argument("--port", type=int, default=19824)
+    parser.add_argument("--startup-timeout", type=int, default=180)
     parser.add_argument("--server-cpus")
     parser.add_argument("--width", type=int, default=224)
     parser.add_argument("--height", type=int, default=128)
@@ -183,14 +210,18 @@ def main():
     contract = {
         "fixture_sha256": hashlib.sha256(args.input.read_bytes()).hexdigest(),
         "warmup_requests": 5,
-        "measured_requests_per_arm": 24,
-        "orders": ["AA"] if args.pilot else ["APPA", "PAAP", "APPA", "PAAP", "APPA"],
+        "measured_requests_per_arm": args.samples,
+        "orders": ["AA"] if args.pilot else (["AP"] if args.screen else ["APPA", "PAAP", "APPA", "PAAP", "APPA"]),
         "metric": "upload-through-response-download seconds",
         "MES_latency_reduction": 0.01,
         "AA_drift_limit": 0.15,
         "independent_unit": "fresh-process quartet",
         "gpu": args.gpu,
         "output_size": [args.width, args.height],
+        "frames": args.frames,
+        "candidate_tiling": args.candidate_tiling,
+        "sp": args.sp,
+        "candidate_spatial": args.candidate_spatial,
         "video_mae_limit": args.video_mae_limit,
         "video_max_error_limit": args.video_max_error_limit,
         "exclusive_host": False,
