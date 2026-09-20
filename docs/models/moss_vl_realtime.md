@@ -123,9 +123,12 @@ residency rather than cache tuning.
 The hardware qualification probe
 (`python -m vllm_omni.model_executor.models.moss_vl_realtime.sm120_probe`)
 executes the operators this model uses on the target device and reports measured
-error against float32; on RTX 5090 all four SDPA backends are available and the
-additive-visibility cross-attention path measures 0.0019 max absolute error at
-BF16.
+error against float32; all four SDPA backends are available on RTX 5090. At the
+checkpoint's own shapes the additive-visibility cross-attention (32 query heads,
+8 KV heads, head_dim 128) measures 0.0029 max absolute error, the vision tower's
+fused qkv 0.0078, a per-frame attention segment 0.0021, and the three-axis mRoPE
+is exact. The full report is committed as
+`tests/assets/moss_vl_realtime/reference/sm120-qualification.json`.
 
 ## Paced run (timestamped stream)
 
