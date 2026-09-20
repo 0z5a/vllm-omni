@@ -123,21 +123,30 @@ BF16.
 
 ## Paced run (timestamped stream)
 
-The fixture's timestamped timeline (prompt, red at 0 ms, blue at 1000 ms, a
-follow-up prompt, red at 1000 ms, blue at 2000 ms) was replayed on both sides:
+Two comparisons are recorded under
+`tests/assets/moss_vl_realtime/reference/realtime/`.
 
-| side | frames accepted | output chunks | prompt to first output | result |
+**Step parity (teacher forced).** Feeding the reference's own realtime tokens
+and positions through the native model, publishing each frame when its
+`<|image_pad|>` token arrives and rebuilding the per-row visibility, reproduces
+**12 of 13 argmax decisions**, including both silence decisions, the
+`<|response|>` marker and the first answer tokens. The one disagreement is a
+near-tie whose token the reference itself picks on the following step.
+
+**Paced replay.** Driving the reference's publication protocol from the fixture
+timeline — silence carried into the next segment, the user turn rendered through
+the chat template, one silence marker, one segment per frame in the batch —
+reproduces the reference's first two decisions exactly (silence on the prompt,
+then `<|response|>` with segment argmax 151672 and max logit 26.5 against the
+reference's 26.625). The segment tokens and the 3-axis positions are
+bit-identical to the reference's recorded steps; the generated answer text
+differs ("The color is red." against "The color is alternating between red and
+blue.") through the same near-tie mechanism as the offline cases.
+
+| side | frames accepted | output chunks | first decision | answer |
 | --- | --- | --- | --- | --- |
-| reference session | 4 | 15 | 1.774 s | `<|silence|>` ×2 then "The color is alternating between red and blue." |
-| native paced driver | 4 | 0 | — | every turn ended in `<|silence|>` |
-
-The native driver verifies frame publication (vision extent 5 → 10 → 15 → 20),
-the running position space (12 → 15 → 19 → 23 → 27) and the per-row visibility
-rule, and it splices the frame segment with the positions the reference gives
-that segment; the traces are committed under
-`tests/assets/moss_vl_realtime/reference/realtime/`. Producing the reference's
-text decisions is still open, and paced parity must not be claimed until that
-gap closes. The timeline comparator is the tool that will decide it.
+| reference session | 4 | 15 | `<|silence|>`, `<|silence|>`, `<|response|>` | "The color is alternating between red and blue." |
+| native paced driver (plan) | 4 | 1 | `<|silence|>`, `<|response|>` | "The color is red." |
 
 ## Notes for contributors
 
