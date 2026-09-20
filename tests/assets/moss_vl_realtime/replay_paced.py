@@ -17,6 +17,13 @@ The trace uses the same event schema as ``capture_realtime.py``, so
 ``vllm_omni.model_executor.models.moss_vl_realtime.timeline`` can compare a
 native paced run with a reference paced run phase by phase.
 
+``--via-session`` drives the same timeline through
+:class:`moss_vl_realtime.session.MossVLNativeSession`, which is the contract the
+duplex engine will consume: same segments, same positions, same publication rule,
+but the session owns the token stream and the cursor. The two traces use one
+event schema, so a diff of the two runs is the check that the session extraction
+did not change behaviour.
+
 This runs the processor from the checkpoint remote code (transformers 4.57
 overlay), while the model math comes from the native package, which never imports
 Transformers.
@@ -47,6 +54,7 @@ import torch
 sys.path.insert(0, str(Path(__file__).resolve().parents[3] / "vllm_omni" / "model_executor" / "models"))
 
 from moss_vl_realtime.registry import build_native_model  # noqa: E402
+from moss_vl_realtime.session import MossVLNativeSession  # noqa: E402
 
 SILENCE_TOKEN_ID = 151671
 # The reference realtime session uses this system prompt when the caller does not
@@ -172,6 +180,76 @@ def replay_reference_steps(
     }
 
 
+def load_batches(
+    args: Any, frames: list[Path], timestamps: list[int]
+) -> list[tuple[list[str], list[tuple[Path, int]]]]:
+    """The timeline as segments: each entry is the prompts and frames of one tick."""
+    if args.batch_plan:
+        plan = json.loads(Path(args.batch_plan).read_text(encoding="utf-8"))["segments"]
+        return [
+            (
+                list(entry.get("prompts") or []),
+                [
+                    (Path(name) if Path(name).is_absolute() else ASSETS / name, media_timestamp_ms)
+                    for name, media_timestamp_ms in zip(entry["frames"], entry["timestamps"])
+                ],
+            )
+            for entry in plan
+        ]
+    # Arrival order: each frame is its own segment, and the fixture's follow-up
+    # prompt rides with the third frame. The reference groups by queue drain
+    # timing; a deterministic driver needs an explicit plan to match it.
+    batches = [([], [(frame, timestamps[index])]) for index, frame in enumerate(frames)]
+    batches[2] = (["Focus on the current color."], batches[2][1])
+    return batches
+
+
+def prompt_renderer(tokenizer: Any) -> Any:
+    """Render one user turn the way the reference stream carries it.
+
+    ``<|im_end|>\n`` closes the previous assistant turn, then the chat template
+    renders the new user turn; tokenizing the markers as plain text would produce
+    different ids than the reference stream.
+    """
+    im_end = tokenizer.convert_tokens_to_ids("<|im_end|>")
+    im_end = tokenizer.eos_token_id if im_end is None else im_end
+    newline = tokenizer("\n", add_special_tokens=False)["input_ids"][0]
+
+    def render(prompt: str) -> list[int]:
+        ids = [int(im_end), int(newline)]
+        ids.extend(
+            tokenizer.apply_chat_template(
+                [{"role": "user", "content": prompt}], tokenize=True, add_generation_prompt=True
+            )
+        )
+        return ids
+
+    return render
+
+
+def report_from(args: Any, frames: list[Path], timestamps: list[int], load_report: Any, *, session_path: bool) -> dict:
+    return {
+        "prompt": args.prompt,
+        "frames": [str(frame) for frame in frames],
+        "media_timestamps_ms": timestamps,
+        "max_new_tokens_per_turn": args.max_new_tokens_per_turn,
+        "splices_frame_segment": False,
+        "path": "session" if session_path else "driver",
+        "load_report": load_report.as_dict(),
+    }
+
+
+def finish(out_dir: Path, events: list[dict[str, Any]], report: dict[str, Any]) -> int:
+    outputs = [event for event in events if event["kind"] == "output"]
+    report["event_count"] = len(events)
+    report["output_chunks"] = len(outputs)
+    report["combined_output"] = "".join(event["text"] for event in outputs)
+    (out_dir / "events.jsonl").write_text("".join(json.dumps(event) + "\n" for event in events), encoding="utf-8")
+    (out_dir / "paced-report.json").write_text(json.dumps(report, indent=2) + "\n", encoding="utf-8")
+    print(json.dumps(report, indent=2)[:2000])
+    return 0
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--checkpoint", required=True)
@@ -185,6 +263,11 @@ def main() -> int:
         "--batch-plan",
         default=None,
         help="JSON publication plan: one entry per segment with its prompt and frames, mirroring the reference grouping",
+    )
+    parser.add_argument(
+        "--via-session",
+        action="store_true",
+        help="drive the timeline through MossVLNativeSession instead of the inline driver",
     )
     parser.add_argument(
         "--reference-steps",
@@ -232,6 +315,58 @@ def main() -> int:
         tokenize=True,
         return_tensors="pt",
     ).to(device)
+
+    batches = load_batches(args, frames, timestamps)
+
+    if args.via_session:
+        session = MossVLNativeSession(
+            model,
+            frame_encoder=lambda frame, media_timestamp_ms: encode_frame(processor, frame, media_timestamp_ms, device),
+            detokenize=lambda ids: tokenizer.decode(ids, skip_special_tokens=True),
+            max_new_tokens_per_turn=args.max_new_tokens_per_turn,
+        )
+        record("session_open", initial_prompt=args.prompt, frames=len(frames), path="session")
+        session.start(prompt_ids)
+        record(
+            "prefill",
+            prompt_tokens=int(prompt_ids.shape[1]),
+            next_position=model.next_position,
+            decision=session.segment_decision.token_id,
+        )
+        text, silent = session.step()
+        if text:
+            record("output", event_id="p0", text=text)
+        if silent:
+            record("silence", event_id="p0")
+        render_prompt = prompt_renderer(tokenizer)
+        seen_frames = 0
+        for index, (prompts, batch) in enumerate(batches):
+            result = session.append(frames=batch, prompts=prompts, prompt_ids_for=render_prompt)
+            stats = session.segment_decision
+            event_ids = ",".join(f"f{seen_frames + offset}" for offset in range(len(batch)))
+            seen_frames += len(batch)
+            record(
+                "frame_pushed",
+                event_id=event_ids,
+                segment_max=round(stats.max, 4),
+                segment_argmax=stats.token_id,
+                segment_top5=list(stats.top5),
+                asset=",".join(path.name for path, _ in batch),
+                media_timestamp_ms=[media_timestamp_ms for _, media_timestamp_ms in batch],
+                vision_length=result.published_vision_length,
+                segment_tokens=result.segment_tokens,
+                next_position=result.next_position,
+                pending_frames=result.pending_frames,
+                dropped_older=False,
+            )
+            text, silent = session.step()
+            if text:
+                record("output", text=text, event_id=f"f{index}")
+            if silent:
+                record("silence", event_id=f"f{index}")
+        closed = session.close()
+        record("session_closed", active=False, pending_frames=0, **closed)
+        return finish(out_dir, events, report_from(args, frames, timestamps, report, session_path=True))
 
     model.reset()
     record("session_open", initial_prompt=args.prompt, frames=len(frames))
@@ -297,25 +432,6 @@ def main() -> int:
     if first_silent:
         record("silence", event_id="p0")
 
-    if args.batch_plan:
-        plan = json.loads(Path(args.batch_plan).read_text(encoding="utf-8"))["segments"]
-        batches = [
-            (
-                list(entry.get("prompts") or []),
-                [
-                    (Path(name) if Path(name).is_absolute() else ASSETS / name, ts)
-                    for name, ts in zip(entry["frames"], entry["timestamps"])
-                ],
-            )
-            for entry in plan
-        ]
-    else:
-        # Arrival order: each frame is its own segment, and the fixture's follow-up
-        # prompt rides with the third frame. The reference groups by queue drain
-        # timing; a deterministic driver needs an explicit plan to match it.
-        batches = [([], [(frame, timestamps[index])]) for index, frame in enumerate(frames)]
-        batches[2] = (["Focus on the current color."], batches[2][1])
-
     for index, (prompts, batch) in enumerate(batches):
         segment, visions = build_segment(prompts, batch)
         grid_thw = torch.cat([vision["grid_thw"] for vision in visions], dim=0)
@@ -369,22 +485,7 @@ def main() -> int:
             record("silence", event_id=f"f{index}")
 
     record("session_closed", active=False, pending_frames=0)
-    outputs = [event for event in events if event["kind"] == "output"]
-    report = {
-        "prompt": args.prompt,
-        "frames": [str(frame) for frame in frames],
-        "media_timestamps_ms": timestamps,
-        "max_new_tokens_per_turn": args.max_new_tokens_per_turn,
-        "splices_frame_segment": False,
-        "load_report": report.as_dict(),
-        "event_count": len(events),
-        "output_chunks": len(outputs),
-        "combined_output": "".join(event["text"] for event in outputs),
-    }
-    (out_dir / "events.jsonl").write_text("".join(json.dumps(event) + "\n" for event in events), encoding="utf-8")
-    (out_dir / "paced-report.json").write_text(json.dumps(report, indent=2) + "\n", encoding="utf-8")
-    print(json.dumps(report, indent=2)[:2000])
-    return 0
+    return finish(out_dir, events, report_from(args, frames, timestamps, report, session_path=False))
 
 
 if __name__ == "__main__":

@@ -83,6 +83,18 @@ PYTHONPATH=$REF_SITE:$REPO CUDA_VISIBLE_DEVICES=$GPU "$PY" tests/assets/moss_vl_
   --batch-plan tests/assets/moss_vl_realtime/reference/realtime/batch-plan.json \
   --out "$OUT/native-paced" >"$LOG/e2e-native-paced.log" 2>&1 || echo "PACED_FAILED"
 
+echo "=== native paced replay through the session $(date +%H:%M:%S)"
+PYTHONPATH=$REF_SITE:$REPO CUDA_VISIBLE_DEVICES=$GPU "$PY" tests/assets/moss_vl_realtime/replay_paced.py \
+  --checkpoint "$CKPT" --prompt "Describe important changes." \
+  --frame red.ppm --frame blue.ppm --frame red.ppm --frame blue.ppm \
+  --batch-plan tests/assets/moss_vl_realtime/reference/realtime/batch-plan.json --via-session \
+  --out "$OUT/native-paced-session" >"$LOG/e2e-native-paced-session.log" 2>&1 || echo "PACED_SESSION_FAILED"
+
+echo "=== session contract comparison $(date +%H:%M:%S)"
+PYTHONPATH=$REPO "$PY" tests/assets/moss_vl_realtime/compare_paced_paths.py \
+  --driver "$OUT/native-paced" --session "$OUT/native-paced-session" \
+  --out "$OUT/session-contract.json" >"$LOG/e2e-session-contract.log" 2>&1 || echo "SESSION_CONTRACT_FAILED"
+
 echo "=== reference step parity $(date +%H:%M:%S)"
 PYTHONPATH=$REF_SITE:$REPO CUDA_VISIBLE_DEVICES=$GPU "$PY" tests/assets/moss_vl_realtime/replay_paced.py \
   --checkpoint "$CKPT" \
