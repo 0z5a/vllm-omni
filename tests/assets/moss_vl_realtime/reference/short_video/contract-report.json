@@ -1,0 +1,609 @@
+{
+  "case": "short_video",
+  "processor_keys": [
+    "attention_mask",
+    "cross_attention_mask",
+    "grid_thw",
+    "input_ids",
+    "pixel_values"
+  ],
+  "non_tensor_keys": [
+    "media_nums_per_sample"
+  ],
+  "cross_attention_frames": 2,
+  "cross_attention_layers": [
+    2,
+    6,
+    10,
+    14,
+    18,
+    22,
+    26,
+    30,
+    34,
+    38,
+    42,
+    46
+  ],
+  "captured": {
+    "processor.input_ids": [
+      1,
+      15
+    ],
+    "processor.attention_mask": [
+      1,
+      15
+    ],
+    "processor.pixel_values": [
+      32,
+      768
+    ],
+    "processor.grid_thw": [
+      2,
+      3
+    ],
+    "processor.cross_attention_mask": [
+      1,
+      1,
+      15,
+      2
+    ],
+    "vision.patch_embed": [
+      32,
+      1152
+    ],
+    "vision.pos_embeds": [
+      32,
+      1152
+    ],
+    "vision.rotary": [
+      32,
+      36
+    ],
+    "vision.block_0.norm1": [
+      32,
+      1152
+    ],
+    "vision.rope_q": [
+      32,
+      16,
+      72
+    ],
+    "vision.rope_k": [
+      32,
+      16,
+      72
+    ],
+    "vision.rope_cos": [
+      32,
+      72
+    ],
+    "vision.rope_sin": [
+      32,
+      72
+    ],
+    "vision.block_0.attn": [
+      32,
+      1152
+    ],
+    "vision.block_0.norm2": [
+      32,
+      1152
+    ],
+    "vision.block_0.mlp": [
+      32,
+      1152
+    ],
+    "vision.block_0": [
+      32,
+      1152
+    ],
+    "vision.block_8.norm1": [
+      32,
+      1152
+    ],
+    "vision.block_8.attn": [
+      32,
+      1152
+    ],
+    "vision.block_8.norm2": [
+      32,
+      1152
+    ],
+    "vision.block_8.mlp": [
+      32,
+      1152
+    ],
+    "vision.block_8": [
+      32,
+      1152
+    ],
+    "vision.block_16": [
+      32,
+      1152
+    ],
+    "vision.block_24": [
+      32,
+      1152
+    ],
+    "vision.block_26": [
+      32,
+      1152
+    ],
+    "vision.merger_out": [
+      8,
+      4096
+    ],
+    "vision_embeds": [
+      1,
+      10,
+      4096
+    ],
+    "text_position_ids": [
+      3,
+      1,
+      15
+    ],
+    "cross_attention_mask_expanded": [
+      1,
+      1,
+      15,
+      10
+    ],
+    "vision_position_ids": [
+      3,
+      1,
+      10
+    ],
+    "shifted_text_position_ids": [
+      3,
+      1,
+      15
+    ]
+  },
+  "cross_attn": {
+    "layer_2": {
+      "layer": 2,
+      "hidden_shape": [
+        1,
+        1,
+        4096
+      ],
+      "cross_attention_states_shape": null,
+      "attention_mask_shape": [
+        1,
+        1,
+        1,
+        10
+      ],
+      "attention_mask_dtype": "torch.bfloat16",
+      "masked_fraction": 0.0,
+      "output_shape": [
+        1,
+        1,
+        4096
+      ],
+      "cache_keys_shape": [
+        1,
+        8,
+        10,
+        128
+      ],
+      "cache_values_shape": [
+        1,
+        8,
+        10,
+        128
+      ]
+    },
+    "layer_6": {
+      "layer": 6,
+      "hidden_shape": [
+        1,
+        1,
+        4096
+      ],
+      "cross_attention_states_shape": null,
+      "attention_mask_shape": [
+        1,
+        1,
+        1,
+        10
+      ],
+      "attention_mask_dtype": "torch.bfloat16",
+      "masked_fraction": 0.0,
+      "output_shape": [
+        1,
+        1,
+        4096
+      ],
+      "cache_keys_shape": [
+        1,
+        8,
+        10,
+        128
+      ],
+      "cache_values_shape": [
+        1,
+        8,
+        10,
+        128
+      ]
+    },
+    "layer_10": {
+      "layer": 10,
+      "hidden_shape": [
+        1,
+        1,
+        4096
+      ],
+      "cross_attention_states_shape": null,
+      "attention_mask_shape": [
+        1,
+        1,
+        1,
+        10
+      ],
+      "attention_mask_dtype": "torch.bfloat16",
+      "masked_fraction": 0.0,
+      "output_shape": [
+        1,
+        1,
+        4096
+      ],
+      "cache_keys_shape": [
+        1,
+        8,
+        10,
+        128
+      ],
+      "cache_values_shape": [
+        1,
+        8,
+        10,
+        128
+      ]
+    },
+    "layer_14": {
+      "layer": 14,
+      "hidden_shape": [
+        1,
+        1,
+        4096
+      ],
+      "cross_attention_states_shape": null,
+      "attention_mask_shape": [
+        1,
+        1,
+        1,
+        10
+      ],
+      "attention_mask_dtype": "torch.bfloat16",
+      "masked_fraction": 0.0,
+      "output_shape": [
+        1,
+        1,
+        4096
+      ],
+      "cache_keys_shape": [
+        1,
+        8,
+        10,
+        128
+      ],
+      "cache_values_shape": [
+        1,
+        8,
+        10,
+        128
+      ]
+    },
+    "layer_18": {
+      "layer": 18,
+      "hidden_shape": [
+        1,
+        1,
+        4096
+      ],
+      "cross_attention_states_shape": null,
+      "attention_mask_shape": [
+        1,
+        1,
+        1,
+        10
+      ],
+      "attention_mask_dtype": "torch.bfloat16",
+      "masked_fraction": 0.0,
+      "output_shape": [
+        1,
+        1,
+        4096
+      ],
+      "cache_keys_shape": [
+        1,
+        8,
+        10,
+        128
+      ],
+      "cache_values_shape": [
+        1,
+        8,
+        10,
+        128
+      ]
+    },
+    "layer_22": {
+      "layer": 22,
+      "hidden_shape": [
+        1,
+        1,
+        4096
+      ],
+      "cross_attention_states_shape": null,
+      "attention_mask_shape": [
+        1,
+        1,
+        1,
+        10
+      ],
+      "attention_mask_dtype": "torch.bfloat16",
+      "masked_fraction": 0.0,
+      "output_shape": [
+        1,
+        1,
+        4096
+      ],
+      "cache_keys_shape": [
+        1,
+        8,
+        10,
+        128
+      ],
+      "cache_values_shape": [
+        1,
+        8,
+        10,
+        128
+      ]
+    },
+    "layer_26": {
+      "layer": 26,
+      "hidden_shape": [
+        1,
+        1,
+        4096
+      ],
+      "cross_attention_states_shape": null,
+      "attention_mask_shape": [
+        1,
+        1,
+        1,
+        10
+      ],
+      "attention_mask_dtype": "torch.bfloat16",
+      "masked_fraction": 0.0,
+      "output_shape": [
+        1,
+        1,
+        4096
+      ],
+      "cache_keys_shape": [
+        1,
+        8,
+        10,
+        128
+      ],
+      "cache_values_shape": [
+        1,
+        8,
+        10,
+        128
+      ]
+    },
+    "layer_30": {
+      "layer": 30,
+      "hidden_shape": [
+        1,
+        1,
+        4096
+      ],
+      "cross_attention_states_shape": null,
+      "attention_mask_shape": [
+        1,
+        1,
+        1,
+        10
+      ],
+      "attention_mask_dtype": "torch.bfloat16",
+      "masked_fraction": 0.0,
+      "output_shape": [
+        1,
+        1,
+        4096
+      ],
+      "cache_keys_shape": [
+        1,
+        8,
+        10,
+        128
+      ],
+      "cache_values_shape": [
+        1,
+        8,
+        10,
+        128
+      ]
+    },
+    "layer_34": {
+      "layer": 34,
+      "hidden_shape": [
+        1,
+        1,
+        4096
+      ],
+      "cross_attention_states_shape": null,
+      "attention_mask_shape": [
+        1,
+        1,
+        1,
+        10
+      ],
+      "attention_mask_dtype": "torch.bfloat16",
+      "masked_fraction": 0.0,
+      "output_shape": [
+        1,
+        1,
+        4096
+      ],
+      "cache_keys_shape": [
+        1,
+        8,
+        10,
+        128
+      ],
+      "cache_values_shape": [
+        1,
+        8,
+        10,
+        128
+      ]
+    },
+    "layer_38": {
+      "layer": 38,
+      "hidden_shape": [
+        1,
+        1,
+        4096
+      ],
+      "cross_attention_states_shape": null,
+      "attention_mask_shape": [
+        1,
+        1,
+        1,
+        10
+      ],
+      "attention_mask_dtype": "torch.bfloat16",
+      "masked_fraction": 0.0,
+      "output_shape": [
+        1,
+        1,
+        4096
+      ],
+      "cache_keys_shape": [
+        1,
+        8,
+        10,
+        128
+      ],
+      "cache_values_shape": [
+        1,
+        8,
+        10,
+        128
+      ]
+    },
+    "layer_42": {
+      "layer": 42,
+      "hidden_shape": [
+        1,
+        1,
+        4096
+      ],
+      "cross_attention_states_shape": null,
+      "attention_mask_shape": [
+        1,
+        1,
+        1,
+        10
+      ],
+      "attention_mask_dtype": "torch.bfloat16",
+      "masked_fraction": 0.0,
+      "output_shape": [
+        1,
+        1,
+        4096
+      ],
+      "cache_keys_shape": [
+        1,
+        8,
+        10,
+        128
+      ],
+      "cache_values_shape": [
+        1,
+        8,
+        10,
+        128
+      ]
+    },
+    "layer_46": {
+      "layer": 46,
+      "hidden_shape": [
+        1,
+        1,
+        4096
+      ],
+      "cross_attention_states_shape": null,
+      "attention_mask_shape": [
+        1,
+        1,
+        1,
+        10
+      ],
+      "attention_mask_dtype": "torch.bfloat16",
+      "masked_fraction": 0.0,
+      "output_shape": [
+        1,
+        1,
+        4096
+      ],
+      "cache_keys_shape": [
+        1,
+        8,
+        10,
+        128
+      ],
+      "cache_values_shape": [
+        1,
+        8,
+        10,
+        128
+      ]
+    }
+  },
+  "vision_token_info": [
+    {
+      "medias": [
+        {
+          "start": 0,
+          "end": 5,
+          "length": 5,
+          "num_frames": 1,
+          "grid_h": 4,
+          "grid_w": 4,
+          "vision_tokens_per_frame": 4,
+          "has_separator": true
+        },
+        {
+          "start": 5,
+          "end": 10,
+          "length": 5,
+          "num_frames": 1,
+          "grid_h": 4,
+          "grid_w": 4,
+          "vision_tokens_per_frame": 4,
+          "has_separator": true
+        }
+      ],
+      "total_length": 10,
+      "pad_start": 10,
+      "pad_end": 10
+    }
+  ],
+  "not_reachable_without_checkpoint_edits": [
+    "int32 cross_kv_boundary (reference FA3 kernel argument; not built by this revision)",
+    "post-q_norm/post-k_norm/post-RoPE Q and K (function locals)",
+    "full_text_row_masked_out_mask (function local)",
+    "vision tower internals beyond vision_embeds and vision_token_info"
+  ]
+}

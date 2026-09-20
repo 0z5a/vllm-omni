@@ -1,0 +1,36 @@
+{
+  "host": "gj-5090-2",
+  "platform": "Linux-5.15.0-181-generic-x86_64-with-glibc2.35",
+  "python": "3.12.13",
+  "torch": "2.13.0+cu130",
+  "torch_cuda": "13.0",
+  "transformers": "4.57.1",
+  "cuda_visible_devices": "1",
+  "checkpoint_path": "/home/gongji/0z5a-work/moss-vl/ckpt/MOSS-VL-Realtime-bf16",
+  "checkpoint_revision": "2cb8df5c2adae6b59653bbdd783dc580cf440175",
+  "attn_implementation": "sdpa",
+  "dtype": "bfloat16",
+  "cublas_workspace_config": ":4096:8",
+  "deterministic_algorithms": true,
+  "seed": 0,
+  "torch_arch_list": [
+    "sm_75",
+    "sm_80",
+    "sm_86",
+    "sm_90",
+    "sm_100",
+    "sm_120"
+  ],
+  "devices": [
+    {
+      "local_ordinal": 0,
+      "name": "NVIDIA GeForce RTX 5090",
+      "compute_capability": [
+        12,
+        0
+      ],
+      "reported_total_bytes": 33668988928
+    }
+  ],
+  "load_seconds": 12.43152904510498
+}

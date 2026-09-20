@@ -1,0 +1,718 @@
+{
+  "case": "image",
+  "prompt_len": 13,
+  "generated_len": 37,
+  "generated_token_ids": [
+    785,
+    2168,
+    374,
+    264,
+    6437,
+    11,
+    32976,
+    2518,
+    9334,
+    448,
+    902,
+    5107,
+    5424,
+    11,
+    29853,
+    11,
+    476,
+    26244,
+    304,
+    1894,
+    13,
+    1084,
+    374,
+    264,
+    13794,
+    2504,
+    315,
+    2518,
+    2041,
+    894,
+    41545,
+    1238,
+    4419,
+    476,
+    3565,
+    13,
+    151645
+  ],
+  "decoded_text": "The image is a solid, vibrant red square with no additional elements, textures, or variations in color. It is a uniform block of red without any discernible features or details.",
+  "decoded_text_with_special_tokens": "The image is a solid, vibrant red square with no additional elements, textures, or variations in color. It is a uniform block of red without any discernible features or details.<|im_end|>",
+  "per_step_logits": [
+    {
+      "step": 0,
+      "shape": [
+        1,
+        13,
+        151936
+      ],
+      "argmax_last": 785,
+      "max_last": 23.125,
+      "top5_last": [
+        785,
+        32,
+        1986,
+        641,
+        42800
+      ],
+      "sha256": "4d12ca89e1a0f78ab9c9d1ae624dd8bbc964e1593c5800247f73746c05c209de"
+    },
+    {
+      "step": 1,
+      "shape": [
+        1,
+        1,
+        151936
+      ],
+      "argmax_last": 2168,
+      "max_last": 32.0,
+      "top5_last": [
+        2168,
+        3897,
+        2661,
+        1894,
+        7071
+      ],
+      "sha256": "25618d6684bd38c78c41ff4ef2cec0842a11328cdc676cf459074d1c5c01bbf0"
+    },
+    {
+      "step": 2,
+      "shape": [
+        1,
+        1,
+        151936
+      ],
+      "argmax_last": 374,
+      "max_last": 27.125,
+      "top5_last": [
+        374,
+        3897,
+        498,
+        18689,
+        4419
+      ],
+      "sha256": "bfc232c0632ddcb07844e74db3ef22c1c52656ac0683fbfe9eec44e2311c0399"
+    },
+    {
+      "step": 3,
+      "shape": [
+        1,
+        1,
+        151936
+      ],
+      "argmax_last": 264,
+      "max_last": 28.75,
+      "top5_last": [
+        264,
+        11368,
+        6587,
+        46804,
+        10199
+      ],
+      "sha256": "2786f9105c556648dbe554191d06f0fb7846f9d6f53f434fe4790aef33712f43"
+    },
+    {
+      "step": 4,
+      "shape": [
+        1,
+        1,
+        151936
+      ],
+      "argmax_last": 6437,
+      "max_last": 28.75,
+      "top5_last": [
+        6437,
+        6587,
+        4285,
+        13794,
+        14396
+      ],
+      "sha256": "be2e7e755dadcdcb9da15ca35dd6a7dd5b687c25e36fe806dcae6b177e51d81c"
+    },
+    {
+      "step": 5,
+      "shape": [
+        1,
+        1,
+        151936
+      ],
+      "argmax_last": 11,
+      "max_last": 25.875,
+      "top5_last": [
+        11,
+        2518,
+        2504,
+        3691,
+        9906
+      ],
+      "sha256": "2c15ee9225862c70ca78c3b9dc3e3afa64749eb344e4d02eeed760052618caea"
+    },
+    {
+      "step": 6,
+      "shape": [
+        1,
+        1,
+        151936
+      ],
+      "argmax_last": 32976,
+      "max_last": 28.0,
+      "top5_last": [
+        32976,
+        13794,
+        9906,
+        42020,
+        98150
+      ],
+      "sha256": "2be3f809f804ca96da799954be13e59881447e8efcde64f0035fb43a3210a540"
+    },
+    {
+      "step": 7,
+      "shape": [
+        1,
+        1,
+        151936
+      ],
+      "argmax_last": 2518,
+      "max_last": 27.75,
+      "top5_last": [
+        2518,
+        18575,
+        27501,
+        13753,
+        18217
+      ],
+      "sha256": "cb614dc792394730e545e3145cf7cc954ef8694f75983313ba7b98681db49b30"
+    },
+    {
+      "step": 8,
+      "shape": [
+        1,
+        1,
+        151936
+      ],
+      "argmax_last": 9334,
+      "max_last": 24.75,
+      "top5_last": [
+        9334,
+        1894,
+        4004,
+        22756,
+        448
+      ],
+      "sha256": "15a8f7bd3ba4ddc81df0661996ea656759b65a7c96253c7ed3b3f4692bcb0d91"
+    },
+    {
+      "step": 9,
+      "shape": [
+        1,
+        1,
+        151936
+      ],
+      "argmax_last": 448,
+      "max_last": 28.25,
+      "top5_last": [
+        448,
+        13,
+        429,
+        21274,
+        2041
+      ],
+      "sha256": "010e95ab6e867434b67c195615947a59a97a4b231104597492523489a83e567a"
+    },
+    {
+      "step": 10,
+      "shape": [
+        1,
+        1,
+        151936
+      ],
+      "argmax_last": 902,
+      "max_last": 29.125,
+      "top5_last": [
+        902,
+        264,
+        13794,
+        17976,
+        15336
+      ],
+      "sha256": "8077f307a3a94ffb3a599b62848cfa861e1a5c7effc7d790dce068e1329cf5eb"
+    },
+    {
+      "step": 11,
+      "shape": [
+        1,
+        1,
+        151936
+      ],
+      "argmax_last": 5107,
+      "max_last": 30.25,
+      "top5_last": [
+        5107,
+        9434,
+        41545,
+        1008,
+        1467
+      ],
+      "sha256": "7145a9751ead2c5236033b012ebd7c484e73a0fa941ec6418532e8ebb801ac6b"
+    },
+    {
+      "step": 12,
+      "shape": [
+        1,
+        1,
+        151936
+      ],
+      "argmax_last": 5424,
+      "max_last": 30.25,
+      "top5_last": [
+        5424,
+        3565,
+        4419,
+        9434,
+        9124
+      ],
+      "sha256": "0f30ef009643dcee407328b5772a0fa609db1a323511f944b832efb475dfd470"
+    },
+    {
+      "step": 13,
+      "shape": [
+        1,
+        1,
+        151936
+      ],
+      "argmax_last": 11,
+      "max_last": 24.75,
+      "top5_last": [
+        11,
+        476,
+        13,
+        9434,
+        1741
+      ],
+      "sha256": "f3cfea049353374aa87860032d786aba7ed77b47fac2be3047c5807682e7d32b"
+    },
+    {
+      "step": 14,
+      "shape": [
+        1,
+        1,
+        151936
+      ],
+      "argmax_last": 29853,
+      "max_last": 31.875,
+      "top5_last": [
+        29853,
+        12624,
+        1467,
+        3565,
+        6171
+      ],
+      "sha256": "386286562f06d9a759ee5e6cd619952b9d359bda0583775eb309fa4e5599a68d"
+    },
+    {
+      "step": 15,
+      "shape": [
+        1,
+        1,
+        151936
+      ],
+      "argmax_last": 11,
+      "max_last": 25.5,
+      "top5_last": [
+        11,
+        28675,
+        151671,
+        13,
+        345
+      ],
+      "sha256": "7049af5a89cbcb47af3e0a7851f24e293eb12cf66c9b3cea6c1d6e9f78d1cff6"
+    },
+    {
+      "step": 16,
+      "shape": [
+        1,
+        1,
+        151936
+      ],
+      "argmax_last": 476,
+      "max_last": 30.875,
+      "top5_last": [
+        476,
+        12624,
+        52149,
+        6171,
+        151671
+      ],
+      "sha256": "9c350f878d7855915bc2596dcbece0c839812b4b0211dff25786e4caf3ad7f75"
+    },
+    {
+      "step": 17,
+      "shape": [
+        1,
+        1,
+        151936
+      ],
+      "argmax_last": 26244,
+      "max_last": 29.625,
+      "top5_last": [
+        26244,
+        3565,
+        12624,
+        52149,
+        4419
+      ],
+      "sha256": "6f947d413298d26387b3736e9ada7c4501ebcd7d2240b088eac21f76b9a1783a"
+    },
+    {
+      "step": 18,
+      "shape": [
+        1,
+        1,
+        151936
+      ],
+      "argmax_last": 304,
+      "max_last": 27.5,
+      "top5_last": [
+        304,
+        13,
+        2878,
+        9434,
+        6814
+      ],
+      "sha256": "34d5a5a199fd74a913c31000685aa63103f0319c63e2e12b3627328c01833e2a"
+    },
+    {
+      "step": 19,
+      "shape": [
+        1,
+        1,
+        151936
+      ],
+      "argmax_last": 1894,
+      "max_last": 37.25,
+      "top5_last": [
+        1894,
+        1181,
+        71734,
+        39040,
+        279
+      ],
+      "sha256": "dc047a018953b58837a0e0c663e9798a2409c58a292abb65083474bec3203bee"
+    },
+    {
+      "step": 20,
+      "shape": [
+        1,
+        1,
+        151936
+      ],
+      "argmax_last": 13,
+      "max_last": 26.625,
+      "top5_last": [
+        13,
+        476,
+        6814,
+        323,
+        2878
+      ],
+      "sha256": "2fb2c369fe4cdc60af1cf52212012f27c51be1b77ca12f0729cdef6fb4aba540"
+    },
+    {
+      "step": 21,
+      "shape": [
+        1,
+        1,
+        151936
+      ],
+      "argmax_last": 1084,
+      "max_last": 29.125,
+      "top5_last": [
+        1084,
+        576,
+        2619,
+        151645,
+        151671
+      ],
+      "sha256": "6a59c2a072c324f029e5113e279a7a3d6d0560fbac5f090ad1d35bc9038b04b6"
+    },
+    {
+      "step": 22,
+      "shape": [
+        1,
+        1,
+        151936
+      ],
+      "argmax_last": 374,
+      "max_last": 30.875,
+      "top5_last": [
+        374,
+        7952,
+        18404,
+        702,
+        40587
+      ],
+      "sha256": "85b4ed0f2dbb93ee9c86644e87ba79f1197819bbe72b68e46646faffb4092b8c"
+    },
+    {
+      "step": 23,
+      "shape": [
+        1,
+        1,
+        151936
+      ],
+      "argmax_last": 264,
+      "max_last": 33.5,
+      "top5_last": [
+        264,
+        77809,
+        13794,
+        6587,
+        11368
+      ],
+      "sha256": "a6d5c051d59a0de2ae5b3d7c0047ac2e1d5e983c225929c544f718225d281975"
+    },
+    {
+      "step": 24,
+      "shape": [
+        1,
+        1,
+        151936
+      ],
+      "argmax_last": 13794,
+      "max_last": 32.25,
+      "top5_last": [
+        13794,
+        4285,
+        71670,
+        10063,
+        6587
+      ],
+      "sha256": "d84de3a761a23e31025598a29151b648084ffeef4393c29fa55fd61fa0cd1f89"
+    },
+    {
+      "step": 25,
+      "shape": [
+        1,
+        1,
+        151936
+      ],
+      "argmax_last": 2504,
+      "max_last": 28.875,
+      "top5_last": [
+        2504,
+        2070,
+        11,
+        323,
+        2518
+      ],
+      "sha256": "5c10648ee4acb5200eb5e8c235846cfcd8a42578271c2c6386e99c47084600f4"
+    },
+    {
+      "step": 26,
+      "shape": [
+        1,
+        1,
+        151936
+      ],
+      "argmax_last": 315,
+      "max_last": 32.25,
+      "top5_last": [
+        315,
+        2041,
+        151671,
+        151645,
+        10199
+      ],
+      "sha256": "ba23206c3e8e3d9d05b2c0c133c476e67380f5c15938da940ea2c7fe2d1d46c2"
+    },
+    {
+      "step": 27,
+      "shape": [
+        1,
+        1,
+        151936
+      ],
+      "argmax_last": 2518,
+      "max_last": 30.5,
+      "top5_last": [
+        2518,
+        1894,
+        9906,
+        10526,
+        279
+      ],
+      "sha256": "3131bf3e9449e361ed11cb530b15e18a986b017fc09837f2b4063a600ea3ed23"
+    },
+    {
+      "step": 28,
+      "shape": [
+        1,
+        1,
+        151936
+      ],
+      "argmax_last": 2041,
+      "max_last": 31.625,
+      "top5_last": [
+        2041,
+        11,
+        448,
+        429,
+        21274
+      ],
+      "sha256": "2ee24c0f5944ee5b4bfa546ee9b9c0deee2c773c2b582662067b53f49883784d"
+    },
+    {
+      "step": 29,
+      "shape": [
+        1,
+        1,
+        151936
+      ],
+      "argmax_last": 894,
+      "max_last": 33.5,
+      "top5_last": [
+        894,
+        52149,
+        23806,
+        99885,
+        12624
+      ],
+      "sha256": "dc781cbe4c03f8327e27e171456184be604eac490420712381532546749caa8e"
+    },
+    {
+      "step": 30,
+      "shape": [
+        1,
+        1,
+        151936
+      ],
+      "argmax_last": 41545,
+      "max_last": 30.125,
+      "top5_last": [
+        41545,
+        12624,
+        52149,
+        9434,
+        1008
+      ],
+      "sha256": "6ee8a593cfb42761478453cf78d0806378919f1788f31179127aa941d81401d7"
+    },
+    {
+      "step": 31,
+      "shape": [
+        1,
+        1,
+        151936
+      ],
+      "argmax_last": 1238,
+      "max_last": 44.75,
+      "top5_last": [
+        1238,
+        480,
+        3147,
+        13568,
+        20410
+      ],
+      "sha256": "12b28abf1183515ee43d0c9f0183f97d9b573bbe31f6623aa8fe3df665788948"
+    },
+    {
+      "step": 32,
+      "shape": [
+        1,
+        1,
+        151936
+      ],
+      "argmax_last": 4419,
+      "max_last": 33.5,
+      "top5_last": [
+        4419,
+        12624,
+        6171,
+        20816,
+        3565
+      ],
+      "sha256": "2aac002b781e047c78147ea8e37a2c44f58254c3461dee21e967b3531ce11ac1"
+    },
+    {
+      "step": 33,
+      "shape": [
+        1,
+        1,
+        151936
+      ],
+      "argmax_last": 476,
+      "max_last": 27.375,
+      "top5_last": [
+        476,
+        11,
+        13,
+        1741,
+        7797
+      ],
+      "sha256": "b0c0f062e7e992293d8d7522a6e185407ae16ca0cfc662dd4612c2867a7c3fe7"
+    },
+    {
+      "step": 34,
+      "shape": [
+        1,
+        1,
+        151936
+      ],
+      "argmax_last": 3565,
+      "max_last": 31.5,
+      "top5_last": [
+        3565,
+        12624,
+        6171,
+        64072,
+        40445
+      ],
+      "sha256": "eb4f1cc52afb9e7ed3ec66090d973b70635e6d704d863dd409b300bc6e6e0c4f"
+    },
+    {
+      "step": 35,
+      "shape": [
+        1,
+        1,
+        151936
+      ],
+      "argmax_last": 13,
+      "max_last": 29.625,
+      "top5_last": [
+        13,
+        7797,
+        429,
+        2878,
+        1008
+      ],
+      "sha256": "7ebbf572f543116be9752a50ba16a4b17ddaf383aa80d50be945e9dadaa475f0"
+    },
+    {
+      "step": 36,
+      "shape": [
+        1,
+        1,
+        151936
+      ],
+      "argmax_last": 151645,
+      "max_last": 28.0,
+      "top5_last": [
+        151645,
+        151671,
+        576,
+        1096,
+        3377
+      ],
+      "sha256": "593a3bd2735787eb1f295e7a61e69c4db421db56a267901a9fcc658d532c9284"
+    }
+  ],
+  "tolerances": {
+    "status": "pending_repeat_run",
+    "note": "absolute/relative tolerances are filled from repeated reference runs before native comparison"
+  }
+}

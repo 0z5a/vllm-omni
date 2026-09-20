@@ -1,0 +1,8 @@
+{
+  "case": "short_video",
+  "wall_seconds": 3.7938544750213623,
+  "prompt_len": 15,
+  "generated_tokens": 64,
+  "decode_tokens_per_second": 16.605802993970997,
+  "peak_device_bytes": 22725219840
+}

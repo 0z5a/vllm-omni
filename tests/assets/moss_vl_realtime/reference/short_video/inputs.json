@@ -1,0 +1,87 @@
+{
+  "case": "short_video",
+  "input_text": "<|im_start|>user\nDescribe changes in color.<|image|><|image|><|im_end|>\n<|im_start|>assistant\n",
+  "call_kwargs": {
+    "max_new_tokens": 64,
+    "temperature": 1.0,
+    "top_k": 50,
+    "top_p": 1.0,
+    "repetition_penalty": 1.0,
+    "do_sample": false,
+    "vision_chunked_length": null
+  },
+  "tensors": {
+    "input_ids": {
+      "shape": [
+        1,
+        15
+      ],
+      "dtype": "torch.int64",
+      "device": "cpu",
+      "sha256": "ecc890b9aea845e3c1eb77088ee069f6656e16a7beb4b2820f647399904f51a6",
+      "min": 13,
+      "max": 151655
+    },
+    "attention_mask": {
+      "shape": [
+        1,
+        15
+      ],
+      "dtype": "torch.int64",
+      "device": "cpu",
+      "sha256": "863ce43e576d4bf8608ce09b92fa60ef18d2150ac70295c468473f19485c69ab",
+      "min": 1,
+      "max": 1
+    },
+    "pixel_values": {
+      "shape": [
+        32,
+        768
+      ],
+      "dtype": "torch.float32",
+      "device": "cpu",
+      "sha256": "19955338ecfa63790948537a819b1b99c0df0e13ab7c4db676723d0814e4ce02",
+      "min": -1.0,
+      "max": 1.0,
+      "mean": -0.3333333432674408
+    },
+    "grid_thw": {
+      "shape": [
+        2,
+        3
+      ],
+      "dtype": "torch.int64",
+      "device": "cpu",
+      "sha256": "8f5b2791993bc66b3bc2f4505d8d20b37b76509bfac989dcd1c4d40797b0e41a",
+      "min": 1,
+      "max": 4
+    },
+    "cross_attention_mask": {
+      "shape": [
+        1,
+        1,
+        15,
+        2
+      ],
+      "dtype": "torch.bool",
+      "device": "cpu",
+      "sha256": "cd4c86f2ca66f134ea36bf5a9f7a75935ebc26217448b6fe9cf7233bbfdeeaba",
+      "min": 0,
+      "max": 1
+    }
+  },
+  "assets": [
+    {
+      "type": "text",
+      "text": "Describe changes in color."
+    },
+    {
+      "type": "image",
+      "image": "/home/gongji/0z5a-work/moss-vl/vllm-omni/tests/assets/moss_vl_realtime/red.ppm"
+    },
+    {
+      "type": "image",
+      "image": "/home/gongji/0z5a-work/moss-vl/vllm-omni/tests/assets/moss_vl_realtime/blue.ppm"
+    }
+  ]
+}

@@ -1,0 +1,8 @@
+{
+  "case": "prompt_only",
+  "wall_seconds": 2.3743653297424316,
+  "prompt_len": 11,
+  "generated_tokens": 10,
+  "decode_tokens_per_second": 3.7904866143645677,
+  "peak_device_bytes": 22718163456
+}

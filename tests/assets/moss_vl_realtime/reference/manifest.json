@@ -1,0 +1,145 @@
+{
+  "schema_version": 1,
+  "reference_revision": "2cb8df5c2adae6b59653bbdd783dc580cf440175",
+  "attention_backend": "sdpa",
+  "dtype": "bfloat16",
+  "do_sample": false,
+  "max_new_tokens": 64,
+  "cases": {
+    "prompt_only": {
+      "files": {
+        "captured_tensors.safetensors": {
+          "sha256": "6ffc8a312cc1d0e044eac6f2ee225df3800e636b815f8ffdeca24b54f612f3b8",
+          "bytes": 469409
+        },
+        "contract-report.json": {
+          "sha256": "83727234ef602f27b1efdf4252e6bf2a1f3bec5cba6fd595de57e7550ee73277",
+          "bytes": 9563
+        },
+        "environment.json": {
+          "sha256": "b82415fa0a5a3226214b740fa03e803da167500f6771c702bccc62204a294475",
+          "bytes": 865
+        },
+        "inputs.json": {
+          "sha256": "669718d76ca0fd43c4dd825e35aeec039b7a29a0c8b50b8fc9a6b3264f13c212",
+          "bytes": 1689
+        },
+        "inputs.safetensors": {
+          "sha256": "998ca6c00ef84a6b3ee28e9255cac541bb8fb222f9dfa4a48dc8ed4efe1a5281",
+          "bytes": 197203
+        },
+        "numerical-report.json": {
+          "sha256": "a7ebfaf68bfc4309730dbaf8b0a3a3c78df9b819c6efe8903c515a9b4d2280e1",
+          "bytes": 3783
+        },
+        "performance.json": {
+          "sha256": "63aa0e2b6d72d6ac83380453940f65b3fceddaa640fdea60fe0e8422149707f3",
+          "bytes": 198
+        }
+      },
+      "tensor_keys": [
+        "cross_attention_mask_expanded",
+        "processor.attention_mask",
+        "processor.cross_attention_mask",
+        "processor.grid_thw",
+        "processor.input_ids",
+        "processor.pixel_values",
+        "shifted_text_position_ids",
+        "text_position_ids",
+        "vision.merger_out",
+        "vision_embeds",
+        "vision_position_ids"
+      ]
+    },
+    "image": {
+      "files": {
+        "captured_tensors.safetensors": {
+          "sha256": "b9ce95e66aebc37485cae8e42102d5f8e8fc7aa3efd22e88bab62c2d8d88d7ec",
+          "bytes": 124935
+        },
+        "contract-report.json": {
+          "sha256": "44ae139b5ac1dbb315a1f945c6a9d7d93c9762244f4f94d19c0ae16e2543bbda",
+          "bytes": 9511
+        },
+        "environment.json": {
+          "sha256": "b82415fa0a5a3226214b740fa03e803da167500f6771c702bccc62204a294475",
+          "bytes": 865
+        },
+        "inputs.json": {
+          "sha256": "f908051d8163b625316ca99af8c1eb169781fedc0a030d280b9c6dece4ff699f",
+          "bytes": 1859
+        },
+        "inputs.safetensors": {
+          "sha256": "4dad9735db09d6f1a70de64489c01983435fd27429d78cd1537634beab252f2f",
+          "bytes": 49781
+        },
+        "numerical-report.json": {
+          "sha256": "9b8e16188aa562e1a4dfe938c053a822b8256c1b3c670196629c49c1cf6ca43d",
+          "bytes": 13203
+        },
+        "performance.json": {
+          "sha256": "59885faea5f582bafc9ef23c5ed61d233719684d86e52044d6377ba22eb83942",
+          "bytes": 192
+        }
+      },
+      "tensor_keys": [
+        "cross_attention_mask_expanded",
+        "processor.attention_mask",
+        "processor.cross_attention_mask",
+        "processor.grid_thw",
+        "processor.input_ids",
+        "processor.pixel_values",
+        "shifted_text_position_ids",
+        "text_position_ids",
+        "vision.merger_out",
+        "vision_embeds",
+        "vision_position_ids"
+      ]
+    },
+    "short_video": {
+      "files": {
+        "captured_tensors.safetensors": {
+          "sha256": "bb484834288349e9bd267d842b2c969f887e43aa9cc27aad84bee66e5d84e2b3",
+          "bytes": 248282
+        },
+        "contract-report.json": {
+          "sha256": "13d1909c8640982116b142f2b9d30344ade2dbff6e645379afb25a32a7dcbc20",
+          "bytes": 9791
+        },
+        "environment.json": {
+          "sha256": "b82415fa0a5a3226214b740fa03e803da167500f6771c702bccc62204a294475",
+          "bytes": 865
+        },
+        "inputs.json": {
+          "sha256": "28c3abde215ac24d94f42ee7bf435fc4f5afcef7fc76011fb6f5d8ae37741885",
+          "bytes": 2021
+        },
+        "inputs.safetensors": {
+          "sha256": "b51412bb5e29c81e54cfc31478038ac052934464951cedb030c64548950c7e11",
+          "bytes": 99006
+        },
+        "numerical-report.json": {
+          "sha256": "eefeb72d64b903eff20d1c77264c0216a02c27f7ed239ed0f1183e1b78f69cdb",
+          "bytes": 22420
+        },
+        "performance.json": {
+          "sha256": "4cb2d290057076ac76a0ca733d3ac60cf2a0ec7879b1236663247afc76b19413",
+          "bytes": 198
+        }
+      },
+      "tensor_keys": [
+        "cross_attention_mask_expanded",
+        "processor.attention_mask",
+        "processor.cross_attention_mask",
+        "processor.grid_thw",
+        "processor.input_ids",
+        "processor.pixel_values",
+        "shifted_text_position_ids",
+        "text_position_ids",
+        "vision.merger_out",
+        "vision_embeds",
+        "vision_position_ids"
+      ]
+    }
+  }
+}

@@ -1,0 +1,205 @@
+{
+  "case": "prompt_only",
+  "prompt_len": 11,
+  "generated_len": 10,
+  "generated_token_ids": [
+    9707,
+    0,
+    2585,
+    646,
+    358,
+    7789,
+    498,
+    3351,
+    30,
+    151645
+  ],
+  "decoded_text": "Hello! How can I assist you today?",
+  "decoded_text_with_special_tokens": "Hello! How can I assist you today?<|im_end|>",
+  "per_step_logits": [
+    {
+      "step": 0,
+      "shape": [
+        1,
+        11,
+        151936
+      ],
+      "argmax_last": 9707,
+      "max_last": 19.125,
+      "top5_last": [
+        9707,
+        13048,
+        151671,
+        14990,
+        108386
+      ],
+      "sha256": "e05bea4467bfd674c979dc861fba1e5cfe9290d01bf898c3bdccdfe55089091a"
+    },
+    {
+      "step": 1,
+      "shape": [
+        1,
+        1,
+        151936
+      ],
+      "argmax_last": 0,
+      "max_last": 27.125,
+      "top5_last": [
+        0,
+        11,
+        1052,
+        13,
+        151645
+      ],
+      "sha256": "e7b2f80fdd6c699ddd05b91386470e6116a170c80b3f5d924a0648373ce0540f"
+    },
+    {
+      "step": 2,
+      "shape": [
+        1,
+        1,
+        151936
+      ],
+      "argmax_last": 2585,
+      "max_last": 22.25,
+      "top5_last": [
+        2585,
+        358,
+        20166,
+        151645,
+        28859
+      ],
+      "sha256": "2258346818d56b77e8c316540dffb2af33e63e8d234bb40192c901a6d34b98b3"
+    },
+    {
+      "step": 3,
+      "shape": [
+        1,
+        1,
+        151936
+      ],
+      "argmax_last": 646,
+      "max_last": 26.625,
+      "top5_last": [
+        646,
+        1231,
+        525,
+        594,
+        374
+      ],
+      "sha256": "4a484b91fb3ba39f817f220b1b7906c4daa985da19e5221c990b11fcbf7b8f4c"
+    },
+    {
+      "step": 4,
+      "shape": [
+        1,
+        1,
+        151936
+      ],
+      "argmax_last": 358,
+      "max_last": 27.75,
+      "top5_last": [
+        358,
+        600,
+        7789,
+        498,
+        582
+      ],
+      "sha256": "62e7de91ef4c3ee8d792485583e08b1898c46557057dbc6183f02acff4eb0203"
+    },
+    {
+      "step": 5,
+      "shape": [
+        1,
+        1,
+        151936
+      ],
+      "argmax_last": 7789,
+      "max_last": 25.0,
+      "top5_last": [
+        7789,
+        1492,
+        387,
+        1281,
+        1824
+      ],
+      "sha256": "2eb3f3a1a5b5187118a911a62a8832991d7784bc5c9a5887e183124eb86203a5"
+    },
+    {
+      "step": 6,
+      "shape": [
+        1,
+        1,
+        151936
+      ],
+      "argmax_last": 498,
+      "max_last": 28.75,
+      "top5_last": [
+        498,
+        448,
+        3351,
+        30,
+        697
+      ],
+      "sha256": "8487b59d18848fba24a574033d59c985dd60efe066d4fe2929b164ba5a6f17a8"
+    },
+    {
+      "step": 7,
+      "shape": [
+        1,
+        1,
+        151936
+      ],
+      "argmax_last": 3351,
+      "max_last": 28.375,
+      "top5_last": [
+        3351,
+        30,
+        448,
+        304,
+        389
+      ],
+      "sha256": "9c3d4fa391d8bbfc5a78dc323b714b041227183e118163c8676a20eca047f14a"
+    },
+    {
+      "step": 8,
+      "shape": [
+        1,
+        1,
+        151936
+      ],
+      "argmax_last": 30,
+      "max_last": 29.375,
+      "top5_last": [
+        30,
+        448,
+        1939,
+        11,
+        304
+      ],
+      "sha256": "a21e436252705076c4323d735a6d64ef879a2dbc3f352b3e47533df3221f6a6b"
+    },
+    {
+      "step": 9,
+      "shape": [
+        1,
+        1,
+        151936
+      ],
+      "argmax_last": 151645,
+      "max_last": 25.0,
+      "top5_last": [
+        151645,
+        151671,
+        2160,
+        1416,
+        3555
+      ],
+      "sha256": "fce779a4a1a9057ff1be276f276e64cfa00db6cff279793082c852d32656e922"
+    }
+  ],
+  "tolerances": {
+    "status": "pending_repeat_run",
+    "note": "absolute/relative tolerances are filled from repeated reference runs before native comparison"
+  }
+}

@@ -1,0 +1,1231 @@
+{
+  "case": "short_video",
+  "prompt_len": 15,
+  "generated_len": 64,
+  "generated_token_ids": [
+    32,
+    2297,
+    304,
+    1894,
+    374,
+    279,
+    1102,
+    315,
+    264,
+    2297,
+    304,
+    279,
+    1616,
+    3100,
+    374,
+    41001,
+    11,
+    46942,
+    11,
+    476,
+    25911,
+    553,
+    458,
+    1633,
+    13,
+    1096,
+    646,
+    12170,
+    4152,
+    311,
+    5257,
+    9363,
+    1741,
+    438,
+    279,
+    18037,
+    315,
+    279,
+    1633,
+    11,
+    279,
+    9362,
+    315,
+    23694,
+    1368,
+    476,
+    294,
+    9693,
+    11,
+    279,
+    9315,
+    11,
+    279,
+    7262,
+    11,
+    476,
+    279,
+    14338,
+    311,
+    3100,
+    476,
+    1008,
+    7586,
+    315
+  ],
+  "decoded_text": "A change in color is the result of a change in the way light is absorbed, emitted, or reflected by an object. This can occur due to various factors such as the composition of the object, the presence of pigments or dyes, the temperature, the pressure, or the exposure to light or other forms of",
+  "decoded_text_with_special_tokens": "A change in color is the result of a change in the way light is absorbed, emitted, or reflected by an object. This can occur due to various factors such as the composition of the object, the presence of pigments or dyes, the temperature, the pressure, or the exposure to light or other forms of",
+  "per_step_logits": [
+    {
+      "step": 0,
+      "shape": [
+        1,
+        15,
+        151936
+      ],
+      "argmax_last": 32,
+      "max_last": 18.5,
+      "top5_last": [
+        32,
+        641,
+        785,
+        1636,
+        11317
+      ],
+      "sha256": "c454c90dc661626bead9feb01f64077229bcdc84e51cf200a253d67ce1df47f3"
+    },
+    {
+      "step": 1,
+      "shape": [
+        1,
+        1,
+        151936
+      ],
+      "argmax_last": 2297,
+      "max_last": 24.875,
+      "top5_last": [
+        2297,
+        1894,
+        52622,
+        9142,
+        4285
+      ],
+      "sha256": "a84b968031c519b6bf7d2ed44ab364fdb3bb8580b6223c22359542fe19153acc"
+    },
+    {
+      "step": 2,
+      "shape": [
+        1,
+        1,
+        151936
+      ],
+      "argmax_last": 304,
+      "max_last": 30.625,
+      "top5_last": [
+        304,
+        315,
+        476,
+        504,
+        429
+      ],
+      "sha256": "c88eadff70829d06d343065af5cdc5fd593d58b1c2b60a5252b70fb70b7cb6f6"
+    },
+    {
+      "step": 3,
+      "shape": [
+        1,
+        1,
+        151936
+      ],
+      "argmax_last": 1894,
+      "max_last": 30.375,
+      "top5_last": [
+        1894,
+        279,
+        39040,
+        264,
+        12463
+      ],
+      "sha256": "66492d82417736691b021c26c30b04f47ac1dcfe9ff834a72969fac3dd82ac0b"
+    },
+    {
+      "step": 4,
+      "shape": [
+        1,
+        1,
+        151936
+      ],
+      "argmax_last": 374,
+      "max_last": 30.25,
+      "top5_last": [
+        374,
+        19257,
+        11,
+        646,
+        315
+      ],
+      "sha256": "38bb7e7d6f540da60e5fc3102c105e81844763fbf324c46a5a41bb8cf5da3cf2"
+    },
+    {
+      "step": 5,
+      "shape": [
+        1,
+        1,
+        151936
+      ],
+      "argmax_last": 279,
+      "max_last": 31.25,
+      "top5_last": [
+        279,
+        264,
+        458,
+        894,
+        825
+      ],
+      "sha256": "0e0528be30d42cf7386552ac7aed1c08a5179640cf212903af5267bfd893575c"
+    },
+    {
+      "step": 6,
+      "shape": [
+        1,
+        1,
+        151936
+      ],
+      "argmax_last": 1102,
+      "max_last": 25.25,
+      "top5_last": [
+        1102,
+        1882,
+        6672,
+        52622,
+        20431
+      ],
+      "sha256": "e576410f4201f83dd53ccbf20f5ca5df215bd3df8988f206a8f399687d29142e"
+    },
+    {
+      "step": 7,
+      "shape": [
+        1,
+        1,
+        151936
+      ],
+      "argmax_last": 315,
+      "max_last": 29.375,
+      "top5_last": [
+        315,
+        504,
+        476,
+        979,
+        11
+      ],
+      "sha256": "531d02566adfa9d9f7b6971c072eab344899e051cecb5a1d02d7c0da8cd57a34"
+    },
+    {
+      "step": 8,
+      "shape": [
+        1,
+        1,
+        151936
+      ],
+      "argmax_last": 264,
+      "max_last": 27.625,
+      "top5_last": [
+        264,
+        279,
+        458,
+        3100,
+        2987
+      ],
+      "sha256": "449b2c2ceba4a6b56afe3cb9055b6ec091fd83b7ffea063a8af9e06396445a6f"
+    },
+    {
+      "step": 9,
+      "shape": [
+        1,
+        1,
+        151936
+      ],
+      "argmax_last": 2297,
+      "max_last": 26.625,
+      "top5_last": [
+        2297,
+        11483,
+        6961,
+        6672,
+        6407
+      ],
+      "sha256": "47ef27cdaa0e2d13064bade17f440ecc09826923b7ae65d97d780455657fb5a6"
+    },
+    {
+      "step": 10,
+      "shape": [
+        1,
+        1,
+        151936
+      ],
+      "argmax_last": 304,
+      "max_last": 30.625,
+      "top5_last": [
+        304,
+        315,
+        311,
+        504,
+        476
+      ],
+      "sha256": "dcff04ff770a285446b9ba9f782b5dd91e34b9603b921a8d523606150662ca2b"
+    },
+    {
+      "step": 11,
+      "shape": [
+        1,
+        1,
+        151936
+      ],
+      "argmax_last": 279,
+      "max_last": 29.125,
+      "top5_last": [
+        279,
+        45306,
+        264,
+        3100,
+        11639
+      ],
+      "sha256": "67e6c2543e0fc75a01bf77c8650b307281d4816cbdab76edc3942e4bde19a173"
+    },
+    {
+      "step": 12,
+      "shape": [
+        1,
+        1,
+        151936
+      ],
+      "argmax_last": 1616,
+      "max_last": 25.375,
+      "top5_last": [
+        1616,
+        3311,
+        45306,
+        18037,
+        11639
+      ],
+      "sha256": "48382831cfd810fadeda9e25f17a4b82cb64e022dbc106310000f254d28cba67"
+    },
+    {
+      "step": 13,
+      "shape": [
+        1,
+        1,
+        151936
+      ],
+      "argmax_last": 3100,
+      "max_last": 29.375,
+      "top5_last": [
+        3100,
+        1894,
+        429,
+        458,
+        9434
+      ],
+      "sha256": "a47f186afa9b1f7a856a25033b5068ca7950776e25fc771bbd39d2af3ae1dac5"
+    },
+    {
+      "step": 14,
+      "shape": [
+        1,
+        1,
+        151936
+      ],
+      "argmax_last": 374,
+      "max_last": 30.25,
+      "top5_last": [
+        374,
+        323,
+        83161,
+        476,
+        16876
+      ],
+      "sha256": "6eebb6cefd87e9781626c54eb4cf2898618e35986e47a9fae270faa583226ded"
+    },
+    {
+      "step": 15,
+      "shape": [
+        1,
+        1,
+        151936
+      ],
+      "argmax_last": 41001,
+      "max_last": 24.625,
+      "top5_last": [
+        41001,
+        25911,
+        2987,
+        1660,
+        25536
+      ],
+      "sha256": "f5317d3113b1dc128755f453d9ede8ed017766bedeb26a4c6371248d4295e1cd"
+    },
+    {
+      "step": 16,
+      "shape": [
+        1,
+        1,
+        151936
+      ],
+      "argmax_last": 11,
+      "max_last": 27.75,
+      "top5_last": [
+        11,
+        323,
+        476,
+        553,
+        13
+      ],
+      "sha256": "196ba7c3bb4bac63982fc40d11aaa67ed912503247c03a2d394ba5c1f60df436"
+    },
+    {
+      "step": 17,
+      "shape": [
+        1,
+        1,
+        151936
+      ],
+      "argmax_last": 46942,
+      "max_last": 20.5,
+      "top5_last": [
+        46942,
+        25911,
+        33599,
+        476,
+        36967
+      ],
+      "sha256": "8d899c5b1f9e1fd77394a1cadf0944afdbdab8a5aae475a4ffe1391aafc6bc8c"
+    },
+    {
+      "step": 18,
+      "shape": [
+        1,
+        1,
+        151936
+      ],
+      "argmax_last": 11,
+      "max_last": 28.0,
+      "top5_last": [
+        11,
+        476,
+        323,
+        320,
+        151671
+      ],
+      "sha256": "e2ac983edb71dce27cb3f1a63b36a112c7460936a5949f6b271e704c7af51ac4"
+    },
+    {
+      "step": 19,
+      "shape": [
+        1,
+        1,
+        151936
+      ],
+      "argmax_last": 476,
+      "max_last": 28.0,
+      "top5_last": [
+        476,
+        323,
+        36967,
+        25911,
+        33599
+      ],
+      "sha256": "ace89ce93b6da31ec768898056378fd4868c5d8b112d8b15aded6c1297cdf1e4"
+    },
+    {
+      "step": 20,
+      "shape": [
+        1,
+        1,
+        151936
+      ],
+      "argmax_last": 25911,
+      "max_last": 25.75,
+      "top5_last": [
+        25911,
+        36967,
+        5937,
+        33599,
+        25536
+      ],
+      "sha256": "8bf69c3de6d8a253b934a4bbf5d57e80e2b6e48073953c564dc283d15778d9d7"
+    },
+    {
+      "step": 21,
+      "shape": [
+        1,
+        1,
+        151936
+      ],
+      "argmax_last": 553,
+      "max_last": 31.0,
+      "top5_last": [
+        553,
+        13,
+        504,
+        11,
+        304
+      ],
+      "sha256": "edc82ea73915a890fa7a62dfeef6290ed3e51b21dbaf3a6f8aa7d7729c45e9fd"
+    },
+    {
+      "step": 22,
+      "shape": [
+        1,
+        1,
+        151936
+      ],
+      "argmax_last": 458,
+      "max_last": 28.25,
+      "top5_last": [
+        458,
+        264,
+        4925,
+        7236,
+        3684
+      ],
+      "sha256": "28f18083db03dd009334f373dba4be183e00f85416bf9850fb901546ba6cfdd5"
+    },
+    {
+      "step": 23,
+      "shape": [
+        1,
+        1,
+        151936
+      ],
+      "argmax_last": 1633,
+      "max_last": 30.375,
+      "top5_last": [
+        1633,
+        5387,
+        28293,
+        13166,
+        19124
+      ],
+      "sha256": "e52f3c5c89c03f369ea86192ce217e584c808666ca5f8e9ea6ca437f003f5ab8"
+    },
+    {
+      "step": 24,
+      "shape": [
+        1,
+        1,
+        151936
+      ],
+      "argmax_last": 13,
+      "max_last": 31.5,
+      "top5_last": [
+        13,
+        476,
+        11,
+        382,
+        594
+      ],
+      "sha256": "318f5407be04c2006043584674ca572e3832c1ffbb3fc9c9637d991a6c14f3c8"
+    },
+    {
+      "step": 25,
+      "shape": [
+        1,
+        1,
+        151936
+      ],
+      "argmax_last": 1096,
+      "max_last": 27.25,
+      "top5_last": [
+        1096,
+        2619,
+        3478,
+        28140,
+        576
+      ],
+      "sha256": "504bb3da3fc85d4e6a964ff3095d55f2556a3ec61c0ac8772ee46569f0b7c45a"
+    },
+    {
+      "step": 26,
+      "shape": [
+        1,
+        1,
+        151936
+      ],
+      "argmax_last": 646,
+      "max_last": 32.75,
+      "top5_last": [
+        646,
+        2297,
+        24844,
+        1231,
+        374
+      ],
+      "sha256": "ff10e72b51ff3974924ce12c77f9410734aed9c72bdd8731a7d7113526e20674"
+    },
+    {
+      "step": 27,
+      "shape": [
+        1,
+        1,
+        151936
+      ],
+      "argmax_last": 12170,
+      "max_last": 32.0,
+      "top5_last": [
+        12170,
+        387,
+        3537,
+        1102,
+        2990
+      ],
+      "sha256": "72deb63433a28f88c034483d32d2fbbab02661ecc8e9e69c60bbe97ad0868d09"
+    },
+    {
+      "step": 28,
+      "shape": [
+        1,
+        1,
+        151936
+      ],
+      "argmax_last": 4152,
+      "max_last": 31.375,
+      "top5_last": [
+        4152,
+        1526,
+        304,
+        369,
+        17712
+      ],
+      "sha256": "79022b4ef7f1876608a5cff758cb66f346d40e4057e278283f92ad36b953f4a2"
+    },
+    {
+      "step": 29,
+      "shape": [
+        1,
+        1,
+        151936
+      ],
+      "argmax_last": 311,
+      "max_last": 27.375,
+      "top5_last": [
+        311,
+        264,
+        151671,
+        5257,
+        151645
+      ],
+      "sha256": "b9f4f0cca7451664f4dc50cebc7df05971a54581717586c421aa0d5b7fdaf5e8"
+    },
+    {
+      "step": 30,
+      "shape": [
+        1,
+        1,
+        151936
+      ],
+      "argmax_last": 5257,
+      "max_last": 33.75,
+      "top5_last": [
+        5257,
+        264,
+        4344,
+        3807,
+        6961
+      ],
+      "sha256": "146c126e649f35f84fa429f020e4d12b034c6feed1e57383de907cbde206e1a9"
+    },
+    {
+      "step": 31,
+      "shape": [
+        1,
+        1,
+        151936
+      ],
+      "argmax_last": 9363,
+      "max_last": 33.0,
+      "top5_last": [
+        9363,
+        6961,
+        7966,
+        11364,
+        43147
+      ],
+      "sha256": "7da3082583f046aacb07cb0ec2de9c667630fbbaee74dfb0d5b5d80ec4d13f4f"
+    },
+    {
+      "step": 32,
+      "shape": [
+        1,
+        1,
+        151936
+      ],
+      "argmax_last": 1741,
+      "max_last": 30.375,
+      "top5_last": [
+        1741,
+        11,
+        2670,
+        1447,
+        323
+      ],
+      "sha256": "abea16b2520def321c007d97cbff3f705f65e7f84be09484c205515c46475d1b"
+    },
+    {
+      "step": 33,
+      "shape": [
+        1,
+        1,
+        151936
+      ],
+      "argmax_last": 438,
+      "max_last": 26.5,
+      "top5_last": [
+        438,
+        264,
+        4344,
+        601,
+        220
+      ],
+      "sha256": "ac843a971adba0468a51512d8d0be4fff35c9a4f04c9e52bb264fa1bb08986b0"
+    },
+    {
+      "step": 34,
+      "shape": [
+        1,
+        1,
+        151936
+      ],
+      "argmax_last": 279,
+      "max_last": 30.375,
+      "top5_last": [
+        9315,
+        279,
+        4344,
+        11483,
+        1447
+      ],
+      "sha256": "df8d3ec523f6b61d6d104cbec1fee2f23a7ae2b348f2d2b88def7f82263eece5"
+    },
+    {
+      "step": 35,
+      "shape": [
+        1,
+        1,
+        151936
+      ],
+      "argmax_last": 18037,
+      "max_last": 32.5,
+      "top5_last": [
+        18037,
+        11483,
+        5256,
+        9362,
+        943
+      ],
+      "sha256": "92f63195c1a143fecca0ca1ae100a34b90e27cb18f7b251b245a2d452092692d"
+    },
+    {
+      "step": 36,
+      "shape": [
+        1,
+        1,
+        151936
+      ],
+      "argmax_last": 315,
+      "max_last": 28.5,
+      "top5_last": [
+        315,
+        323,
+        11,
+        476,
+        320
+      ],
+      "sha256": "6df55844c4d1665cb0b7d093ce32704f1a224129ace835f338f418cc8394d178"
+    },
+    {
+      "step": 37,
+      "shape": [
+        1,
+        1,
+        151936
+      ],
+      "argmax_last": 279,
+      "max_last": 32.25,
+      "top5_last": [
+        279,
+        7236,
+        458,
+        264,
+        4925
+      ],
+      "sha256": "e98fa42256d86a62d970f25ebf68c26a34718e914a4cbfe1a915ba57488c75da"
+    },
+    {
+      "step": 38,
+      "shape": [
+        1,
+        1,
+        151936
+      ],
+      "argmax_last": 1633,
+      "max_last": 32.75,
+      "top5_last": [
+        1633,
+        3684,
+        7236,
+        19699,
+        7329
+      ],
+      "sha256": "c63a2e4bfe45dd97cedfa2fe9a9067f3f7e6237dbc6ee6bce1705ed3b59736ec"
+    },
+    {
+      "step": 39,
+      "shape": [
+        1,
+        1,
+        151936
+      ],
+      "argmax_last": 11,
+      "max_last": 30.125,
+      "top5_last": [
+        11,
+        594,
+        5086,
+        320,
+        476
+      ],
+      "sha256": "28efcf213bfba77f0c23b6140b9a951db2c244c5283d96ed59c09a11fb0ec639"
+    },
+    {
+      "step": 40,
+      "shape": [
+        1,
+        1,
+        151936
+      ],
+      "argmax_last": 279,
+      "max_last": 36.5,
+      "top5_last": [
+        279,
+        1181,
+        9315,
+        4344,
+        9250
+      ],
+      "sha256": "b224389aecb2ae600294a7c83ce771c4c9177814ba69a4c0c2744557b6b82f0f"
+    },
+    {
+      "step": 41,
+      "shape": [
+        1,
+        1,
+        151936
+      ],
+      "argmax_last": 9362,
+      "max_last": 34.25,
+      "top5_last": [
+        9362,
+        9210,
+        9315,
+        45306,
+        17716
+      ],
+      "sha256": "5b9718900dbda1e8504b507288148e599a1925e09c16961b379edbed5fb7b0da"
+    },
+    {
+      "step": 42,
+      "shape": [
+        1,
+        1,
+        151936
+      ],
+      "argmax_last": 315,
+      "max_last": 27.25,
+      "top5_last": [
+        315,
+        476,
+        151671,
+        323,
+        151645
+      ],
+      "sha256": "2dc53dde69c23bdca8286858f4b87bd6a86d47466c3b9c6c8052f9dc15fe3f86"
+    },
+    {
+      "step": 43,
+      "shape": [
+        1,
+        1,
+        151936
+      ],
+      "argmax_last": 23694,
+      "max_last": 34.5,
+      "top5_last": [
+        23694,
+        3654,
+        3163,
+        294,
+        2155
+      ],
+      "sha256": "9d2a99160037810c290ee364eee426ac133df7db629a425e42ef3e3f49bbec3c"
+    },
+    {
+      "step": 44,
+      "shape": [
+        1,
+        1,
+        151936
+      ],
+      "argmax_last": 1368,
+      "max_last": 34.0,
+      "top5_last": [
+        1368,
+        31099,
+        26980,
+        23558,
+        12558
+      ],
+      "sha256": "c26433c3218c747fedfc11d94d29ead91aadab6fc77e14907c3a08c0a4f3d8d5"
+    },
+    {
+      "step": 45,
+      "shape": [
+        1,
+        1,
+        151936
+      ],
+      "argmax_last": 476,
+      "max_last": 31.125,
+      "top5_last": [
+        476,
+        11,
+        323,
+        429,
+        320
+      ],
+      "sha256": "e490c719f2381995f64dde056474e760e7860ea5ab5323f177408b4352ca3186"
+    },
+    {
+      "step": 46,
+      "shape": [
+        1,
+        1,
+        151936
+      ],
+      "argmax_last": 294,
+      "max_last": 35.25,
+      "top5_last": [
+        294,
+        1008,
+        3163,
+        25266,
+        1894
+      ],
+      "sha256": "f2f23408ceda11f5154e093bf272f1eb3bb033957536def29ed9f1f53d63097d"
+    },
+    {
+      "step": 47,
+      "shape": [
+        1,
+        1,
+        151936
+      ],
+      "argmax_last": 9693,
+      "max_last": 35.0,
+      "top5_last": [
+        9693,
+        9834,
+        18523,
+        9011,
+        16367
+      ],
+      "sha256": "d5234a459fae915971bab3fbca13a87e1ac0e3c849917af0d76bc4668ac6f39e"
+    },
+    {
+      "step": 48,
+      "shape": [
+        1,
+        1,
+        151936
+      ],
+      "argmax_last": 11,
+      "max_last": 30.375,
+      "top5_last": [
+        11,
+        429,
+        1154,
+        323,
+        13
+      ],
+      "sha256": "9652c5d5b81e99fdd0ac679a718babfd0a88d8d1df3faa220dad8cadb7faeaec"
+    },
+    {
+      "step": 49,
+      "shape": [
+        1,
+        1,
+        151936
+      ],
+      "argmax_last": 279,
+      "max_last": 33.25,
+      "top5_last": [
+        279,
+        476,
+        323,
+        4344,
+        9315
+      ],
+      "sha256": "768081794edf0071481f620f0f30b928e3476edbb4681384f1bd5fe28ce81040"
+    },
+    {
+      "step": 50,
+      "shape": [
+        1,
+        1,
+        151936
+      ],
+      "argmax_last": 9315,
+      "max_last": 32.25,
+      "top5_last": [
+        9315,
+        9210,
+        20612,
+        17716,
+        943
+      ],
+      "sha256": "1c621d3abbb85243bdb48eb0e137453ddac20444a04abb3bfd1d477c0eb67d02"
+    },
+    {
+      "step": 51,
+      "shape": [
+        1,
+        1,
+        151936
+      ],
+      "argmax_last": 11,
+      "max_last": 31.5,
+      "top5_last": [
+        11,
+        315,
+        476,
+        323,
+        518
+      ],
+      "sha256": "5903ebaa00a1f41254818ad9905ace60c1607c0b39a84395e566f72b56c337b1"
+    },
+    {
+      "step": 52,
+      "shape": [
+        1,
+        1,
+        151936
+      ],
+      "argmax_last": 279,
+      "max_last": 34.0,
+      "top5_last": [
+        279,
+        476,
+        323,
+        7262,
+        36043
+      ],
+      "sha256": "aa8ba371dce818d84bc71e3e69a9932c5e2f21259960d943a7517365704e2c55"
+    },
+    {
+      "step": 53,
+      "shape": [
+        1,
+        1,
+        151936
+      ],
+      "argmax_last": 7262,
+      "max_last": 31.125,
+      "top5_last": [
+        7262,
+        36043,
+        20612,
+        17716,
+        45306
+      ],
+      "sha256": "bb0648ff117fbfbfda0f3108923aeb057cfed24f9bd9317f521fe8dc19d79091"
+    },
+    {
+      "step": 54,
+      "shape": [
+        1,
+        1,
+        151936
+      ],
+      "argmax_last": 11,
+      "max_last": 30.625,
+      "top5_last": [
+        11,
+        476,
+        323,
+        315,
+        1154
+      ],
+      "sha256": "87f7e82bcdf73c54f31100b66457b52457a86a3927a04976620294a309dc4337"
+    },
+    {
+      "step": 55,
+      "shape": [
+        1,
+        1,
+        151936
+      ],
+      "argmax_last": 476,
+      "max_last": 32.75,
+      "top5_last": [
+        476,
+        279,
+        323,
+        4992,
+        11483
+      ],
+      "sha256": "ea50c5c8694becbc9673b27a947ce3c48c3fe34dde363d6637e3659926368e17"
+    },
+    {
+      "step": 56,
+      "shape": [
+        1,
+        1,
+        151936
+      ],
+      "argmax_last": 279,
+      "max_last": 35.0,
+      "top5_last": [
+        279,
+        1496,
+        14338,
+        9250,
+        1008
+      ],
+      "sha256": "3b5ff3f6abd592c0ced69d80edc7f6b1a20a76c3b3dac8247f004bef45e5b6ab"
+    },
+    {
+      "step": 57,
+      "shape": [
+        1,
+        1,
+        151936
+      ],
+      "argmax_last": 14338,
+      "max_last": 32.25,
+      "top5_last": [
+        14338,
+        11483,
+        20612,
+        16230,
+        9362
+      ],
+      "sha256": "114743ae2522820e67196f7ce86ef3b0d514c5e7b5888da153fc38d68da9354d"
+    },
+    {
+      "step": 58,
+      "shape": [
+        1,
+        1,
+        151936
+      ],
+      "argmax_last": 311,
+      "max_last": 33.0,
+      "top5_last": [
+        311,
+        315,
+        882,
+        8090,
+        4682
+      ],
+      "sha256": "c8ce5c1642204d7e87e3dad44d67cc922bffed290f86855d312cb11f9bc9c569"
+    },
+    {
+      "step": 59,
+      "shape": [
+        1,
+        1,
+        151936
+      ],
+      "argmax_last": 3100,
+      "max_last": 38.0,
+      "top5_last": [
+        3100,
+        24403,
+        3654,
+        2155,
+        9250
+      ],
+      "sha256": "afb1ba2cb640f78502cfef51bb67cc7a15d8677173f5da2ef390c63048939686"
+    },
+    {
+      "step": 60,
+      "shape": [
+        1,
+        1,
+        151936
+      ],
+      "argmax_last": 476,
+      "max_last": 31.125,
+      "top5_last": [
+        476,
+        13,
+        315,
+        382,
+        323
+      ],
+      "sha256": "c5fcbe66e272a3936f60928e94ed00a0116bf18f30cfa00c2b31ae8e8bd77b95"
+    },
+    {
+      "step": 61,
+      "shape": [
+        1,
+        1,
+        151936
+      ],
+      "argmax_last": 1008,
+      "max_last": 39.5,
+      "top5_last": [
+        1008,
+        25266,
+        24403,
+        11483,
+        3720
+      ],
+      "sha256": "83f71df7014bb04f35c18204f42b1fd89582c1c20a71736d4826397b78e4dacb"
+    },
+    {
+      "step": 62,
+      "shape": [
+        1,
+        1,
+        151936
+      ],
+      "argmax_last": 7586,
+      "max_last": 39.0,
+      "top5_last": [
+        7586,
+        9250,
+        12158,
+        24403,
+        4802
+      ],
+      "sha256": "f5366d017fd6c730203d45d6512c09f811d0b455d5956833f433b4d3fbfb32f1"
+    },
+    {
+      "step": 63,
+      "shape": [
+        1,
+        1,
+        151936
+      ],
+      "argmax_last": 315,
+      "max_last": 33.5,
+      "top5_last": [
+        315,
+        24403,
+        4802,
+        13,
+        476
+      ],
+      "sha256": "aaa1a58a8106558acddb0aac2597125784cfdf92ab3c4218c5a514c39b718d46"
+    }
+  ],
+  "tolerances": {
+    "status": "pending_repeat_run",
+    "note": "absolute/relative tolerances are filled from repeated reference runs before native comparison"
+  }
+}

@@ -1,0 +1,29 @@
+{
+  "basis": "native executor vs captured reference on RTX 5090, bf16, same attention backend",
+  "exact": [
+    "text_position_ids",
+    "shifted_text_position_ids",
+    "vision_position_ids",
+    "cross_attention_mask_expanded",
+    "vision.patch_embed",
+    "vision.rotary"
+  ],
+  "measured_abs_max": {
+    "prompt_only": {
+      "vision_embeds": 2.0,
+      "prefill_logits": 0.156
+    },
+    "image": {
+      "vision_embeds": 1.25,
+      "prefill_logits": 0.344
+    },
+    "short_video": {
+      "vision_embeds": 11.375,
+      "prefill_logits": 0.584
+    }
+  },
+  "notes": [
+    "vision_embeds accumulate bf16 rounding across 27 blocks and the merger; compare with an absolute tolerance scaled by the per-case reference magnitude",
+    "greedy token ids are compared as equality on the prefix and reported with the first-divergence margin"
+  ]
+}
