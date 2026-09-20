@@ -97,7 +97,8 @@ def run_greedy(
         if eos_token_id is not None and generated[-1] == eos_token_id:
             break
         token = torch.tensor([[generated[-1]]], dtype=torch.long, device=device)
-        logits = model(token, model.decode_position_ids(offset=prompt_len + step - 1), offset=prompt_len + step - 1)
+        offset = prompt_len + step - 1
+        logits = model(token, model.decode_position_ids(offset, token), offset=offset)
         step_logit = logits[0, -1].float()
         generated.append(int(step_logit.argmax()))
         step_logits.append(

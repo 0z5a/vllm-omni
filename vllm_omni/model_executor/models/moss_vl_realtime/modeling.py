@@ -464,8 +464,11 @@ class MossVLNativeModel(nn.Module):
             stride = media.vision_tokens_per_frame + 1
             for frame in range(media.num_frames):
                 frames.append((effective_h, effective_w, media.start + frame * stride))
-        if not frames:
-            raise ValueError("vision positions requested without any frame metadata")
+        if len(frames) != image_positions.numel():
+            raise ValueError(
+                f"frame metadata does not match the text: {len(frames)} frames for "
+                f"{image_positions.numel()} image-pad tokens"
+            )
 
         effective_h = torch.tensor([f[0] for f in frames], device=input_ids.device)
         effective_w = torch.tensor([f[1] for f in frames], device=input_ids.device)
@@ -496,6 +499,11 @@ class MossVLNativeModel(nn.Module):
     def expand_cross_attention_mask(self, frame_mask: torch.Tensor, dtype: torch.dtype) -> torch.Tensor | None:
         if not self.vision_token_info:
             return None
+        if self.config.vision_seq_pad_multiple != 1:
+            raise ValueError(
+                "vision_seq_pad_multiple != 1 is not implemented: the published checkpoint sets 1, "
+                "and a padded vision sequence needs its padding columns masked explicitly"
+            )
         total = sum(m.num_frames * (m.vision_tokens_per_frame + 1) for m in self.vision_token_info)
         repeats = [m.vision_tokens_per_frame + 1 for m in self.vision_token_info for _ in range(m.num_frames)]
         negative = torch.finfo(dtype).min
@@ -544,9 +552,20 @@ class MossVLNativeModel(nn.Module):
         )
         return self.lm_head(hidden_states)
 
-    def decode_position_ids(self, offset: int) -> torch.Tensor:
+    def decode_position_ids(self, offset: int, input_ids: torch.Tensor | None = None) -> torch.Tensor:
+        """Positions for one decode step.
+
+        With vision input the reference caches ``rope_deltas`` at prefill and every
+        decode position is ``cache_position + rope_deltas``. A sequence that never
+        produced vision states has no cached delta, and the reference then recomputes
+        positions from the current token ids, i.e. a one-token decode sits at the
+        start of the text position space. That rule is mirrored here instead of being
+        silently corrected, so the native path stays comparable with the capture.
+        """
         if self.rope_delta is None:
-            raise ValueError("decode requires a prefill that produced rope_delta")
+            if input_ids is None:
+                raise ValueError("text-only decode needs the token ids that produced no vision states")
+            return self.compute_text_position_ids(input_ids)
         position = torch.full((1,), offset, dtype=torch.long, device=self.rope_delta.device) + self.rope_delta
         return position.view(1, 1, 1).expand(3, 1, 1)
 

@@ -17,7 +17,15 @@ import pytest
 import torch
 from safetensors import safe_open
 
-REFERENCE = Path(__file__).resolve().parents[3] / "assets" / "moss_vl_realtime" / "reference"
+def _reference_dir() -> Path:
+    for parent in Path(__file__).resolve().parents:
+        candidate = parent / "assets" / "moss_vl_realtime" / "reference"
+        if candidate.is_dir():
+            return candidate
+    raise RuntimeError("captured reference fixtures are not present in this checkout")
+
+
+REFERENCE = _reference_dir()
 CASES = ("prompt_only", "image", "short_video")
 
 
