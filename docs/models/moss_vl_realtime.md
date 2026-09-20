@@ -27,7 +27,7 @@ Named after the tasks in [RFC #7890](https://github.com/vllm-project/vllm-omni/i
 | T10 incremental visual state | initial contract | `append_frames` publishes at a step boundary; reference-timeline segment splicing is not implemented |
 | T11 text output, silence, interruption | partial | the paced driver treats `<|silence|>` as a turn end; the full control/state mapping is not implemented |
 | T12 admission limits and lifecycle | not started | needs the engine session lifecycle |
-| T13 paced single-session validation | partial | paced capture, native paced driver and the timeline comparator exist; no end-to-end paced acceptance run yet |
+| T13 paced single-session validation | partial, with a known gap | a paced run exists on both sides and the timeline comparator works; the native paced path currently answers every frame with `<|silence|>` while the reference responded on the third frame, so paced semantic parity is **not** established |
 | T14 baseline evidence | partial | baseline tables for the offline cases; the realtime metrics are recorded but not yet aggregated |
 | T23 SM120 qualification | done | `sm120_probe.py` executes the operators on RTX 5090 and measures error |
 | T24 tests, examples, docs | partial | 34 CPU checks, this page, the recipe and one example; no CI wiring yet |
@@ -120,6 +120,24 @@ executes the operators this model uses on the target device and reports measured
 error against float32; on RTX 5090 all four SDPA backends are available and the
 additive-visibility cross-attention path measures 0.0019 max absolute error at
 BF16.
+
+## Paced run (timestamped stream)
+
+The fixture's timestamped timeline (prompt, red at 0 ms, blue at 1000 ms, a
+follow-up prompt, red at 1000 ms, blue at 2000 ms) was replayed on both sides:
+
+| side | frames accepted | output chunks | prompt to first output | result |
+| --- | --- | --- | --- | --- |
+| reference session | 4 | 15 | 1.774 s | `<|silence|>` ×2 then "The color is alternating between red and blue." |
+| native paced driver | 4 | 0 | — | every turn ended in `<|silence|>` |
+
+The native driver verifies frame publication (vision extent 5 → 10 → 15 → 20),
+the running position space (12 → 15 → 19 → 23 → 27) and the per-row visibility
+rule, and it splices the frame segment with the positions the reference gives
+that segment; the traces are committed under
+`tests/assets/moss_vl_realtime/reference/realtime/`. Producing the reference's
+text decisions is still open, and paced parity must not be claimed until that
+gap closes. The timeline comparator is the tool that will decide it.
 
 ## Notes for contributors
 
