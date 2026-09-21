@@ -60,7 +60,7 @@ def enable_cache_for_diffusers(
         # refresh_context is for transformer-only persistent contexts.
         pass
 
-    return CacheDiTEnableResult(refresh=refresh, targets=(pipeline._pipeline,))
+    return CacheDiTEnableResult(refresh=refresh, targets=(pipeline._pipeline,), refresh_is_inert=True)
 
 
 # from https://github.com/vipshop/cache-dit/pull/542
