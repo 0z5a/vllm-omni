@@ -71,9 +71,11 @@ class ComfyNvfp4LinearMethod(LinearMethodBase):
             set_weight_attrs(parameter, {"weight_loader": default_weight_loader})
             layer.register_parameter(name, parameter)
 
-    def process_weights_after_loading(self, layer: nn.Module) -> None:
+    def apply(self, layer: nn.Module, x: torch.Tensor, bias: torch.Tensor | None = None) -> torch.Tensor:
         from comfy_kitchen.tensor import QuantizedTensor, TensorCoreNVFP4Layout
 
+        # Keep registered parameters in their serialized layout so offload can
+        # move packed bytes and scales without dequantizing tensor subclasses.
         params = TensorCoreNVFP4Layout.Params(
             scale=layer.weight_scale_2,
             orig_dtype=layer.nvfp4_dtype,
@@ -81,10 +83,8 @@ class ComfyNvfp4LinearMethod(LinearMethodBase):
             block_scale=layer.weight_scale,
         )
         packed = QuantizedTensor(layer.weight.detach(), "TensorCoreNVFP4Layout", params)
-        layer.weight = nn.Parameter(packed, requires_grad=False)
-
-    def apply(self, layer: nn.Module, x: torch.Tensor, bias: torch.Tensor | None = None) -> torch.Tensor:
-        from comfy_kitchen.tensor import QuantizedTensor
-
-        quantized = QuantizedTensor.from_float(x, "TensorCoreNVFP4Layout", scale=layer.input_scale)
-        return torch.nn.functional.linear(quantized, layer.weight, bias)
+        quantized = QuantizedTensor.from_float(
+            x.reshape(-1, x.shape[-1]), "TensorCoreNVFP4Layout", scale=layer.input_scale
+        )
+        output = torch.nn.functional.linear(quantized, packed, bias)
+        return output.reshape(*x.shape[:-1], output.shape[-1])

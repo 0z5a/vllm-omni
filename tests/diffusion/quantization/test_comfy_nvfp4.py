@@ -127,3 +127,64 @@ def test_prepare_tool_round_trips_serialized_storage(tmp_path, monkeypatch):
     config = json.loads((output / "transformer/quantization_config.json").read_text())
     assert config["quantized_layers"] == ["transformer_blocks.0.attn.to_qkv"]
     assert (output / "model_index.json").resolve() == (base / "model_index.json")
+
+
+@pytest.mark.parametrize("shape", [(128,), (17, 128), (2, 17, 128), (2, 3, 17, 128)])
+def test_apply_preserves_leading_dimensions(shape):
+    pytest.importorskip("comfy_kitchen")
+    from comfy_kitchen.registry import registry
+    from comfy_kitchen.tensor import QuantizedTensor, TensorCoreNVFP4Layout
+
+    generator = torch.Generator().manual_seed(42)
+    layer = nn.Module()
+    method = ComfyNvfp4LinearMethod()
+    method.create_weights(layer, 128, [128], 128, 128, torch.bfloat16)
+    with registry.use_backend("eager"):
+        weight = QuantizedTensor.from_float(
+            torch.randn(128, 128, generator=generator, dtype=torch.bfloat16), "TensorCoreNVFP4Layout"
+        )
+        packed, scale, block_scale = TensorCoreNVFP4Layout.get_plain_tensors(weight)
+        for parameter, value in (
+            (layer.weight, packed),
+            (layer.weight_scale, block_scale),
+            (layer.weight_scale_2, scale),
+            (layer.input_scale, torch.tensor(0.01)),
+        ):
+            parameter.weight_loader(parameter, value)
+        method.process_weights_after_loading(layer)
+        assert type(layer.weight) is nn.Parameter
+        assert layer.weight.dtype == torch.uint8
+        x = torch.randn(shape, generator=generator, dtype=torch.bfloat16)
+        bias = torch.randn(128, generator=generator, dtype=torch.bfloat16)
+        quantized = QuantizedTensor.from_float(x.reshape(-1, 128), "TensorCoreNVFP4Layout", scale=layer.input_scale)
+        expected = torch.nn.functional.linear(quantized, weight, bias).reshape(*shape[:-1], 128)
+        torch.testing.assert_close(method.apply(layer, x, bias), expected, rtol=0, atol=0)
+
+
+def test_finalization_preserves_packed_offload_storage():
+    from vllm_omni.diffusion.offloader.layerwise_backend import LayerwiseOffloadHook
+    from vllm_omni.diffusion.offloader.tensor_utils import restore_tensor_storage
+
+    layer = nn.Module()
+    method = ComfyNvfp4LinearMethod()
+    method.create_weights(layer, 128, [128], 128, 128, torch.bfloat16)
+    layer.weight.data.fill_(0x12)
+    layer.weight_scale.data.fill_(1)
+    layer.weight_scale_2.data.fill_(0.125)
+    layer.input_scale.data.fill_(0.25)
+    method.process_weights_after_loading(layer)
+    parameters = dict(layer.named_parameters())
+    originals = {name: tensor.detach().clone() for name, tensor in parameters.items()}
+    storage, metadata = LayerwiseOffloadHook._to_cpu(parameters, {}, pin_memory=False)
+    assert all(parameter.numel() == 0 for parameter in parameters.values())
+    for dtype, entries in metadata.items():
+        for entry in entries:
+            value = torch.as_strided(
+                storage[dtype][entry["offset"] : entry["offset"] + entry["numel"]],
+                entry["shape"],
+                entry["stride"],
+            )
+            restore_tensor_storage(parameters[entry["name"]], value, device="cpu")
+    for name, parameter in parameters.items():
+        assert parameter.dtype == originals[name].dtype
+        assert torch.equal(parameter.reshape(-1).view(torch.uint8), originals[name].reshape(-1).view(torch.uint8))
