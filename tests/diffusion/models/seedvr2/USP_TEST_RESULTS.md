@@ -14,7 +14,7 @@ MLP execution. No new framework parallel option is introduced.
 | Quality versus FP16 SP1 | Minimum PSNR 60.5079 dB; maximum error 0.048096 |
 | Actual distributed path | SeedVR2UlyssesRuntime; 64 exchanges and 32 head gathers per forward |
 
-The six-case run explicitly enabled vae_patch_parallel_size=2 and spatial_shard_height alongside ulysses_degree=2. Spatial tiling was not enabled in this run.
+The six-case run explicitly enabled vae_patch_parallel_size=2 and spatial_shard_height alongside ulysses_degree=2. The framework automatically enabled VAE tiling for patch parallelism (confirmed in the rank log), so this run exercised spatial sharding and USP together.
 
 ## Validation scope
 
