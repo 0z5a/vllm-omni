@@ -181,10 +181,6 @@ same conversion.
 | GPU toy block (`--case toy-block`) | four layers `A -> B -> A -> B` of joint video+text window attention plus the global text mean match a single-rank oracle to float64 round-off |
 | Real model (`--case seedvr2`) | the released 3B checkpoint: SP=N output matches the SP=1 output of the same port within the frozen fixture tolerance, with per-rank memory and timing recorded |
 
-`benchmarks/diffusion/benchmark_window_sp.py` reports the doc-level timing and
-traffic breakdown (plan build, transitions, all-to-all, text reduction, peak
-memory per rank).
-
 ## Integration limits
 
 This PR contains the DiT and its window-SP runtime. The native serving pipeline
