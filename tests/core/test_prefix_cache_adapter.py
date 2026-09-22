@@ -1,3 +1,6 @@
+# SPDX-License-Identifier: Apache-2.0
+# SPDX-FileCopyrightText: Copyright contributors to the vLLM-Omni project
+
 from types import SimpleNamespace
 
 import pytest
@@ -7,6 +10,8 @@ from vllm_omni.core.prefix_cache.adapter import (
     PrefixCacheRequestEvent,
     PrefixCacheSchedulerAdapter,
 )
+
+pytestmark = [pytest.mark.core_model, pytest.mark.cpu]
 
 
 class FakeView:
@@ -101,16 +106,12 @@ def test_resumed_block_snapshot_is_immutable():
 def test_same_id_terminal_and_new_is_started():
     adapter = PrefixCacheSchedulerAdapter()
     adapter.translate_scheduler_output(output(new=[SimpleNamespace(req_id="r")]))
-    events = adapter.translate_scheduler_output(
-        output(new=[SimpleNamespace(req_id="r")], finished={"r"})
-    )
+    events = adapter.translate_scheduler_output(output(new=[SimpleNamespace(req_id="r")], finished={"r"}))
     assert [event.kind for event in events] == [PrefixCacheEventKind.STARTED, PrefixCacheEventKind.FINISHED]
 
 
 def test_write_layout_uses_post_order_batch_and_slots():
-    layout = PrefixCacheSchedulerAdapter().build_write_layout(
-        FakeView(), num_scheduled_tokens={"b": 2, "a": 1}
-    )
+    layout = PrefixCacheSchedulerAdapter().build_write_layout(FakeView(), num_scheduled_tokens={"b": 2, "a": 1})
     assert layout.total_rows == 3
     assert [(w.req_id, w.row_start, w.row_end, w.slots) for w in layout.writes] == [
         ("b", 0, 2, (20, 21)),

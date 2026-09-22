@@ -1,3 +1,6 @@
+# SPDX-License-Identifier: Apache-2.0
+# SPDX-FileCopyrightText: Copyright contributors to the vLLM-Omni project
+
 """Translation boundary between vLLM runner state and the omni prefix cache.
 
 The adapter is the only prefix-cache component that interprets scheduler
@@ -7,9 +10,10 @@ to retain or inspect upstream scheduler state.
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from dataclasses import dataclass
 from enum import Enum
-from typing import Any, Mapping
+from typing import Any
 
 
 class PrefixCacheEventKind(str, Enum):
@@ -96,8 +100,7 @@ class PrefixCacheSchedulerAdapter:
         aborted = set(getattr(scheduler_output, "aborted_req_ids", ()) or ())
         scheduled_tokens = getattr(scheduler_output, "num_scheduled_tokens", {}) or {}
         terminal_ids = {
-            str(req_id)
-            for req_id in (set(getattr(scheduler_output, "finished_req_ids", ()) or ()) | aborted)
+            str(req_id) for req_id in (set(getattr(scheduler_output, "finished_req_ids", ()) or ()) | aborted)
         }
 
         cached_by_id: dict[str, tuple[int, Any, int]] = {}
@@ -115,20 +118,20 @@ class PrefixCacheSchedulerAdapter:
 
         for data in getattr(scheduler_output, "scheduled_new_reqs", ()) or ():
             req_id = self._req_id(data)
-            kind = (
+            kind: PrefixCacheEventKind = (
                 PrefixCacheEventKind.STARTED
                 if req_id in terminal_ids or req_id not in self._observed_req_ids
                 else PrefixCacheEventKind.EXTENDED
             )
             self._observed_req_ids.add(req_id)
-            computed = int(getattr(data, "num_computed_tokens", 0) or 0)
+            computed_tokens = int(getattr(data, "num_computed_tokens", 0) or 0)
             blocks = self._blocks(data)
             events.append(
                 PrefixCacheRequestEvent(
                     req_id,
                     kind,
                     0,
-                    computed,
+                    computed_tokens,
                     blocks,
                     int(scheduled_tokens.get(req_id, 0)),
                 )
@@ -137,13 +140,13 @@ class PrefixCacheSchedulerAdapter:
         for req_id in resumed:
             req_id = str(req_id)
             self._observed_req_ids.add(req_id)
-            hit_end, block_ids, num_output_tokens = cached_by_id.get(req_id, (0, None, 0))
+            hit_end, resumed_blocks, num_output_tokens = cached_by_id.get(req_id, (0, None, 0))
             events.append(
                 PrefixCacheRequestEvent(
                     req_id,
                     PrefixCacheEventKind.RESUMED,
                     hit_end=hit_end,
-                    block_ids=self._blocks_value(block_ids),
+                    block_ids=self._blocks_value(resumed_blocks),
                     scheduled_tokens=int(scheduled_tokens.get(req_id, 0)),
                     num_output_tokens=num_output_tokens,
                 )
