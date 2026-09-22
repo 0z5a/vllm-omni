@@ -43,7 +43,7 @@ For two-rank window-SP, expose two GPUs and replace `--num-gpus 1` with:
 
 ```bash
 --num-gpus 2 --distributed-executor-backend mp \
-  --stage-overrides '{"0":{"window_parallel_size":2}}'
+  --stage-overrides '{"0":{"ulysses_degree":2}}'
 ```
 
 Use degree 4 and four visible GPUs for SP4. Each rank runs the whole VAE, so
@@ -72,8 +72,13 @@ padded to nine and return six.
 | Unsupported | VFR, multichannel audio, 7B, other sampling schedules, quantization, cache acceleration, VAE tiling/slicing, CPU offload, CFG/TP/PP/VAE parallelism, compiled execution, LoRA |
 
 Unsupported engine modes are rejected before process hooks and worker creation.
-Use `window_parallel_size` for model-owned sequence parallelism; Ulysses, Ring
-and AllGather-KV are not supported for this pipeline.
+Use `ulysses_degree=N` for specialized Ulysses window attention. Video tokens
+remain sequence-sharded outside attention; each head shard attends within the
+reference regular/shifted windows. Uneven head shards support 20 heads on eight
+ranks. Ring, AllGather-KV, advanced-UAA, and permute mode are unsupported.
+
+The SP measurements below describe the earlier window-aligned implementation;
+they are not validation results for the new Ulysses path.
 
 Native SP1 five-frame output is bitwise equal to the reference fixture. SP2/SP4
 frame error is MAE 0.000171566 and max 0.00387573 against SP1, below the declared

@@ -245,10 +245,6 @@ class DiffusionEngine:
                 integrations. When omitted, the engine selects a scheduler
                 from the resolved execution mode.
         """
-        if od_config.parallel_config.window_parallel_size > 1 and od_config.model_class_name != "SeedVR2Pipeline":
-            raise ValueError(
-                f"window_parallel_size > 1 requires SeedVR2Pipeline; resolved model is {od_config.model_class_name!r}"
-            )
         if od_config.model_class_name == "SeedVR2Pipeline":
             from vllm_omni.diffusion.models.seedvr2.config import validate_seedvr2_config
 

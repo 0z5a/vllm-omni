@@ -25,9 +25,8 @@ pytestmark = [pytest.mark.cpu, pytest.mark.diffusion, pytest.mark.core_model]
         ({"parallel_config": {"tensor_parallel_size": 2}}, "tensor_parallel_size=1"),
         ({"parallel_config": {"pipeline_parallel_size": 2}}, "pipeline_parallel_size=1"),
         ({"parallel_config": {"vae_patch_parallel_size": 2}}, "vae_patch_parallel_size=1"),
-        ({"parallel_config": {"ulysses_degree": 2}}, "ulysses_degree=1"),
-        ({"parallel_config": {"ring_degree": 2}}, "ring_degree=1"),
-        ({"parallel_config": {"allgather_degree": 2}}, "allgather_degree=1"),
+        ({"parallel_config": {"ring_degree": 2}}, "pure ulysses_degree"),
+        ({"parallel_config": {"allgather_degree": 2}}, "pure ulysses_degree"),
         ({"lora_path": "unsupported-adapter"}, "LoRA"),
     ],
 )
@@ -42,3 +41,16 @@ def test_unsupported_config_fails_before_hooks(monkeypatch, overrides, message):
     monkeypatch.setattr(DiffusionEngine, "_init_process_hooks", forbidden_startup)
     with pytest.raises(ValueError, match=message):
         DiffusionEngine(config)
+
+
+@pytest.mark.parametrize("degree", [1, 2, 4, 8])
+def test_ulysses_config_is_supported(degree):
+    from vllm_omni.diffusion.models.seedvr2.config import validate_seedvr2_config
+
+    config = OmniDiffusionConfig(
+        model_class_name="SeedVR2Pipeline",
+        dtype=torch.float16,
+        enforce_eager=True,
+        parallel_config={"ulysses_degree": degree},
+    )
+    validate_seedvr2_config(config)
