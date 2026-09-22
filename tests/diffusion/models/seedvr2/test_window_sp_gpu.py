@@ -92,7 +92,7 @@ def test_toy_block_matches_single_rank_oracle(world_size, tmp_path):
 
 @pytest.mark.parametrize("world_size", [2])
 def test_seedvr2_sp_degree_invariance(world_size, tmp_path):
-    """Real 3B checkpoint: SP=N must match the same port at SP=1."""
+    """Real 3B checkpoint: specialized Ulysses must match SP=1."""
     if _available_gpus() < world_size:
         pytest.skip(f"needs {world_size} GPUs, found {_available_gpus()}")
     checkpoint = os.environ.get("SEEDVR2_CHECKPOINT", "/models/seedvr2_ema_3b_fp16.safetensors")
@@ -104,6 +104,7 @@ def test_seedvr2_sp_degree_invariance(world_size, tmp_path):
         "seedvr2",
         world_size,
         tmp_path,
+        "--ulysses",
         "--ckpt",
         checkpoint,
         "--frames",
@@ -119,5 +120,6 @@ def test_seedvr2_sp_degree_invariance(world_size, tmp_path):
         assert entry["status"] == "ok", entry.get("error")
         assert entry["finite"] is True
         assert entry["rel_l2"] < entry["tolerance_rtol"]
-        assert entry["network_a2a_count"] > 0
-        assert entry["text_all_reduce_count"] > 0
+        assert entry["execution_path"] == "SeedVR2UlyssesRuntime"
+        assert entry["runtime_stats"]["ulysses_exchanges"] == 64
+        assert entry["runtime_stats"]["ulysses_head_gathers"] == 32

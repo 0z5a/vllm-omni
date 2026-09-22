@@ -391,6 +391,7 @@ def run_seedvr2(args: argparse.Namespace, rank: int, world_size: int) -> Report:
         token_grid,
         text_len=args.text_len,
         parallel_config=parallel,
+        ulysses=args.ulysses,
     )
     model.reset_attention_stats()
     distributed, distributed_ms, distributed_p95, stats = measure(runtime)
@@ -403,8 +404,15 @@ def run_seedvr2(args: argparse.Namespace, rank: int, world_size: int) -> Report:
     mean_abs = float(diff.mean().item())
     finite = bool(torch.isfinite(distributed).all().item())
 
+    from vllm_omni.diffusion.models.seedvr2.ulysses import SeedVR2UlyssesRuntime
+
+    local_tokens = (
+        runtime.token_sizes[rank]
+        if isinstance(runtime, SeedVR2UlyssesRuntime)
+        else int(runtime.manager.rank_plan(runtime.layout_for_layer(0)).global_token_ids.numel())
+    )
     per_rank = torch.tensor(
-        [int(runtime.manager.rank_plan(runtime.layout_for_layer(0)).global_token_ids.numel())],
+        [local_tokens],
         dtype=torch.int64,
         device=device,
     )
@@ -428,7 +436,8 @@ def run_seedvr2(args: argparse.Namespace, rank: int, world_size: int) -> Report:
             "text_tokens": args.text_len,
             "sp_size": world_size,
             "sp_config": {"ulysses_degree": parallel.ulysses_degree},
-            "execution_path": "window_aligned_plan_a",
+            "execution_path": type(runtime).__name__,
+            "runtime_stats": stats,
             "windows_per_layout": {str(layer): int(runtime.layout_for_layer(layer).num_windows) for layer in (0, 1)},
             "per_rank_tokens": [int(c) for c in counts[rank].tolist()] if world_size > 1 else [num_tokens],
             "layout_transition_count": stats["layout_transitions"],
@@ -490,6 +499,7 @@ def main() -> int:
     parser.add_argument("--transport-features", type=int, default=8)
     parser.add_argument("--dtype", default="float16", choices=("float16", "bfloat16", "float32"))
     parser.add_argument("--tolerance", default="2e-2,2e-2", help="atol,rtol for the seedvr2 case")
+    parser.add_argument("--ulysses", action="store_true", help="exercise specialized Ulysses window attention")
     parser.add_argument("--varlen", action="store_true", help="request the packed-varlen attention kernel")
     parser.add_argument(
         "--allow-truncated-layers",
