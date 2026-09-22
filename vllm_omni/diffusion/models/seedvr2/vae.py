@@ -15,6 +15,14 @@ from torch import nn
 from torch.nn import functional as F
 
 
+def _frame_norm_silu(norm: nn.GroupNorm, x: torch.Tensor) -> torch.Tensor:
+    if x.is_cuda and x.dtype == torch.float16:
+        from vllm_omni.diffusion.models.seedvr2.frame_norm import frame_norm_silu
+
+        return frame_norm_silu(norm, x)
+    return F.silu(_frame_norm(norm, x))
+
+
 def _frame_norm(norm: nn.GroupNorm, x: torch.Tensor) -> torch.Tensor:
     frames = x.shape[2]
     x = norm(rearrange(x, "b c t h w -> (b t) c h w"))
@@ -56,8 +64,8 @@ class ResnetBlock3d(nn.Module):
         )
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
-        h = self.conv1(F.silu(_frame_norm(self.norm1, x)))
-        h = self.conv2(F.silu(_frame_norm(self.norm2, h)))
+        h = self.conv1(_frame_norm_silu(self.norm1, x))
+        h = self.conv2(_frame_norm_silu(self.norm2, h))
         return (self.conv_shortcut(x) if self.conv_shortcut is not None else x) + h
 
 
@@ -172,7 +180,7 @@ class Encoder3d(nn.Module):
         for block in self.down_blocks:
             x = block(x)
         x = self.mid_block(x)
-        return self.conv_out(F.silu(_frame_norm(self.conv_norm_out, x)))
+        return self.conv_out(_frame_norm_silu(self.conv_norm_out, x))
 
 
 class Decoder3d(nn.Module):
@@ -191,7 +199,7 @@ class Decoder3d(nn.Module):
         x = self.mid_block(self.conv_in(x))
         for block in self.up_blocks:
             x = block(x)
-        return self.conv_out(F.silu(_frame_norm(self.conv_norm_out, x)))
+        return self.conv_out(_frame_norm_silu(self.conv_norm_out, x))
 
 
 class SeedVR2VAE(nn.Module):
