@@ -539,10 +539,8 @@ class OmniPrefixCacheManager:
                 num_computed = int(event.hit_end)
                 if num_computed > 0:
                     # block_ids is per-kv-group; group 0 only.
-                    blocks = event.block_ids
-                    if blocks is not None and len(blocks) > 0 and not isinstance(blocks[0], int):
-                        blocks = blocks[0]
-                    if not blocks:
+                    block_groups = event.block_ids
+                    if not block_groups:
                         # Fail at the cause: a hit we cannot snapshot now would
                         # crash at materialize time with less context (materialize is
                         # forbidden from reading the live batch).
@@ -554,7 +552,7 @@ class OmniPrefixCacheManager:
                         raise OmniPrefixCacheUnmatchError(
                             f"prefix hit not block aligned (req={req_id}, hit_upto={num_computed}, block_size={bs})"
                         )
-                    hit_blocks = list(blocks[: num_computed // bs])
+                    hit_blocks = list(block_groups[0][: num_computed // bs])
                     self._hit_spans[req_id] = (num_computed, hit_blocks)
 
             # 4. Gather those spans on the prefetch thread; overlaps this forward.
