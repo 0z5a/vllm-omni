@@ -17,16 +17,16 @@ pytestmark = [pytest.mark.cpu, pytest.mark.diffusion, pytest.mark.core_model]
         ({"dtype": torch.bfloat16}, "dtype=float16"),
         ({"enforce_eager": False}, "enforce_eager=True"),
         ({"cache_backend": "tea_cache"}, "single Euler step"),
-        ({"vae_use_tiling": True}, "slicing or tiling"),
-        ({"vae_use_slicing": True}, "slicing or tiling"),
+        ({"vae_use_slicing": True}, "batch slicing"),
         ({"enable_cpu_offload": True}, "CPU offload"),
         ({"enable_layerwise_offload": True}, "CPU offload"),
         ({"parallel_config": {"cfg_parallel_size": 2}}, "cfg_parallel_size=1"),
         ({"parallel_config": {"tensor_parallel_size": 2}}, "tensor_parallel_size=1"),
         ({"parallel_config": {"pipeline_parallel_size": 2}}, "pipeline_parallel_size=1"),
-        ({"parallel_config": {"vae_patch_parallel_size": 2}}, "vae_patch_parallel_size=1"),
+        ({"parallel_config": {"vae_patch_parallel_size": 2}}, "vae_patch_parallel_size to match ulysses_degree"),
         ({"parallel_config": {"ring_degree": 2}}, "pure ulysses_degree"),
         ({"parallel_config": {"allgather_degree": 2}}, "pure ulysses_degree"),
+        ({"parallel_config": {"vae_parallel_mode": "spatial_shard_width"}}, "spatial_shard_height"),
         ({"lora_path": "unsupported-adapter"}, "LoRA"),
     ],
 )
@@ -43,14 +43,14 @@ def test_unsupported_config_fails_before_hooks(monkeypatch, overrides, message):
         DiffusionEngine(config)
 
 
-@pytest.mark.parametrize("degree", [1, 2, 4, 8])
-def test_ulysses_config_is_supported(degree):
+def test_matching_window_and_vae_parallelism_is_supported():
     from vllm_omni.diffusion.models.seedvr2.config import validate_seedvr2_config
 
     config = OmniDiffusionConfig(
         model_class_name="SeedVR2Pipeline",
         dtype=torch.float16,
         enforce_eager=True,
-        parallel_config={"ulysses_degree": degree},
+        num_gpus=2,
+        parallel_config={"ulysses_degree": 2, "vae_patch_parallel_size": 2},
     )
     validate_seedvr2_config(config)
