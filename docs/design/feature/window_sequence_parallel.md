@@ -172,22 +172,11 @@ This section describes the validation loader only. It is not a statement that
 the serving loader (still to land with the SeedVR2 P0 integration) performs the
 same conversion.
 
-## Validation
-
-| Layer | What it proves |
-| --- | --- |
-| CPU (`test_window_sp_plan.py`) | geometry parity against an independent windowing implementation, partition coverage, planner determinism/LPT oracle, A->B and B->A routing, round trips, empty ranks, metadata bounds, cache keys |
-| GPU transport (`window_sp_worker.py --case transport`) | the real `all_to_all_single` moves rows bit-exactly through all 31 schedule transitions at SP=2/4, including ranks without windows |
-| GPU toy block (`--case toy-block`) | four layers `A -> B -> A -> B` of joint video+text window attention plus the global text mean match a single-rank oracle to float64 round-off |
-| Real model (`--case seedvr2`) | the released 3B checkpoint: SP=N output matches the SP=1 output of the same port within the frozen fixture tolerance, with per-rank memory and timing recorded |
-
 ## Integration limits
 
 This PR contains the DiT and its window-SP runtime. The native serving pipeline
 is P0 scope and must pass its parallel configuration to the runtime factory.
-The real-checkpoint GPU test exercises this factory with the framework-created
-SP group. GPU CI requires `SEEDVR2_CHECKPOINT`; a missing checkpoint fails the
-test instead of silently skipping it. Local runs without weights may skip.
+Checkpoint validation is maintained locally.
 
 ## Limitations
 
