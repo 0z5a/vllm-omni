@@ -1,9 +1,0 @@
-{
-  "frames": 107,
-  "mae": 8.515985966521234e-05,
-  "max_error": 0.04313725233078003,
-  "psnr_db": 64.3048060179508,
-  "pts_match": true,
-  "audio_sha256": "4579b094a5a007de90b8c703e9057ce934315487cc65b7118d9678f8a4f76f6b",
-  "audio_match": true
-}

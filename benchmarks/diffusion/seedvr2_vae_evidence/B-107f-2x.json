@@ -1,9 +1,0 @@
-{
-  "case": "B-aligned-107f-2x-C0",
-  "seconds_diagnostic_only": 2.144847661998938,
-  "status": 500,
-  "error": "{\"error\":{\"message\":\"Video generation failed: CUDA out of memory. Tried to allocate 11.92 GiB. GPU 0 has a total capacity of 44.39 GiB of which 673.75 MiB is free. Including non-PyTorch memory, this process has 43.71 GiB memory in use. Of the allocated memory 43.14 GiB is allocated by PyTorch, and 231.07 MiB is reserved by PyTorch but unallocated. If reserved but unallocated memory is large try setting PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True to avoid fragmentation.  See documentation for Memory Management  (https://docs.pytorch.org<path>#optimizing-memory-usage-with-pytorch-cuda-alloc-conf)\",\"type\":\"Internal Server Error\",\"param\":null,\"code\":500}}",
-  "health": {
-    "status": "healthy"
-  }
-}

@@ -89,7 +89,7 @@ ranks fall back to replicated execution. Width sharding and batch slicing are
 unsupported. FP16 reduction and convolution order can change rounding, so
 parallel outputs are numerically close rather than bitwise identical.
 
-See the [tiling and patch-parallel validation report](../../benchmarks/diffusion/seedvr2_vae_parallel_results.md)
+See the tiling and patch-parallel validation report (record retained locally)
 for correctness, capacity and HTTP measurements.
 
 ## Current integration scope
@@ -116,7 +116,7 @@ FP16 boundary between them. Its FP32 reduction order differs from the reference:
 full-checkpoint five/six-frame and 2×/4× SP1 comparisons have worst MAE 0.000231787,
 max error 0.016113282, and minimum PSNR 68.25 dB. Same-seed repeated requests are
 exact within this implementation. CPU and non-FP16 standalone VAE calls retain
-the reference normalization path. See the [VAE validation report](../../benchmarks/diffusion/seedvr2_vae_results.md)
+the reference normalization path. See the VAE validation report (record retained locally)
 for service measurements and SP results; these are not multi-GPU scaling claims.
 
 The practical P0 reference's five-frame batches, overlap, LAB correction,
