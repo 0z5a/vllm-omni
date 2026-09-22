@@ -7,17 +7,19 @@ partitions the video tokens into 3D windows and attends only inside a window.
 The window size is normalised against a fixed 720p reference area, so raising the
 output resolution grows the *number* of windows, never their size.
 
-Ulysses sequence parallelism exists to make global attention tractable by
-all-to-all'ing the head dimension; with window-local attention there is nothing
-to rescue and two activation-sized all-to-all exchanges per layer would be pure overhead.
+Ulysses redistributes the sequence and head dimensions around attention.
+For SeedVR2, window-aligned SP offers a different communication tradeoff: one
+hidden-state exchange per layout boundary versus Q/K/V and output exchanges
+for Ulysses. The actual performance crossover requires measurement.
 Window-aligned SP instead assigns **whole windows** to ranks:
 
 * every rank keeps **all** attention heads, so no head-count divisibility is
   required,
 * attention inside a layer needs **zero** communication,
-* the only communication is the re-shard between consecutive layers whose window
-  layouts differ (regular <-> shifted), plus one small reduction per
-  text-producing layer.
+* regular and shifted layouts alternate at every layer, so the released
+  32-layer model has 31 inter-layer transitions, plus one text reduction per
+  layer and a final video gather. A transition can be a local permutation
+  when ownership does not change.
 
 ## Window layouts
 
@@ -81,7 +83,7 @@ by each rank and `C[r, d]` the number of rows rank `d` needs from rank `r`:
   skips the collective alone.
 
 The runtime is a variable-split `torch.distributed.all_to_all_single` over an
-explicit process group (`window_parallel_size`), plus a local-permutation fast
+regular SP process group (`get_sp_group().device_group`), plus a local-permutation fast
 path when the whole group stays in place (which is the SP=1 case). The first
 version is deliberately synchronous: no extra streams, no per-layer
 `cuda.synchronize()` or barrier "fixups", and no hidden all-gather.
@@ -102,15 +104,21 @@ window contributes a zero tensor (with the *same dtype as its peers* -- a dtype
 mismatch changes the collective and deadlocks NCCL, which is why the empty-rank
 path is covered by a GPU test).
 
-## Framework changes
+## Existing SP configuration
 
-Window-aligned SP is exposed as `window_parallel_size` in
-`DiffusionParallelConfig`. It is mutually exclusive with
-`ulysses_degree` / `ring_degree` / `allgather_degree`: the window group is the SP
-group itself and the Ulysses / Ring / AllGather subgroups are degenerate
-singletons, so no legacy accessor can mistake a window-SP run for a Ulysses run.
-Everything else is SeedVR2-local (planner, routing, model integration), matching
-the maintainer guidance on #7723 to keep the framework surface minimal.
+Configure `ulysses_degree=N` to create the existing N-rank SP group. Pass
+`DiffusionParallelConfig` to `SeedVR2NaDiT.build_runtime(parallel_config=...)`;
+the model validates the configuration and obtains `get_sp_group().device_group`.
+This adds no framework parallel option or group-construction branch.
+
+For SeedVR2 this selects **window-aligned Plan A**, not head-sharded Ulysses.
+Every rank retains all 20 attention heads, so SP=8 does not require the head
+count to divide by eight. The model has no `_sp_plan`, and its attention uses
+`skip_sequence_parallel=True`; generic sequence hooks and Ulysses attention
+exchanges are not installed. Reports name the actual execution path explicitly.
+
+SeedVR2 rejects ring, allgather, `advanced_uaa`, and `ulysses_a2a_permute`.
+Other diffusion models keep their existing Ulysses/Ring/AllGather behavior.
 
 ## SeedVR2 integration
 
@@ -167,7 +175,7 @@ same conversion.
 ## Validation
 
 | Layer | What it proves |
-|---|---|
+| --- | --- |
 | CPU (`test_window_sp_plan.py`) | geometry parity against an independent windowing implementation, partition coverage, planner determinism/LPT oracle, A->B and B->A routing, round trips, empty ranks, metadata bounds, cache keys |
 | GPU transport (`window_sp_worker.py --case transport`) | the real `all_to_all_single` moves rows bit-exactly through all 31 schedule transitions at SP=2/4, including ranks without windows |
 | GPU toy block (`--case toy-block`) | four layers `A -> B -> A -> B` of joint video+text window attention plus the global text mean match a single-rank oracle to float64 round-off |
@@ -179,15 +187,11 @@ memory per rank).
 
 ## Integration limits
 
-`window_parallel_size > 1` is reserved for SeedVR2's model-level window-SP path
-in this change. It does not add SeedVR2 serving integration or a model-support
-rejection gate for other diffusion pipelines; other pipelines must leave this
-option at its default of 1. Fail-fast validation for unsupported pipelines is
-deferred to the SeedVR2 serving integration, where the model identity is known
-before expensive work starts.
-
-The default (`window_parallel_size == 1`) and every existing SP configuration are
-unchanged.
+This PR contains the DiT and its window-SP runtime. The native serving pipeline
+is P0 scope and must pass its parallel configuration to the runtime factory.
+The real-checkpoint GPU test exercises this factory with the framework-created
+SP group. GPU CI requires `SEEDVR2_CHECKPOINT`; a missing checkpoint fails the
+test instead of silently skipping it. Local runs without weights may skip.
 
 ## Limitations
 
