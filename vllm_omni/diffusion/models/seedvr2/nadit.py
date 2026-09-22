@@ -38,12 +38,15 @@ from vllm.logger import init_logger
 
 from vllm_omni.diffusion.attention.backends.abstract import AttentionMetadata
 from vllm_omni.diffusion.attention.layer import Attention
+from vllm_omni.diffusion.data import DiffusionParallelConfig
+from vllm_omni.diffusion.distributed.parallel_state import get_sp_group
 from vllm_omni.diffusion.models.seedvr2.na_ops import (
     LocalWindowContext,
     SeedVR2WindowRuntime,
     pack_joint_windows,
     unpack_joint_windows,
 )
+from vllm_omni.diffusion.models.seedvr2.parallel import validate_seedvr2_parallel_config
 from vllm_omni.diffusion.models.seedvr2.rope import NaMMRotaryEmbedding3d
 from vllm_omni.diffusion.models.seedvr2.window_geometry import (
     DEFAULT_WINDOW,
@@ -591,8 +594,15 @@ class SeedVR2NaDiT(nn.Module):
         group=None,
         world_size: int = 1,
         rank: int = 0,
+        parallel_config: DiffusionParallelConfig | None = None,
     ) -> SeedVR2WindowRuntime:
         """Create the window-SP driver for one request (SP=1 included)."""
+        if parallel_config is not None:
+            validate_seedvr2_parallel_config(parallel_config)
+            sp = get_sp_group()
+            if sp.world_size != parallel_config.sequence_parallel_size:
+                raise ValueError("SeedVR2 SP group size does not match its parallel configuration")
+            group, world_size, rank = sp.device_group, sp.world_size, sp.rank_in_group
         return SeedVR2WindowRuntime(
             token_grid,
             text_len=text_len,

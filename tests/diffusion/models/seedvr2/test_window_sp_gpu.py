@@ -97,6 +97,8 @@ def test_seedvr2_sp_degree_invariance(world_size, tmp_path):
         pytest.skip(f"needs {world_size} GPUs, found {_available_gpus()}")
     checkpoint = os.environ.get("SEEDVR2_CHECKPOINT", "/models/seedvr2_ema_3b_fp16.safetensors")
     if not Path(checkpoint).exists():
+        if os.environ.get("CI") or os.environ.get("BUILDKITE"):
+            pytest.fail(f"SeedVR2 checkpoint is required in GPU CI: set SEEDVR2_CHECKPOINT (missing {checkpoint})")
         pytest.skip(f"SeedVR2 checkpoint not found at {checkpoint}")
     report = _run_worker(
         "seedvr2",
