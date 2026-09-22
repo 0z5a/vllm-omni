@@ -26,9 +26,9 @@ from types import SimpleNamespace
 import pytest
 import torch
 
+from vllm_omni.core.prefix_cache.adapter import PrefixCacheSchedulerAdapter
 from vllm_omni.core.prefix_cache.interface import PrefixCacheConfig
 from vllm_omni.core.prefix_cache.manager import OmniPrefixCacheManager
-from vllm_omni.core.prefix_cache.adapter import PrefixCacheSchedulerAdapter
 
 pytestmark = [pytest.mark.core_model, pytest.mark.cpu]
 
@@ -46,7 +46,11 @@ def _named_tuple_fields(path: Path, class_name: str) -> list[str]:
     tree = ast.parse(path.read_text())
     for node in ast.walk(tree):
         if isinstance(node, ast.ClassDef) and node.name == class_name:
-            return [stmt.target.id for stmt in node.body if isinstance(stmt, ast.AnnAssign)]
+            return [
+                stmt.target.id
+                for stmt in node.body
+                if isinstance(stmt, ast.AnnAssign) and isinstance(stmt.target, ast.Name)
+            ]
     raise AssertionError(f"{class_name} not found in {path}")
 
 
