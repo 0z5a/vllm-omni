@@ -107,10 +107,7 @@ fields remain null until the actual GUIDE-02 implementation is available.
 
 Current CPU-only structural checks, from the repository root:
 
-```bash
-python -m pytest -o addopts='' --noconftest \
-  tests/e2e/features/comfyui/test_minimax_h3_multiframe_draft.py -q
-```
+Validation scripts are maintained locally.
 
 `--noconftest` deliberately runs the JSON/AST checks without the existing
 ComfyUI test mocks, Torch, or an installed inference engine. These checks
