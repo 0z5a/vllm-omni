@@ -14,7 +14,6 @@ from torch import nn
 from torch.nn import functional as F
 
 from vllm_omni.diffusion.data import DiffusionOutput, OmniDiffusionConfig
-from vllm_omni.diffusion.distributed.parallel_state import get_sp_group
 from vllm_omni.diffusion.distributed.utils import get_local_device
 from vllm_omni.diffusion.media import (
     DiffusionMediaOutput,
@@ -176,13 +175,11 @@ class SeedVR2Pipeline(nn.Module):
             shape = torch.tensor([condition.shape[:3]], device=self.device, dtype=torch.long)
             text_shape = torch.tensor([[self.text.shape[0]]], device=self.device, dtype=torch.long)
             timestep = torch.tensor([1000.0], device=self.device, dtype=torch.float16)
-            group = get_sp_group()
             runtime = self.transformer.build_runtime(
                 self.transformer.token_grid_for(shape),
                 text_len=self.text.shape[0],
-                group=group.device_group,
-                world_size=group.world_size,
-                rank=group.rank_in_group,
+                parallel_config=self.od_config.parallel_config,
+                ulysses=self.od_config.parallel_config.ulysses_degree > 1,
             )
             velocity = self.transformer(video, self.text, shape, text_shape, timestep, runtime).vid_sample
             # Reference Euler returns fp32, then VAE casts to fp16 before scaling.

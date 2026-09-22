@@ -43,7 +43,7 @@ For two-rank window-SP, expose two GPUs and replace `--num-gpus 1` with:
 
 ```bash
 --num-gpus 2 --distributed-executor-backend mp \
-  --stage-overrides '{"0":{"window_parallel_size":2}}'
+  --stage-overrides '{"0":{"ulysses_degree":2}}'
 ```
 
 Use degree 4 and four visible GPUs for SP4. Window-SP alone replicates the VAE.
@@ -51,7 +51,7 @@ To shard VAE activations across the same ranks, use:
 
 ```bash
 --vae-use-tiling --num-gpus 2 --distributed-executor-backend mp \
-  --stage-overrides '{"0":{"window_parallel_size":2,"vae_patch_parallel_size":2,"vae_parallel_mode":"spatial_shard_height"}}'
+  --stage-overrides '{"0":{"ulysses_degree":2,"vae_patch_parallel_size":2,"vae_parallel_mode":"spatial_shard_height"}}'
 ```
 
 The VAE patch degree must match the window-SP degree.
@@ -107,8 +107,9 @@ for correctness, capacity and HTTP measurements.
 | Unsupported | VFR, multichannel audio, 7B, other sampling schedules, quantization, cache acceleration, VAE width sharding / batch slicing, CPU offload, CFG/TP/PP parallelism, compiled execution, LoRA |
 
 Unsupported engine modes are rejected before process hooks and worker creation.
-Use `window_parallel_size` for model-owned sequence parallelism; Ulysses, Ring
-and AllGather-KV are not supported for this pipeline.
+Use `ulysses_degree` for specialized Ulysses window attention. Ring and
+AllGather-KV are unsupported. Earlier SP results below cover window-aligned
+routing; they do not establish correctness of this new Ulysses path.
 
 The CUDA FP16 VAE fuses framewise GroupNorm and SiLU while preserving the
 FP16 boundary between them. Its FP32 reduction order differs from the reference:

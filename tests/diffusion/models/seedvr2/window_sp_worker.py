@@ -314,9 +314,19 @@ def _load_port_model(
 
 
 def run_seedvr2(args: argparse.Namespace, rank: int, world_size: int) -> Report:
+    from vllm_omni.diffusion.data import DiffusionParallelConfig
+    from vllm_omni.diffusion.distributed.parallel_state import (
+        get_sp_group,
+        init_distributed_environment,
+        initialize_model_parallel,
+    )
+
     report = Report(case="seedvr2", world_size=world_size, rank=rank)
-    group = dist.new_group(list(range(world_size)))
     torch.accelerator.set_device_index(rank)
+    parallel = DiffusionParallelConfig(ulysses_degree=world_size)
+    init_distributed_environment(world_size=world_size, rank=rank, local_rank=rank)
+    initialize_model_parallel(sequence_parallel_size=world_size, ulysses_degree=world_size)
+    group = get_sp_group().device_group
     device = torch.device("cuda", rank)
     dtype = getattr(torch, args.dtype)
 
@@ -352,14 +362,16 @@ def run_seedvr2(args: argparse.Namespace, rank: int, world_size: int) -> Report:
         with torch.no_grad():
             for index in range(args.warmup + args.iterations):
                 output, elapsed = timed(
-                    lambda: model(
-                        vid=vid,
-                        txt=txt,
-                        vid_shape=vid_shape,
-                        txt_shape=txt_shape,
-                        timestep=timestep,
-                        runtime=runtime,
-                    ).vid_sample
+                    lambda: (
+                        model(
+                            vid=vid,
+                            txt=txt,
+                            vid_shape=vid_shape,
+                            txt_shape=txt_shape,
+                            timestep=timestep,
+                            runtime=runtime,
+                        ).vid_sample
+                    )
                 )
                 if runtime is not None:
                     # Counters accumulate over the whole session; report the last
@@ -378,9 +390,8 @@ def run_seedvr2(args: argparse.Namespace, rank: int, world_size: int) -> Report:
     runtime = model.build_runtime(
         token_grid,
         text_len=args.text_len,
-        group=group if world_size > 1 else None,
-        world_size=world_size,
-        rank=rank,
+        parallel_config=parallel,
+        ulysses=args.ulysses,
     )
     model.reset_attention_stats()
     distributed, distributed_ms, distributed_p95, stats = measure(runtime)
@@ -393,8 +404,15 @@ def run_seedvr2(args: argparse.Namespace, rank: int, world_size: int) -> Report:
     mean_abs = float(diff.mean().item())
     finite = bool(torch.isfinite(distributed).all().item())
 
+    from vllm_omni.diffusion.models.seedvr2.ulysses import SeedVR2UlyssesRuntime
+
+    local_tokens = (
+        runtime.token_sizes[rank]
+        if isinstance(runtime, SeedVR2UlyssesRuntime)
+        else int(runtime.manager.rank_plan(runtime.layout_for_layer(0)).global_token_ids.numel())
+    )
     per_rank = torch.tensor(
-        [int(runtime.manager.rank_plan(runtime.layout_for_layer(0)).global_token_ids.numel())],
+        [local_tokens],
         dtype=torch.int64,
         device=device,
     )
@@ -417,6 +435,9 @@ def run_seedvr2(args: argparse.Namespace, rank: int, world_size: int) -> Report:
             "video_tokens": num_tokens,
             "text_tokens": args.text_len,
             "sp_size": world_size,
+            "sp_config": {"ulysses_degree": parallel.ulysses_degree},
+            "execution_path": type(runtime).__name__,
+            "runtime_stats": stats,
             "windows_per_layout": {str(layer): int(runtime.layout_for_layer(layer).num_windows) for layer in (0, 1)},
             "per_rank_tokens": [int(c) for c in counts[rank].tolist()] if world_size > 1 else [num_tokens],
             "layout_transition_count": stats["layout_transitions"],
@@ -456,8 +477,6 @@ def run_seedvr2(args: argparse.Namespace, rank: int, world_size: int) -> Report:
     if not ok:
         report.status = "fail"
         report.error = f"SP={world_size} output differs from SP=1 (max_abs={max_abs:.3e}, rel_l2={rel_l2:.3e})"
-    if world_size > 1:
-        dist.destroy_process_group(group)
     return report
 
 
@@ -480,6 +499,7 @@ def main() -> int:
     parser.add_argument("--transport-features", type=int, default=8)
     parser.add_argument("--dtype", default="float16", choices=("float16", "bfloat16", "float32"))
     parser.add_argument("--tolerance", default="2e-2,2e-2", help="atol,rtol for the seedvr2 case")
+    parser.add_argument("--ulysses", action="store_true", help="exercise specialized Ulysses window attention")
     parser.add_argument("--varlen", action="store_true", help="request the packed-varlen attention kernel")
     parser.add_argument(
         "--allow-truncated-layers",
@@ -530,7 +550,12 @@ def main() -> int:
             }
             print(f"  rank{entry['rank']}: {interesting}")
     dist.barrier()
-    dist.destroy_process_group()
+    if args.case == "seedvr2":
+        from vllm_omni.diffusion.distributed.parallel_state import destroy_distributed_env
+
+        destroy_distributed_env()
+    else:
+        dist.destroy_process_group()
     return 0
 
 

@@ -23,10 +23,9 @@ pytestmark = [pytest.mark.cpu, pytest.mark.diffusion, pytest.mark.core_model]
         ({"parallel_config": {"cfg_parallel_size": 2}}, "cfg_parallel_size=1"),
         ({"parallel_config": {"tensor_parallel_size": 2}}, "tensor_parallel_size=1"),
         ({"parallel_config": {"pipeline_parallel_size": 2}}, "pipeline_parallel_size=1"),
-        ({"parallel_config": {"vae_patch_parallel_size": 2}}, "vae_patch_parallel_size to match window_parallel_size"),
-        ({"parallel_config": {"ulysses_degree": 2}}, "ulysses_degree=1"),
-        ({"parallel_config": {"ring_degree": 2}}, "ring_degree=1"),
-        ({"parallel_config": {"allgather_degree": 2}}, "allgather_degree=1"),
+        ({"parallel_config": {"vae_patch_parallel_size": 2}}, "vae_patch_parallel_size to match ulysses_degree"),
+        ({"parallel_config": {"ring_degree": 2}}, "pure ulysses_degree"),
+        ({"parallel_config": {"allgather_degree": 2}}, "pure ulysses_degree"),
         ({"parallel_config": {"vae_parallel_mode": "spatial_shard_width"}}, "spatial_shard_height"),
         ({"lora_path": "unsupported-adapter"}, "LoRA"),
     ],
@@ -52,6 +51,6 @@ def test_matching_window_and_vae_parallelism_is_supported():
         dtype=torch.float16,
         enforce_eager=True,
         num_gpus=2,
-        parallel_config={"window_parallel_size": 2, "vae_patch_parallel_size": 2},
+        parallel_config={"ulysses_degree": 2, "vae_patch_parallel_size": 2},
     )
     validate_seedvr2_config(config)

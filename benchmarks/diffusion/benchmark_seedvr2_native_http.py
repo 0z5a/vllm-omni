@@ -106,7 +106,7 @@ def run_arm(directory, arm, args):
         else "seedvr2_native_worker_audit.NativeWorkerAudit",
     ]
     if args.sp > 1:
-        parallel = {"window_parallel_size": args.sp}
+        parallel = {"ulysses_degree": args.sp}
         if arm == "P" and args.candidate_spatial:
             parallel.update(vae_patch_parallel_size=args.sp, vae_parallel_mode="spatial_shard_height")
         command.extend(["--distributed-executor-backend", "mp", "--stage-overrides", json.dumps({"0": parallel})])

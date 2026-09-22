@@ -38,13 +38,17 @@ from vllm.logger import init_logger
 
 from vllm_omni.diffusion.attention.backends.abstract import AttentionMetadata
 from vllm_omni.diffusion.attention.layer import Attention
+from vllm_omni.diffusion.data import DiffusionParallelConfig
+from vllm_omni.diffusion.distributed.parallel_state import get_sp_group
 from vllm_omni.diffusion.models.seedvr2.na_ops import (
     LocalWindowContext,
     SeedVR2WindowRuntime,
     pack_joint_windows,
     unpack_joint_windows,
 )
+from vllm_omni.diffusion.models.seedvr2.parallel import validate_seedvr2_parallel_config
 from vllm_omni.diffusion.models.seedvr2.rope import NaMMRotaryEmbedding3d
+from vllm_omni.diffusion.models.seedvr2.ulysses import SeedVR2UlyssesRuntime
 from vllm_omni.diffusion.models.seedvr2.window_geometry import (
     DEFAULT_WINDOW,
     DEFAULT_WINDOW_METHODS,
@@ -358,8 +362,14 @@ class NaSwinAttention(nn.Module):
         runtime: SeedVR2WindowRuntime | None,
     ) -> tuple[torch.Tensor, torch.Tensor]:
         vid_qkv, txt_qkv = self.proj_qkv(vid, txt)
-        vid_q, vid_k, vid_v = self._split_heads(vid_qkv)
-        txt_q, txt_k, txt_v = self._split_heads(txt_qkv)
+        if isinstance(runtime, SeedVR2UlyssesRuntime):
+            vid_q, vid_k, vid_v = runtime.to_heads(
+                vid_qkv.view(vid.shape[0], 3, self.heads, self.head_dim), ctx
+            ).unbind(1)
+            txt_q, txt_k, txt_v = runtime.text_heads(txt_qkv.view(txt.shape[0], 3, self.heads, self.head_dim)).unbind(1)
+        else:
+            vid_q, vid_k, vid_v = self._split_heads(vid_qkv)
+            txt_q, txt_k, txt_v = self._split_heads(txt_qkv)
 
         vid_q, txt_q = self.norm_q(vid_q, txt_q)
         vid_k, txt_k = self.norm_k(vid_k, txt_k)
@@ -392,9 +402,9 @@ class NaSwinAttention(nn.Module):
             joint_out = grouped_window_sdpa(joint_q, joint_k, joint_v, ctx, softmax_scale=self.softmax_scale)
 
         vid_out, txt_windows = unpack_joint_windows(joint_out, ctx)
-        vid_out = vid_out.reshape(-1, self.inner_dim)
+        attention_dim = vid_out.shape[-2] * vid_out.shape[-1]
         if ctx.local_windows:
-            local_text_sum = txt_windows.reshape(ctx.local_windows, ctx.text_len, self.inner_dim).sum(0)
+            local_text_sum = txt_windows.reshape(ctx.local_windows, ctx.text_len, attention_dim).sum(0)
         else:
             # Ranks without windows still join the text reduction; the dtype must
             # match the other ranks' contribution exactly (a mismatch changes the
@@ -406,7 +416,9 @@ class NaSwinAttention(nn.Module):
             # Same reduction as the runtime path, without a collective.
             txt_out = global_window_mean(local_text_sum, ctx.global_windows, group=None, dtype=vid.dtype)
 
-        return self.proj_out(vid_out, txt_out)
+        if isinstance(runtime, SeedVR2UlyssesRuntime):
+            vid_out = runtime.from_heads(vid_out, ctx)
+        return self.proj_out(vid_out.reshape(-1, self.inner_dim), txt_out)
 
 
 # =============================================================================
@@ -591,8 +603,28 @@ class SeedVR2NaDiT(nn.Module):
         group=None,
         world_size: int = 1,
         rank: int = 0,
+        parallel_config: DiffusionParallelConfig | None = None,
+        ulysses: bool = False,
     ) -> SeedVR2WindowRuntime:
         """Create the window-SP driver for one request (SP=1 included)."""
+        if parallel_config is not None:
+            validate_seedvr2_parallel_config(parallel_config)
+            sp = get_sp_group()
+            if sp.world_size != parallel_config.sequence_parallel_size:
+                raise ValueError("SeedVR2 SP group size does not match its parallel configuration")
+            group, world_size, rank = sp.device_group, sp.world_size, sp.rank_in_group
+        if ulysses:
+            return SeedVR2UlyssesRuntime(
+                token_grid,
+                text_len=text_len,
+                heads=self.blocks[0].attn.heads,
+                group=group,
+                world_size=world_size,
+                rank=rank,
+                window=self.window,
+                methods=self.window_method,
+                num_layers=self.num_layers,
+            )
         return SeedVR2WindowRuntime(
             token_grid,
             text_len=text_len,

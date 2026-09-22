@@ -12,8 +12,9 @@ transformer needs:
   ``ensure_layout`` transitions, the global window-mean text reduction and the
   final reconstruction back to canonical token order.
 
-Everything here is SeedVR2-local on purpose: the framework provides the SP
-process group (``window_parallel_size``), the model owns its own routing.
+The framework provides the regular SP group (``get_sp_group()``), configured
+with ``ulysses_degree``. SeedVR2 owns window routing and keeps all heads on
+each rank; the group configuration does not enable Ulysses head sharding.
 """
 
 from __future__ import annotations
