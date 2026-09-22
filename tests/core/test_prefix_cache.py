@@ -36,8 +36,8 @@ except ModuleNotFoundError:
     sys.modules["vllm"] = _vllm
     sys.modules["vllm.logger"] = _vllm_logger
 
-from vllm_omni.core.prefix_cache.controller import StagingBufferHolder
 from vllm_omni.core.prefix_cache.adapter import PrefixCacheSchedulerAdapter
+from vllm_omni.core.prefix_cache.controller import StagingBufferHolder
 from vllm_omni.core.prefix_cache.group_view import (
     FullAttentionGroupView,
     check_prefix_cache_kv_groups,
