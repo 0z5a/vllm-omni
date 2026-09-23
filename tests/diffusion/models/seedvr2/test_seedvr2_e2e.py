@@ -69,6 +69,7 @@ def test_seedvr2_checkpoint_sequence_parallel(degree: int, tmp_path: Path) -> No
 def _run_rank(output_dir: Path) -> None:
     import torch
     from safetensors.torch import load_file
+
     from vllm_omni.diffusion.data import DiffusionParallelConfig
     from vllm_omni.diffusion.distributed.parallel_state import (
         destroy_distributed_env,
