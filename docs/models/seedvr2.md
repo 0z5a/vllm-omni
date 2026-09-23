@@ -39,7 +39,7 @@ curl --fail-with-body http://127.0.0.1:8098/v1/videos/sync \
   --output restored.mp4
 ```
 
-For two-rank window-SP, expose two GPUs and replace `--num-gpus 1` with:
+For two-rank USP, expose two GPUs and replace `--num-gpus 1` with:
 
 ```bash
 --num-gpus 2 --distributed-executor-backend mp \
@@ -89,9 +89,6 @@ ranks fall back to replicated execution. Width sharding and batch slicing are
 unsupported. FP16 reduction and convolution order can change rounding, so
 parallel outputs are numerically close rather than bitwise identical.
 
-See the tiling and patch-parallel validation report (record retained locally)
-for correctness, capacity and HTTP measurements.
-
 ## Current integration scope
 
 | Property | Contract |
@@ -116,8 +113,7 @@ FP16 boundary between them. Its FP32 reduction order differs from the reference:
 full-checkpoint five/six-frame and 2×/4× SP1 comparisons have worst MAE 0.000231787,
 max error 0.016113282, and minimum PSNR 68.25 dB. Same-seed repeated requests are
 exact within this implementation. CPU and non-FP16 standalone VAE calls retain
-the reference normalization path. See the VAE validation report (record retained locally)
-for service measurements and SP results; these are not multi-GPU scaling claims.
+the reference normalization path.
 
 The practical P0 reference's five-frame batches, overlap, LAB correction,
 32-block CPU swapping, and VAE tiling are separate execution semantics and are
@@ -133,3 +129,27 @@ service after an OOM: another rank may still be waiting in a collective. Cancell
 existing DELETE endpoint; in-flight GPU work may drain before memory is reusable.
 A lost SP worker fails the request and makes health return 503. Restart the
 service to restore availability; automatic rank recovery is not provided.
+
+## Reproducible deployment
+
+See the [RTX 5090 recipe](../../recipes/ByteDance/SeedVR2-RTX-5090.md) for the
+input/output contract, complete serving command, and media checks. The local
+checkpoint test in `tests/diffusion/models/seedvr2/test_seedvr2_e2e.py` checks
+3B transformer USP parity; it is not an HTTP or optional-feature benchmark.
+
+## Temporal tiling and VAE patch parallelism
+
+Use `--vae-use-tiling` for causal temporal chunks. On a single GPU this also
+bounds large convolution workspace with exact spatial halos. To shard VAE
+activations across the same two USP ranks, use:
+
+```bash
+--vae-use-tiling --num-gpus 2 --distributed-executor-backend mp \
+  --stage-overrides '{"0":{"ulysses_degree":2,"vae_patch_parallel_size":2,"vae_parallel_mode":"spatial_shard_height"}}'
+```
+
+The VAE patch degree must equal the USP degree. Height sharding is supported;
+width sharding and batch slicing are not. Compare clips that cross a temporal
+chunk boundary as well as five/six-frame clips, and inspect frames adjacent to
+chunk boundaries. Reduced peak memory does not by itself establish lower latency.
+The published long-clip capacity result used L20; it is not a 5090 capacity claim.
