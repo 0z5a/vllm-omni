@@ -10,11 +10,12 @@ from vllm.model_executor.layers.quantization.input_quant_fp8 import QuantFP8
 from vllm.model_executor.layers.quantization.utils.quant_utils import GroupShape
 
 from vllm_omni.diffusion.vllm_config import create_base_diffusion_vllm_config
+from vllm_omni.platforms import current_omni_platform
 
 pytestmark = [pytest.mark.core_model, pytest.mark.cuda, pytest.mark.diffusion]
 
 
-@pytest.mark.skipif(not torch.cuda.is_available(), reason="CUDA required")
+@pytest.mark.skipif(not current_omni_platform.is_cuda() or not torch.cuda.is_available(), reason="NVIDIA CUDA required")
 def test_diffusion_fp8_uses_cuda_activation_quantizer() -> None:
     config = create_base_diffusion_vllm_config(torch.device("cuda"), SimpleNamespace(additional_config={}))
     with set_current_vllm_config(config):
