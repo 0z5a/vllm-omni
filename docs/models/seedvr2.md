@@ -32,7 +32,7 @@ permute modes are rejected.
 
 ## Reproduce the checkpoint checks
 
-Follow the [RTX 5090 partial recipe](../../recipes/ByteDance/SeedVR2-RTX-5090.md).
+Follow the [RTX 5090 partial recipe](https://github.com/vllm-project/vllm-omni/blob/main/recipes/ByteDance/SeedVR2-RTX-5090.md).
 The checkpoint-gated test runs SP=1/2/4, compares complete DiT outputs against
 SP=1, and verifies 64 Ulysses exchanges and 32 text-head gathers per forward.
 It does not exercise whole-window routing.
