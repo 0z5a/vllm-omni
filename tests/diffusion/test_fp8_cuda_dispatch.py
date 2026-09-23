@@ -21,8 +21,11 @@ def test_diffusion_fp8_uses_cuda_activation_quantizer() -> None:
     with set_current_vllm_config(config):
         quantizer = QuantFP8(static=False, group_shape=GroupShape.PER_TOKEN)
         assert quantizer._forward_method.__func__ is QuantFP8.forward_cuda
-        output, scale = quantizer(torch.randn((16, 128), device="cuda", dtype=torch.bfloat16))
+        inputs = torch.randn((16, 128), device="cuda", dtype=torch.bfloat16)
+        output, scale = quantizer(inputs)
+        reference, reference_scale = quantizer.forward_native(inputs)
 
     assert output.dtype == torch.float8_e4m3fn
     assert torch.isfinite(output.float()).all()
     assert torch.isfinite(scale).all()
+    torch.testing.assert_close(output.float() * scale, reference.float() * reference_scale, rtol=0.02, atol=0.02)
