@@ -130,7 +130,7 @@ The following tables show which models support each feature:
 | **Krea 2**               |     ❌     |     ✅      |           ❌           |       ❌        |         ❌         |          ❌          |   ✅    |             ✅             |      ✅ (decode)      |       ❌        |        ❌         |
 | **LongCat-Image**        |     ✅     |     ✅      |           ✅           |       ✅        |         ✅         |          ❌          |   ❌    |             ✅             |          ❌           |       ❌        |        ❌         |
 | **LongCat-Image-Edit**   |     ✅     |     ✅      |           ✅           |       ✅        |         ✅         |          ❌          |   ❌    |             ✅             |          ❌           |       ❌        |        ❌         |
-| **MammothModa2(T2I)**    |     ❌     |     ❌      |           ✅*          |       ❌        |         ❌         |          ❌          |   ❌    |             ❌             |          ❌           |       ❌        |        ❌         |
+| **MammothModa2(T2I)**    |     ❌     |     ✅      |           ✅*          |       ❌        |         ❌         |          ❌          |   ❌    |             ❌             |          ❌           |       ❌        |        ❌         |
 | **Nextstep_1(T2I)**      |     ❓     |     ❓      |           ❌           |       ✅        |         ✅         |          ❌          |   ❌    |             ✅             |          ❌           |       ❌        |        ❌         |
 | **OmniGen2**             |     ❌     |     ✅      |           ✅           |       ❌        |         ✅         |          ❌          |   ❌    |             ❌             |          ❌           |       ❌        |        ❌         |
 | **Ovis-Image**           |     ❌     |     ✅      |           ❌           |       ✅        |         ❌         |          ❌          |   ❌    |             ✅             |          ❌           |       ❌        |        ❌         |
@@ -155,6 +155,7 @@ The following tables show which models support each feature:
 > 5. HunyuanImage3 supports step execution. Multi-request step execution requires `TORCH_SDPA`; see [Diffusion Execution Modes](diffusion/execution_modes.md#step-execution).
 > 6. BAGEL step execution supports image generation with `bagel.yaml`, `bagel_think.yaml`, and `bagel_single_stage.yaml`; two-stage Thinker execution and explicit single-stage text output remain on their existing complete-request paths. Image requests require `num_inference_steps >= 2`. BAGEL step execution cannot currently be combined with sequence parallelism or a diffusion cache backend; see [Diffusion Execution Modes](diffusion/execution_modes.md#step-execution).
 > 7. MammothModa2 SP is opt-in for **Preview T2I only**, with Ulysses degree 2 and `advanced_uaa`; Ring, TP, PP, and CFG-parallel degrees must remain 1. It requires single-request eager execution without cache acceleration, quantization, or offload. See the [MammothModa2 recipe](https://github.com/vllm-project/vllm-omni/blob/main/recipes/MammothModa2/MammothModa2.md) for configuration and validation scope.
+> 8. MammothModa2 runs its DiT stage on the diffusion runner (`StageExecutionType.DIFFUSION`); Cache-DiT is enabled through the standard diffusion-stage knobs on the stage entry of the deploy YAML (`cache_backend: cache_dit`, plus optional `cache_config` / `enable_cache_dit_summary`). The runner installs the backend at startup and the pipeline adopts it per request. Only the repeated main-layer stack is cached; requests with `text_guidance_scale = 1.0` bypass the cache hooks.
 
 ### VideoGen
 
@@ -248,9 +249,11 @@ The Diffusion Acceleration navigation groups the remaining guides as follows:
 | Compatibility | [Feature Compatibility](feature_compatibility.md) |
 | CPU offloading | [CPU Offloading](diffusion/cpu_offload.md) |
 | Cache acceleration | [TeaCache](diffusion/cache_acceleration/teacache.md), [Cache-DiT](diffusion/cache_acceleration/cache_dit.md) |
+| KV cache paging | [Scheduler-Managed Paged KV Cache](diffusion/paged_kv_cache.md) |
 | Parallelism | [Parallelism Overview](diffusion/parallelism/overview.md) |
 | Attention | [Attention Backends](diffusion/attention_backends.md) |
 | Compilation | [Regional Compilation](diffusion/regional_compilation.md) |
+| VAE decode | [Wan VAE Decoder Fast Path](diffusion/vae_fast_path.md) |
 | Video extension | [Frame Interpolation](diffusion/frame_interpolation.md) |
 | Startup | [Startup and Loading](diffusion/startup_and_loading.md) |
 | Adapters | [LoRA](diffusion/lora.md) |
