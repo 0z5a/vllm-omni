@@ -124,7 +124,8 @@ if HAS_TRITON:
         eps: tl.constexpr,
         heads_per_program: tl.constexpr,
     ):
-        token = tl.program_id(0)
+        # Long-video Q/K views can span more than 2**31 elements of fused QKV storage.
+        token = tl.program_id(0).to(tl.int64)
         head_group = tl.program_id(1)
         heads = head_group * heads_per_program + tl.arange(0, heads_per_program)
         dims = tl.arange(0, head_dim)
@@ -344,6 +345,7 @@ def _validate_qk_norm_rope_inputs(
     rope_table: torch.Tensor,
     head_dim: int | None,
     rotary_dim: int | None,
+    interleaved: bool = False,
 ) -> tuple[int, int]:
     if q.ndim != 3 or k.ndim != 3:
         raise ValueError(f"q and k must be [tokens, heads, head_dim], got {q.shape} and {k.shape}")
@@ -364,8 +366,11 @@ def _validate_qk_norm_rope_inputs(
         raise ValueError(f"Expected norm weights [{head_dim}], got {tuple(q_weight.shape)} and {tuple(k_weight.shape)}")
     if q_weight.device != q.device or k_weight.device != q.device:
         raise ValueError("Q/K norm weights must be on the activation device")
-    if rope_table.device != q.device or rope_table.dtype != q.dtype:
-        raise ValueError("rope_table must have the same dtype and device as q/k")
+    if rope_table.device != q.device or (
+        rope_table.dtype != q.dtype
+        and not (interleaved and rope_table.dtype == torch.float32)
+    ):
+        raise ValueError("rope_table must be on the activation device with a compatible dtype")
     if rope_table.shape != (q.shape[0], rotary_dim):
         raise ValueError(f"Expected rope_table [{q.shape[0]}, {rotary_dim}], got {tuple(rope_table.shape)}")
     return head_dim, rotary_dim
@@ -511,6 +516,7 @@ def fused_qk_norm_rope(
         rope_table,
         head_dim,
         rotary_dim,
+        interleaved,
     )
 
     q_weight = q_weight.contiguous()
@@ -668,7 +674,7 @@ if HAS_TRITON:
         (partial rotary or lane padding) the output is the normalized value
         unchanged.
         """
-        token = tl.program_id(0)
+        token = tl.program_id(0).to(tl.int64)
         head_group = tl.program_id(1)
         dims = tl.arange(0, padded_dim)
         dim_mask = dims < head_dim
