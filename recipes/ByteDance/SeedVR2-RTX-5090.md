@@ -56,7 +56,7 @@ downloads occur during the test.
 
 ```bash
 export VLLM_TEST_SEEDVR2_MODEL=/absolute/path/seedvr2_ema_3b_fp16.safetensors
-CUDA_VISIBLE_DEVICES=0,1,2,3 python -m pytest -v \
+CUDA_VISIBLE_DEVICES=0,1,2,3 python -m pytest -o addopts='' -v \
   tests/diffusion/models/seedvr2/test_seedvr2_e2e.py
 ```
 
