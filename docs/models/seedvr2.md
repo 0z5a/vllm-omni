@@ -39,7 +39,7 @@ curl --fail-with-body http://127.0.0.1:8098/v1/videos/sync \
   --output restored.mp4
 ```
 
-For two-rank window-SP, expose two GPUs and replace `--num-gpus 1` with:
+For two-rank USP, expose two GPUs and replace `--num-gpus 1` with:
 
 ```bash
 --num-gpus 2 --distributed-executor-backend mp \
@@ -47,7 +47,7 @@ For two-rank window-SP, expose two GPUs and replace `--num-gpus 1` with:
 ```
 
 Use degree 4 and four visible GPUs for SP4. Each rank runs the whole VAE, so
-window-SP does not reduce VAE memory requirements.
+USP does not reduce VAE memory requirements.
 
 The multipart API requires a prompt field; a single space supplies a blank
 prompt. Nonblank text is rejected. Omit `fps` to retain the source frame rate;
@@ -94,3 +94,18 @@ request succeeds. Cancelling an in-progress video job removes it through the
 existing DELETE endpoint; in-flight GPU work may drain before memory is reusable.
 A lost SP worker fails the request and makes health return 503. Restart the
 service to restore availability; automatic rank recovery is not provided.
+
+## Reproducible deployment
+
+See the [RTX 5090 recipe](../../recipes/ByteDance/SeedVR2-RTX-5090.md) for the
+input/output contract, complete serving command, and media checks. The local
+checkpoint test in `tests/diffusion/models/seedvr2/test_seedvr2_e2e.py` checks
+3B transformer USP parity; it is not an HTTP or optional-feature benchmark.
+
+## VAE layout and fused normalization
+
+CUDA FP16 VAE execution uses the optimized channel layout and fused framewise
+GroupNorm/SiLU path automatically. The VAE remains replicated. This change does
+not enable temporal tiling or VAE patch parallelism. FP32 reduction order can
+change rounding, so compare decoded frames with explicit numeric tolerances and
+inspect fine texture; do not promise bitwise identity to the unfused baseline.
