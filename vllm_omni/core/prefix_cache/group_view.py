@@ -31,7 +31,9 @@ class FullAttentionGroupView:
     def __init__(self, input_batch: InputBatch, block_size: int):
         self._input_batch = input_batch
         self.block_size = block_size
-        check_prefix_cache_block_layout(input_batch.block_table[0], block_size)
+        table = input_batch.block_table[0]
+        check_prefix_cache_block_layout(table, block_size)
+        self.kernel_block_size = table.block_size
 
     def _block_table_cpu(self) -> torch.Tensor:
         return self._input_batch.block_table[0].block_table.cpu
@@ -49,7 +51,7 @@ class FullAttentionGroupView:
         block_table = self._block_table_cpu()
         # BlockTable expands allocator IDs into kernel-block IDs. Both
         # geometries address the same flat token storage, including tails.
-        bs = self._input_batch.block_table[0].block_size
+        bs = self.kernel_block_size
         max_blocks = int(block_table.shape[1])
         computed = self._input_batch.num_computed_tokens_cpu
         parts: list[torch.Tensor] = []
