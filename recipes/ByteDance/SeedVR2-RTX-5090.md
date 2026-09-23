@@ -88,7 +88,7 @@ For transformer-only SP=1/2/4 parity, set `VLLM_TEST_SEEDVR2_MODEL` to the 3B
 safetensors file and run:
 
 ```bash
-python -m pytest -v tests/diffusion/models/seedvr2/test_seedvr2_e2e.py
+python -m pytest -o addopts='' -v tests/diffusion/models/seedvr2/test_seedvr2_e2e.py
 ```
 
 This checkpoint-gated test does not validate the HTTP server or an optional
