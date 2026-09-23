@@ -13,9 +13,9 @@ from vllm_omni.core.prefix_cache.group_view import FullAttentionGroupView
 pytestmark = [pytest.mark.core_model, pytest.mark.cuda]
 
 
-@pytest.mark.parametrize("allocator_size,kernel_size", [(16, 16), (32, 16), (128, 16), (128, 32)])
+@pytest.mark.parametrize("allocator_size,kernel_size", [(16, 16), (32, 16), (128, 16), (128, 32), (128, 64)])
 @pytest.mark.parametrize("start,count", [(0, 1), (13, 7), (15, 18), (31, 3), (127, 2)])
-def test_adapter_matches_real_block_table(allocator_size, kernel_size, start, count):
+def test_adapter_matches_real_block_table(allocator_size: int, kernel_size: int, start: int, count: int) -> None:
     device = torch.device("cuda:0")
     batch = InputBatch(
         max_num_reqs=2,
