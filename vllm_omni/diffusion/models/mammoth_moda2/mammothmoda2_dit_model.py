@@ -10,7 +10,6 @@ from diffusers.models.modeling_utils import ModelMixin
 from einops import rearrange
 from torch import nn
 from transformers.models.qwen2.modeling_qwen2 import Qwen2RMSNorm
-
 from vllm_omni.diffusion.attention.backends.abstract import AttentionMetadata
 from vllm_omni.diffusion.attention.layer import Attention as OmniAttention
 from vllm_omni.diffusion.distributed.sp_plan import SequenceParallelInput, SequenceParallelOutput
@@ -753,7 +752,9 @@ class Transformer2DModel(ModelMixin, ConfigMixin):
         """
         ctx = get_forward_context() if is_forward_context_available() else None
         cfg = ctx.omni_diffusion_config if ctx is not None else None
-        strategies = [layer.attn.omni_attn.parallel_strategy for layer in self.layers]
+        strategies = [
+            layer.attn.omni_attn.parallel_strategy for layer in self.layers if isinstance(layer, TransformerBlock)
+        ]
         boundary_hooks = []
         for boundary, hook_name in (
             (self.sp_input_boundary, "sp_input---sp_input_boundary"),
@@ -826,7 +827,13 @@ class Transformer2DModel(ModelMixin, ConfigMixin):
                 # Ulysses sees global keys; output queries are rank-local again.
                 attention_mask = F.pad(attention_mask, (0, ctx.sp_padding_size), value=False)
             for layer in self.layers:
-                hidden_states = layer(hidden_states, attention_mask, (rotary_cos, rotary_sin), temb, query_mask)
+                hidden_states = layer(
+                    hidden_states,
+                    attention_mask=attention_mask,
+                    image_rotary_emb=(rotary_cos, rotary_sin),
+                    temb=temb,
+                    query_attention_mask=query_mask,
+                )
             return self.sp_output_boundary(hidden_states)
         finally:
             if ctx is not None:
