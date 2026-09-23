@@ -32,7 +32,7 @@ and Ulysses permute modes are rejected.
 
 ## Reproduce the checkpoint checks
 
-Follow the [RTX 5090 partial recipe](../../recipes/ByteDance/SeedVR2-RTX-5090.md).
+Follow the [RTX 5090 partial recipe](https://github.com/vllm-project/vllm-omni/blob/main/recipes/ByteDance/SeedVR2-RTX-5090.md).
 The checkpoint-gated test runs SP=1/2/4, compares complete DiT outputs against
 SP=1, and verifies all 31 layout transitions and 32 distributed text reductions.
 Without the model environment variable it skips, like the H3 local-model test.
