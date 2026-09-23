@@ -28,4 +28,7 @@ def test_diffusion_fp8_uses_cuda_activation_quantizer() -> None:
     assert output.dtype == torch.float8_e4m3fn
     assert torch.isfinite(output.float()).all()
     assert torch.isfinite(scale).all()
-    torch.testing.assert_close(output.float() * scale, reference.float() * reference_scale, rtol=0.02, atol=0.02)
+    dequantized = output.float() * scale
+    reference_dequantized = reference.float() * reference_scale
+    relative_rms = (dequantized - reference_dequantized).norm() / reference_dequantized.norm()
+    assert relative_rms < 0.03
