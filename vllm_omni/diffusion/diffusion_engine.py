@@ -245,6 +245,10 @@ class DiffusionEngine:
                 integrations. When omitted, the engine selects a scheduler
                 from the resolved execution mode.
         """
+        if od_config.model_class_name == "SeedVR2Pipeline":
+            from vllm_omni.diffusion.models.seedvr2.config import validate_seedvr2_config
+
+            validate_seedvr2_config(od_config)
         self.od_config = od_config
         # Set after the paged-KV profile request has gone through model-owned
         # preprocessing. Real requests are admitted only within this measured
@@ -1075,6 +1079,11 @@ class DiffusionEngine:
             prompt.setdefault("multi_modal_data", {})["audio"] = np.random.randn(audio_sr * 2).astype(np.float32)
 
         num_frames = get_dummy_run_num_frames(model_class_name, supports_audio_input)
+        if model_class_name == "SeedVR2Pipeline":
+            prompt = OmniTextPrompt(prompt="", multi_modal_data={"video": torch.zeros(1, 3, height, width)})
+            num_frames = 1
+            guidance_scale = 1.0
+            num_inference_steps = 1
         if num_frames <= 0:
             return None
         return OmniDiffusionRequest(

@@ -1,85 +1,136 @@
-# SeedVR2 3B transformer — RTX 5090
+# SeedVR2 video restoration — RTX 5090
 
 ## Summary
 
 - Vendor: ByteDance
-- Model: SeedVR2 3B NaDiT
-- Task: video restoration transformer validation
-- Mode: partial integration, DiT-only
+- Model: SeedVR2 3B
+- Task: restore or upscale an uploaded video
+- Mode: native offline/HTTP pipeline, one Euler step
 - Hardware: NVIDIA GeForce RTX 5090, 32 GiB per device
 - Maintainer: 0z5a
 
 ## When to use this recipe
 
-Use this recipe to check the released transformer checkpoint and sequence
-parallelism before integrating video restoration. This PR does not yet serve
-videos end to end. VAE and serving integration are tracked in
-[#7848](https://github.com/vllm-project/vllm-omni/pull/7848).
+Run short, constant-frame-rate videos with the native SeedVR2 pipeline. This
+recipe covers the whole-clip path. Long-video batching, overlap, and color
+correction from external applications are separate execution semantics.
 
 ## Supported model contract
 
 | Property | Contract |
 | --- | --- |
-| Input | Video latents `[T*H*W, 33]`, text conditioning `[L, 5120]`, shapes, timestep |
-| Output | Predicted video latents `[T*H*W, 16]` |
-| Checkpoint | Released `seedvr2_ema_3b_fp16.safetensors`, all 32 layers |
-| Execution | FP16, eager, grouped window SDPA |
-| SP profile | 1, 2, or 4 devices; complete model replicated per GPU |
-| Video/audio API | Unavailable in the DiT-only PR |
+| Model directory | See [checkpoint files and hashes](../../docs/models/seedvr2.md#model-directory) |
+| Input | One uploaded video; blank prompt; positive dimensions divisible by 16 |
+| Output | MP4 at requested geometry, original frame count and source frame rate |
+| Audio | First mono/stereo track, aligned by PTS; re-encoded as AAC |
+| Sampling | One Euler step, CFG=1, per-request seed |
+| Precision | 3B DiT and VAE FP16 |
+| Parallelism | Whole-window SP via `ulysses_degree`; replicated model weights |
+| Frame padding | Internal 4n+1 padding, cropped back; five returns five, six returns six |
 
 ## References
 
-- [Canonical SeedVR repository](https://github.com/ByteDance-Seed/SeedVR)
-- [Model integration](../../docs/models/seedvr2.md)
-- [RFC #7723](https://github.com/vllm-project/vllm-omni/issues/7723)
+- [Canonical SeedVR](https://github.com/ByteDance-Seed/SeedVR)
+- [Model guide](../../docs/models/seedvr2.md)
+- [Integration RFC](https://github.com/vllm-project/vllm-omni/issues/7723)
 
 ## Hardware
 
-- Accelerator: RTX 5090, 32 GiB per device; 1/2/4 visible GPUs.
-- Interconnect: PCIe; no NVLink dependency.
-- Qualification scope: a 1×64×64 latent grid, 58 conditioning tokens, full 3B
-  weights. This is not a maximum-resolution or long-video capacity claim.
-- Host memory: allow staging the 6.4 GiB checkpoint for each concurrent rank.
+RTX 5090 with 32 GiB per GPU, PCIe, one GPU for the default command or two/four
+for SP. Each GPU must fit a complete model copy and its activations. Host RAM
+must accommodate checkpoint staging per rank. Short-clip validation does not
+establish the maximum frame count or output resolution.
 
 ## Software environment
 
-- OS: Linux x86-64.
-- Python: 3.12.
-- PyTorch/runtime: 2.13.0+cu130 / CUDA 13.0.
-- vLLM: 0.29.0.
-- vLLM-Omni: the checkout containing this recipe and the SeedVR2 DiT changes.
+Linux x86-64, Python 3.12, PyTorch 2.13.0+cu130, CUDA 13.0, vLLM 0.29.0, and
+PyAV in the existing environment. Use the vLLM-Omni branch containing this recipe.
 
 ## Command
 
-Use an existing compatible environment and an authorized checkpoint. No model
-downloads occur during the test.
+Set `MODEL_DIR` to the authorized checkpoint directory documented in the model
+guide; it must also contain `model_index.json` selecting `SeedVR2Pipeline`.
 
 ```bash
-export VLLM_TEST_SEEDVR2_MODEL=/absolute/path/seedvr2_ema_3b_fp16.safetensors
-CUDA_VISIBLE_DEVICES=0,1,2,3 python -m pytest -o addopts='' -v \
-  tests/diffusion/models/seedvr2/test_seedvr2_e2e.py
+CUDA_VISIBLE_DEVICES=0 vllm serve "$MODEL_DIR" --omni \
+  --model-class-name SeedVR2Pipeline --dtype float16 --enforce-eager \
+  --num-gpus 1 --host 127.0.0.1 --port 8098
 ```
 
-There is no valid `vllm serve <model> --omni` command at this stage: the VAE and
-pipeline registration have not landed. The native-serving recipe will add the
-serve command and video request once that integration is available.
+For SP=2, expose two GPUs and replace the GPU count with:
+
+```bash
+--num-gpus 2 --distributed-executor-backend mp \
+  --stage-overrides '{"0":{"ulysses_degree":2}}'
+```
+
+Use degree 4 and four visible GPUs for SP=4. Combine any feature-specific
+settings below into the same stage-overrides object; do not repeat that flag.
 
 ## Verification
 
-Expect three passing cases on four available GPUs. With fewer GPUs, larger
-degrees skip. With no `VLLM_TEST_SEEDVR2_MODEL`, all cases skip by default.
+```bash
+curl --fail-with-body http://127.0.0.1:8098/v1/videos/sync \
+  -F 'prompt= ' -F 'input_references=@input.mp4;type=video/mp4' \
+  -F 'size=224x128' -F 'num_inference_steps=1' \
+  -F 'guidance_scale=1' -F 'seed=7723' --output restored.mp4
+python - <<'PY'
+import av
+with av.open('restored.mp4') as video:
+    stream = video.streams.video[0]
+    print(stream.width, stream.height, stream.average_rate,
+          sum(1 for _ in video.decode(video=0)), len(video.streams.audio))
+PY
+```
 
-Each case loads the full checkpoint, checks finite output and SP=1 parity
-(`atol=rtol=0.02`, relative L2 below 0.02), and asserts 31 layout transitions.
-SP=2/4 additionally require actual network exchange and 32 text reductions.
-The test writes rank logs and numeric reports only into pytest's temporary
-directory. Latent parity is not decoded-frame PSNR or visual quality validation.
+Expect HTTP 200 and a completely decodable 224×128 video. Check the frame count,
+FPS, timestamps, and audio against the input. Repeat the same seed and compare
+decoded frames; changing the seed should change the restored video. Inspect
+matching first/middle/last frames at the same display scale. AAC is re-encoded,
+so input/output audio packet hashes need not be identical.
+
+For transformer-only SP=1/2/4 parity, set `VLLM_TEST_SEEDVR2_MODEL` to the 3B
+safetensors file and run:
+
+```bash
+python -m pytest -o addopts='' -v tests/diffusion/models/seedvr2/test_seedvr2_e2e.py
+```
+
+This checkpoint-gated test does not validate the HTTP server or an optional
+optimization. Feature validation must use its enabled configuration, full model
+outputs, and the actual backend selected by the worker.
 
 ## Supported features
 
 | Feature | Status |
 | --- | --- |
-| [Window sequence parallelism](../../docs/design/feature/window_sequence_parallel.md) | Whole-window routing via the framework SP group |
-| Head-sharded USP | Follow-up integration; not this PR's execution path |
-| Ring, AllGather-KV, advanced UAA, permute | Unsupported |
-| Native video serving, VAE, 7B | Separate downstream changes |
+| [Window SP](../../docs/models/seedvr2.md) | Model-local regular/shifted window attention |
+| CPU offload, LoRA, compiled execution, CFG/TP/PP | Unsupported |
+| VFR or multichannel audio | Unsupported |
+| VAE temporal/spatial tiling | Available with `--vae-use-tiling` |
+| Quantization | Separate opt-in feature |
+
+## Measurement scope
+
+Compare identical inputs, seeds, dimensions, GPU counts, and warmups. Separate
+correctness from performance: use repeated interleaved HTTP measurements before
+claiming a stable gain. Keep raw logs, tensors, and generated media outside the
+source diff; link selected visuals from the PR's test results.
+
+## Temporal tiling and VAE patch parallelism
+
+Use `--vae-use-tiling` for causal temporal chunks. On a single GPU this also
+bounds large convolution workspace with exact spatial halos. To shard VAE
+activations across the same two SP ranks, use:
+
+```bash
+--vae-use-tiling --num-gpus 2 --distributed-executor-backend mp \
+  --stage-overrides '{"0":{"ulysses_degree":2,"vae_patch_parallel_size":2,"vae_parallel_mode":"spatial_shard_height"}}'
+```
+
+The VAE patch degree must equal the SP degree. Height sharding is supported;
+width sharding and batch slicing are not. Compare clips that cross a temporal
+chunk boundary as well as five/six-frame clips, and inspect frames adjacent to
+chunk boundaries. Reduced peak memory does not by itself establish lower latency.
+High-resolution clips can still exceed device capacity; validate the intended
+frame count and output size on the target GPUs.

@@ -1,44 +1,128 @@
-# SeedVR2 3B diffusion transformer
+# SeedVR2 3B video restoration
 
-SeedVR2 is a video restoration model from ByteDance. This integration provides
-the released 3B NaDiT transformer and window-aligned sequence parallelism.
-It is **DiT-only**: video decoding, the VAE, denoising orchestration, and the
-`SeedVR2Pipeline` serving entrypoint are separate work under
-[RFC #7723](https://github.com/vllm-project/vllm-omni/issues/7723).
+The native `SeedVR2Pipeline` restores an input video using the released 3B FP16
+NaDiT and s8/c16/t4 causal VAE. It uses fixed checkpoint conditioning, CFG=1,
+and one Euler step. Text prompts do not change conditioning.
 
-## Input and output
+## Model directory
 
-The transformer accepts flattened video latents `[T*H*W, 33]`, text conditioning
-`[L, 5120]`, their shapes, and a timestep. It returns restored latent predictions
-`[T*H*W, 16]`. Spatial latent dimensions must be divisible by the 2×2 patch size.
-These tensors are internal model inputs, not an uploaded video or text-to-video
-API. The released configuration has 32 layers and 20 attention heads.
+Place these files together, retaining their names:
 
-Use an authorized local copy of `seedvr2_ema_3b_fp16.safetensors` from the
-[SeedVR2 release](https://github.com/ByteDance-Seed/SeedVR). Checkpoint tests load
-the full model strictly; missing or unexpected tensors fail the test.
+| File | SHA-256 of the validated release |
+| --- | --- |
+| `seedvr2_ema_3b_fp16.safetensors` | `2fd0e03a3dad24e07086750360727ca437de4ecd456f769856e960ae93e2b304` |
+| `ema_vae_fp16.safetensors` | `20678548f420d98d26f11442d3528f8b8c94e57ee046ef93dbb7633da8612ca1` |
+| `pos_emb.pt` | `fa07a14844314772266b66c3b95deb0027696d8fe7065721263db5176f45d799` |
 
-## Parallel execution
+Add `model_index.json` containing:
 
-`DiffusionParallelConfig(ulysses_degree=N)` selects the framework SP group.
-This initial implementation assigns whole attention windows to ranks and keeps
-all heads on each rank. Its configuration name does not imply head-sharded
-Ulysses attention. The specialized USP implementation is a follow-up change.
-Model weights remain replicated on every GPU.
+```json
+{"_class_name": "SeedVR2Pipeline"}
+```
 
-See the [window sequence parallel design](../design/feature/window_sequence_parallel.md)
-for shifted-window geometry and communication. Ring, AllGather-KV, advanced UAA,
-and Ulysses permute modes are rejected.
+The loader checks every checkpoint tensor, including RoPE buffers, and rejects
+missing, duplicate, unexpected, or incompatible tensors. Install PyAV for video
+decoding. The validated environment uses PyAV 18.1, PyTorch 2.13/CUDA 13, and L20 GPUs.
 
-## Reproduce the checkpoint checks
+## Serve and restore a video
 
-Follow the [RTX 5090 partial recipe](https://github.com/vllm-project/vllm-omni/blob/main/recipes/ByteDance/SeedVR2-RTX-5090.md).
-The checkpoint-gated test runs SP=1/2/4, compares complete DiT outputs against
-SP=1, and verifies all 31 layout transitions and 32 distributed text reductions.
-Without the model environment variable it skips, like the H3 local-model test.
-An explicitly configured path that does not exist is an error.
+```bash
+vllm serve "$MODEL_DIR" --omni \
+  --model-class-name SeedVR2Pipeline --dtype float16 --enforce-eager \
+  --num-gpus 1 --host 127.0.0.1 --port 8098
 
-The current PR cannot execute `Omni.generate()` or `vllm serve --omni` for
-SeedVR2. Decoded-frame PSNR, HTTP output, and visual restoration examples require
-the [native serving follow-up](https://github.com/vllm-project/vllm-omni/pull/7848);
-they are not results of this standalone DiT test.
+curl --fail-with-body http://127.0.0.1:8098/v1/videos/sync \
+  -F 'prompt= ' \
+  -F 'input_references=@input.mp4;type=video/mp4' \
+  -F 'size=224x128' -F 'num_inference_steps=1' \
+  -F 'guidance_scale=1' -F 'seed=7723' \
+  --output restored.mp4
+```
+
+For two-rank window sequence parallelism, expose two GPUs and replace `--num-gpus 1` with:
+
+```bash
+--num-gpus 2 --distributed-executor-backend mp \
+  --stage-overrides '{"0":{"ulysses_degree":2}}'
+```
+
+Use degree 4 and four visible GPUs for SP4. Window-SP alone replicates the VAE.
+To shard VAE activations across the same ranks, use:
+
+```bash
+--vae-use-tiling --num-gpus 2 --distributed-executor-backend mp \
+  --stage-overrides '{"0":{"ulysses_degree":2,"vae_patch_parallel_size":2,"vae_parallel_mode":"spatial_shard_height"}}'
+```
+
+The VAE patch degree must match the window-SP degree.
+
+The multipart API requires a prompt field; a single space supplies a blank
+prompt. Nonblank text is rejected. Omit `fps` to retain the source frame rate;
+an explicit rate must match the source. Output dimensions are explicit multiples
+of 16. Input frames are resized with antialiased bicubic interpolation. The final
+frame is repeated internally to reach 4n+1, and the decoded output is cropped back
+to the original frame count. Five frames remain five; six frames are internally
+padded to nine and return six.
+
+## Temporal and spatial VAE tiling
+
+Add `--vae-use-tiling` to bound VAE intermediate activations along time. The
+encoder processes nine frames first, then eight per chunk; the decoder processes
+two latent frames per chunk. Each causal convolution carries its past inputs
+within that encode/decode call, with temporal stride and first-frame upsampling
+alignment preserved. GroupNorm and attention still see the entire spatial frame.
+There is no overlap blend or independent restart at chunk boundaries.
+
+Five-frame clips use one temporal chunk. On a single GPU, convolutions with
+more than 256 input rows additionally process tiles of 128 output rows with
+exact halos. GroupNorm and bottleneck attention retain full-frame statistics.
+This bounds convolution workspace; full-frame activations and the DiT's
+whole-clip activations still consume memory.
+
+With VAE patch parallelism, each rank owns a band of latent rows and the
+corresponding encoder/decoder rows. Neighbor exchanges supply convolution halos;
+all-reduced centered statistics preserve full-frame GroupNorm. Bottleneck
+attention gathers the low-resolution frame before splitting it again. Encoder
+parameters are gathered before latent sampling, and decoded pixels are gathered
+before returning the video. Unequal bands are supported; fewer latent rows than
+ranks fall back to replicated execution. Width sharding and batch slicing are
+unsupported. FP16 reduction and convolution order can change rounding, so
+parallel outputs are numerically close rather than bitwise identical.
+
+## Current integration scope
+
+| Property | Contract |
+| --- | --- |
+| Weights / dtype | Released 3B DiT and VAE, FP16 |
+| Reference semantics | C0 whole clip, no color correction |
+| Video input | One uploaded file, or offline TCHW RGB floats / PIL frames |
+| Timing | Constant frame rate, increasing PTS; normalize the video origin to zero |
+| Audio | First mono/stereo track, aligned by source PTS, cropped to the video interval, re-encoded as AAC |
+| Randomness | Per-request generator; preserve reference latent strides when sampling noise |
+| Sequence parallelism | Native engine SP1/2/4 correctness verified on five-frame L20 cases |
+| VAE placement | Replicated by default; optional height sharding on the window-SP group |
+| Unsupported | VFR, multichannel audio, 7B, other sampling schedules, quantization, cache acceleration, VAE width sharding / batch slicing, CPU offload, CFG/TP/PP parallelism, compiled execution, LoRA |
+
+Unsupported engine modes are rejected before process hooks and worker creation.
+`ulysses_degree` selects the model-owned SP group. This branch assigns whole
+windows to ranks; the specialized head-sharded path is a dependent change.
+Ring and AllGather-KV are unsupported.
+
+The practical P0 reference's five-frame batching, overlap, LAB correction, and
+CPU swapping are separate execution semantics. Temporal tiling and VAE patch
+parallelism reduce activation peaks but do not bound the whole-clip DiT memory.
+Large output frames may still exceed device capacity.
+
+Invalid inputs return 400. A single-GPU model OOM fails that request; a
+subsequent short request succeeds. With VAE patch parallelism, restart the
+service after an OOM: another rank may still be waiting in a collective. Cancelling an in-progress video job removes it through the
+existing DELETE endpoint; in-flight GPU work may drain before memory is reusable.
+A lost SP worker fails the request and makes health return 503. Restart the
+service to restore availability; automatic rank recovery is not provided.
+
+## Reproducible deployment
+
+See the [RTX 5090 recipe](https://github.com/vllm-project/vllm-omni/blob/main/recipes/ByteDance/SeedVR2-RTX-5090.md) for the
+input/output contract, complete serving command, and media checks. The local
+checkpoint test in `tests/diffusion/models/seedvr2/test_seedvr2_e2e.py` checks
+3B transformer SP parity. The PR test result covers complete HTTP restoration.

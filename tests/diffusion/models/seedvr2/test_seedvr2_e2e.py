@@ -1,8 +1,10 @@
 # SPDX-License-Identifier: Apache-2.0
 # SPDX-FileCopyrightText: Copyright contributors to the vLLM-Omni project
-"""Full-checkpoint DiT parity; VAE and Omni serving belong to the native pipeline PR.
+"""Full-checkpoint DiT parity and native video restoration.
 
 Set VLLM_TEST_SEEDVR2_MODEL to the released 3B FP16 safetensors file.
+Set VLLM_TEST_SEEDVR2_MODEL_DIR to the directory containing the DiT, VAE,
+conditioning tensor, and model_index.json to run the complete video test.
 Each rank exits normally; the launcher does not terminate workers.
 """
 
@@ -19,6 +21,7 @@ import pytest
 
 pytestmark = [pytest.mark.local_model, pytest.mark.cuda, pytest.mark.diffusion, pytest.mark.parallel]
 MODEL_ENV = "VLLM_TEST_SEEDVR2_MODEL"
+MODEL_DIR_ENV = "VLLM_TEST_SEEDVR2_MODEL_DIR"
 
 
 @pytest.mark.skipif(not os.environ.get(MODEL_ENV), reason=f"set {MODEL_ENV} to an authorized 3B checkpoint path")
@@ -65,6 +68,48 @@ def test_seedvr2_checkpoint_sequence_parallel(degree: int, tmp_path: Path) -> No
         assert report["text_all_reduces"] == (32 if degree > 1 else 0)
         if degree > 1:
             assert report["network_transitions"] > 0
+
+
+@pytest.mark.skipif(not os.environ.get(MODEL_DIR_ENV), reason=f"set {MODEL_DIR_ENV} to an authorized model directory")
+def test_seedvr2_native_video_e2e() -> None:
+    import numpy as np
+    import torch
+
+    from vllm_omni.entrypoints.omni import Omni
+    from vllm_omni.inputs.data import OmniDiffusionSamplingParams
+
+    model_dir = Path(os.environ[MODEL_DIR_ENV]).resolve()
+    for name in ("seedvr2_ema_3b_fp16.safetensors", "ema_vae_fp16.safetensors", "pos_emb.pt", "model_index.json"):
+        assert (model_dir / name).is_file(), f"Missing SeedVR2 model file: {name}"
+    frames = torch.rand(5, 3, 64, 112, generator=torch.Generator().manual_seed(7723))
+    engine = Omni(
+        model=str(model_dir),
+        model_class_name="SeedVR2Pipeline",
+        dtype="float16",
+        enforce_eager=True,
+        vae_use_tiling=True,
+    )
+    try:
+        output = engine.generate(
+            {"prompt": " ", "multi_modal_data": {"video": frames}},
+            OmniDiffusionSamplingParams(
+                height=128,
+                width=224,
+                num_frames=5,
+                fps=24,
+                num_inference_steps=1,
+                guidance_scale=1.0,
+                seed=7723,
+                output_type="np",
+            ),
+            use_tqdm=False,
+        )
+    finally:
+        engine.close()
+    assert len(output) == 1
+    restored = np.asarray(output[0].images[0])
+    assert restored.shape == (1, 5, 128, 224, 3)
+    assert np.isfinite(restored).all()
 
 
 def _run_rank(output_dir: Path) -> None:
