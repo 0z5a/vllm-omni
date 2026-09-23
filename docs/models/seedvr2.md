@@ -132,7 +132,7 @@ service to restore availability; automatic rank recovery is not provided.
 
 ## Reproducible deployment
 
-See the [RTX 5090 recipe](../../recipes/ByteDance/SeedVR2-RTX-5090.md) for the
+See the [RTX 5090 recipe](https://github.com/vllm-project/vllm-omni/blob/main/recipes/ByteDance/SeedVR2-RTX-5090.md) for the
 input/output contract, complete serving command, and media checks. The local
 checkpoint test in `tests/diffusion/models/seedvr2/test_seedvr2_e2e.py` checks
 3B transformer USP parity; it is not an HTTP or optional-feature benchmark.
