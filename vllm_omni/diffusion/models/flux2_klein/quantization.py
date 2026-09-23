@@ -1,14 +1,18 @@
 # SPDX-License-Identifier: Apache-2.0
 # SPDX-FileCopyrightText: Copyright contributors to the vLLM-Omni project
 
+from threading import Lock
+
 import torch
 from torch import nn
 from transformers import Qwen3ForCausalLM
 from vllm.model_executor.layers.linear import ReplicatedLinear, UnquantizedLinearMethod
 from vllm.model_executor.layers.quantization.base_config import QuantizationConfig
 from vllm.model_executor.layers.quantization.fp8 import Fp8Config
+from vllm.platforms import current_platform
 from vllm.utils.torch_utils import set_default_torch_dtype
 
+from vllm_omni.platforms import current_omni_platform
 from vllm_omni.quantization import ComponentQuantizationConfig
 
 
@@ -59,3 +63,54 @@ def prepare_flux2_klein_text_encoder_fp8(
         setattr(layers.get_submodule(parent), child, replacement)
         replaced += 1
     return replaced
+
+
+class Flux2KleinTextEncoderGraph:
+    """Replay the fixed-shape FP8 encoder without per-layer Python launches."""
+
+    def __init__(self, encoder: Qwen3ForCausalLM, hidden_states_layers: tuple[int, ...]):
+        self.encoder = encoder
+        self.hidden_states_layers = hidden_states_layers
+        self.graph: torch.cuda.CUDAGraph | None = None
+        self._lock = Lock()
+
+    def __call__(self, input_ids: torch.Tensor, attention_mask: torch.Tensor) -> torch.Tensor:
+        if input_ids.shape != (1, 512) or not current_omni_platform.is_cuda():
+            output = self.encoder.model(
+                input_ids=input_ids, attention_mask=attention_mask, output_hidden_states=True, use_cache=False
+            )
+            return torch.stack([output.hidden_states[k] for k in self.hidden_states_layers], dim=1)
+
+        with self._lock:
+            return self._replay(input_ids, attention_mask)
+
+    def _replay(self, input_ids: torch.Tensor, attention_mask: torch.Tensor) -> torch.Tensor:
+        if self.graph is None:
+            self.input_ids = input_ids.clone()
+            self.attention_mask = attention_mask.clone()
+            side = torch.cuda.Stream()
+            side.wait_stream(torch.cuda.current_stream())
+            with torch.cuda.stream(side), torch.inference_mode():
+                for _ in range(3):
+                    self.encoder.model(
+                        input_ids=self.input_ids,
+                        attention_mask=self.attention_mask,
+                        output_hidden_states=True,
+                        use_cache=False,
+                    )
+            torch.cuda.current_stream().wait_stream(side)
+            graph = torch.cuda.CUDAGraph()
+            with torch.inference_mode(), torch.cuda.graph(graph, pool=current_platform.get_global_graph_pool()):
+                output = self.encoder.model(
+                    input_ids=self.input_ids,
+                    attention_mask=self.attention_mask,
+                    output_hidden_states=True,
+                    use_cache=False,
+                )
+            self.outputs = tuple(output.hidden_states[k] for k in self.hidden_states_layers)
+            self.graph = graph
+
+        self.input_ids.copy_(input_ids)
+        self.attention_mask.copy_(attention_mask)
+        self.graph.replay()
+        return torch.stack(self.outputs, dim=1)
