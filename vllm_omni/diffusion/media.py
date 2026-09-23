@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+import math
 from dataclasses import dataclass, field, replace
 from enum import Enum
 from typing import Literal
@@ -124,6 +125,9 @@ class DiffusionMediaOutput:
     video: VideoMediaOutput
     # Only the model runner may set this before worker output packing.
     prepared_for_transport: bool = False
+    fps: float | None = None
+    audio: torch.Tensor | None = None  # [batch, channels, samples]
+    audio_sample_rate: int | None = None
 
     def validate(self) -> None:
         if not isinstance(self.video, VideoMediaOutput):
@@ -131,6 +135,20 @@ class DiffusionMediaOutput:
         if not isinstance(self.prepared_for_transport, bool):
             raise TypeError("prepared_for_transport must be a bool")
         self.video.validate()
+        if self.fps is not None and (not math.isfinite(self.fps) or self.fps <= 0):
+            raise ValueError("Video FPS must be finite and positive")
+        if self.audio is None:
+            if self.audio_sample_rate is not None:
+                raise ValueError("Audio sample rate requires audio samples")
+        else:
+            if not isinstance(self.audio, torch.Tensor):
+                raise TypeError("Audio must be a tensor")
+            if self.audio.ndim != 3 or self.audio.shape[0] != self.video.tensor.shape[0]:
+                raise ValueError("Audio must have shape [video batch, channels, samples]")
+            if not self.audio.is_floating_point() or min(self.audio.shape) < 1:
+                raise ValueError("Audio must contain nonempty floating-point samples")
+            if self.audio_sample_rate is None or self.audio_sample_rate <= 0:
+                raise ValueError("Audio requires a positive sample rate")
         if not self.prepared_for_transport:
             return
         if not self.video.tensor.is_contiguous():
@@ -143,7 +161,9 @@ class DiffusionMediaOutput:
 
     def to_cpu(self) -> DiffusionMediaOutput:
         self.validate()
-        moved = self.with_video(self.video.to_cpu())
+        moved = replace(
+            self, video=self.video.to_cpu(), audio=None if self.audio is None else self.audio.detach().cpu()
+        )
         moved.validate()
         return moved
 
@@ -182,6 +202,11 @@ def slice_diffusion_media_output(
     media.validate()
     source = media.video.tensor
     tensor = source if start == 0 and stop == source.shape[0] else source[start:stop]
-    sliced = replace(media, video=media.video.with_tensor(tensor), prepared_for_transport=False)
+    sliced = replace(
+        media,
+        video=media.video.with_tensor(tensor),
+        audio=None if media.audio is None else media.audio[start:stop],
+        prepared_for_transport=False,
+    )
     sliced.validate()
     return sliced

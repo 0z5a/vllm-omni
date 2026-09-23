@@ -168,22 +168,19 @@ not match the port cannot reach inference. Full 32-layer loading is the
 acceptance path; truncating the block list is a development fixture and requires
 an explicit flag.
 
-This section describes the validation loader only. It is not a statement that
-the serving loader (still to land with the SeedVR2 P0 integration) performs the
-same conversion.
+The native serving loader applies the same suffix normalization and strict
+checkpoint check.
 
 ## Integration limits
 
-This PR contains the DiT and its window-SP runtime. The native serving pipeline
-is P0 scope and must pass its parallel configuration to the runtime factory.
-Checkpoint validation is maintained locally.
+The native serving pipeline passes its parallel configuration to the DiT runtime
+and returns restored video through the standard media path. The causal VAE can
+run replicated, tiled, or height-sharded across the window-SP group.
 
 ## Limitations
 
-* Plan A only: every layout boundary re-shards the full activation. Plan B
-  (halo exchange) is a follow-up and is expected to win at large sizes.
-* The SeedVR2 VAE and the serving surface are P0 scope (#7723); this change
-  carries the DiT and the SP path.
+* Plan A re-shards the full activation at every layout boundary. Plan B halo
+  exchange is a follow-up with a separate crossover evaluation.
 * The packed-varlen attention kernel needs a backend that accepts
   `cu_seqlens`; the grouped-SDPA path is the portable fallback and is what the
   pinned L20 environment exercises.
