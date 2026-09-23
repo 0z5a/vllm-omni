@@ -37,6 +37,7 @@ def test_seedvr2_checkpoint_sequence_parallel(degree: int, tmp_path: Path) -> No
     for rank in range(degree):
         env = os.environ | {
             MODEL_ENV: str(checkpoint),
+            "PYTHONPATH": str(Path(__file__).resolve().parents[4]) + os.pathsep + os.environ.get("PYTHONPATH", ""),
             "MASTER_ADDR": "127.0.0.1",
             "MASTER_PORT": str(port),
             "WORLD_SIZE": str(degree),
