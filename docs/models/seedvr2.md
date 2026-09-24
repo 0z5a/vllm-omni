@@ -70,6 +70,10 @@ Request `size=1280x720` for this landscape input or `size=720x1280` for a
 portrait input of the same dimensions. Keep the requested output size equal to
 the input size when testing restoration without upscaling.
 
+Window-local RoPE axes use zero-based unit-stride positions. Angle tables are
+cached by axis length, device, and dtype, avoiding GPU-to-CPU reads to form a
+cache key on repeated requests.
+
 The multipart API requires a prompt field; a single space supplies a blank
 prompt. Nonblank text is rejected. Omit `fps` to retain the source frame rate;
 an explicit rate must match the source. Output dimensions are explicit multiples
