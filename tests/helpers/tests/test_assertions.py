@@ -11,6 +11,7 @@ from tests.helpers.assertions import (
     _resolve_audio_transcript,
     assert_audio_speech_response,
 )
+from tests.helpers.client import OmniResponse
 
 pytestmark = [pytest.mark.core_model, pytest.mark.cpu]
 
@@ -144,7 +145,7 @@ def test_minicpmo_mix_runaway_repetition_still_fails():
     prefix = "A black background with some colorful patterns appears, accompanied by a voice saying "
     expected = prefix + '"' + " ".join(["test"] * 49)
     transcript = prefix + ", ".join(["test"] * 112)
-    response = SimpleNamespace(success=True, text_content=expected, audio_content=transcript, audio_bytes=None)
+    response = OmniResponse(success=True, text_content=expected, audio_content=transcript)
 
     assert assertions.cosine_similarity_text(transcript, expected) == pytest.approx(0.675451892050252)
     assert not assertions._transcript_has_bounded_tail(transcript, expected)
