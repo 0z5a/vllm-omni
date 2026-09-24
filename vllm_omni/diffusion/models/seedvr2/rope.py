@@ -94,11 +94,13 @@ class NaMMRotaryEmbedding3d(nn.Module):
         self._axis_cache: dict[tuple, torch.Tensor] = {}
 
     # -- frequency construction -------------------------------------------
-    def _axis_angles(self, positions: torch.Tensor, *, device, dtype) -> torch.Tensor:
-        key = (positions.numel(), int(positions[0]), float(positions[-1]), str(device), str(dtype))
+    def _axis_angles(self, length: int, *, device, dtype) -> torch.Tensor:
+        """Cache angles for zero-based, unit-stride positions."""
+        key = (length, str(device), str(dtype))
         cached = self._axis_cache.get(key)
         if cached is None:
-            cached = _axis_table(positions.to(torch.float32), self.freqs.float()).to(device=device, dtype=dtype)
+            positions = torch.arange(length, device=self.freqs.device, dtype=torch.float32)
+            cached = _axis_table(positions, self.freqs.float()).to(device=device, dtype=dtype)
             if len(self._axis_cache) > 256:
                 self._axis_cache.clear()
             self._axis_cache[key] = cached
@@ -107,10 +109,8 @@ class NaMMRotaryEmbedding3d(nn.Module):
     def _table(self, dims: tuple[int, ...], *, device, dtype) -> torch.Tensor:
         """Axial table of shape ``(*dims, rot_dim)`` (``get_axial_freqs``)."""
         axes = []
-        ref = self.freqs
         for axis, dim in enumerate(dims):
-            positions = torch.arange(dim, device=ref.device, dtype=torch.float32)
-            angles = self._axis_angles(positions, device=device, dtype=dtype)
+            angles = self._axis_angles(dim, device=device, dtype=dtype)
             shape = [1] * len(dims) + [angles.shape[-1]]
             shape[axis] = dim
             axes.append(angles.reshape(shape))
@@ -144,9 +144,7 @@ class NaMMRotaryEmbedding3d(nn.Module):
         """``[text_len, rot_dim]`` text frequencies (one axis repeated ``rope_dim`` times)."""
         if text_len <= 0:
             return torch.empty((0, self.rot_dim), device=device, dtype=dtype)
-        angles = self._axis_angles(
-            torch.arange(text_len, device=self.freqs.device, dtype=torch.float32), device=device, dtype=dtype
-        )
+        angles = self._axis_angles(text_len, device=device, dtype=dtype)
         return angles.repeat(1, self.num_axes)
 
     # -- forward ----------------------------------------------------------
