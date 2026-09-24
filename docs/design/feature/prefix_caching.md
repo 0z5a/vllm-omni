@@ -45,7 +45,7 @@ Host footprint: each cached key costs `num_blocks × block_size × D × dtype_by
 ### Example
 
 !!! note "Note 3"
-    Prefix caching in vLLM-Omni requires an AutoRegressive stage with a full-attention KV group. Other sliding-window groups may share the stage. Configure it with the pipeline-wide `enable_prefix_caching` field in the deploy config.
+    The stage-output tensor cache described here supports AutoRegressive stages with one kv-cache group. Configure it with the pipeline-wide `enable_prefix_caching` field in the deploy config. Diffusion KV caching has the separate requirements below.
 
 The way in which vLLM-Omni ties into vLLM's prefix caching is best understood by example. Say that we have the following:
 
