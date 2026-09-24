@@ -17,6 +17,11 @@ def validate_seedvr2_config(config: OmniDiffusionConfig) -> None:
         raise ValueError("SeedVR2 requires unquantized weights and cache_backend=none for its single Euler step")
     if config.vae_use_slicing:
         raise ValueError("SeedVR2 whole-clip VAE does not support batch slicing")
+    short_clip_vae = config.additional_config.get("seedvr2_vae_short_clip", False)
+    if not isinstance(short_clip_vae, bool):
+        raise ValueError("seedvr2_vae_short_clip must be a boolean")
+    if short_clip_vae and not config.vae_use_tiling:
+        raise ValueError("seedvr2_vae_short_clip requires VAE tiling")
     if config.enable_cpu_offload or config.enable_layerwise_offload or config.enable_distributed_layerwise_offload:
         raise ValueError("SeedVR2 native whole-clip execution does not support CPU offload")
     parallel = config.parallel_config

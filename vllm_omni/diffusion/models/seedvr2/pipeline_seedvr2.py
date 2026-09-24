@@ -143,6 +143,7 @@ class SeedVR2Pipeline(nn.Module):
     _dit_modules: ClassVar[list[str]] = ["transformer"]
     _vae_modules: ClassVar[list[str]] = ["vae"]
     _encoder_modules: ClassVar[list[str]] = []
+    _short_clip_vae_pixels = 25 * 224 * 368
 
     def __init__(self, *, od_config: OmniDiffusionConfig, prefix: str = "") -> None:
         super().__init__()
@@ -152,6 +153,7 @@ class SeedVR2Pipeline(nn.Module):
         self.frame_pixels, self.clip_pixels = _admission_budget(od_config)
         self.transformer = SeedVR2NaDiT(**SEEDVR2_3B_CONFIG, use_varlen_kernel=False)
         self.vae = SeedVR2VAE()
+        self.vae_short_clip = od_config.additional_config.get("seedvr2_vae_short_clip", False)
         self.weights_sources = [
             DiffusersPipelineLoader.ComponentSource(
                 model_or_path=od_config.model,
@@ -207,7 +209,12 @@ class SeedVR2Pipeline(nn.Module):
                 generator = torch.Generator(device=self.device).manual_seed(params.seed)
             if not isinstance(generator, torch.Generator):
                 raise ValueError("SeedVR2 accepts one generator per request")
-            latent = self.vae.encode(sample).sample(generator=generator)
+            short_clip_vae = (
+                self.vae_short_clip
+                and prepared.frame_count <= 24
+                and sample.shape[2] * sample.shape[-2] * sample.shape[-1] <= self._short_clip_vae_pixels
+            )
+            latent = self.vae.encode(sample, chunk_size=24 if short_clip_vae else None).sample(generator=generator)
             condition = latent.permute(0, 2, 3, 4, 1).squeeze(0) * 0.9152
             noise = sample_noise(condition, generator)
             video = torch.cat((noise, condition, torch.ones_like(condition[..., :1])), dim=-1).reshape(-1, 33)
@@ -223,7 +230,10 @@ class SeedVR2Pipeline(nn.Module):
             velocity = self.transformer(video, self.text, shape, text_shape, timestep, runtime).vid_sample
             # Reference Euler returns fp32, then VAE casts to fp16 before scaling.
             restored = noise - velocity.reshape_as(noise)
-            decoded = self.vae.decode((restored / 0.9152).permute(3, 0, 1, 2).unsqueeze(0))
+            decoded = self.vae.decode(
+                (restored / 0.9152).permute(3, 0, 1, 2).unsqueeze(0),
+                chunk_size=7 if short_clip_vae else None,
+            )
             decoded = ((decoded[:, :, : prepared.frame_count].float() + 1) / 2).clamp(0, 1)
             payload: dict[str, object] = {"video": decoded}
             fps = prepared.source.fps if prepared.source is not None else params.fps

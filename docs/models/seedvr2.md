@@ -113,6 +113,15 @@ within that encode/decode call, with temporal stride and first-frame upsampling
 alignment preserved. GroupNorm and attention still see the entire spatial frame.
 There is no overlap blend or independent restart at chunk boundaries.
 
+For short clips on a tiling-enabled server, set
+`seedvr2_vae_short_clip=true` in stage `additional_config` to encode up to 24
+input frames and decode up to seven latent frames per chunk. It applies only
+when the source has at most 24 frames and the padded model input has at most
+2,060,800 pixels across all frames; larger requests retain the 8/2 chunk sizes.
+The opt-in changes FP16 accumulation order, so output pixels can differ from
+the default. See the [RTX 5090 recipe](../../recipes/ByteDance/SeedVR2-RTX-5090.md)
+for the validated four-GPU load range and memory measurements.
+
 Five-frame clips use one temporal chunk. On a single GPU, convolutions with
 more than 256 input rows additionally process tiles of 128 output rows with
 exact halos. GroupNorm and bottleneck attention retain full-frame statistics.
