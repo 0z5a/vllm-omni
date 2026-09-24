@@ -23,17 +23,26 @@ from fastapi import HTTPException
 from vllm_omni.entrypoints.openai.video.seedvr2_long import (
     FPS,
     OVERLAP,
-    WINDOW,
     JobError,
     _background,
     _job_dir,
     _run,
     _status,
     _sweep_expired_jobs,
+    _window,
 )
 
 pytestmark = [pytest.mark.core_model, pytest.mark.diffusion, pytest.mark.cpu]
 SIZE = 32
+# Small windows keep several seams inside short clips.
+WINDOW = 13
+
+
+@pytest.fixture(autouse=True)
+def _small_windows(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("VLLM_OMNI_SEEDVR2_LONG_MAX_WINDOW", str(WINDOW))
+
+
 # Flat frames survive 4:2:0 and crf18, but not exactly; keep levels far apart.
 TOLERANCE = 4
 
@@ -123,16 +132,17 @@ def test_output_frames_keep_their_source_order(target: int, tmp_path: Path, monk
 
 
 def test_overlap_blends_linearly_across_the_seam(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    job = _job(tmp_path, 20)
+    target = 2 * WINDOW - OVERLAP
+    job = _job(tmp_path, target)
     _constant_restore(monkeypatch, [40, 160])
-    run(job, 20)
+    run(job, target)
     levels = _output_levels(job / "output.mp4")
 
-    # Two windows cover 20 frames: the first contributes 8 frames alone, the
-    # seam blends OVERLAP frames, and the second contributes the rest.
+    # Two windows cover the clip: the first contributes its frames before the
+    # seam alone, the seam blends OVERLAP frames, and the second the rest.
     seam = [40 + (160 - 40) * (offset + 1) / (OVERLAP + 1) for offset in range(OVERLAP)]
     expected = [40] * (WINDOW - OVERLAP) + seam + [160] * (WINDOW - OVERLAP)
-    assert len(expected) == 20
+    assert len(expected) == target
     for index, (actual, want) in enumerate(zip(levels, expected)):
         assert abs(actual - want) <= TOLERANCE, f"frame {index} blended to {actual}, expected {want}"
 
@@ -203,6 +213,37 @@ def test_intermediate_video_is_removed_on_success(tmp_path: Path, monkeypatch: p
     run(job, WINDOW)
     assert (job / "output.mp4").exists()
     assert not (job / "video.mp4").exists()
+
+
+def test_windows_carry_source_pixels_and_come_back_at_the_output_size(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    job = _job(tmp_path, WINDOW)
+    shapes: list[tuple[int, int]] = []
+
+    def restore(frames, width, height, seed, method, port, authorization):
+        shapes.extend((frame.width, frame.height) for frame in frames)
+        return [np.full((height, width, 3), 128, np.uint8) for _ in frames]
+
+    monkeypatch.setattr("vllm_omni.entrypoints.openai.video.seedvr2_long._restore", restore)
+    _run(job, 2 * SIZE, 2 * SIZE, WINDOW, False, 7723, "lab", 0, "")
+    # The model upsamples on the device, so the host never ships output-size input.
+    assert set(shapes) == {(SIZE, SIZE)}
+    with av.open(str(job / "output.mp4")) as container:
+        assert (container.streams.video[0].width, container.streams.video[0].height) == (2 * SIZE, 2 * SIZE)
+
+
+def test_window_is_the_longest_4n_plus_1_clip_the_budget_admits(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("VLLM_OMNI_SEEDVR2_LONG_MAX_WINDOW", "1000")
+    monkeypatch.setenv("VLLM_OMNI_SEEDVR2_SHARDED_FRAME_PIXELS", str(100 * 100))
+    monkeypatch.setenv("VLLM_OMNI_SEEDVR2_SHARDED_CLIP_PIXELS", str(100 * 100 * 40))
+    assert _window(100, 100) == 37
+    monkeypatch.setenv("VLLM_OMNI_SEEDVR2_MAX_FRAMES", "30")
+    assert _window(100, 100) == 29
+    monkeypatch.setenv("VLLM_OMNI_SEEDVR2_LONG_MAX_WINDOW", "12")
+    assert _window(100, 100) == 9
+    # A frame over the per-frame budget fits no window at all.
+    assert _window(100, 101) == 0
 
 
 @pytest.mark.parametrize("job_id", ["", "short", "../../etc/passwd", "g" * 32, "A" * 32, "0" * 31, "0" * 33])

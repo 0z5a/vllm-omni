@@ -42,9 +42,11 @@ must accommodate checkpoint staging per rank. Admission uses a padded
 five-frame 848×480 output pixel budget by default, allowing longer clips at
 smaller resolutions, plus a 257-frame decoder-work cap. The validated SP4
 configuration with VAE tiling and `vae_patch_parallel_size=4` uses a padded
-five-frame 2560×1472 budget, as does any higher matched degree. Larger
-accelerators raise these caps through `VLLM_OMNI_SEEDVR2_SHARDED_FRAME_PIXELS`,
-`VLLM_OMNI_SEEDVR2_SHARDED_CLIP_PIXELS` and `VLLM_OMNI_SEEDVR2_MAX_FRAMES`. The model guide lists
+five-frame 2560×1472 budget, as does any higher matched degree. On devices
+with more memory the clip budget grows automatically; the other caps are raised
+through `VLLM_OMNI_SEEDVR2_SHARDED_FRAME_PIXELS` and
+`VLLM_OMNI_SEEDVR2_MAX_FRAMES`, and `VLLM_OMNI_SEEDVR2_SHARDED_CLIP_PIXELS`
+overrides the clip budget. The model guide lists
 exact bounds and which profiles have completed GPU validation.
 
 ## Software environment
@@ -127,7 +129,8 @@ For a 24 FPS source, the long route can restore up to 7,200 frames at
 `--api-server-count 1`, and set a persistent
 `VLLM_OMNI_SEEDVR2_LONG_OUTPUT_DIR` before starting. If the source is shorter
 than 300 seconds, `loop_input=true` repeats its frames and audio. The service
-runs bounded 12-frame model windows with four-frame overlap and writes one MP4;
+runs the longest model windows the clip budget admits, with four-frame overlap,
+and writes one MP4;
 it does not concatenate separate video files. Download the result within
 `VLLM_OMNI_SEEDVR2_LONG_JOB_TTL_SECONDS`, after which the job directory is
 swept; `DELETE` on the job URL stops a run at the next window boundary.

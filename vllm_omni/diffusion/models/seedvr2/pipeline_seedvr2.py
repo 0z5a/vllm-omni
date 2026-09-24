@@ -10,7 +10,6 @@ from typing import ClassVar
 
 import numpy as np
 import torch
-from diffusers.video_processor import VideoProcessor
 from PIL import Image
 from torch import nn
 from torch.nn import functional as F
@@ -40,27 +39,47 @@ from vllm_omni.errors import OmniClientError
 from vllm_omni.model_executor.model_loader.weight_utils import download_weights_from_hf_specific
 
 
-def prepare_video(frames: torch.Tensor, height: int, width: int) -> torch.Tensor:
-    """Resize RGB TCHW to the model grid and repeat the final temporal frame."""
-    if frames.ndim != 4 or frames.shape[1] != 3 or min(frames.shape) < 1:
+def _check_frames(frames: torch.Tensor, height: int, width: int) -> None:
+    """Validate host frames: uint8 ``[T,H,W,3]`` or float ``[T,3,H,W]`` in ``[0,1]``."""
+    rgb_axis = 3 if frames.dtype == torch.uint8 else 1
+    if frames.ndim != 4 or frames.shape[rgb_axis] != 3 or min(frames.shape) < 1:
         raise OmniClientError("SeedVR2 requires nonempty RGB frames with shape [T,3,H,W]")
     if min(height, width) < 16 or height % 16 or width % 16:
         raise OmniClientError("SeedVR2 output dimensions must be positive multiples of 16")
+    if frames.dtype == torch.uint8:
+        return
     if not frames.is_floating_point() or not torch.isfinite(frames).all():
         raise OmniClientError("SeedVR2 frames must be finite floating-point RGB values")
     if torch.any(frames < 0) or torch.any(frames > 1):
         raise OmniClientError("SeedVR2 RGB values must be in [0,1]")
-    frames = F.interpolate(frames.float(), size=(height, width), mode="bicubic", align_corners=False, antialias=True)
-    frames = frames.clamp(0, 1)
-    padding = (1 - frames.shape[0]) % 4
-    if padding:
-        frames = torch.cat((frames, frames[-1:].expand(padding, -1, -1, -1)))
-    return (frames * 2 - 1).permute(1, 0, 2, 3).unsqueeze(0).contiguous()
+
+
+def prepare_video(frames: torch.Tensor, height: int, width: int, device: torch.device) -> torch.Tensor:
+    """Resize RGB frames to the model grid on ``device`` and repeat the final frame.
+
+    ``frames`` is uint8 ``[T,H,W,3]`` or float ``[T,3,H,W]`` in ``[0,1]``. Frames
+    are converted one at a time, so the device never holds a float copy of the
+    whole clip, and returns fp16 ``[1,3,T',H,W]`` in ``[-1,1]`` with ``T' = 4n+1``.
+    """
+    count = frames.shape[0]
+    sample = torch.empty((1, 3, count + (1 - count) % 4, height, width), device=device, dtype=torch.float16)
+    for index in range(count):
+        frame = frames[index].to(device, non_blocking=True)
+        frame = frame.permute(2, 0, 1).float() / 255 if frame.dtype == torch.uint8 else frame.float()
+        if frame.shape[-2:] != (height, width):
+            frame = F.interpolate(
+                frame.unsqueeze(0), size=(height, width), mode="bicubic", align_corners=False, antialias=True
+            ).squeeze(0)
+        sample[0, :, index] = frame.clamp(0, 1) * 2 - 1
+    sample[0, :, count:] = sample[0, :, count - 1 : count]
+    return sample
 
 
 @dataclass(frozen=True)
 class SeedVR2Input:
-    sample: torch.Tensor
+    # uint8 [T,H,W,3] for decoded video and PIL frames, float [T,3,H,W] otherwise;
+    # resizing and normalization run on the device in ``prepare_video``.
+    frames: torch.Tensor
     frame_count: int
     source: SourceVideo | None = None
 
@@ -106,17 +125,18 @@ def prepare_request(
         for frame in frames:
             validate_clip_size(len(frames), frame.height, frame.width, frame_pixels, clip_pixels)
         frames = torch.stack([torch.from_numpy(np.array(frame.convert("RGB"))) for frame in frames])
-        frames = frames.permute(0, 3, 1, 2).float() / 255
     if not isinstance(frames, torch.Tensor):
         raise OmniClientError("SeedVR2 video must be a TCHW RGB tensor or a list of PIL frames")
     if frames.ndim == 4:
-        validate_clip_size(frames.shape[0], frames.shape[2], frames.shape[3], frame_pixels, clip_pixels)
+        frame_height, frame_width = frames.shape[1:3] if frames.dtype == torch.uint8 else frames.shape[2:]
+        validate_clip_size(frames.shape[0], frame_height, frame_width, frame_pixels, clip_pixels)
         validate_clip_size(frames.shape[0], params.height, params.width, frame_pixels, clip_pixels)
+    _check_frames(frames, params.height, params.width)
     if (prompt.get("prompt") or "").strip():
         raise OmniClientError("SeedVR2 uses fixed checkpoint conditioning; prompt text is unsupported")
     if params.num_outputs_per_prompt != 1:
         raise OmniClientError("SeedVR2 produces one restored video per request")
-    request.prepared_layout = SeedVR2Input(prepare_video(frames, params.height, params.width), frames.shape[0], source)
+    request.prepared_layout = SeedVR2Input(frames, frames.shape[0], source)
     return request
 
 
@@ -131,15 +151,37 @@ def _seedvr2_post_process(output: dict[str, object]) -> dict[str, object]:
     payload = output["payload"]
     assert isinstance(payload, dict)
     video = payload["video"]
-    assert isinstance(video, torch.Tensor)
-    frames = VideoProcessor(vae_scale_factor=8).postprocess_video(
-        video, output_type="np", do_denormalize=[False] * video.shape[2]
-    )
-    return {"payload": {**payload, "video": frames}, "metadata": output["metadata"]}
+    assert isinstance(video, torch.Tensor) and video.dtype == torch.uint8
+    # The device already produced uint8 [B,T,H,W,3], the layout encoders take.
+    return {"payload": {**payload, "video": video.cpu().numpy()}, "metadata": output["metadata"]}
 
 
 def get_seedvr2_post_process_func(_od_config: OmniDiffusionConfig) -> Callable[[dict[str, object]], dict[str, object]]:
     return _seedvr2_post_process
+
+
+def finish_video(decoded: torch.Tensor, sample: torch.Tensor, frame_count: int, method: str) -> torch.Tensor:
+    """Colour-correct and quantize decoded ``[B,3,T,H,W]`` frames to uint8 ``[B,T,H,W,3]``.
+
+    One frame at a time: whole-clip float copies would dominate device memory on
+    long clips, and a per-frame slice of one would need 64-bit indexing once the
+    clip passes 2**31 pixels.
+    """
+    batch_size, _, _, height, width = decoded.shape
+    video = torch.empty((batch_size, frame_count, height, width, 3), device=decoded.device, dtype=torch.uint8)
+    for index in range(frame_count):
+        frame = slice(index, index + 1)
+        # Restoration shifts global colour, so the resized input carries the
+        # reference colour back onto the restored detail.
+        corrected = correct_video_color(
+            ((decoded[:, :, frame].float() + 1) / 2).clamp(0, 1),
+            ((sample[:, :, frame].float() + 1) / 2).clamp(0, 1),
+            method=method,
+        )
+        # Quantize on the device, matching the encoders' rint(clip(x) * 255), so
+        # the host copy and the IPC payload are a quarter of the float size.
+        video[:, index] = (corrected[:, :, 0].clamp(0, 1) * 255).round_().permute(0, 2, 3, 1)
+    return video
 
 
 def sample_noise(condition: torch.Tensor, generator: torch.Generator) -> torch.Tensor:
@@ -210,7 +252,7 @@ class SeedVR2Pipeline(nn.Module):
             if not isinstance(request.prepared_layout, SeedVR2Input):
                 prepare_request(request, frame_pixels=self.frame_pixels, clip_pixels=self.clip_pixels)
             prepared = request.prepared_layout
-            sample = prepared.sample.to(self.device, dtype=torch.float16)
+            sample = prepare_video(prepared.frames, params.height, params.width, self.device)
             generator = params.generator
             if generator is None:
                 generator = torch.Generator(device=self.device).manual_seed(params.seed)
@@ -232,16 +274,9 @@ class SeedVR2Pipeline(nn.Module):
             # Reference Euler returns fp32, then VAE casts to fp16 before scaling.
             restored = noise - velocity.reshape_as(noise)
             decoded = self.vae.decode((restored / 0.9152).permute(3, 0, 1, 2).unsqueeze(0))
-            frames = slice(None, prepared.frame_count)
-            decoded = ((decoded[:, :, frames].float() + 1) / 2).clamp(0, 1)
-            # Restoration shifts global colour, so the resized input carries the
-            # reference colour back onto the restored detail.
-            decoded = correct_video_color(
-                decoded,
-                ((sample[:, :, frames].float() + 1) / 2).clamp(0, 1),
-                method=params.extra_args.get("color_correction_method") or DEFAULT_COLOR_CORRECTION_METHOD,
-            )
-            payload: dict[str, object] = {"video": decoded}
+            method = params.extra_args.get("color_correction_method") or DEFAULT_COLOR_CORRECTION_METHOD
+            video = finish_video(decoded, sample, prepared.frame_count, method)
+            payload: dict[str, object] = {"video": video}
             fps = prepared.source.fps if prepared.source is not None else params.fps
             metadata: dict[str, object] = {"video": {"fps": fps}} if fps is not None else {}
             if prepared.source is not None and prepared.source.audio is not None:

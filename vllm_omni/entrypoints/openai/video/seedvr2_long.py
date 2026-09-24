@@ -11,8 +11,12 @@ import logging
 import os
 import shutil
 import subprocess
+import tempfile
+import threading
 import time
+from collections import deque
 from collections.abc import Iterator
+from concurrent.futures import Future, ThreadPoolExecutor
 from fractions import Fraction
 from pathlib import Path
 from uuid import uuid4
@@ -26,14 +30,17 @@ from fastapi import APIRouter, File, Form, HTTPException, Request, UploadFile
 from fastapi.responses import FileResponse
 
 from vllm_omni.diffusion import envs
+from vllm_omni.diffusion.models.seedvr2.video import max_frames, sharded_budget
 from vllm_omni.inputs.data import COLOR_CORRECTION_METHODS, DEFAULT_COLOR_CORRECTION_METHOD
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
 MAX_FRAMES = 7200
-MAX_FRAME_PIXELS = 768 * 1344
 FPS = 24
-WINDOW, OVERLAP = 12, 4
+OVERLAP = 4
+# Windows cross the HTTP boundary losslessly (x264 qp 0, which is also its
+# fastest mode); only the final MP4 is compressed.
+LOSSLESS = {"preset": "ultrafast", "qp": "0"}
 UPLOAD_CHUNK = 1 << 20
 JOB_ID = re.compile(r"[0-9a-f]{32}")
 active_task: asyncio.Task[None] | None = None
@@ -87,6 +94,21 @@ def _store_upload(upload: UploadFile, destination: Path) -> None:
         raise HTTPException(400, "SeedVR2 long-video upload is empty")
 
 
+def _window(width: int, height: int) -> int:
+    """Longest window the whole-clip budget admits at this output size.
+
+    Every window pays a fixed cost for its round trip through the serving
+    stack and throws away its overlap, so the route uses the largest window the
+    model accepts. The model pads clips to 4n+1 frames, so the window has that
+    length too; 0 means not even one frame fits.
+    """
+    frame_pixels, clip_pixels = sharded_budget()
+    if width * height > frame_pixels:
+        return 0
+    fit = min(clip_pixels // (width * height), max_frames(), envs.VLLM_OMNI_SEEDVR2_LONG_MAX_WINDOW)
+    return fit - (fit - 1) % 4
+
+
 def _status(job: Path, stage: str, frames: int, error: str = "") -> None:
     # The owning PID lets a poller detect a job that a server restart abandoned.
     record = {"status": stage, "frames": frames, "error": error, "pid": os.getpid()}
@@ -106,19 +128,29 @@ def _frames(source: Path, width: int, height: int, loop: bool) -> Iterator[av.Vi
                 if frame.pts is None or frame.time_base is None or frame.pts * frame.time_base != Fraction(count, FPS):
                     raise JobError("SeedVR2 long video requires constant 24 FPS timestamps starting at zero")
                 count += 1
-                yield frame.reformat(width=width, height=height, format="yuv420p", interpolation="BICUBIC")
+                # The model resizes to the output on the device, so windows carry
+                # source pixels; only a larger source shrinks here to stay in budget.
+                if frame.width * frame.height > width * height:
+                    yield frame.reformat(width=width, height=height, format="yuv420p", interpolation="BICUBIC")
+                else:
+                    yield frame.reformat(width=frame.width & ~1, height=frame.height & ~1, format="yuv420p")
         if count == 0:
             raise JobError("Input video has no frames")
         if not loop:
             return
 
 
-def _segment(frames: list[av.VideoFrame], width: int, height: int) -> bytes:
+# Consecutive windows share their overlap frames and encoding stamps each
+# frame's pts, so two in-flight windows must not encode at the same time.
+_segment_lock = threading.Lock()
+
+
+def _segment(frames: list[av.VideoFrame]) -> bytes:
     buffer = io.BytesIO()
-    with av.open(buffer, "w", format="matroska") as container:
+    with _segment_lock, av.open(buffer, "w", format="matroska") as container:
         stream = container.add_stream("libx264", rate=FPS)
-        stream.width, stream.height, stream.pix_fmt = width, height, "yuv420p"
-        stream.options = {"preset": "veryfast", "crf": "18"}
+        stream.width, stream.height, stream.pix_fmt = frames[0].width, frames[0].height, "yuv420p"
+        stream.options = LOSSLESS
         for index, frame in enumerate(frames):
             frame.pts, frame.time_base = index, Fraction(1, FPS)
             for packet in stream.encode(frame):
@@ -147,8 +179,9 @@ def _restore(
             "guidance_scale": "1",
             "seed": str(seed),
             "color_correction_method": color_correction_method,
+            "extra_params": json.dumps({"video_codec_options": LOSSLESS}),
         },
-        files={"input_references": ("window.mkv", _segment(frames, width, height), "video/x-matroska")},
+        files={"input_references": ("window.mkv", _segment(frames), "video/x-matroska")},
         headers={"Authorization": authorization} if authorization else {},
         timeout=900,
     )
@@ -177,16 +210,56 @@ def _run(
     port: int,
     authorization: str,
 ) -> None:
+    window = _window(width, height)
+    if window <= OVERLAP:
+        raise JobError("SeedVR2 long video output exceeds the configured SeedVR2 clip budget")
+    with tempfile.TemporaryDirectory(prefix="seedvr2-long-") as scratch:
+        _restore_to(
+            job, Path(scratch), window, width, height, target, loop, seed, color_correction_method, port, authorization
+        )
+
+
+def _restore_to(
+    job: Path,
+    scratch: Path,
+    window: int,
+    width: int,
+    height: int,
+    target: int,
+    loop: bool,
+    seed: int,
+    color_correction_method: str,
+    port: int,
+    authorization: str,
+) -> None:
+    """Restore into local scratch files, then publish the result into ``job``."""
     source = job / "input.mp4"
-    video_path = job / "video.mp4"
-    output = job / "output.mp4"
+    video_path = scratch / "video.mp4"
+    output = scratch / "output.mp4"
     source_frames = _frames(source, width, height, loop)
-    batch = list(itertools.islice(source_frames, min(WINDOW, target)))
-    if len(batch) != min(WINDOW, target):
-        raise JobError("Input video has fewer frames than requested; set loop_input=true to repeat it")
-    start = written = 0
+
+    def windows() -> Iterator[list[av.VideoFrame]]:
+        batch = list(itertools.islice(source_frames, min(window, target)))
+        start = 0
+        while True:
+            if len(batch) != min(window, target - start):
+                raise JobError("Input video has fewer frames than requested; set loop_input=true to repeat it")
+            yield batch
+            start += len(batch) - OVERLAP
+            if start + OVERLAP >= target:
+                return
+            batch = batch[-OVERLAP:] + list(itertools.islice(source_frames, min(window, target - start) - OVERLAP))
+
+    def restore(frames: list[av.VideoFrame]) -> Future[list[np.ndarray]]:
+        if (job / "cancel").exists():
+            raise JobCancelledError("SeedVR2 long-video job was cancelled")
+        return pool.submit(_restore, frames, width, height, seed, color_correction_method, port, authorization)
+
+    written = 0
     pending: list[np.ndarray] = []
-    with av.open(str(video_path), "w", format="mp4") as container:
+    # Two windows stay in flight, so the engine always has the next one queued
+    # while this thread blends and encodes, and the other prepares its upload.
+    with ThreadPoolExecutor(max_workers=2) as pool, av.open(str(video_path), "w", format="mp4") as container:
         video = container.add_stream("libx264", rate=FPS)
         video.width, video.height, video.pix_fmt = width, height, "yuv420p"
         video.options = {"preset": "veryfast", "crf": "18", "tune": "zerolatency", "bf": "0"}
@@ -199,11 +272,14 @@ def _run(
                 container.mux(packet)
             written += 1
 
-        while batch:
-            if (job / "cancel").exists():
-                raise JobCancelledError("SeedVR2 long-video job was cancelled")
-            restored = _restore(batch, width, height, seed, color_correction_method, port, authorization)
-            last = start + len(batch) == target
+        batches = windows()
+        in_flight = deque(restore(batch) for batch in itertools.islice(batches, 2))
+        while in_flight:
+            restored = in_flight.popleft().result()
+            following = next(batches, None)
+            if following is not None:
+                in_flight.append(restore(following))
+            last = not in_flight
             if not pending:
                 for frame in restored if last else restored[:-OVERLAP]:
                     write(frame)
@@ -214,15 +290,7 @@ def _run(
                 for frame in restored[OVERLAP:] if last else restored[OVERLAP:-OVERLAP]:
                     write(frame)
             _status(job, "running", written)
-            if last:
-                break
             pending = restored[-OVERLAP:]
-            fresh = min(WINDOW - OVERLAP, target - start - len(batch))
-            next_frames = list(itertools.islice(source_frames, fresh))
-            if len(next_frames) != fresh:
-                raise JobError("Input video has fewer frames than requested; set loop_input=true to repeat it")
-            batch = batch[-OVERLAP:] + next_frames
-            start += len(restored) - OVERLAP
         for packet in video.encode():
             container.mux(packet)
     if written != target:
@@ -287,9 +355,13 @@ def _run(
             samples = sum(frame.samples for frame in container.decode(audio=0))
             if samples < (target / FPS - 1) * audio.rate:
                 raise JobError("SeedVR2 output audio ends before the video")
-    video_path.unlink(missing_ok=True)
     with output.open("rb") as content:
         digest = hashlib.file_digest(content, "sha256").hexdigest()
+    # One sequential copy is the only write to the job directory, which may sit
+    # on network storage where the encoder's and muxer's small writes are slow.
+    staged = job / "output.mp4.tmp"
+    shutil.move(output, staged)
+    staged.replace(job / "output.mp4")
     (job / "result.json").write_text(
         json.dumps({"frames": target, "width": width, "height": height, "fps": FPS, "sha256": digest}) + "\n"
     )
@@ -336,8 +408,10 @@ async def create_long_video(
         raise HTTPException(400, "size must be WIDTHxHEIGHT") from error
     if not 1 <= num_frames <= MAX_FRAMES or min(width, height) < 16 or width % 16 or height % 16:
         raise HTTPException(400, "SeedVR2 long-video frame count or dimensions are invalid")
-    if width * height > MAX_FRAME_PIXELS or max(width, height) > 1344 or prompt.strip():
-        raise HTTPException(400, "SeedVR2 long video supports up to 768×1344 and a blank prompt")
+    if prompt.strip():
+        raise HTTPException(400, "SeedVR2 long video requires a blank prompt")
+    if _window(width, height) <= OVERLAP:
+        raise HTTPException(400, "SeedVR2 long video output exceeds the configured SeedVR2 frame or clip budget")
     if not 0 <= seed <= 2**32 - 1:
         raise HTTPException(400, "Seed must be a 32-bit unsigned integer")
     if color_correction_method not in COLOR_CORRECTION_METHODS:

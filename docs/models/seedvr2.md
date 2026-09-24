@@ -125,15 +125,24 @@ declared duration, frame count, and input dimensions when available, then
 enforces the limits as frames arrive. Requests outside these budgets return 400
 before building the resized whole-clip tensor.
 
-The sharded budget is calibrated for the smallest qualified device, so larger
-accelerators reject clips they could actually restore. Set these before starting
-the server to raise the caps; each must be a positive integer, and validating the
-result on the target hardware is the operator's responsibility:
+The per-frame cap is calibrated for the smallest qualified device. The clip cap
+scales with the smallest visible device's memory: it stays at the calibrated
+five 2560×1472 frames on a 32 GB device and grows on larger ones from a
+per-rank memory model measured at SP4 (see `sharded_budget` in
+`vllm_omni/diffusion/models/seedvr2/video.py`), which keeps 15% of the device
+free and leaves room for allocator fragmentation. It stops at 2,118,057,984
+padded pixels (513 frames at 1536×2688), the largest clip validated on four
+B300 ranks; 80 GB devices get about 1.08 billion and 141 GB or larger devices
+reach the cap. Clips at the cap in both memory regimes (561 frames at 2560×1472
+and 2,049 frames at 768×1344) peaked at 54 GiB of activations per rank. Set
+these before starting the server to override the caps; each must be a positive
+integer, and validating an override on the target hardware is the operator's
+responsibility:
 
 | Variable | Default | Bounds |
 | --- | --- | --- |
 | `VLLM_OMNI_SEEDVR2_SHARDED_FRAME_PIXELS` | 3,768,320 | Pixels per frame on the sharded profile |
-| `VLLM_OMNI_SEEDVR2_SHARDED_CLIP_PIXELS` | 18,841,600 | Padded pixels per clip on the sharded profile |
+| `VLLM_OMNI_SEEDVR2_SHARDED_CLIP_PIXELS` | 18,841,600, scaled up with device memory | Padded pixels per clip on the sharded profile |
 | `VLLM_OMNI_SEEDVR2_MAX_FRAMES` | 257 | Decoder-work frame cap, all profiles |
 
 The sharded profile applies to any `ulysses_degree` of four or more, so eight
@@ -144,17 +153,17 @@ rather than only the oversized one. Before serving with raised caps, restore the
 largest clip they admit once and confirm it completes.
 
 A 362-frame 1536×2688 2x upscale was restored on eight ranks with
-`ulysses_degree=8`, VAE tiling and height sharding, using 4,300,000 and
-60,000,000 for the two pixel caps and 2,000 for the frame cap. The long-video
-route sends 12-frame windows, so its clip budget must cover 13 padded frames at
-the output size.
+`ulysses_degree=8`, VAE tiling and height sharding, using 4,300,000 for the
+per-frame cap, the memory-scaled clip cap and 2,000 for the frame cap. The long-video
+route sizes its windows from these caps, so the clip cap sets how many frames
+each window covers.
 
 ## Long-video restoration
 
 `POST /v1/seedvr2/restore-long` accepts one uploaded 24 FPS video, a blank
 prompt, `size`, `num_frames` (up to 7,200), and optional `loop_input=true` and
 `color_correction_method`, which it applies to every window.
-The output is bounded to 768×1344 pixels per frame. It returns a job ID; poll
+An output frame must fit the sharded per-frame pixel cap. It returns a job ID; poll
 `GET /v1/seedvr2/restore-long/{id}` and download the completed MP4 from
 `GET /v1/seedvr2/restore-long/{id}/content`. `DELETE
 /v1/seedvr2/restore-long/{id}` asks a running job to stop; it settles as
@@ -170,16 +179,25 @@ upload cap and by deleting settled jobs once they age out:
 | `VLLM_OMNI_SEEDVR2_LONG_OUTPUT_DIR` | system temp dir | Parent of the job directories |
 | `VLLM_OMNI_SEEDVR2_LONG_MAX_UPLOAD_BYTES` | 8 GiB | Largest accepted upload |
 | `VLLM_OMNI_SEEDVR2_LONG_JOB_TTL_SECONDS` | 3,600 | Age at which a settled job is deleted |
+| `VLLM_OMNI_SEEDVR2_LONG_MAX_WINDOW` | 121 | Longest model window, in frames |
 
 Download a completed job before its TTL expires; the sweep runs on each new
 submission and removes the output with the job directory.
 
-The service sends 12-frame windows through the existing SeedVR2 endpoint,
-blends four frames at each boundary, and writes one continuous MP4 encoder.
-It repeats source frames and audio only when `loop_input=true`. The same SP4,
-VAE tiling, and VAE height-sharding serving profile above is required for
-768×1344. This route keeps a window within the whole-clip pixel budget; it
-does not raise the `/v1/videos/sync` 257-frame or pixel limits. The long route
+The service sends windows through the existing SeedVR2 endpoint, blends four
+frames at each boundary, and writes one continuous MP4 encoder. Each window is
+the longest 4n+1-frame clip that the sharded clip-pixel cap, the frame cap and
+`VLLM_OMNI_SEEDVR2_LONG_MAX_WINDOW` admit at the output size. Every window pays
+a fixed round trip through the serving stack and recomputes its overlap, and a
+window of four latent frames gets no temporal attention in the DiT, so raise
+the clip cap as far as the device allows. Windows carry source pixels, which
+the model resizes on the device, and cross the endpoint losslessly; only the
+final MP4 is compressed. The next window is restored while the previous one is
+blended and encoded. It repeats source frames and audio only when
+`loop_input=true`. The sharded serving profile above (VAE tiling, VAE height
+sharding, Ulysses degree of at least four) is required. This route keeps a
+window within the whole-clip pixel budget; it does not raise the
+`/v1/videos/sync` 257-frame or pixel limits. The long route
 uses fixed one-step, CFG=1 conditioning and requires `imageio[ffmpeg]` for
 audio muxing. The 7,200-frame 768×1344 case is still undergoing full GPU E2E.
 

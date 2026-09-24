@@ -19,13 +19,14 @@ if TYPE_CHECKING:
     VLLM_OMNI_FUSED_QK_NORM_ROPE_MIN_TOKENS: str | None = None
     VLLM_OMNI_SEEDVR2_MAX_FRAMES: int = 0
     VLLM_OMNI_SEEDVR2_SHARDED_FRAME_PIXELS: int = 0
-    VLLM_OMNI_SEEDVR2_SHARDED_CLIP_PIXELS: int = 0
+    VLLM_OMNI_SEEDVR2_SHARDED_CLIP_PIXELS: int | None = None
     VLLM_OMNI_SEEDVR2_LONG_MAX_UPLOAD_BYTES: int = 0
+    VLLM_OMNI_SEEDVR2_LONG_MAX_WINDOW: int = 0
     VLLM_OMNI_SEEDVR2_LONG_JOB_TTL_SECONDS: int = 0
     VLLM_OMNI_SEEDVR2_LONG_OUTPUT_DIR: str = ""
 
 
-def _positive_int(name: str, default: int) -> int:
+def _positive_int(name: str, default: int | None) -> int | None:
     """Read an operator-tuned limit, rejecting values that would disable it."""
     value = os.environ.get(name)
     if value is None:
@@ -61,13 +62,16 @@ environment_variables: dict[str, Callable[[], Any]] = {
     "VLLM_OMNI_SEEDVR2_SHARDED_FRAME_PIXELS": lambda: _positive_int(
         "VLLM_OMNI_SEEDVR2_SHARDED_FRAME_PIXELS", 2560 * 1472
     ),
-    "VLLM_OMNI_SEEDVR2_SHARDED_CLIP_PIXELS": lambda: _positive_int(
-        "VLLM_OMNI_SEEDVR2_SHARDED_CLIP_PIXELS", 5 * 2560 * 1472
-    ),
+    # Unset, the clip budget scales with device memory from the calibrated
+    # 32 GB value; see seedvr2.video.sharded_budget.
+    "VLLM_OMNI_SEEDVR2_SHARDED_CLIP_PIXELS": lambda: _positive_int("VLLM_OMNI_SEEDVR2_SHARDED_CLIP_PIXELS", None),
     # Bounds for the long-video restoration route.
     "VLLM_OMNI_SEEDVR2_LONG_MAX_UPLOAD_BYTES": lambda: _positive_int(
         "VLLM_OMNI_SEEDVR2_LONG_MAX_UPLOAD_BYTES", 8 * 1024**3
     ),
+    # Longest model window. The clip budget usually binds first; this caps it
+    # at 30 latent frames, the DiT's largest temporal attention window.
+    "VLLM_OMNI_SEEDVR2_LONG_MAX_WINDOW": lambda: _positive_int("VLLM_OMNI_SEEDVR2_LONG_MAX_WINDOW", 121),
     "VLLM_OMNI_SEEDVR2_LONG_JOB_TTL_SECONDS": lambda: _positive_int("VLLM_OMNI_SEEDVR2_LONG_JOB_TTL_SECONDS", 3600),
     "VLLM_OMNI_SEEDVR2_LONG_OUTPUT_DIR": lambda: os.environ.get(
         "VLLM_OMNI_SEEDVR2_LONG_OUTPUT_DIR", tempfile.gettempdir()
