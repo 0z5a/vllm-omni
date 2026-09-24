@@ -119,7 +119,7 @@ input frames and decode up to seven latent frames per chunk. It applies only
 when the source has at most 24 frames and the padded model input has at most
 2,060,800 pixels across all frames; larger requests retain the 8/2 chunk sizes.
 The opt-in changes FP16 accumulation order, so output pixels can differ from
-the default. See the [RTX 5090 recipe](../../recipes/ByteDance/SeedVR2-RTX-5090.md)
+the default. See the [RTX 5090 recipe](https://github.com/vllm-project/vllm-omni/blob/main/recipes/ByteDance/SeedVR2-RTX-5090.md#short-clip-vae-latency)
 for the validated four-GPU load range and memory measurements.
 
 Five-frame clips use one temporal chunk. On a single GPU, convolutions with
