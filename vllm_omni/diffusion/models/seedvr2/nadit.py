@@ -32,6 +32,7 @@ from collections.abc import Sequence
 import torch
 import torch.nn.functional as F
 from torch import nn
+from torch.nn.attention import SDPBackend, sdpa_kernel
 from vllm.logger import init_logger
 
 from vllm_omni.diffusion.attention.backends.abstract import AttentionMetadata
@@ -45,7 +46,7 @@ from vllm_omni.diffusion.models.seedvr2.na_ops import (
     unpack_joint_windows,
 )
 from vllm_omni.diffusion.models.seedvr2.parallel import validate_seedvr2_parallel_config
-from vllm_omni.diffusion.models.seedvr2.rope import NaMMRotaryEmbedding3d
+from vllm_omni.diffusion.models.seedvr2.rope import NaMMRotaryEmbedding3d, NaVideoRotaryEmbedding3d
 from vllm_omni.diffusion.models.seedvr2.ulysses import SeedVR2UlyssesRuntime
 from vllm_omni.diffusion.models.seedvr2.window_geometry import (
     DEFAULT_WINDOW,
@@ -72,6 +73,19 @@ SEEDVR2_3B_CONFIG: dict = {
     "window_method": DEFAULT_WINDOW_METHODS,
     "rope_dim": 128,
     "vid_out_norm": True,
+}
+
+SEEDVR2_7B_CONFIG: dict = SEEDVR2_3B_CONFIG | {
+    "vid_dim": 3072,
+    "heads": 24,
+    "num_layers": 36,
+    "mm_layers": 36,
+    "mlp_type": "normal",
+    "rope_type": "rope3d",
+    "rope_dim": 64,
+    "vid_out_norm": False,
+    "freeze_last_text": False,
+    "norm_upcast": True,
 }
 
 
@@ -118,17 +132,21 @@ class MMModule(nn.Module):
 
 
 class RMSNorm(nn.Module):
-    """Reference ``CustomRMSNorm``: normalise in the input dtype, optional affine."""
+    """Checkpoint-compatible RMSNorm with optional FP32 accumulation for 7B."""
 
     def __init__(self, dim: int, eps: float = 1e-5, elementwise_affine: bool = True) -> None:
         super().__init__()
         self.eps = float(eps)
+        self.upcast = False
         if elementwise_affine:
             self.weight = nn.Parameter(torch.ones(dim))
         else:
             self.register_parameter("weight", None)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
+        if self.upcast:
+            weight = self.weight.float() if self.weight is not None else None
+            return F.rms_norm(x.float(), (x.shape[-1],), weight, self.eps).to(x.dtype)
         variance = x.pow(2).mean(dim=-1, keepdim=True)
         x = x / torch.sqrt(variance + self.eps)
         if self.weight is not None:
@@ -217,6 +235,18 @@ class TimeEmbedding(nn.Module):
         return self.proj_out(emb)
 
 
+class GeluMLP(nn.Module):
+    """7B's biased two-projection MLP."""
+
+    def __init__(self, dim: int, expand_ratio: int) -> None:
+        super().__init__()
+        self.proj_in = nn.Linear(dim, dim * expand_ratio)
+        self.proj_out = nn.Linear(dim * expand_ratio, dim)
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        return self.proj_out(F.gelu(self.proj_in(x), approximate="tanh"))
+
+
 class SwiGLUMLP(nn.Module):
     """Reference SwiGLU MLP (``multiple_of=256``, no biases)."""
 
@@ -286,6 +316,7 @@ class NaSwinAttention(nn.Module):
         rope_dim: int,
         shared_weights: bool,
         use_varlen_kernel: bool = True,
+        rope_type: str = "mmrope3d",
     ) -> None:
         super().__init__()
         inner_dim = heads * head_dim
@@ -308,7 +339,11 @@ class NaSwinAttention(nn.Module):
             MMArg(head_dim, head_dim),
             shared_weights=shared_weights,
         )
-        self.rope = NaMMRotaryEmbedding3d(rotary_dim=rope_dim, num_axes=3)
+        self.rope = (
+            NaVideoRotaryEmbedding3d(rope_dim)
+            if rope_type == "rope3d"
+            else NaMMRotaryEmbedding3d(rotary_dim=rope_dim, num_axes=3)
+        )
         # The model owns window/head exchange; shared attention dispatch must
         # not apply another sequence-parallel strategy.
         self.attention = Attention(
@@ -329,6 +364,8 @@ class NaSwinAttention(nn.Module):
         self.use_varlen_kernel = requested_varlen and supports_varlen
         self.attention_backend_name = backend.get_name() if backend is not None else None
         self.attention_path = "packed_varlen" if self.use_varlen_kernel else "grouped_sdpa"
+        if rope_type == "rope3d" and not self.use_varlen_kernel:
+            self.attention_backend_name = "TORCH_SDPA_MATH"
         self.varlen_fallback_reason: str | None = None
         if requested_varlen and not supports_varlen:
             backend_name = self.attention_backend_name or "custom_attention"
@@ -396,13 +433,19 @@ class NaSwinAttention(nn.Module):
             joint_out = self.attention(
                 joint_q.unsqueeze(0), joint_k.unsqueeze(0), joint_v.unsqueeze(0), metadata
             ).squeeze(0)
+        elif isinstance(self.rope, NaVideoRotaryEmbedding3d):
+            # Keep 7B attention intermediates in FP32 across head-shard sizes.
+            with sdpa_kernel(SDPBackend.MATH):
+                joint_out = grouped_window_sdpa(joint_q, joint_k, joint_v, ctx, softmax_scale=self.softmax_scale)
         else:
             joint_out = grouped_window_sdpa(joint_q, joint_k, joint_v, ctx, softmax_scale=self.softmax_scale)
 
         vid_out, txt_windows = unpack_joint_windows(joint_out, ctx)
         attention_dim = vid_out.shape[-2] * vid_out.shape[-1]
         if ctx.local_windows:
-            local_text_sum = txt_windows.reshape(ctx.local_windows, ctx.text_len, attention_dim).sum(0)
+            # 7B uses BF16: round once after averaging, not before division.
+            sum_dtype = torch.float32 if isinstance(self.rope, NaVideoRotaryEmbedding3d) else None
+            local_text_sum = txt_windows.reshape(ctx.local_windows, ctx.text_len, attention_dim).sum(0, dtype=sum_dtype)
         else:
             # Ranks without windows still join the text reduction; the dtype must
             # match the other ranks' contribution exactly (a mismatch changes the
@@ -443,10 +486,12 @@ class NaMMSRTransformerBlock(nn.Module):
         rope_dim: int,
         is_last_layer: bool,
         use_varlen_kernel: bool = True,
+        rope_type: str = "mmrope3d",
     ) -> None:
         super().__init__()
-        if mlp_type != "swiglu":
+        if mlp_type not in {"normal", "swiglu"}:
             raise NotImplementedError(f"unsupported mlp_type {mlp_type!r} for SeedVR2")
+        mlp_class = GeluMLP if mlp_type == "normal" else SwiGLUMLP
         dims = MMArg(vid_dim, txt_dim)
         self.attn_norm = MMModule(
             lambda d: RMSNorm(int(d), eps=norm_eps, elementwise_affine=False), dims, shared_weights=shared_weights
@@ -461,6 +506,7 @@ class NaMMSRTransformerBlock(nn.Module):
             rope_dim=rope_dim,
             shared_weights=shared_weights,
             use_varlen_kernel=use_varlen_kernel,
+            rope_type=rope_type,
         )
         self.mlp_norm = MMModule(
             lambda d: RMSNorm(int(d), eps=norm_eps, elementwise_affine=False),
@@ -469,7 +515,7 @@ class NaMMSRTransformerBlock(nn.Module):
             vid_only=is_last_layer,
         )
         self.mlp = MMModule(
-            lambda d: SwiGLUMLP(int(d), expand_ratio), dims, shared_weights=shared_weights, vid_only=is_last_layer
+            lambda d: mlp_class(int(d), expand_ratio), dims, shared_weights=shared_weights, vid_only=is_last_layer
         )
         self.ada = MMModule(
             lambda d: AdaSingle(int(d), emb_dim, layers=["attn", "mlp"]),
@@ -547,10 +593,12 @@ class SeedVR2NaDiT(nn.Module):
         rope_type: str = "mmrope3d",
         rope_dim: int = 128,
         vid_out_norm: bool = True,
+        freeze_last_text: bool = True,
+        norm_upcast: bool = False,
         use_varlen_kernel: bool = True,
     ) -> None:
         super().__init__()
-        if rope_type != "mmrope3d":
+        if rope_type not in {"mmrope3d", "rope3d"}:
             raise NotImplementedError(f"unsupported rope_type {rope_type!r} for SeedVR2")
         txt_dim = vid_dim
         emb_dim = emb_dim or 6 * vid_dim
@@ -581,7 +629,8 @@ class SeedVR2NaDiT(nn.Module):
                     mlp_type=mlp_type,
                     shared_weights=not (index < mm_layers),
                     rope_dim=rope_dim,
-                    is_last_layer=(index == num_layers - 1),
+                    rope_type=rope_type,
+                    is_last_layer=(freeze_last_text and index == num_layers - 1),
                     use_varlen_kernel=use_varlen_kernel,
                 )
                 for index in range(num_layers)
@@ -589,8 +638,12 @@ class SeedVR2NaDiT(nn.Module):
         )
 
         self.vid_out_norm = RMSNorm(vid_dim, eps=norm_eps, elementwise_affine=True) if vid_out_norm else None
-        self.vid_out_ada = OutAda(vid_dim)
+        self.vid_out_ada = OutAda(vid_dim) if vid_out_norm else None
         self.vid_out = _NaPatchOut(out_channels=vid_out_channels, patch_size=self.patch_size, dim=vid_dim)
+        # 7B activations exceed the FP16 square range; Apex accumulates RMS in FP32.
+        for module in self.modules():
+            if isinstance(module, RMSNorm):
+                module.upcast = norm_upcast
 
     # -- runtime -----------------------------------------------------------
     def build_runtime(
@@ -719,6 +772,7 @@ class SeedVR2NaDiT(nn.Module):
     # -- internals ---------------------------------------------------------
     def _output_projection(self, vid_hidden: torch.Tensor, emb: torch.Tensor) -> torch.Tensor:
         if self.vid_out_norm is not None:
+            assert self.vid_out_ada is not None
             vid_hidden = self.vid_out_norm(vid_hidden)
             block_ada = self.blocks[0].ada
             ada = block_ada.all if block_ada.shared_weights else block_ada.vid

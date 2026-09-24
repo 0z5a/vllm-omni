@@ -162,3 +162,43 @@ class NaMMRotaryEmbedding3d(nn.Module):
         txt_q = apply_rotary_emb(txt_freqs, txt_q.transpose(0, 1)).transpose(0, 1)
         txt_k = apply_rotary_emb(txt_freqs, txt_k.transpose(0, 1)).transpose(0, 1)
         return vid_q, vid_k, txt_q, txt_k
+
+
+class NaVideoRotaryEmbedding3d(NaMMRotaryEmbedding3d):
+    """7B pixel-frequency RoPE rotates 60 video channels and leaves text unchanged."""
+
+    def __init__(self, rotary_dim: int = 64) -> None:
+        nn.Module.__init__(self)
+        self.num_axes = 3
+        self.rotary_dim = rotary_dim
+        self.axis_dim = rotary_dim // 3
+        self.rot_dim = 2 * (self.axis_dim // 2) * 3
+        self.register_buffer("freqs", torch.linspace(1.0, 128.0, self.axis_dim // 2) * torch.pi)
+        self._axis_cache: dict[tuple, torch.Tensor] = {}
+
+    def window_freqs(self, window_shape: tuple[int, int, int], text_len: int, *, device, dtype) -> torch.Tensor:
+        axes = []
+        for axis, size in enumerate(window_shape):
+            positions = torch.linspace(-1.0, 1.0, size, device=self.freqs.device)
+            angles = positions.to(self.freqs.dtype).unsqueeze(-1) * self.freqs.unsqueeze(0)
+            angles = angles.repeat_interleave(2, dim=-1).to(device=device, dtype=dtype)
+            shape = [1, 1, 1, angles.shape[-1]]
+            shape[axis] = size
+            axes.append(angles.view(shape))
+        return torch.cat(torch.broadcast_tensors(*axes), dim=-1).reshape(-1, self.rot_dim)
+
+    def text_freqs(self, text_len: int, *, device, dtype) -> torch.Tensor:
+        return torch.empty((text_len, 0), device=device, dtype=dtype)
+
+    def forward(
+        self,
+        vid_q: torch.Tensor,
+        vid_k: torch.Tensor,
+        vid_freqs: torch.Tensor,
+        txt_q: torch.Tensor,
+        txt_k: torch.Tensor,
+        txt_freqs: torch.Tensor,
+    ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
+        vid_q = apply_rotary_emb(vid_freqs, vid_q.transpose(0, 1)).transpose(0, 1)
+        vid_k = apply_rotary_emb(vid_freqs, vid_k.transpose(0, 1)).transpose(0, 1)
+        return vid_q, vid_k, txt_q, txt_k

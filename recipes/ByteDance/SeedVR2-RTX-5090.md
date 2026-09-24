@@ -3,7 +3,7 @@
 ## Summary
 
 - Vendor: ByteDance
-- Model: SeedVR2 3B
+- Model: SeedVR2 3B / 7B
 - Task: restore or upscale an uploaded video
 - Mode: native offline/HTTP pipeline, one Euler step
 - Hardware: NVIDIA GeForce RTX 5090, 32 GiB per device
@@ -24,7 +24,7 @@ correction from external applications are separate execution semantics.
 | Output | MP4 at requested geometry, original frame count and source frame rate |
 | Audio | First mono/stereo track, aligned by PTS; re-encoded as AAC |
 | Sampling | One Euler step, CFG=1, per-request seed |
-| Precision | 3B DiT and VAE FP16 |
+| Precision | 3B FP16 or 7B BF16 DiT compute; FP16 VAE |
 | Parallelism | Head-sharded Ulysses window attention at SP>1 via `ulysses_degree`; replicated weights |
 | Frame padding | Internal 4n+1 padding, cropped back; five returns five, six returns six |
 
@@ -70,7 +70,7 @@ For SP=2, expose two GPUs and replace the GPU count with:
 
 Use degree 4 and four visible GPUs for SP=4. Combine any feature-specific
 settings below into the same stage-overrides object; do not repeat that flag.
-The validated 16-frame 720p original-size profile is:
+The validated 3B 16-frame 720p original-size profile is:
 
 ```bash
 CUDA_VISIBLE_DEVICES=0,1,2,3 vllm serve "$MODEL_DIR" --omni \
@@ -137,7 +137,7 @@ outputs, and the actual backend selected by the worker.
 | Feature | Status |
 | --- | --- |
 | [Window SP](../../docs/models/seedvr2.md) | Model-local regular/shifted window attention |
-| RoPE table cache | Reuses window-local angle tables without a device-to-host cache-key read |
+| 3B RoPE table cache | Reuses window-local angle tables without a device-to-host cache-key read |
 | CPU offload, LoRA, compiled execution, CFG/TP/PP | Unsupported |
 | VFR or multichannel audio | Unsupported |
 | VAE temporal/spatial tiling | Available with `--vae-use-tiling` |
@@ -167,3 +167,21 @@ chunk boundary as well as five/six-frame clips, and inspect frames adjacent to
 chunk boundaries. Reduced peak memory does not by itself establish lower latency.
 High-resolution clips can still exceed device capacity; validate the intended
 frame count and output size on the target GPUs.
+
+## 7B profile
+
+Use `seedvr2_ema_7b_fp16.safetensors` with the same VAE and `pos_emb.pt`.
+The 7B DiT computes in BF16 and the VAE in FP16. For two GPUs:
+
+```bash
+CUDA_VISIBLE_DEVICES=0,1 vllm serve "$MODEL_DIR" --omni \
+  --model-class-name SeedVR2Pipeline --dtype bfloat16 --enforce-eager \
+  --num-gpus 2 --distributed-executor-backend mp \
+  --stage-overrides '{"0":{"ulysses_degree":2,"additional_config":{"seedvr2_model_size":"7b"}}}' \
+  --host 127.0.0.1 --port 8098
+```
+
+SP1/2/4 short-clip HTTP correctness was established on the 7B source branch.
+The rebased P01 stack needs a fresh E2E run before new performance claims.
+Degrees above four, packed-varlen, and the high-resolution VAE sharding limit
+remain unqualified for 7B.
