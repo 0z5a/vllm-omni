@@ -75,8 +75,14 @@ cached by axis length, device, and dtype, avoiding GPU-to-CPU reads to form a
 cache key on repeated requests.
 
 Grouped SDPA row indices are built once per window layout and reused across
-layers. This removes per-layer GPU-to-CPU length reads; packed-varlen attention
-is a separate opt-in path.
+layers. This removes per-layer GPU-to-CPU length reads. Packed-varlen attention
+is a separate backend-gated path.
+
+Packed-varlen window attention is requested on compatible backends and falls
+back to grouped SDPA when the backend lacks multi-document varlen support.
+Runtime counters report the selected path. Large-window workloads have shown a
+positive signal, while the stable useful range and small-load regression remain
+under evaluation.
 
 The multipart API requires a prompt field; a single space supplies a blank
 prompt. Nonblank text is rejected. Omit `fps` to retain the source frame rate;

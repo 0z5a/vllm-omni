@@ -69,7 +69,7 @@ class LocalWindowContext:
 
     @property
     def max_joint_len(self) -> int:
-        return int(self.joint_lengths.max()) if self.local_windows else 0
+        return max((length for length, _ in self.sdpa_groups), default=0)
 
 
 def build_local_window_context(

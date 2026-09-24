@@ -254,6 +254,11 @@ def grouped_window_sdpa(
     """
     if ctx.local_windows == 0:
         return torch.empty_like(q)
+    if len(ctx.sdpa_groups) == 1:
+        length = ctx.sdpa_groups[0][0]
+        views = [x.view(ctx.local_windows, length, x.shape[1], x.shape[2]).transpose(1, 2) for x in (q, k, v)]
+        attended = F.scaled_dot_product_attention(*views, scale=softmax_scale)
+        return attended.transpose(1, 2).reshape_as(q)
     out = torch.empty_like(q)
     for length, rows in ctx.sdpa_groups:
         num = rows.numel() // length
@@ -373,12 +378,12 @@ class NaSwinAttention(nn.Module):
 
         if not ctx.local_windows:
             self.attention_stats["no_local_windows_calls"] += 1
-        elif self.use_varlen_kernel:
+        elif self.use_varlen_kernel and len(ctx.sdpa_groups) > 1:
             self.attention_stats["packed_varlen_calls"] += 1
         else:
             self.attention_stats["grouped_sdpa_calls"] += 1
 
-        if self.use_varlen_kernel and ctx.local_windows:
+        if self.use_varlen_kernel and ctx.local_windows and len(ctx.sdpa_groups) > 1:
             metadata = AttentionMetadata(
                 extra={
                     "cu_seqlens_q": ctx.joint_cu_seqlens,
