@@ -12,8 +12,8 @@
 ## When to use this recipe
 
 Run short, constant-frame-rate videos with the native SeedVR2 pipeline. This
-recipe covers the whole-clip path. Long-video batching, overlap, and color
-correction from external applications are separate execution semantics.
+recipe covers the whole-clip path and the separate long-video route. Color
+correction from external applications is a separate execution semantic.
 
 ## Supported model contract
 
@@ -117,6 +117,30 @@ workers and the server exited normally after each run.
 | 720×1280, 16 frames → 720×1280 | Rejected | HTTP 200; media checks passed | 3.388 s |
 
 These are single requests on a shared host, not performance comparisons.
+
+### One long-video request
+
+For a 24 FPS source, the long route can restore up to 7,200 frames at
+768×1344. Use the SP4/VAE height-sharding command above and set a persistent
+`SEEDVR2_LONG_OUTPUT_DIR` before serving. If the source is shorter than 300
+seconds, `loop_input=true` repeats its frames and audio. The service runs
+bounded 12-frame model windows with four-frame overlap and writes one MP4;
+it does not concatenate separate video files.
+
+```bash
+curl --fail-with-body http://127.0.0.1:8098/v1/seedvr2/restore-long \
+  -F 'input_references=@input.mp4;type=video/mp4' \
+  -F 'prompt= ' -F 'size=768x1344' -F 'num_frames=7200' \
+  -F 'loop_input=true' -F 'seed=7723'
+# Use the returned id to poll /v1/seedvr2/restore-long/{id};
+# download /v1/seedvr2/restore-long/{id}/content when completed.
+```
+
+The input must have constant 24 FPS timestamps starting at zero. Only one job
+can run per API server, and `--api-server-count` must be one. The existing
+whole-clip `/v1/videos/sync` limits remain in force. Full 7,200-frame GPU
+validation is in progress; use this route only with a memory-checked SP4
+deployment.
 
 For transformer-only SP=1/2/4 parity, set `VLLM_TEST_SEEDVR2_MODEL` to the 3B
 safetensors file and run:

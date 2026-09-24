@@ -96,6 +96,25 @@ declared duration, frame count, and input dimensions when available, then
 enforces the limits as frames arrive. Requests outside these budgets return 400
 before building the resized whole-clip tensor.
 
+## Long-video restoration
+
+`POST /v1/seedvr2/restore-long` accepts one uploaded 24 FPS video, a blank
+prompt, `size`, `num_frames` (up to 7,200), and optional `loop_input=true`.
+The output is bounded to 768×1344 pixels per frame. It returns a job ID; poll
+`GET /v1/seedvr2/restore-long/{id}` and download the completed MP4 from
+`GET /v1/seedvr2/restore-long/{id}/content`. Set `SEEDVR2_LONG_OUTPUT_DIR` to
+the desired job-storage parent before starting the server. One job runs at a
+time with one API server.
+
+The service sends 12-frame windows through the existing SeedVR2 endpoint,
+blends four frames at each boundary, and writes one continuous MP4 encoder.
+It repeats source frames and audio only when `loop_input=true`. The same SP4,
+VAE tiling, and VAE height-sharding serving profile above is required for
+768×1344. This route keeps a window within the whole-clip pixel budget; it
+does not raise the `/v1/videos/sync` 257-frame or pixel limits. The long route
+uses fixed one-step, CFG=1 conditioning and requires `imageio[ffmpeg]` for
+audio muxing. The 7,200-frame 768×1344 case is still undergoing full GPU E2E.
+
 ## Temporal and spatial VAE tiling
 
 Add `--vae-use-tiling` to bound VAE intermediate activations along time. The
