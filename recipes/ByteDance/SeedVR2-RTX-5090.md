@@ -139,6 +139,7 @@ outputs, and the actual backend selected by the worker.
 | [Window SP](../../docs/models/seedvr2.md) | Model-local regular/shifted window attention |
 | RoPE table cache | Reuses window-local angle tables without a device-to-host cache-key read |
 | Grouped SDPA index cache | Reuses per-layout row indices across layers; packed-varlen is separate |
+| Packed-varlen attention | Backend-gated; inspect runtime counters and compare against grouped SDPA on the intended workload |
 | CPU offload, LoRA, compiled execution, CFG/TP/PP | Unsupported |
 | VFR or multichannel audio | Unsupported |
 | VAE temporal/spatial tiling | Available with `--vae-use-tiling` |

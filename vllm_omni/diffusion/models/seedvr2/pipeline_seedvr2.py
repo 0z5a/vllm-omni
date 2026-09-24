@@ -150,7 +150,7 @@ class SeedVR2Pipeline(nn.Module):
         self.device = get_local_device()
         self.od_config = od_config
         self.frame_pixels, self.clip_pixels = _admission_budget(od_config)
-        self.transformer = SeedVR2NaDiT(**SEEDVR2_3B_CONFIG, use_varlen_kernel=False)
+        self.transformer = SeedVR2NaDiT(**SEEDVR2_3B_CONFIG, use_varlen_kernel=True)
         self.vae = SeedVR2VAE()
         self.weights_sources = [
             DiffusersPipelineLoader.ComponentSource(
