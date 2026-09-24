@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: Apache-2.0
 # SPDX-FileCopyrightText: Copyright contributors to the vLLM-Omni project
 
-from types import SimpleNamespace
+from types import MethodType, SimpleNamespace
 
 import pytest
 import torch
@@ -20,7 +20,8 @@ def test_diffusion_fp8_uses_cuda_activation_quantizer() -> None:
     config = create_base_diffusion_vllm_config(torch.device("cuda"), SimpleNamespace(additional_config={}))
     with set_current_vllm_config(config):
         quantizer = QuantFP8(static=False, group_shape=GroupShape.PER_TOKEN)
-        assert quantizer._forward_method.__func__ is QuantFP8.forward_cuda
+        selected = quantizer._forward_method
+        assert (selected.__func__ if isinstance(selected, MethodType) else selected) is QuantFP8.forward_cuda
         inputs = torch.randn((16, 128), device="cuda", dtype=torch.bfloat16)
         output, scale = quantizer(inputs)
         reference, reference_scale = quantizer.forward_native(inputs)
