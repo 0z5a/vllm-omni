@@ -15,6 +15,8 @@ from dataclasses import dataclass
 from enum import Enum
 from typing import Any
 
+import torch
+
 
 class PrefixCacheEventKind(str, Enum):
     STARTED = "started"
@@ -52,13 +54,13 @@ class PrefixCacheWrite:
     req_id: str
     row_start: int
     row_end: int
-    slots: tuple[int, ...]
 
 
 @dataclass(frozen=True, slots=True)
 class PrefixCacheWriteLayout:
     writes: tuple[PrefixCacheWrite, ...]
     total_rows: int
+    slots_cpu: torch.Tensor | None = None
 
 
 class PrefixCacheSchedulerAdapter:
@@ -99,9 +101,8 @@ class PrefixCacheSchedulerAdapter:
         resumed = set(getattr(cached, "resumed_req_ids", ()) or ()) if cached is not None else set()
         aborted = set(getattr(scheduler_output, "aborted_req_ids", ()) or ())
         scheduled_tokens = getattr(scheduler_output, "num_scheduled_tokens", {}) or {}
-        terminal_ids = {
-            str(req_id) for req_id in (set(getattr(scheduler_output, "finished_req_ids", ()) or ()) | aborted)
-        }
+        finished = set(scheduler_output.finished_req_ids)
+        terminal_ids = {str(req_id) for req_id in finished | aborted}
 
         cached_by_id: dict[str, tuple[int, Any, int]] = {}
         if cached is not None:
@@ -115,6 +116,9 @@ class PrefixCacheSchedulerAdapter:
                     new_blocks[index] if index < len(new_blocks) else None,
                     int(output_tokens[index]) if index < len(output_tokens) else 0,
                 )
+
+        for req_id in finished | aborted:
+            self._observed_req_ids.discard(str(req_id))
 
         for data in getattr(scheduler_output, "scheduled_new_reqs", ()) or ():
             req_id = self._req_id(data)
@@ -152,12 +156,10 @@ class PrefixCacheSchedulerAdapter:
                 )
             )
 
-        finished = set(getattr(scheduler_output, "finished_req_ids", ()) or ())
         for req_id in sorted(finished | aborted):
             req_id = str(req_id)
             kind = PrefixCacheEventKind.ABORTED if req_id in aborted else PrefixCacheEventKind.FINISHED
             events.append(PrefixCacheRequestEvent(req_id, kind))
-            self._observed_req_ids.discard(req_id)
         return tuple(events)
 
     def translate_step(self, scheduler_output: Any) -> PrefixCacheStep:
@@ -180,17 +182,7 @@ class PrefixCacheSchedulerAdapter:
             cursor += count
         slots = group_view.step_slots_cpu(list(req_order), dict(num_scheduled_tokens))
         writes: list[PrefixCacheWrite] = []
-        cursor = 0
         for req_id in req_order:
             start, end = offsets[req_id]
-            count = end - start
-            writes.append(
-                PrefixCacheWrite(
-                    req_id,
-                    start,
-                    end,
-                    tuple(int(x) for x in slots[cursor : cursor + count].tolist()),
-                )
-            )
-            cursor += count
-        return PrefixCacheWriteLayout(tuple(writes), cursor)
+            writes.append(PrefixCacheWrite(req_id, start, end))
+        return PrefixCacheWriteLayout(tuple(writes), cursor, slots)

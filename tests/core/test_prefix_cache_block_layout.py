@@ -7,8 +7,14 @@ import torch
 from vllm.sampling_params import SamplingParams
 from vllm.v1.worker.gpu_input_batch import CachedRequestState, InputBatch
 
-from vllm_omni.core.prefix_cache.adapter import PrefixCacheSchedulerAdapter
+from vllm_omni.core.prefix_cache.adapter import (
+    PrefixCacheEventKind,
+    PrefixCacheRequestEvent,
+    PrefixCacheSchedulerAdapter,
+)
 from vllm_omni.core.prefix_cache.group_view import FullAttentionGroupView
+from vllm_omni.core.prefix_cache.interface import HIDDEN_KEY, PrefixCacheConfig
+from vllm_omni.core.prefix_cache.manager import OmniPrefixCacheManager
 
 pytestmark = [pytest.mark.core_model, pytest.mark.cuda]
 
@@ -56,5 +62,22 @@ def test_adapter_matches_real_block_table(allocator_size: int, kernel_size: int,
     )
     assert layout.total_rows == count + 3
     assert [(w.req_id, w.row_start, w.row_end) for w in layout.writes] == [("b", 0, count), ("a", count, count + 3)]
-    assert layout.writes[0].slots == tuple(expected[:count].tolist())
-    assert layout.writes[1].slots == tuple(expected[count:].tolist())
+    assert layout.slots_cpu is not None
+    assert torch.equal(layout.slots_cpu[layout.writes[0].row_start : layout.writes[0].row_end], expected[:count])
+    assert torch.equal(layout.slots_cpu[layout.writes[1].row_start : layout.writes[1].row_end], expected[count:])
+
+    manager = OmniPrefixCacheManager(PrefixCacheConfig(num_blocks=32, block_size=allocator_size), eager=True)
+    manager.new_step_starts(
+        (
+            PrefixCacheRequestEvent("b", PrefixCacheEventKind.STARTED, scheduled_tokens=count),
+            PrefixCacheRequestEvent("a", PrefixCacheEventKind.STARTED, scheduled_tokens=3),
+        )
+    )
+    hidden = torch.arange(count + 3, dtype=torch.float32).unsqueeze(1)
+    step_id = manager.save_outputs(
+        hidden, {}, num_tokens_unpadded=count + 3, num_tokens_padded=count + 3, write_layout=layout
+    )
+    assert torch.equal(manager._pool.rows(HIDDEN_KEY, expected), hidden)
+    output = manager.materialize(step_id, ["b", "a"])
+    assert torch.equal(output.hidden_states["b"], hidden[:count])
+    assert torch.equal(output.hidden_states["a"], hidden[count:])
