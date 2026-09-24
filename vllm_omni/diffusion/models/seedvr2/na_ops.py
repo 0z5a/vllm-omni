@@ -53,6 +53,7 @@ class LocalWindowContext:
     text_len: int
     local_windows: int
     global_windows: int
+    sdpa_groups: tuple[tuple[int, torch.Tensor], ...] = ()
 
     @property
     def num_video_tokens(self) -> int:
@@ -80,8 +81,8 @@ def build_local_window_context(
 ) -> LocalWindowContext:
     """Build the device-local attention metadata for one rank and one layout."""
     device = torch.device(device)
-    window_shapes = rank_plan.window_shapes.to(device=device, dtype=torch.int64, non_blocking=True)
-    video_cu_seqlens = rank_plan.video_cu_seqlens.to(device=device, non_blocking=True)
+    window_shapes = rank_plan.window_shapes
+    video_cu_seqlens = rank_plan.video_cu_seqlens
     num_windows = int(window_shapes.shape[0])
     num_video = int(rank_plan.global_token_ids.numel())
 
@@ -96,37 +97,45 @@ def build_local_window_context(
         joint_pieces = []
         vid_pieces = []
         txt_pieces = []
-        text_range = torch.arange(int(text_len), dtype=torch.int64, device=device)
+        text_range = torch.arange(int(text_len), dtype=torch.int64, device="cpu")
         for index in range(num_windows):
             start = int(video_cu_seqlens[index])
             count = int(lengths[index])
             window_base = int(base[index])
             text_base = window_base + count
-            joint_pieces.append(torch.arange(start, start + count, dtype=torch.int64, device=device))
-            joint_pieces.append(torch.arange(num_video, num_video + int(text_len), dtype=torch.int64, device=device))
-            vid_pieces.append(torch.arange(window_base, window_base + count, dtype=torch.int64, device=device))
+            joint_pieces.append(torch.arange(start, start + count, dtype=torch.int64, device="cpu"))
+            joint_pieces.append(torch.arange(num_video, num_video + int(text_len), dtype=torch.int64, device="cpu"))
+            vid_pieces.append(torch.arange(window_base, window_base + count, dtype=torch.int64, device="cpu"))
             txt_pieces.append(text_range + text_base)
         joint_order = torch.cat(joint_pieces)
-        vid_src = torch.cat(vid_pieces) if vid_pieces else torch.empty(0, dtype=torch.int64, device=device)
-        txt_src = torch.cat(txt_pieces) if txt_pieces else torch.empty(0, dtype=torch.int64, device=device)
+        vid_src = torch.cat(vid_pieces) if vid_pieces else torch.empty(0, dtype=torch.int64, device="cpu")
+        txt_src = torch.cat(txt_pieces) if txt_pieces else torch.empty(0, dtype=torch.int64, device="cpu")
     else:
         # Empty rank: the same helper must produce a device-local int32 ``[0]``.
         joint_cu = joint_cu_seqlens(video_cu_seqlens, text_len)
-        joint_order = torch.empty(0, dtype=torch.int64, device=device)
-        vid_src = torch.empty(0, dtype=torch.int64, device=device)
-        txt_src = torch.empty(0, dtype=torch.int64, device=device)
+        joint_order = torch.empty(0, dtype=torch.int64, device="cpu")
+        vid_src = torch.empty(0, dtype=torch.int64, device="cpu")
+        txt_src = torch.empty(0, dtype=torch.int64, device="cpu")
 
+    # The planner owns CPU metadata. Build each length group once per layout,
+    # then reuse device row indices across layers without scalar GPU reads.
+    grouped_rows: dict[int, list[torch.Tensor]] = {}
+    offsets = joint_cu.tolist()
+    for start, stop in zip(offsets, offsets[1:]):
+        grouped_rows.setdefault(stop - start, []).append(torch.arange(start, stop, device="cpu"))
+    sdpa_groups = tuple((length, torch.cat(grouped_rows[length]).to(device)) for length in sorted(grouped_rows))
     return LocalWindowContext(
         layout_key=rank_plan.layout_key,
-        window_shapes=window_shapes,
-        video_cu_seqlens=video_cu_seqlens,
-        joint_cu_seqlens=joint_cu,
-        joint_order=joint_order,
-        vid_src=vid_src,
-        txt_src=txt_src,
+        window_shapes=window_shapes.to(device),
+        video_cu_seqlens=video_cu_seqlens.to(device),
+        joint_cu_seqlens=joint_cu.to(device),
+        joint_order=joint_order.to(device),
+        vid_src=vid_src.to(device),
+        txt_src=txt_src.to(device),
         text_len=int(text_len),
         local_windows=num_windows,
         global_windows=int(global_windows),
+        sdpa_groups=sdpa_groups,
     )
 
 

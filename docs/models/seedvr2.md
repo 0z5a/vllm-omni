@@ -74,6 +74,10 @@ Window-local RoPE axes use zero-based unit-stride positions. Angle tables are
 cached by axis length, device, and dtype, avoiding GPU-to-CPU reads to form a
 cache key on repeated requests.
 
+Grouped SDPA row indices are built once per window layout and reused across
+layers. This removes per-layer GPU-to-CPU length reads; packed-varlen attention
+is a separate opt-in path.
+
 The multipart API requires a prompt field; a single space supplies a blank
 prompt. Nonblank text is rejected. Omit `fps` to retain the source frame rate;
 an explicit rate must match the source. Output dimensions are explicit multiples
