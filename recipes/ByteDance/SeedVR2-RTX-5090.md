@@ -154,6 +154,12 @@ safetensors file and run:
 python -m pytest -o addopts='' -v tests/diffusion/models/seedvr2/test_seedvr2_e2e.py
 ```
 
+The same file covers the long route end to end. Set
+`VLLM_TEST_SEEDVR2_MODEL_DIR` to the model directory; the test starts a
+single-GPU server, restores a 20-frame clip spanning two model windows, checks
+the geometry, frame rate, timestamps and audio of the download, and then
+cancels a longer job.
+
 This checkpoint-gated test does not validate the HTTP server or an optional
 optimization. Feature validation must use its enabled configuration, full model
 outputs, and the actual backend selected by the worker.
