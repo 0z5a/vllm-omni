@@ -19,7 +19,7 @@ from vllm_omni.diffusion.data import DiffusionOutput, OmniDiffusionConfig
 from vllm_omni.diffusion.distributed.utils import get_local_device
 from vllm_omni.diffusion.model_loader.diffusers_loader import DiffusersPipelineLoader
 from vllm_omni.diffusion.models.seedvr2.config import validate_seedvr2_config
-from vllm_omni.diffusion.models.seedvr2.nadit import SEEDVR2_3B_CONFIG, SeedVR2NaDiT
+from vllm_omni.diffusion.models.seedvr2.nadit import SEEDVR2_3B_CONFIG, SEEDVR2_7B_CONFIG, SeedVR2NaDiT
 from vllm_omni.diffusion.models.seedvr2.vae import SeedVR2VAE
 from vllm_omni.diffusion.models.seedvr2.video import (
     MAX_CLIP_PIXELS,
@@ -63,7 +63,11 @@ class SeedVR2Input:
 
 def _admission_budget(config: OmniDiffusionConfig) -> tuple[int, int]:
     parallel = config.parallel_config
-    if config.vae_use_tiling and parallel.ulysses_degree == parallel.vae_patch_parallel_size == 4:
+    if (
+        config.additional_config.get("seedvr2_model_size", "3b") == "3b"
+        and config.vae_use_tiling
+        and parallel.ulysses_degree == parallel.vae_patch_parallel_size == 4
+    ):
         return MAX_SP4_FRAME_PIXELS, MAX_SP4_CLIP_PIXELS
     return MAX_FRAME_PIXELS, MAX_CLIP_PIXELS
 
@@ -150,8 +154,14 @@ class SeedVR2Pipeline(nn.Module):
         self.device = get_local_device()
         self.od_config = od_config
         self.frame_pixels, self.clip_pixels = _admission_budget(od_config)
-        self.transformer = SeedVR2NaDiT(**SEEDVR2_3B_CONFIG, use_varlen_kernel=False)
-        self.vae = SeedVR2VAE()
+        size = od_config.additional_config.get("seedvr2_model_size", "3b")
+        if size == "7b":
+            # Keep BF16 GEMM reductions identical across USP row shard sizes.
+            torch.backends.cuda.preferred_blas_library("cublaslt")
+            torch.backends.cuda.matmul.allow_bf16_reduced_precision_reduction = False
+        model_config = SEEDVR2_7B_CONFIG if size == "7b" else SEEDVR2_3B_CONFIG
+        self.transformer = SeedVR2NaDiT(**model_config, use_varlen_kernel=False)
+        self.vae = SeedVR2VAE().to(dtype=torch.float16)
         self.weights_sources = [
             DiffusersPipelineLoader.ComponentSource(
                 model_or_path=od_config.model,
@@ -162,7 +172,7 @@ class SeedVR2Pipeline(nn.Module):
                 allow_patterns_overrides=[filename],
             )
             for component, filename in (
-                ("transformer", "seedvr2_ema_3b_fp16.safetensors"),
+                ("transformer", f"seedvr2_ema_{size}_fp16.safetensors"),
                 ("vae", "ema_vae_fp16.safetensors"),
             )
         ]
@@ -213,7 +223,7 @@ class SeedVR2Pipeline(nn.Module):
             video = torch.cat((noise, condition, torch.ones_like(condition[..., :1])), dim=-1).reshape(-1, 33)
             shape = torch.tensor([condition.shape[:3]], device=self.device, dtype=torch.long)
             text_shape = torch.tensor([[self.text.shape[0]]], device=self.device, dtype=torch.long)
-            timestep = torch.tensor([1000.0], device=self.device, dtype=torch.float16)
+            timestep = torch.tensor([1000.0], device=self.device, dtype=self.od_config.dtype)
             runtime = self.transformer.build_runtime(
                 self.transformer.token_grid_for(shape),
                 text_len=self.text.shape[0],
@@ -222,7 +232,7 @@ class SeedVR2Pipeline(nn.Module):
             )
             velocity = self.transformer(video, self.text, shape, text_shape, timestep, runtime).vid_sample
             # Reference Euler returns fp32, then VAE casts to fp16 before scaling.
-            restored = noise - velocity.reshape_as(noise)
+            restored = (noise - velocity.reshape_as(noise)).to(torch.float16)
             decoded = self.vae.decode((restored / 0.9152).permute(3, 0, 1, 2).unsqueeze(0))
             decoded = ((decoded[:, :, : prepared.frame_count].float() + 1) / 2).clamp(0, 1)
             payload: dict[str, object] = {"video": decoded}

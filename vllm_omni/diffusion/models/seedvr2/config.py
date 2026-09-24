@@ -9,8 +9,12 @@ from vllm_omni.diffusion.models.seedvr2.parallel import validate_seedvr2_paralle
 
 
 def validate_seedvr2_config(config: OmniDiffusionConfig) -> None:
-    if config.dtype != torch.float16:
-        raise ValueError("SeedVR2 3B requires dtype=float16")
+    size = config.additional_config.get("seedvr2_model_size", "3b")
+    if size not in {"3b", "7b"}:
+        raise ValueError("seedvr2_model_size must be '3b' or '7b'")
+    dtype = torch.bfloat16 if size == "7b" else torch.float16
+    if config.dtype != dtype:
+        raise ValueError(f"SeedVR2 {size} requires dtype={dtype}")
     if not config.enforce_eager:
         raise ValueError("SeedVR2 requires enforce_eager=True; compiled execution is not supported")
     if config.cache_backend != "none" or config.quantization_config is not None:
@@ -23,8 +27,9 @@ def validate_seedvr2_config(config: OmniDiffusionConfig) -> None:
     validate_seedvr2_parallel_config(parallel)
     if parallel.data_parallel_size is not None and parallel.data_parallel_size > 1:
         raise ValueError("SeedVR2 does not support data_parallel_size > 1")
-    if parallel.ulysses_degree > 20:
-        raise ValueError("SeedVR2 3B Ulysses requires at least one of its 20 heads per rank")
+    heads = 24 if size == "7b" else 20
+    if parallel.ulysses_degree > heads:
+        raise ValueError(f"SeedVR2 {size} Ulysses requires at least one of its {heads} heads per rank")
     degrees = {
         "cfg_parallel_size": parallel.cfg_parallel_size,
         "tensor_parallel_size": parallel.tensor_parallel_size,

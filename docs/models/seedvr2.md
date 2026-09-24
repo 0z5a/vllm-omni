@@ -1,6 +1,6 @@
-# SeedVR2 3B video restoration
+# SeedVR2 3B and 7B video restoration
 
-The native `SeedVR2Pipeline` restores an input video using the released 3B FP16
+The native `SeedVR2Pipeline` restores an input video using the released 3B or 7B
 NaDiT and s8/c16/t4 causal VAE. It uses fixed checkpoint conditioning, CFG=1,
 and one Euler step. Text prompts do not change conditioning.
 
@@ -11,6 +11,7 @@ Place these files together, retaining their names:
 | File | SHA-256 of the validated release |
 | --- | --- |
 | `seedvr2_ema_3b_fp16.safetensors` | `2fd0e03a3dad24e07086750360727ca437de4ecd456f769856e960ae93e2b304` |
+| `seedvr2_ema_7b_fp16.safetensors` (7B alternative) | `7b8241aa957606ab6cfb66edabc96d43234f9819c5392b44d2492d9f0b0bbe4a` |
 | `ema_vae_fp16.safetensors` | `20678548f420d98d26f11442d3528f8b8c94e57ee046ef93dbb7633da8612ca1` |
 | `pos_emb.pt` | `fa07a14844314772266b66c3b95deb0027696d8fe7065721263db5176f45d799` |
 
@@ -55,7 +56,7 @@ To shard VAE activations across the same ranks, use:
 ```
 
 The VAE patch degree must match the window-SP degree.
-For a 16-frame 1280×720 input restored at its original size, use four GPUs,
+For a 3B 16-frame 1280×720 input restored at its original size, use four GPUs,
 VAE tiling, and height sharding with both degrees set to four:
 
 ```bash
@@ -70,7 +71,21 @@ Request `size=1280x720` for this landscape input or `size=720x1280` for a
 portrait input of the same dimensions. Keep the requested output size equal to
 the input size when testing restoration without upscaling.
 
-Window-local RoPE axes use zero-based unit-stride positions. Angle tables are
+For 7B, retain the same VAE and `pos_emb.pt`, select its checkpoint, and use
+BF16 DiT compute:
+
+```bash
+--dtype bfloat16 --num-gpus 2 --distributed-executor-backend mp \
+  --stage-overrides '{"0":{"ulysses_degree":2,"additional_config":{"seedvr2_model_size":"7b"}}}'
+```
+
+The 7B DiT has 36 layers and 24 heads with video-only pixel RoPE and a GELU
+MLP. Its RMS normalization and window-attention intermediates use FP32 for
+numeric stability, while the shared VAE remains FP16. FP16 DiT execution is
+rejected. Full weights are replicated on each GPU; degrees above four and
+packed-varlen 7B execution are unqualified.
+
+For 3B, window-local RoPE axes use zero-based unit-stride positions. Angle tables are
 cached by axis length, device, and dtype, avoiding GPU-to-CPU reads to form a
 cache key on repeated requests.
 
@@ -84,21 +99,21 @@ padded to nine and return six.
 
 ## Request admission
 
-The default 3B limit is 848×480 pixels per input or output frame and 2,035,200
-pixels across the requested output clip. With four-rank window SP,
+The default 3B and 7B limit is 848×480 pixels per input or output frame and
+2,035,200 pixels across the requested output clip. For 3B with four-rank SP,
 `vae_patch_parallel_size=4`, and VAE tiling, the per-frame limit rises to
-2560×1472 and the clip budget to 18,841,600 pixels. Both budgets count temporal
-padding to 4n+1 frames: the default admits up to five 848×480 frames or 93
-192×112 frames; the SP4 profile admits up to 45 848×480 frames or five
-2560×1472 frames. A 16-frame 1280×720 or 720×1280 clip pads to 17 frames and
-uses 15,667,200 of the SP4 clip's 18,841,600 pixels. Both orientations passed
-original-size HTTP restoration on four RTX 5090 GPUs with VAE tiling and height
-sharding. An independent 257-frame cap bounds per-frame decoder work for tiny
-inputs. The other longer combinations above are admission bounds, not completed
-GPU validation. The decoder checks
-declared duration, frame count, and input dimensions when available, then
-enforces the limits as frames arrive. Requests outside these budgets return 400
-before building the resized whole-clip tensor.
+2560×1472 and the clip budget to 18,841,600 pixels; the higher limit is not
+enabled for 7B. Both budgets count temporal padding to 4n+1 frames: the default
+admits up to five 848×480 frames or 93 192×112 frames; the 3B SP4 profile
+admits up to 45 848×480 frames or five 2560×1472 frames. A 16-frame 1280×720
+or 720×1280 clip pads to 17 frames and uses 15,667,200 of the 3B SP4 clip's
+18,841,600 pixels. Both orientations passed original-size 3B HTTP restoration
+on four RTX 5090 GPUs with VAE tiling and height sharding. An independent
+257-frame cap bounds per-frame decoder work for tiny inputs. The other longer
+combinations above are admission bounds, not completed GPU validation. The
+decoder checks declared duration, frame count, and input dimensions when
+available, then enforces the limits as frames arrive. Requests outside these
+budgets return 400 before building the resized whole-clip tensor.
 
 ## Temporal and spatial VAE tiling
 
@@ -129,15 +144,15 @@ parallel outputs are numerically close rather than bitwise identical.
 
 | Property | Contract |
 | --- | --- |
-| Weights / dtype | Released 3B DiT and VAE, FP16 |
+| Weights / dtype | Released FP16 checkpoints; 3B FP16 or 7B BF16 DiT compute, FP16 VAE |
 | Reference semantics | C0 whole clip, no color correction |
 | Video input | One uploaded file, or offline TCHW RGB floats / PIL frames |
 | Timing | Constant frame rate, increasing PTS; normalize the video origin to zero |
 | Audio | First mono/stereo track, aligned by source PTS, cropped to the video interval, re-encoded as AAC |
 | Randomness | Per-request generator; preserve reference latent strides when sampling noise |
-| Sequence parallelism | SP1 whole-window path; SP2/4 head-sharded Ulysses window attention |
+| Sequence parallelism | SP1 whole-window path; SP2/4 head-sharded Ulysses window attention, for 3B and 7B |
 | VAE placement | Replicated by default; optional height sharding on the window-SP group |
-| Unsupported | VFR, multichannel audio, 7B, other sampling schedules, quantization, cache acceleration, VAE width sharding / batch slicing, CPU offload, CFG/TP/PP parallelism, compiled execution, LoRA |
+| Unsupported | VFR, multichannel audio, other sampling schedules, quantization, cache acceleration, VAE width sharding / batch slicing, CPU offload, CFG/TP/PP parallelism, compiled execution, LoRA |
 
 Unsupported engine modes are rejected before process hooks and worker creation.
 `ulysses_degree` selects the model-owned SP group. At SP>1, the DiT keeps MLP
