@@ -25,7 +25,7 @@ correction from external applications are separate execution semantics.
 | Audio | First mono/stereo track, aligned by PTS; re-encoded as AAC |
 | Sampling | One Euler step, CFG=1, per-request seed |
 | Precision | 3B DiT and VAE FP16 |
-| Parallelism | Whole-window SP via `ulysses_degree`; replicated model weights |
+| Parallelism | Head-sharded Ulysses window attention at SP>1 via `ulysses_degree`; replicated weights |
 | Frame padding | Internal 4n+1 padding, cropped back; five returns five, six returns six |
 
 ## References
@@ -83,6 +83,9 @@ CUDA_VISIBLE_DEVICES=0,1,2,3 vllm serve "$MODEL_DIR" --omni \
 Use `size=1280x720` for a landscape 1280×720 input or `size=720x1280` for a
 portrait 720×1280 input. Both require 16 decoded source frames and retain the
 source frame rate; no upscaling is requested.
+
+SP>1 automatically selects the specialized window attention runtime; no separate
+attention flag is needed.
 
 ## Verification
 

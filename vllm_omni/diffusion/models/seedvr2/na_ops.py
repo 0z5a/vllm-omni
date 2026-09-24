@@ -13,8 +13,8 @@ transformer needs:
   final reconstruction back to canonical token order.
 
 The framework provides the regular SP group (``get_sp_group()``), configured
-with ``ulysses_degree``. SeedVR2 owns window routing and keeps all heads on
-each rank; the group configuration does not enable Ulysses head sharding.
+with ``ulysses_degree``. The base runtime owns whole-window routing; the
+SeedVR2 Ulysses runtime exchanges QKV into head shards around attention.
 """
 
 from __future__ import annotations

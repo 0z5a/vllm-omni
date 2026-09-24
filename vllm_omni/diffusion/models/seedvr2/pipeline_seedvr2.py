@@ -218,6 +218,7 @@ class SeedVR2Pipeline(nn.Module):
                 self.transformer.token_grid_for(shape),
                 text_len=self.text.shape[0],
                 parallel_config=self.od_config.parallel_config,
+                ulysses=self.od_config.parallel_config.ulysses_degree > 1,
             )
             velocity = self.transformer(video, self.text, shape, text_shape, timestep, runtime).vid_sample
             # Reference Euler returns fp32, then VAE casts to fp16 before scaling.
