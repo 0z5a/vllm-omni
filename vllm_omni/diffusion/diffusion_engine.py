@@ -246,10 +246,6 @@ class DiffusionEngine:
                 integrations. When omitted, the engine selects a scheduler
                 from the resolved execution mode.
         """
-        if od_config.model_class_name == "SeedVR2Pipeline":
-            from vllm_omni.diffusion.models.seedvr2.config import validate_seedvr2_config
-
-            validate_seedvr2_config(od_config)
         self.od_config = od_config
         # Set after the paged-KV profile request has gone through model-owned
         # preprocessing. Real requests are admitted only within this measured
