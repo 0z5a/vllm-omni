@@ -78,6 +78,11 @@ Grouped SDPA row indices are built once per window layout and reused across
 layers. This removes per-layer GPU-to-CPU length reads; packed-varlen attention
 is a separate opt-in path.
 
+Plan B shifted-window boundary exchange is selected with
+`additional_config.seedvr2_window_sp_plan=B`. It exchanges boundary halos
+instead of all rows at layout transitions. Plan A remains the default; the
+measured SP2 range has not shown a stable Plan B speed advantage.
+
 The multipart API requires a prompt field; a single space supplies a blank
 prompt. Nonblank text is rejected. Omit `fps` to retain the source frame rate;
 an explicit rate must match the source. Output dimensions are explicit multiples
