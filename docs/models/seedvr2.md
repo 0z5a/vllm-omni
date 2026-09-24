@@ -109,13 +109,14 @@ remaining deviation once the transfer is applied.
 ## Request admission
 
 The default 3B limit is 848×480 pixels per input or output frame and 2,035,200
-pixels across the requested output clip. With four-rank window SP,
-`vae_patch_parallel_size=4`, and VAE tiling, the per-frame limit rises to
-2560×1472 and the clip budget to 18,841,600 pixels. Both budgets count temporal
+pixels across the requested output clip. With VAE tiling and window SP of at
+least four ranks whose `vae_patch_parallel_size` matches `ulysses_degree`, the
+per-frame limit rises to 2560×1472 and the clip budget to 18,841,600 pixels.
+Raising the degree never lowers the budget. Both budgets count temporal
 padding to 4n+1 frames: the default admits up to five 848×480 frames or 93
-192×112 frames; the SP4 profile admits up to 45 848×480 frames or five
+192×112 frames; the sharded profile admits up to 45 848×480 frames or five
 2560×1472 frames. A 16-frame 1280×720 or 720×1280 clip pads to 17 frames and
-uses 15,667,200 of the SP4 clip's 18,841,600 pixels. Both orientations passed
+uses 15,667,200 of the sharded clip's 18,841,600 pixels. Both orientations passed
 original-size HTTP restoration on four RTX 5090 GPUs with VAE tiling and height
 sharding. An independent 257-frame cap bounds per-frame decoder work for tiny
 inputs. The other longer combinations above are admission bounds, not completed
@@ -123,6 +124,23 @@ GPU validation. The decoder checks
 declared duration, frame count, and input dimensions when available, then
 enforces the limits as frames arrive. Requests outside these budgets return 400
 before building the resized whole-clip tensor.
+
+The sharded budget is calibrated for the smallest qualified device, so larger
+accelerators reject clips they could actually restore. Set these before starting
+the server to raise the caps; each must be a positive integer, and validating the
+result on the target hardware is the operator's responsibility:
+
+| Variable | Default | Bounds |
+| --- | --- | --- |
+| `SEEDVR2_SHARDED_FRAME_PIXELS` | 3,768,320 | Pixels per frame on the sharded profile |
+| `SEEDVR2_SHARDED_CLIP_PIXELS` | 18,841,600 | Padded pixels per clip on the sharded profile |
+| `SEEDVR2_MAX_FRAMES` | 257 | Decoder-work frame cap, all profiles |
+
+A 362-frame 1536×2688 2x upscale was restored on eight ranks with
+`ulysses_degree=8`, VAE tiling and height sharding, using 4,300,000 and
+60,000,000 for the two pixel caps and 2,000 for the frame cap. The long-video
+route sends 12-frame windows, so its clip budget must cover 13 padded frames at
+the output size.
 
 ## Long-video restoration
 

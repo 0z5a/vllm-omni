@@ -42,8 +42,10 @@ must accommodate checkpoint staging per rank. Admission uses a padded
 five-frame 848×480 output pixel budget by default, allowing longer clips at
 smaller resolutions, plus a 257-frame decoder-work cap. The validated SP4
 configuration with VAE tiling and `vae_patch_parallel_size=4` uses a padded
-five-frame 2560×1472 budget. The model guide lists exact bounds and which
-profiles have completed GPU validation.
+five-frame 2560×1472 budget, as does any higher matched degree. Larger
+accelerators raise these caps through `SEEDVR2_SHARDED_FRAME_PIXELS`,
+`SEEDVR2_SHARDED_CLIP_PIXELS` and `SEEDVR2_MAX_FRAMES`. The model guide lists
+exact bounds and which profiles have completed GPU validation.
 
 ## Software environment
 

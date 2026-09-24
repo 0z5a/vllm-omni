@@ -29,8 +29,8 @@ from vllm_omni.diffusion.models.seedvr2.vae import SeedVR2VAE
 from vllm_omni.diffusion.models.seedvr2.video import (
     MAX_CLIP_PIXELS,
     MAX_FRAME_PIXELS,
-    MAX_SP4_CLIP_PIXELS,
-    MAX_SP4_FRAME_PIXELS,
+    MAX_SHARDED_CLIP_PIXELS,
+    MAX_SHARDED_FRAME_PIXELS,
     SourceVideo,
     read_video,
     validate_clip_size,
@@ -67,9 +67,11 @@ class SeedVR2Input:
 
 
 def _admission_budget(config: OmniDiffusionConfig) -> tuple[int, int]:
+    """Pick the budget for the serving profile; more ranks never admit less."""
     parallel = config.parallel_config
-    if config.vae_use_tiling and parallel.ulysses_degree == parallel.vae_patch_parallel_size == 4:
-        return MAX_SP4_FRAME_PIXELS, MAX_SP4_CLIP_PIXELS
+    sharded = parallel.ulysses_degree == parallel.vae_patch_parallel_size
+    if config.vae_use_tiling and sharded and parallel.ulysses_degree >= 4:
+        return MAX_SHARDED_FRAME_PIXELS, MAX_SHARDED_CLIP_PIXELS
     return MAX_FRAME_PIXELS, MAX_CLIP_PIXELS
 
 

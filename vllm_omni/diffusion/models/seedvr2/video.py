@@ -2,6 +2,7 @@
 # SPDX-FileCopyrightText: Copyright contributors to the vLLM-Omni project
 """Decode restoration inputs before scheduler admission."""
 
+import os
 from collections.abc import Iterator
 from dataclasses import dataclass
 from fractions import Fraction
@@ -13,13 +14,27 @@ import torch
 
 from vllm_omni.errors import OmniClientError
 
+
+def _budget_from_env(name: str, default: int) -> int:
+    """Read a device-specific admission budget, keeping the calibrated default."""
+    value = os.environ.get(name)
+    if value is None:
+        return default
+    if not value.strip().isdigit() or not int(value):
+        raise ValueError(f"{name} must be a positive integer, got {value!r}")
+    return int(value)
+
+
 # Bound per-frame decode bookkeeping; the padded clip-pixel budget is tighter
 # for normal video resolutions.
-MAX_FRAMES = 257
+MAX_FRAMES = _budget_from_env("SEEDVR2_MAX_FRAMES", 257)
 MAX_FRAME_PIXELS = 848 * 480
 MAX_CLIP_PIXELS = 5 * MAX_FRAME_PIXELS
-MAX_SP4_FRAME_PIXELS = 2560 * 1472
-MAX_SP4_CLIP_PIXELS = 5 * MAX_SP4_FRAME_PIXELS
+# The sharded profile's budgets are calibrated for the smallest qualified device
+# at degree 4. Larger accelerators and higher degrees raise them here rather than
+# by editing code, and the operator owns validating the result.
+MAX_SHARDED_FRAME_PIXELS = _budget_from_env("SEEDVR2_SHARDED_FRAME_PIXELS", 2560 * 1472)
+MAX_SHARDED_CLIP_PIXELS = _budget_from_env("SEEDVR2_SHARDED_CLIP_PIXELS", 5 * 2560 * 1472)
 
 
 def validate_clip_size(frame_count: int, height: int, width: int, frame_pixels: int, clip_pixels: int) -> None:
