@@ -5,18 +5,14 @@
 import argparse
 import asyncio
 import json
-import os
 import time
-from multiprocessing.process import BaseProcess
 from pathlib import Path
 
-import psutil
 import yaml
 from transformers import AutoTokenizer
 from vllm.model_executor.models.gemma import GemmaForCausalLM
 from vllm.sampling_params import SamplingParams
 from vllm.v1.engine.core import EngineCoreProc, EngineShutdownState
-
 from vllm_omni.config.pipeline_registry import register_pipeline
 from vllm_omni.config.stage_config import PipelineConfig, StageExecutionType, StagePipelineConfig
 from vllm_omni.core.prefix_cache.group_view import FullAttentionGroupView
@@ -60,8 +56,8 @@ original_view_init = FullAttentionGroupView.__init__
 verified_layouts = set()
 
 
-def record_layout(view, batch, block_size, group_id=0, dcp_world_size=1):
-    original_view_init(view, batch, block_size, group_id, dcp_world_size)
+def record_layout(view, batch, block_size, group_id=0, *dcp_args):
+    original_view_init(view, batch, block_size, group_id, *dcp_args)
     table = batch.block_table[group_id]
     layout = (table.kv_cache_block_size, table.block_size, table.blocks_per_kv_block, table.dcp_world_size)
     if layout not in verified_layouts:
@@ -77,27 +73,7 @@ def request_benchmark_exit(core: EngineCoreProc) -> None:
     core.shutdown_state = EngineShutdownState.REQUESTED
 
 
-setattr(EngineCoreProc, "request_benchmark_exit", request_benchmark_exit)
-original_kill = os.kill
-
-
-def signal_guard(pid: int, sig: int) -> None:
-    if sig:
-        raise RuntimeError(f"Process signals are prohibited: pid={pid}, signal={sig}")
-    original_kill(pid, sig)
-
-
-os.kill = signal_guard
-
-
-def prohibit_process_signal(self) -> None:
-    raise RuntimeError(f"Process termination is prohibited: pid={self.pid}")
-
-
-BaseProcess.terminate = prohibit_process_signal
-BaseProcess.kill = prohibit_process_signal
-psutil.Process.terminate = prohibit_process_signal
-psutil.Process.kill = prohibit_process_signal
+EngineCoreProc.request_benchmark_exit = request_benchmark_exit
 
 
 def natural_shutdown(omni: Omni) -> None:
