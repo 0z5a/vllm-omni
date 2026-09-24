@@ -194,7 +194,8 @@ def test_dcp_output_slots_use_virtual_blocks(
     assert view is not None
     layout = PrefixCacheSchedulerAdapter().build_write_layout(view, num_scheduled_tokens={"a": 7})
     expected = torch.tensor(
-        [9 * virtual_size + i for i in range(virtual_size - 3, virtual_size)] + [3 * virtual_size + i for i in range(4)],
+        [9 * virtual_size + i for i in range(virtual_size - 3, virtual_size)]
+        + [3 * virtual_size + i for i in range(4)],
         dtype=torch.long,
     )
     _assert_manager_layout(layout, expected, virtual_size)
