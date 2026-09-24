@@ -65,6 +65,8 @@ def _full_attention_groups():
                 pass
 
             setattr(iface, "FullAttentionSpec", _FullAttentionSpecStub)
+            setattr(iface, "RSWASpec", type("RSWASpec", (_FullAttentionSpecStub,), {}))
+            setattr(iface, "SlidingWindowSpec", type("SlidingWindowSpec", (), {}))
             sys.modules["vllm.v1"] = ModuleType("vllm.v1")
             sys.modules["vllm.v1.kv_cache_interface"] = iface
         FullAttentionSpec = getattr(iface, "FullAttentionSpec")

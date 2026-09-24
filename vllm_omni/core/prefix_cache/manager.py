@@ -538,9 +538,10 @@ class OmniPrefixCacheManager:
                 self._request_tasks.live_reqs.add(req_id)
                 num_computed = int(event.hit_end)
                 if num_computed > 0:
-                    # block_ids is per-kv-group; group 0 only.
+                    # The selected full-attention group retains prefix blocks
+                    # when an earlier sliding-window group recycles its own.
                     block_groups = event.block_ids
-                    if not block_groups:
+                    if len(block_groups) <= self._config.output_group_id:
                         # Fail at the cause: a hit we cannot snapshot now would
                         # crash at materialize time with less context (materialize is
                         # forbidden from reading the live batch).
@@ -548,7 +549,11 @@ class OmniPrefixCacheManager:
                             f"prefix hit for req {req_id} ({num_computed} tokens) carries no block_ids"
                         )
                     bs = self._config.block_size
-                    hit_blocks = list(block_groups[0][: (num_computed + bs - 1) // bs])
+                    hit_blocks = list(block_groups[self._config.output_group_id][: (num_computed + bs - 1) // bs])
+                    if len(hit_blocks) * bs < num_computed:
+                        raise OmniPrefixCacheUnmatchError(
+                            f"prefix hit for req {req_id} has no full-attention blocks for {num_computed} tokens"
+                        )
                     self._hit_spans[req_id] = (num_computed, hit_blocks)
 
             # 4. Gather those spans on the prefetch thread; overlaps this forward.

@@ -22,21 +22,22 @@ if TYPE_CHECKING:
 
 
 class FullAttentionGroupView:
-    """View over the first (full-attention) KV-cache group.
+    """View over the dense full-attention KV-cache group.
 
     Step slots come from the CPU block table (`step_slots_cpu`), not the
     device slot_mapping.
     """
 
-    def __init__(self, input_batch: InputBatch, block_size: int):
+    def __init__(self, input_batch: InputBatch, block_size: int, group_id: int = 0):
         self._input_batch = input_batch
         self.block_size = block_size
-        table = input_batch.block_table[0]
+        self.group_id = group_id
+        table = input_batch.block_table[group_id]
         check_prefix_cache_block_layout(table, block_size)
         self.kernel_block_size = table.block_size
 
     def _block_table_cpu(self) -> torch.Tensor:
-        return self._input_batch.block_table[0].block_table.cpu
+        return self._input_batch.block_table[self.group_id].block_table.cpu
 
     def batch_req_ids(self) -> list[str]:
         return list(self._input_batch.req_ids)
@@ -90,26 +91,29 @@ def check_prefix_cache_block_layout(block_table: BlockTable, block_size: int) ->
         )
 
 
-def check_prefix_cache_kv_groups(kv_cache_groups: object) -> None:
-    """Reject hybrid / multi-group models at kv-cache init, not first step.
+def check_prefix_cache_kv_groups(kv_cache_groups: object) -> int:
+    """Pick a non-recycling full-attention group for output storage.
 
     Only needs ``kv_cache_config.kv_cache_groups``. ``FullAttentionSpec``
     is imported here so ``tests/core`` can load this module without vllm.
     """
-    groups = list(kv_cache_groups or ())
-    if len(groups) != 1:
-        raise OmniPrefixCacheUnmatchError(
-            "omni prefix caching requires a single full-attention kv-cache group; "
-            f"found {len(groups)}. disable enable_prefix_caching for this model"
-        )
-    from vllm.v1.kv_cache_interface import FullAttentionSpec
+    from vllm.v1.kv_cache_interface import FullAttentionSpec, RSWASpec, SlidingWindowSpec
 
-    spec = getattr(groups[0], "kv_cache_spec", None)
-    if not isinstance(spec, FullAttentionSpec):
+    groups = tuple(kv_cache_groups or ())
+    specs = tuple(group.kv_cache_spec for group in groups)
+    if not specs or any(
+        not isinstance(spec, (FullAttentionSpec, SlidingWindowSpec)) or isinstance(spec, RSWASpec) for spec in specs
+    ):
         raise OmniPrefixCacheUnmatchError(
-            "omni prefix caching requires a single full-attention kv-cache group; "
-            f"found {type(spec).__name__}. disable enable_prefix_caching for this model"
+            "omni prefix caching supports full-attention and sliding-window KV groups only; "
+            f"found {[type(spec).__name__ for spec in specs]}. disable enable_prefix_caching for this model"
         )
+    for group_id, spec in enumerate(specs):
+        if isinstance(spec, FullAttentionSpec):
+            return group_id
+    raise OmniPrefixCacheUnmatchError(
+        "omni prefix caching requires a full-attention KV group for output storage; sliding-window blocks are recycled"
+    )
 
 
 def check_prefix_cache_kv_transfer(kv_transfer_config: object) -> None:
@@ -166,7 +170,7 @@ def stage_prefix_cache_config(
     Returns None when the stage does not run an omni prefix cache
     (``enable_prefix_caching`` off, or a pooling stage that never saves).
     Otherwise refuses kv_consumer / kv_both, speculative decoding,
-    sub-block matching and hybrid kv groups, then sizes the config from
+    sub-block matching and unsupported kv groups, then sizes the config from
     the scheduler. One place so a platform runner cannot silently skip a
     refusal the other one has.
     """
@@ -174,10 +178,11 @@ def stage_prefix_cache_config(
         return None
     check_prefix_cache_kv_transfer(kv_transfer_config)
     check_prefix_cache_token_accounting(cache_config, speculative_config)
-    check_prefix_cache_kv_groups(getattr(kv_cache_config, "kv_cache_groups", None))
+    output_group_id = check_prefix_cache_kv_groups(kv_cache_config.kv_cache_groups)
     return PrefixCacheConfig.from_vllm_config(
-        num_blocks=kv_cache_config.num_blocks,  # type: ignore[attr-defined]
-        block_size=cache_config.block_size,  # type: ignore[attr-defined]
+        num_blocks=kv_cache_config.num_blocks,
+        block_size=cache_config.block_size,
+        output_group_id=output_group_id,
         scheduler_config=scheduler_config,
         model_config=model_config,
     )
@@ -190,13 +195,12 @@ def get_prefix_cache_group_view(
 ) -> FullAttentionGroupView | None:
     """Build the group view; None only if the batch has no block table.
 
-    Group spec is checked first (raises). Selection is by spec, not by
-    counting block tables: a hybrid model's group 0 is not necessarily
-    full attention, and a narrower per-group table would make
-    step_slots_cpu silently clamp.
+    Group spec is checked first (raises). Sliding-window groups can recycle
+    blocks, so output rows follow a full-attention group even when it is not
+    group 0.
     """
-    check_prefix_cache_kv_groups(kv_cache_groups)
-    block_tables = getattr(input_batch.block_table, "block_tables", None)
+    group_id = check_prefix_cache_kv_groups(kv_cache_groups)
+    block_tables = input_batch.block_table.block_tables
     if not block_tables:
         return None
-    return FullAttentionGroupView(input_batch, block_size)
+    return FullAttentionGroupView(input_batch, block_size, group_id)

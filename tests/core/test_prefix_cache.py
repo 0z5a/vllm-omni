@@ -35,6 +35,12 @@ except ModuleNotFoundError:
     _vllm.logger = _vllm_logger
     sys.modules["vllm"] = _vllm
     sys.modules["vllm.logger"] = _vllm_logger
+    _kv_iface = __import__("types").ModuleType("vllm.v1.kv_cache_interface")
+    _kv_iface.FullAttentionSpec = type("FullAttentionSpec", (), {})
+    _kv_iface.RSWASpec = type("RSWASpec", (_kv_iface.FullAttentionSpec,), {})
+    _kv_iface.SlidingWindowSpec = type("SlidingWindowSpec", (), {})
+    sys.modules["vllm.v1"] = __import__("types").ModuleType("vllm.v1")
+    sys.modules["vllm.v1.kv_cache_interface"] = _kv_iface
 
 from vllm_omni.core.prefix_cache.adapter import PrefixCacheSchedulerAdapter
 from vllm_omni.core.prefix_cache.controller import StagingBufferHolder
@@ -127,6 +133,7 @@ def run_step(
     finished=(),
     mm=None,
     num_tokens_padded=None,
+    block_ids_by_group=None,
 ) -> int:
     """One step: reqs = req_id -> (blocks, sched_start_pos, sched_tokens)."""
     view.order = list(reqs.keys())
@@ -142,7 +149,8 @@ def run_step(
         slot_parts.append(slots)
         hidden_parts.append(slots.to(DTYPE).unsqueeze(1).expand(sched, HIDDEN).clone())
         hit = (new_hits or {}).get(req_id, 0)
-        new_reqs.append(FakeNewReq(req_id, num_computed_tokens=hit, block_ids=[list(blocks)]))
+        group_blocks = (block_ids_by_group or {}).get(req_id, [list(blocks)])
+        new_reqs.append(FakeNewReq(req_id, num_computed_tokens=hit, block_ids=group_blocks))
     view.step_slot_mapping = torch.cat(slot_parts)
     hidden = torch.cat(hidden_parts)
     sched_out = FakeSchedOut(new_reqs=new_reqs, finished=finished, num_scheduled=num_sched)
@@ -686,11 +694,11 @@ def test_deferred_unpadded_registers_on_padded_step():
     assert torch.equal(outs.mm_outputs["codes.audio"]["a"], audio)
 
 
-def test_check_kv_groups_rejects_empty_or_multi():
-    with pytest.raises(OmniPrefixCacheUnmatchError, match="single full-attention"):
+def test_check_kv_groups_requires_dense_output_group():
+    with pytest.raises(OmniPrefixCacheUnmatchError, match="supports full-attention"):
         check_prefix_cache_kv_groups([])
-    with pytest.raises(OmniPrefixCacheUnmatchError, match="single full-attention"):
-        check_prefix_cache_kv_groups([object(), object()])
+    with pytest.raises(OmniPrefixCacheUnmatchError, match="supports full-attention"):
+        check_prefix_cache_kv_groups([SimpleNamespace(kv_cache_spec=object())])
 
 
 def _stage_cfg(*, enable=True, pooling=False, kv_transfer=None, groups=(object(),), spec=None, match_unit=None):
@@ -708,7 +716,7 @@ def _stage_cfg(*, enable=True, pooling=False, kv_transfer=None, groups=(object()
 def test_stage_prefix_cache_config_gate():
     """The runner-side gate the GPU and NPU runners share: off / pooling
     stages get no cache; kv_consumer, spec decode and
-    hybrid groups refuse loudly."""
+    unsupported groups refuse loudly."""
     assert _stage_cfg(enable=False) is None
     assert _stage_cfg(pooling=True) is None
     # kv_consumer / kv_both refuse before the group check, on both platforms.
@@ -720,10 +728,26 @@ def test_stage_prefix_cache_config_gate():
     with pytest.raises(OmniPrefixCacheUnmatchError, match="block-aligned"):
         _stage_cfg(match_unit=BLOCK_SIZE // 2, groups=())
     # A unit equal to the block is a whole-block match; only the group check is left.
-    with pytest.raises(OmniPrefixCacheUnmatchError, match="single full-attention"):
+    with pytest.raises(OmniPrefixCacheUnmatchError, match="supports full-attention"):
         _stage_cfg(match_unit=BLOCK_SIZE, groups=())
-    with pytest.raises(OmniPrefixCacheUnmatchError, match="single full-attention"):
-        _stage_cfg(groups=(object(), object()))
+    with pytest.raises(OmniPrefixCacheUnmatchError, match="supports full-attention"):
+        _stage_cfg(groups=(SimpleNamespace(kv_cache_spec=object()),))
+
+
+def test_hybrid_hit_uses_full_group_after_sliding_group_recycles():
+    mgr, view = make_manager(output_group_id=1)
+    first = run_step(mgr, view, {"a": ([8, 9], 0, 8)})
+    mgr.materialize(first, ["a"])
+    second = run_step(
+        mgr,
+        view,
+        {"b": ([8, 9, 10], 8, 4)},
+        new_hits={"b": 8},
+        finished=["a"],
+        block_ids_by_group={"b": ([1, 1], [8, 9, 10])},
+    )
+    out = mgr.materialize(second, ["b"])
+    assert torch.equal(out.hidden_states["b"], expected_rows(view.slots_for("b", 0, 12)))
 
 
 def test_npu_runner_uses_shared_prefix_cache_gate():
