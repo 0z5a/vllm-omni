@@ -98,6 +98,9 @@ before building the resized whole-clip tensor.
 
 ## Temporal and spatial VAE tiling
 
+The replicated FP16 CUDA VAE fuses framewise GroupNorm and SiLU. Height-sharded
+execution retains distributed normalization; CPU execution uses PyTorch.
+
 Add `--vae-use-tiling` to bound VAE intermediate activations along time. The
 encoder processes nine frames first, then eight per chunk; the decoder processes
 two latent frames per chunk. Each causal convolution carries its past inputs

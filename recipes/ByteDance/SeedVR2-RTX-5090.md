@@ -137,6 +137,7 @@ outputs, and the actual backend selected by the worker.
 | CPU offload, LoRA, compiled execution, CFG/TP/PP | Unsupported |
 | VFR or multichannel audio | Unsupported |
 | VAE temporal/spatial tiling | Available with `--vae-use-tiling` |
+| Replicated VAE frame normalization | Fused GroupNorm and SiLU on FP16 CUDA; distributed and CPU paths unchanged |
 | Quantization | Separate opt-in feature |
 
 ## Measurement scope
