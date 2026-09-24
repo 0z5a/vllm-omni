@@ -78,6 +78,34 @@ frame is repeated internally to reach 4n+1, and the decoded output is cropped ba
 to the original frame count. Five frames remain five; six frames are internally
 padded to nine and return six.
 
+## Colour correction
+
+Restoration reproduces detail faithfully but shifts global colour, so the
+resized input is used to transfer colour back onto the restored frames. This is
+on by default; pass `color_correction_method` to choose how:
+
+| Value | Behavior |
+| --- | --- |
+| `lab` (default) | Swaps the lowest frequency band, then histogram-matches CIELAB chroma. Most faithful colour. |
+| `wavelet` | Swaps only the lowest frequency band, keeping every higher band from the restoration. |
+| `adain` | Matches per-channel mean and standard deviation. Cheapest, and corrects only a global tint. |
+| `none` | Skips the transfer and returns raw restored colour. |
+
+```bash
+curl --fail-with-body http://127.0.0.1:8098/v1/videos/sync \
+  -F 'prompt= ' -F 'input_references=@input.mp4;type=video/mp4' \
+  -F 'size=224x128' -F 'num_inference_steps=1' -F 'guidance_scale=1' \
+  -F 'seed=7723' -F 'color_correction_method=wavelet' \
+  --output restored.mp4
+```
+
+`lab` and `wavelet` retain the restored high-frequency detail; `adain` measurably
+softens it because it rescales every frequency. The transfer runs in FP32 after
+the VAE decode and costs a fraction of a second per frame. Unrecognized values
+are rejected with 400 before the clip is admitted. Correction cannot recover
+colour lost to 4:2:0 chroma subsampling in the returned MP4, which dominates the
+remaining deviation once the transfer is applied.
+
 ## Request admission
 
 The default 3B limit is 848×480 pixels per input or output frame and 2,035,200
@@ -99,7 +127,8 @@ before building the resized whole-clip tensor.
 ## Long-video restoration
 
 `POST /v1/seedvr2/restore-long` accepts one uploaded 24 FPS video, a blank
-prompt, `size`, `num_frames` (up to 7,200), and optional `loop_input=true`.
+prompt, `size`, `num_frames` (up to 7,200), and optional `loop_input=true` and
+`color_correction_method`, which it applies to every window.
 The output is bounded to 768×1344 pixels per frame. It returns a job ID; poll
 `GET /v1/seedvr2/restore-long/{id}` and download the completed MP4 from
 `GET /v1/seedvr2/restore-long/{id}/content`. Set `SEEDVR2_LONG_OUTPUT_DIR` to
@@ -145,7 +174,7 @@ parallel outputs are numerically close rather than bitwise identical.
 | Property | Contract |
 | --- | --- |
 | Weights / dtype | Released 3B DiT and VAE, FP16 |
-| Reference semantics | C0 whole clip, no color correction |
+| Reference semantics | C0 whole clip, colour correction on by default |
 | Video input | One uploaded file, or offline TCHW RGB floats / PIL frames |
 | Timing | Constant frame rate, increasing PTS; normalize the video origin to zero |
 | Audio | First mono/stereo track, aligned by source PTS, cropped to the video interval, re-encoded as AAC |
@@ -159,8 +188,8 @@ Unsupported engine modes are rejected before process hooks and worker creation.
 windows to ranks; the specialized head-sharded path is a dependent change.
 Ring and AllGather-KV are unsupported.
 
-The practical P0 reference's five-frame batching, overlap, LAB correction, and
-CPU swapping are separate execution semantics. Temporal tiling and VAE patch
+The practical P0 reference's five-frame batching, overlap, and CPU swapping are
+separate execution semantics. Temporal tiling and VAE patch
 parallelism reduce activation peaks but do not bound the whole-clip DiT memory.
 Large output frames may still exceed device capacity.
 

@@ -23,6 +23,8 @@ import requests
 from fastapi import APIRouter, File, Form, HTTPException, Request, UploadFile
 from fastapi.responses import FileResponse
 
+from vllm_omni.inputs.data import COLOR_CORRECTION_METHODS, DEFAULT_COLOR_CORRECTION_METHOD
+
 router = APIRouter()
 MAX_FRAMES = 7200
 MAX_FRAME_PIXELS = 768 * 1344
@@ -73,7 +75,13 @@ def _segment(frames: list[av.VideoFrame], width: int, height: int) -> bytes:
 
 
 def _restore(
-    frames: list[av.VideoFrame], width: int, height: int, seed: int, port: int, authorization: str
+    frames: list[av.VideoFrame],
+    width: int,
+    height: int,
+    seed: int,
+    color_correction_method: str,
+    port: int,
+    authorization: str,
 ) -> list[np.ndarray]:
     response = requests.post(
         f"http://127.0.0.1:{port}/v1/videos/sync",
@@ -84,6 +92,7 @@ def _restore(
             "num_inference_steps": "1",
             "guidance_scale": "1",
             "seed": str(seed),
+            "color_correction_method": color_correction_method,
         },
         files={"input_references": ("window.mkv", _segment(frames, width, height), "video/x-matroska")},
         headers={"Authorization": authorization} if authorization else {},
@@ -100,7 +109,17 @@ def _restore(
         return [frame.to_ndarray(format="rgb24") for frame in decoded]
 
 
-def _run(job: Path, width: int, height: int, target: int, loop: bool, seed: int, port: int, authorization: str) -> None:
+def _run(
+    job: Path,
+    width: int,
+    height: int,
+    target: int,
+    loop: bool,
+    seed: int,
+    color_correction_method: str,
+    port: int,
+    authorization: str,
+) -> None:
     source = job / "input.mp4"
     video_path = job / "video.mp4"
     output = job / "output.mp4"
@@ -124,7 +143,7 @@ def _run(job: Path, width: int, height: int, target: int, loop: bool, seed: int,
             written += 1
 
         while batch:
-            restored = _restore(batch, width, height, seed, port, authorization)
+            restored = _restore(batch, width, height, seed, color_correction_method, port, authorization)
             last = start + len(batch) == target
             if not pending:
                 for frame in restored if last else restored[:-OVERLAP]:
@@ -218,10 +237,18 @@ def _run(job: Path, width: int, height: int, target: int, loop: bool, seed: int,
 
 
 def _background(
-    job: Path, width: int, height: int, target: int, loop: bool, seed: int, port: int, authorization: str
+    job: Path,
+    width: int,
+    height: int,
+    target: int,
+    loop: bool,
+    seed: int,
+    color_correction_method: str,
+    port: int,
+    authorization: str,
 ) -> None:
     try:
-        _run(job, width, height, target, loop, seed, port, authorization)
+        _run(job, width, height, target, loop, seed, color_correction_method, port, authorization)
     except Exception as error:
         current = json.loads((job / "status.json").read_text())
         _status(job, "failed", current["frames"], str(error))
@@ -236,6 +263,7 @@ async def create_long_video(
     loop_input: bool = Form(False),
     prompt: str = Form(" "),
     seed: int = Form(7723),
+    color_correction_method: str = Form(DEFAULT_COLOR_CORRECTION_METHOD),
 ) -> dict[str, str | int]:
     global active_task
     if raw_request.app.state.api_server_count != 1:
@@ -250,6 +278,8 @@ async def create_long_video(
         raise HTTPException(400, "SeedVR2 long video supports up to 768×1344 and a blank prompt")
     if not 0 <= seed <= 2**32 - 1:
         raise HTTPException(400, "Seed must be a 32-bit unsigned integer")
+    if color_correction_method not in COLOR_CORRECTION_METHODS:
+        raise HTTPException(400, f"color_correction_method must be one of {list(COLOR_CORRECTION_METHODS)}")
     async with job_lock:
         if active_task is not None and not active_task.done():
             raise HTTPException(409, "A SeedVR2 long-video job is already running")
@@ -268,6 +298,7 @@ async def create_long_video(
                 num_frames,
                 loop_input,
                 seed,
+                color_correction_method,
                 raw_request.app.state.seedvr2_long_port,
                 raw_request.headers.get("authorization", ""),
             )

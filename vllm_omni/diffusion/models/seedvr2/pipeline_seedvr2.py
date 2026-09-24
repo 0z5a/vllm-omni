@@ -18,6 +18,11 @@ from torch.nn import functional as F
 from vllm_omni.diffusion.data import DiffusionOutput, OmniDiffusionConfig
 from vllm_omni.diffusion.distributed.utils import get_local_device
 from vllm_omni.diffusion.model_loader.diffusers_loader import DiffusersPipelineLoader
+from vllm_omni.diffusion.models.seedvr2.color_fix import (
+    COLOR_CORRECTION_METHODS,
+    DEFAULT_COLOR_CORRECTION_METHOD,
+    correct_video_color,
+)
 from vllm_omni.diffusion.models.seedvr2.config import validate_seedvr2_config
 from vllm_omni.diffusion.models.seedvr2.nadit import SEEDVR2_3B_CONFIG, SeedVR2NaDiT
 from vllm_omni.diffusion.models.seedvr2.vae import SeedVR2VAE
@@ -77,6 +82,9 @@ def prepare_request(
     params = request.sampling_params
     if params.num_inference_steps not in (None, 1) or params.guidance_scale != 1.0:
         raise OmniClientError("SeedVR2 whole-clip restoration requires one Euler step and guidance_scale=1")
+    method = params.extra_args.get("color_correction_method")
+    if method is not None and method not in COLOR_CORRECTION_METHODS:
+        raise OmniClientError(f"SeedVR2 color_correction_method must be one of {list(COLOR_CORRECTION_METHODS)}")
     prompt = request.prompt
     if not isinstance(prompt, dict) or "multi_modal_data" not in prompt:
         raise OmniClientError("SeedVR2 requires multi_modal_data.video")
@@ -223,7 +231,15 @@ class SeedVR2Pipeline(nn.Module):
             # Reference Euler returns fp32, then VAE casts to fp16 before scaling.
             restored = noise - velocity.reshape_as(noise)
             decoded = self.vae.decode((restored / 0.9152).permute(3, 0, 1, 2).unsqueeze(0))
-            decoded = ((decoded[:, :, : prepared.frame_count].float() + 1) / 2).clamp(0, 1)
+            frames = slice(None, prepared.frame_count)
+            decoded = ((decoded[:, :, frames].float() + 1) / 2).clamp(0, 1)
+            # Restoration shifts global colour, so the resized input carries the
+            # reference colour back onto the restored detail.
+            decoded = correct_video_color(
+                decoded,
+                ((sample[:, :, frames].float() + 1) / 2).clamp(0, 1),
+                method=params.extra_args.get("color_correction_method") or DEFAULT_COLOR_CORRECTION_METHOD,
+            )
             payload: dict[str, object] = {"video": decoded}
             fps = prepared.source.fps if prepared.source is not None else params.fps
             metadata: dict[str, object] = {"video": {"fps": fps}} if fps is not None else {}

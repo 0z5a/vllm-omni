@@ -131,7 +131,7 @@ it does not concatenate separate video files.
 curl --fail-with-body http://127.0.0.1:8098/v1/seedvr2/restore-long \
   -F 'input_references=@input.mp4;type=video/mp4' \
   -F 'prompt= ' -F 'size=768x1344' -F 'num_frames=7200' \
-  -F 'loop_input=true' -F 'seed=7723'
+  -F 'loop_input=true' -F 'seed=7723' -F 'color_correction_method=lab'
 # Use the returned id to poll /v1/seedvr2/restore-long/{id};
 # download /v1/seedvr2/restore-long/{id}/content when completed.
 ```
@@ -161,6 +161,7 @@ outputs, and the actual backend selected by the worker.
 | CPU offload, LoRA, compiled execution, CFG/TP/PP | Unsupported |
 | VFR or multichannel audio | Unsupported |
 | VAE temporal/spatial tiling | Available with `--vae-use-tiling` |
+| [Colour correction](../../docs/models/seedvr2.md) | On by default; `color_correction_method=lab\|wavelet\|adain\|none` |
 | Quantization | Separate opt-in feature |
 
 ## Measurement scope
