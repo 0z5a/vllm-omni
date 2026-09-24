@@ -150,7 +150,15 @@ class SeedVR2Pipeline(nn.Module):
         self.device = get_local_device()
         self.od_config = od_config
         self.frame_pixels, self.clip_pixels = _admission_budget(od_config)
-        self.transformer = SeedVR2NaDiT(**SEEDVR2_3B_CONFIG, use_varlen_kernel=False)
+        self.transformer = SeedVR2NaDiT(**SEEDVR2_3B_CONFIG, use_varlen_kernel=True)
+        if od_config.additional_config.get("seedvr2_shared_text_prefix", False):
+            for block in self.transformer.blocks:
+                if block.attn.attention_backend_name != "FLASH_ATTN":
+                    raise ValueError("SeedVR2 shared text prefix requires FLASH_ATTN")
+                block.attn.use_shared_text_prefix = True
+                block.attn.attention_path = "shared_text_prefix"
+            # Only first-layer text is independent of the video input.
+            self.transformer.blocks[0].attn.cache_fixed_text = True
         self.vae = SeedVR2VAE()
         self.weights_sources = [
             DiffusersPipelineLoader.ComponentSource(

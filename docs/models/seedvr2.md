@@ -78,6 +78,12 @@ Grouped SDPA row indices are built once per window layout and reused across
 layers. This removes per-layer GPU-to-CPU length reads; packed-varlen attention
 is a separate opt-in path.
 
+Shared text-prefix attention is opt-in through
+`additional_config.seedvr2_shared_text_prefix=true` and requires FlashAttention.
+It avoids repeating text K/V per window and caches fixed first-layer text QKV;
+later text states remain video-dependent. A stable HTTP latency gain has not
+been established.
+
 The multipart API requires a prompt field; a single space supplies a blank
 prompt. Nonblank text is rejected. Omit `fps` to retain the source frame rate;
 an explicit rate must match the source. Output dimensions are explicit multiples
@@ -141,7 +147,7 @@ parallel outputs are numerically close rather than bitwise identical.
 | Randomness | Per-request generator; preserve reference latent strides when sampling noise |
 | Sequence parallelism | SP1 whole-window path; SP2/4 head-sharded Ulysses window attention |
 | VAE placement | Replicated by default; optional height sharding on the window-SP group |
-| Unsupported | VFR, multichannel audio, 7B, other sampling schedules, quantization, cache acceleration, VAE width sharding / batch slicing, CPU offload, CFG/TP/PP parallelism, compiled execution, LoRA |
+| Unsupported | VFR, multichannel audio, 7B, other sampling schedules, quantization, VAE width sharding / batch slicing, CPU offload, CFG/TP/PP parallelism, compiled execution, LoRA |
 
 Unsupported engine modes are rejected before process hooks and worker creation.
 `ulysses_degree` selects the model-owned SP group. At SP>1, the DiT keeps MLP

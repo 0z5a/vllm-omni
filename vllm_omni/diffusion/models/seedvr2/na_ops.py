@@ -54,6 +54,8 @@ class LocalWindowContext:
     local_windows: int
     global_windows: int
     sdpa_groups: tuple[tuple[int, torch.Tensor], ...] = ()
+    prefix_query_offsets: torch.Tensor | None = None
+    prefix_key_offsets: torch.Tensor | None = None
 
     @property
     def num_video_tokens(self) -> int:
@@ -69,7 +71,7 @@ class LocalWindowContext:
 
     @property
     def max_joint_len(self) -> int:
-        return int(self.joint_lengths.max()) if self.local_windows else 0
+        return max((length for length, _ in self.sdpa_groups), default=0)
 
 
 def build_local_window_context(
@@ -136,6 +138,8 @@ def build_local_window_context(
         local_windows=num_windows,
         global_windows=int(global_windows),
         sdpa_groups=sdpa_groups,
+        prefix_query_offsets=torch.tensor([0, joint_order.numel()], dtype=torch.int32, device=device),
+        prefix_key_offsets=torch.tensor([0, text_len], dtype=torch.int32, device=device),
     )
 
 

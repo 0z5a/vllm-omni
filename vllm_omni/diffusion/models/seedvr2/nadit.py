@@ -45,7 +45,7 @@ from vllm_omni.diffusion.models.seedvr2.na_ops import (
     unpack_joint_windows,
 )
 from vllm_omni.diffusion.models.seedvr2.parallel import validate_seedvr2_parallel_config
-from vllm_omni.diffusion.models.seedvr2.rope import NaMMRotaryEmbedding3d
+from vllm_omni.diffusion.models.seedvr2.rope import NaMMRotaryEmbedding3d, apply_rotary_emb
 from vllm_omni.diffusion.models.seedvr2.ulysses import SeedVR2UlyssesRuntime
 from vllm_omni.diffusion.models.seedvr2.window_geometry import (
     DEFAULT_WINDOW,
@@ -254,6 +254,11 @@ def grouped_window_sdpa(
     """
     if ctx.local_windows == 0:
         return torch.empty_like(q)
+    if len(ctx.sdpa_groups) == 1:
+        length = ctx.sdpa_groups[0][0]
+        views = [x.view(ctx.local_windows, length, x.shape[1], x.shape[2]).transpose(1, 2) for x in (q, k, v)]
+        attended = F.scaled_dot_product_attention(*views, scale=softmax_scale)
+        return attended.transpose(1, 2).reshape_as(q)
     out = torch.empty_like(q)
     for length, rows in ctx.sdpa_groups:
         num = rows.numel() // length
@@ -333,7 +338,15 @@ class NaSwinAttention(nn.Module):
                 "using grouped window SDPA.",
                 backend_name,
             )
-        self.attention_stats = {"packed_varlen_calls": 0, "grouped_sdpa_calls": 0, "no_local_windows_calls": 0}
+        self.use_shared_text_prefix = False
+        self.cache_fixed_text = False
+        self._fixed_text_qkv: tuple[torch.Tensor, torch.Tensor, torch.Tensor] | None = None
+        self.attention_stats = {
+            "packed_varlen_calls": 0,
+            "grouped_sdpa_calls": 0,
+            "no_local_windows_calls": 0,
+            "shared_prefix_calls": 0,
+        }
 
     def _split_heads(self, qkv: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
         return qkv.view(qkv.shape[0], 3, self.heads, self.head_dim).unbind(1)
@@ -341,9 +354,13 @@ class NaSwinAttention(nn.Module):
     def _apply_rope(self, vid_q, vid_k, txt_q, txt_k, ctx: LocalWindowContext):
         device = vid_q.device
         vid_freqs = self.rope.window_freqs_batch(ctx.window_shapes, ctx.text_len, device=device, dtype=torch.float32)
-        txt_freqs = self.rope.text_freqs(ctx.text_len, device=device, dtype=torch.float32)
         if vid_freqs.shape[0] != vid_q.shape[0]:
             raise ValueError(f"window RoPE covers {vid_freqs.shape[0]} rows but the video shard has {vid_q.shape[0]}")
+        if self._fixed_text_qkv is not None:
+            vid_q = apply_rotary_emb(vid_freqs, vid_q.transpose(0, 1)).transpose(0, 1)
+            vid_k = apply_rotary_emb(vid_freqs, vid_k.transpose(0, 1)).transpose(0, 1)
+            return vid_q, vid_k, txt_q, txt_k
+        txt_freqs = self.rope.text_freqs(ctx.text_len, device=device, dtype=torch.float32)
         return self.rope(vid_q, vid_k, vid_freqs, txt_q, txt_k, txt_freqs)
 
     def forward(
@@ -353,32 +370,55 @@ class NaSwinAttention(nn.Module):
         ctx: LocalWindowContext,
         runtime: SeedVR2WindowRuntime | None,
     ) -> tuple[torch.Tensor, torch.Tensor]:
-        vid_qkv, txt_qkv = self.proj_qkv(vid, txt)
+        cached_text = self._fixed_text_qkv
+        vid_qkv, txt_qkv = self.proj_qkv(vid, txt if cached_text is None else None)
         if isinstance(runtime, SeedVR2UlyssesRuntime):
             vid_q, vid_k, vid_v = runtime.to_heads(
                 vid_qkv.view(vid.shape[0], 3, self.heads, self.head_dim), ctx
             ).unbind(1)
-            txt_q, txt_k, txt_v = runtime.text_heads(txt_qkv.view(txt.shape[0], 3, self.heads, self.head_dim)).unbind(1)
         else:
             vid_q, vid_k, vid_v = self._split_heads(vid_qkv)
-            txt_q, txt_k, txt_v = self._split_heads(txt_qkv)
-
-        vid_q, txt_q = self.norm_q(vid_q, txt_q)
-        vid_k, txt_k = self.norm_k(vid_k, txt_k)
+        if cached_text is None:
+            if isinstance(runtime, SeedVR2UlyssesRuntime):
+                txt_q, txt_k, txt_v = runtime.text_heads(
+                    txt_qkv.view(txt.shape[0], 3, self.heads, self.head_dim)
+                ).unbind(1)
+            else:
+                txt_q, txt_k, txt_v = self._split_heads(txt_qkv)
+            vid_q, txt_q = self.norm_q(vid_q, txt_q)
+            vid_k, txt_k = self.norm_k(vid_k, txt_k)
+        else:
+            vid_q, _ = self.norm_q(vid_q, None)
+            vid_k, _ = self.norm_k(vid_k, None)
+            txt_q, txt_k, txt_v = cached_text
         vid_q, vid_k, txt_q, txt_k = self._apply_rope(vid_q, vid_k, txt_q, txt_k, ctx)
+        if self.cache_fixed_text and cached_text is None:
+            self._fixed_text_qkv = (txt_q, txt_k, txt_v)
 
+        shared_prefix = self.use_shared_text_prefix and len(ctx.sdpa_groups) > 1
         joint_q = pack_joint_windows(vid_q, txt_q, ctx)
-        joint_k = pack_joint_windows(vid_k, txt_k, ctx)
-        joint_v = pack_joint_windows(vid_v, txt_v, ctx)
+        if not shared_prefix:
+            joint_k = pack_joint_windows(vid_k, txt_k, ctx)
+            joint_v = pack_joint_windows(vid_v, txt_v, ctx)
 
         if not ctx.local_windows:
             self.attention_stats["no_local_windows_calls"] += 1
-        elif self.use_varlen_kernel:
+        elif shared_prefix:
+            self.attention_stats["shared_prefix_calls"] += 1
+        elif self.use_varlen_kernel and len(ctx.sdpa_groups) > 1:
             self.attention_stats["packed_varlen_calls"] += 1
         else:
             self.attention_stats["grouped_sdpa_calls"] += 1
 
-        if self.use_varlen_kernel and ctx.local_windows:
+        if shared_prefix:
+            from .prefix_attention import shared_text_attention
+
+            joint_out = (
+                shared_text_attention(joint_q, vid_k, vid_v, txt_k, txt_v, ctx, self.softmax_scale)
+                if ctx.local_windows
+                else joint_q
+            )
+        elif self.use_varlen_kernel and ctx.local_windows and len(ctx.sdpa_groups) > 1:
             metadata = AttentionMetadata(
                 extra={
                     "cu_seqlens_q": ctx.joint_cu_seqlens,
@@ -688,7 +728,12 @@ class SeedVR2NaDiT(nn.Module):
         layers_per_path: dict[str, int] = {}
         backends: set[str] = set()
         fallbacks: set[str] = set()
-        stats = {"packed_varlen_calls": 0, "grouped_sdpa_calls": 0, "no_local_windows_calls": 0}
+        stats = {
+            "packed_varlen_calls": 0,
+            "grouped_sdpa_calls": 0,
+            "no_local_windows_calls": 0,
+            "shared_prefix_calls": 0,
+        }
         for block in self.blocks:
             attn = block.attn
             layers_per_path[attn.attention_path] = layers_per_path.get(attn.attention_path, 0) + 1
