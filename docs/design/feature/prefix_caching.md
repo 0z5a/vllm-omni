@@ -45,7 +45,7 @@ Host footprint: each cached key costs `num_blocks × block_size × D × dtype_by
 ### Example
 
 !!! note "Note 3"
-    Prefix caching in vLLM-Omni currently is only supported on AutoRegressive stages with one kv-cache group. Configure it with the pipeline-wide `enable_prefix_caching` field in the deploy config.
+    Prefix caching in vLLM-Omni requires an AutoRegressive stage with a full-attention KV group. Other sliding-window groups may share the stage. Configure it with the pipeline-wide `enable_prefix_caching` field in the deploy config.
 
 The way in which vLLM-Omni ties into vLLM's prefix caching is best understood by example. Say that we have the following:
 
@@ -202,9 +202,16 @@ Which stages may set `enable_prefix_caching: true`:
 | Multiple full-attention groups, or full-attention plus sliding-window groups | supported | Output rows use a full-attention group's stable allocator IDs for both writes and hits. Sliding-window groups may recycle their own block IDs without changing output storage. |
 | Sliding-window-only or `sliding_recompute` groups | refused at kv-cache init | No full-attention group supplies stable block IDs for output storage. |
 | Attention backend whose kernel block size divides `--block-size` (e.g. FlashInfer with allocator blocks of 128 and kernel blocks of 16/32/64) | supported for the selected full-attention group | The adapter's group view indexes the real kernel-block table using its kernel block size. Read snapshots retain allocator IDs; both address the same flat token slots. Only the actual scheduled/hit token interval is copied. |
-| Decode context parallel | refused at first step (`FullAttentionGroupView`) | Token striping needs a separate sharded storage contract. |
+| CUDA decode context parallel with a full-attention group | supported | Each rank stores stage outputs using the same allocator ID and virtual block span (`physical block size × DCP world size`). KV slot mappings remain rank-local and can contain padding; they are never used as output-row identities. |
+| NPU decode context parallel | refused at kv-cache init | The sharded output storage path has only been implemented for CUDA. |
+| DCP with sliding-window groups | refused at kv-cache init | vLLM 0.29.0 does not support this KV combination. |
 | Codec decoder / Code2Wav stages (Qwen3-Omni stage 2, Qwen3-TTS stage 1) | keep `false` | Nothing downstream consumes their hidden states; the cache would only add device→host copies. Not validated. |
 | Diffusion stages | n/a | No vLLM KV cache to mirror. |
+
+For GQA/MQA, vLLM 0.29.0 also requires TP to exceed the model's KV-head count,
+DCP to fit within TP / KV heads, and query heads per KV head to be divisible by
+DCP. Qwen2.5-Omni-3B needs TP=4 for DCP=2; Qwen2.5-Omni-7B has 7 query heads
+per KV head, so it cannot use DCP=2.
 
 Hit spans come from `scheduled_new_reqs` only, as in the pre-refactor cache:
 

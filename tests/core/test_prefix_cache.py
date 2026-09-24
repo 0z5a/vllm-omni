@@ -787,6 +787,7 @@ def test_group_view_step_slots_cpu():
             self.block_table = TensorWrap(t)
             self.block_size = BLOCK_SIZE
             self.kv_cache_block_size = BLOCK_SIZE
+            self.blocks_per_kv_block = 1
             self.dcp_world_size = 1
 
     class BT:
@@ -911,6 +912,7 @@ def test_step_slots_cpu_matches_block_table_math():
             self.block_table = TensorWrap(t)
             self.block_size = BLOCK_SIZE
             self.kv_cache_block_size = BLOCK_SIZE
+            self.blocks_per_kv_block = 1
             self.dcp_world_size = 1
 
     class BT:
@@ -958,15 +960,41 @@ def _ib_with_layout(**layout):
     return SimpleNamespace(req_ids=[], req_id_to_index={}, num_computed_tokens_cpu=torch.zeros(1), block_table=BT())
 
 
-def test_group_view_accepts_split_blocks_and_refuses_dcp():
+def test_group_view_accepts_split_blocks_and_virtual_dcp_blocks():
     FullAttentionGroupView(_ib_with_layout(), block_size=BLOCK_SIZE)
     FullAttentionGroupView(
         _ib_with_layout(block_size=2, use_hybrid_blocks=True, blocks_per_kv_block=2), block_size=BLOCK_SIZE
     )
-    with pytest.raises(OmniPrefixCacheUnmatchError, match="decode context parallel"):
+    FullAttentionGroupView(_ib_with_layout(dcp_world_size=2), block_size=BLOCK_SIZE * 2, dcp_world_size=2)
+    with pytest.raises(OmniPrefixCacheUnmatchError, match="DCP world size"):
         FullAttentionGroupView(_ib_with_layout(dcp_world_size=2), block_size=BLOCK_SIZE)
     with pytest.raises(OmniPrefixCacheUnmatchError, match="does not match"):
         FullAttentionGroupView(_ib_with_layout(kv_cache_block_size=BLOCK_SIZE * 2), block_size=BLOCK_SIZE)
+
+
+def test_dcp_output_slots_cover_full_virtual_block() -> None:
+    table = torch.tensor([[2, 5, 7]], dtype=torch.int32)
+    group = SimpleNamespace(
+        block_table=SimpleNamespace(cpu=table),
+        block_size=BLOCK_SIZE,
+        kv_cache_block_size=BLOCK_SIZE,
+        blocks_per_kv_block=1,
+        dcp_world_size=2,
+    )
+
+    class BlockTables:
+        def __getitem__(self, group_id):
+            assert group_id == 0
+            return group
+
+    batch = SimpleNamespace(
+        req_ids=["a"],
+        req_id_to_index={"a": 0},
+        num_computed_tokens_cpu=torch.tensor([7]),
+        block_table=BlockTables(),
+    )
+    view = FullAttentionGroupView(batch, block_size=8, dcp_world_size=2)
+    assert view.step_slots_cpu(["a"], {"a": 4}).tolist() == [23, 40, 41, 42]
 
 
 def test_step_context_consumed_by_id_not_order():

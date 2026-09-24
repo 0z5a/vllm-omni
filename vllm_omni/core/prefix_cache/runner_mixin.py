@@ -92,6 +92,7 @@ class PrefixCacheRunnerMixin:
             self.input_batch,
             cfg.block_size,
             kv_cache_groups=self.kv_cache_config.kv_cache_groups,
+            dcp_world_size=cfg.dcp_world_size,
         )
         if view is None:
             raise OmniPrefixCacheUnmatchError(
