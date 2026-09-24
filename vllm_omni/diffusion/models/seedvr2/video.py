@@ -13,6 +13,18 @@ import torch
 
 from vllm_omni.errors import OmniClientError
 
+MAX_FRAMES = 6
+MAX_FRAME_PIXELS = 848 * 480
+MAX_CLIP_PIXELS = 5 * MAX_FRAME_PIXELS
+MAX_SP4_FRAME_PIXELS = 2560 * 1472
+MAX_SP4_CLIP_PIXELS = 5 * MAX_SP4_FRAME_PIXELS
+
+
+def validate_clip_size(frame_count: int, height: int, width: int, frame_pixels: int, clip_pixels: int) -> None:
+    padded_frames = frame_count + (1 - frame_count) % 4
+    if frame_count > MAX_FRAMES or height * width > frame_pixels or padded_frames * height * width > clip_pixels:
+        raise OmniClientError("SeedVR2 clip exceeds the configured frame or pixel budget")
+
 
 @dataclass(frozen=True)
 class SourceVideo:
@@ -23,14 +35,16 @@ class SourceVideo:
     audio_sample_rate: int | None
 
 
-def read_video(path: str | Path) -> tuple[torch.Tensor, SourceVideo]:
+def read_video(
+    path: str | Path, frame_pixels: int = MAX_FRAME_PIXELS, clip_pixels: int = MAX_CLIP_PIXELS
+) -> tuple[torch.Tensor, SourceVideo]:
     try:
-        return _read_video(path)
+        return _read_video(path, frame_pixels, clip_pixels)
     except av.FFmpegError as exc:
         raise OmniClientError(f"Cannot decode SeedVR2 input video: {exc.strerror}") from exc
 
 
-def _read_video(path: str | Path) -> tuple[torch.Tensor, SourceVideo]:
+def _read_video(path: str | Path, frame_pixels: int, clip_pixels: int) -> tuple[torch.Tensor, SourceVideo]:
     with av.open(str(path)) as container:
         if not container.streams.video:
             raise OmniClientError("SeedVR2 input contains no video stream")
@@ -38,9 +52,16 @@ def _read_video(path: str | Path) -> tuple[torch.Tensor, SourceVideo]:
         rate = stream.average_rate
         if rate is None or rate <= 0:
             raise OmniClientError("SeedVR2 input must declare a positive frame rate")
+        height, width = stream.codec_context.height, stream.codec_context.width
+        if height > 0 and width > 0:
+            validate_clip_size(max(1, stream.frames), height, width, frame_pixels, clip_pixels)
+        if stream.duration is not None and stream.time_base is not None:
+            if stream.duration * stream.time_base * rate > MAX_FRAMES:
+                raise OmniClientError("SeedVR2 input exceeds the maximum duration")
         frames = []
         pts = []
         for frame in container.decode(stream):
+            validate_clip_size(len(frames) + 1, frame.height, frame.width, frame_pixels, clip_pixels)
             if frame.pts is None:
                 raise OmniClientError("SeedVR2 input video is missing frame timestamps")
             frames.append(torch.from_numpy(frame.to_ndarray(format="rgb24")))
@@ -76,6 +97,8 @@ def _read_video(path: str | Path) -> tuple[torch.Tensor, SourceVideo]:
                 if frame.pts is None:
                     raise OmniClientError("SeedVR2 audio is missing timestamps")
                 offset = round((frame.pts * frame.time_base - pts[0] * time_base) * sample_rate)
+                if offset >= sample_count:
+                    break
                 chunk = frame.to_ndarray()
                 start, stop = max(0, offset), min(sample_count, offset + chunk.shape[1])
                 if stop > start:
