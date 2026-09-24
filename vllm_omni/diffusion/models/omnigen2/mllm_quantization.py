@@ -48,7 +48,7 @@ def prepare_mllm_fp8(mllm: nn.Module, quant_config: QuantizationConfig | None) -
         raise ValueError("OmniGen2 mllm supports dynamic online FP8 from an unquantized checkpoint only")
 
     # Transformers v5 nests the decoder below language_model; v4 used model.
-    decoder = getattr(mllm.model, "language_model", mllm.model)
+    decoder = mllm.model.language_model if hasattr(mllm.model, "language_model") else mllm.model
     if not hasattr(decoder, "layers"):
         raise ValueError("Cannot locate OmniGen2 mllm language decoder layers")
     decoder_prefix = "model.language_model.layers" if decoder is not mllm.model else "model.layers"
