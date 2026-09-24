@@ -59,7 +59,14 @@ verified_layouts = set()
 def record_layout(view, batch, block_size, group_id=0, *dcp_args):
     original_view_init(view, batch, block_size, group_id, *dcp_args)
     table = batch.block_table[group_id]
-    layout = (table.kv_cache_block_size, table.block_size, table.blocks_per_kv_block, table.dcp_world_size)
+    layout = (
+        group_id,
+        len(batch.block_table.block_tables),
+        table.kv_cache_block_size,
+        table.block_size,
+        table.blocks_per_kv_block,
+        table.dcp_world_size,
+    )
     if layout not in verified_layouts:
         verified_layouts.add(layout)
         print("VERIFIED_BLOCK_LAYOUT " + json.dumps(layout), flush=True)
