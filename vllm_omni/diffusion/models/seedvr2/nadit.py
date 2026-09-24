@@ -358,9 +358,11 @@ class NaSwinAttention(nn.Module):
             vid_q, vid_k, vid_v = runtime.to_heads(
                 vid_qkv.view(vid.shape[0], 3, self.heads, self.head_dim), ctx
             ).unbind(1)
-            txt_q, txt_k, txt_v = runtime.text_heads(txt_qkv.view(txt.shape[0], 3, self.heads, self.head_dim)).unbind(1)
         else:
             vid_q, vid_k, vid_v = self._split_heads(vid_qkv)
+        if isinstance(runtime, SeedVR2UlyssesRuntime):
+            txt_q, txt_k, txt_v = runtime.text_heads(txt_qkv.view(txt.shape[0], 3, self.heads, self.head_dim)).unbind(1)
+        else:
             txt_q, txt_k, txt_v = self._split_heads(txt_qkv)
 
         vid_q, txt_q = self.norm_q(vid_q, txt_q)
@@ -493,7 +495,14 @@ class NaMMSRTransformerBlock(nn.Module):
     ) -> tuple[torch.Tensor, torch.Tensor]:
         vid_norm, txt_norm = self.attn_norm(vid, txt)
         vid_norm, txt_norm = self._modulate(vid_norm, txt_norm, emb, "attn", "in")
+        from .halo_sp import SeedVR2HaloRuntime
+
+        if isinstance(runtime, SeedVR2HaloRuntime):
+            layout = runtime.manager.layout_for_key(ctx.layout_key)
+            vid_norm = runtime.transfer(vid_norm, layout)
         vid_attn, txt_attn = self.attn(vid_norm, txt_norm, ctx, runtime)
+        if isinstance(runtime, SeedVR2HaloRuntime):
+            vid_attn = runtime.transfer(vid_attn, layout, returning=True)
         vid_attn, txt_attn = self._modulate(vid_attn, txt_attn, emb, "attn", "out")
         vid_attn = vid_attn + vid
         txt_attn = txt_attn + txt
@@ -542,11 +551,15 @@ class SeedVR2NaDiT(nn.Module):
         rope_dim: int = 128,
         vid_out_norm: bool = True,
         use_varlen_kernel: bool = True,
+        window_sp_plan: str = "A",
     ) -> None:
         super().__init__()
         if rope_type != "mmrope3d":
             raise NotImplementedError(f"unsupported rope_type {rope_type!r} for SeedVR2")
         txt_dim = vid_dim
+        if window_sp_plan not in ("A", "B"):
+            raise ValueError("window_sp_plan must be A or B")
+        self.window_sp_plan = window_sp_plan
         emb_dim = emb_dim or 6 * vid_dim
         self.patch_size = tuple(int(v) for v in patch_size)
         if self.patch_size[0] != 1:
@@ -617,7 +630,10 @@ class SeedVR2NaDiT(nn.Module):
                 methods=self.window_method,
                 num_layers=self.num_layers,
             )
-        return SeedVR2WindowRuntime(
+        from .halo_sp import SeedVR2HaloRuntime
+
+        runtime_class = SeedVR2HaloRuntime if self.window_sp_plan == "B" else SeedVR2WindowRuntime
+        return runtime_class(
             token_grid,
             text_len=text_len,
             group=group,

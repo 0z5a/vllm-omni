@@ -150,7 +150,11 @@ class SeedVR2Pipeline(nn.Module):
         self.device = get_local_device()
         self.od_config = od_config
         self.frame_pixels, self.clip_pixels = _admission_budget(od_config)
-        self.transformer = SeedVR2NaDiT(**SEEDVR2_3B_CONFIG, use_varlen_kernel=False)
+        self.transformer = SeedVR2NaDiT(
+            **SEEDVR2_3B_CONFIG,
+            use_varlen_kernel=False,
+            window_sp_plan=od_config.additional_config.get("seedvr2_window_sp_plan", "A"),
+        )
         self.vae = SeedVR2VAE()
         self.weights_sources = [
             DiffusersPipelineLoader.ComponentSource(
@@ -218,7 +222,7 @@ class SeedVR2Pipeline(nn.Module):
                 self.transformer.token_grid_for(shape),
                 text_len=self.text.shape[0],
                 parallel_config=self.od_config.parallel_config,
-                ulysses=self.od_config.parallel_config.ulysses_degree > 1,
+                ulysses=(self.od_config.parallel_config.ulysses_degree > 1 and self.transformer.window_sp_plan != "B"),
             )
             velocity = self.transformer(video, self.text, shape, text_shape, timestep, runtime).vid_sample
             # Reference Euler returns fp32, then VAE casts to fp16 before scaling.
