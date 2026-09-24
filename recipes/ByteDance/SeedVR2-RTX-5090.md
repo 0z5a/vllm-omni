@@ -43,8 +43,8 @@ five-frame 848×480 output pixel budget by default, allowing longer clips at
 smaller resolutions, plus a 257-frame decoder-work cap. The validated SP4
 configuration with VAE tiling and `vae_patch_parallel_size=4` uses a padded
 five-frame 2560×1472 budget, as does any higher matched degree. Larger
-accelerators raise these caps through `SEEDVR2_SHARDED_FRAME_PIXELS`,
-`SEEDVR2_SHARDED_CLIP_PIXELS` and `SEEDVR2_MAX_FRAMES`. The model guide lists
+accelerators raise these caps through `VLLM_OMNI_SEEDVR2_SHARDED_FRAME_PIXELS`,
+`VLLM_OMNI_SEEDVR2_SHARDED_CLIP_PIXELS` and `VLLM_OMNI_SEEDVR2_MAX_FRAMES`. The model guide lists
 exact bounds and which profiles have completed GPU validation.
 
 ## Software environment
@@ -123,11 +123,14 @@ These are single requests on a shared host, not performance comparisons.
 ### One long-video request
 
 For a 24 FPS source, the long route can restore up to 7,200 frames at
-768×1344. Use the SP4/VAE height-sharding command above and set a persistent
-`SEEDVR2_LONG_OUTPUT_DIR` before serving. If the source is shorter than 300
-seconds, `loop_input=true` repeats its frames and audio. The service runs
-bounded 12-frame model windows with four-frame overlap and writes one MP4;
-it does not concatenate separate video files.
+768×1344. Use the SP4/VAE height-sharding command above, serve with
+`--api-server-count 1`, and set a persistent
+`VLLM_OMNI_SEEDVR2_LONG_OUTPUT_DIR` before starting. If the source is shorter
+than 300 seconds, `loop_input=true` repeats its frames and audio. The service
+runs bounded 12-frame model windows with four-frame overlap and writes one MP4;
+it does not concatenate separate video files. Download the result within
+`VLLM_OMNI_SEEDVR2_LONG_JOB_TTL_SECONDS`, after which the job directory is
+swept; `DELETE` on the job URL stops a run at the next window boundary.
 
 ```bash
 curl --fail-with-body http://127.0.0.1:8098/v1/seedvr2/restore-long \

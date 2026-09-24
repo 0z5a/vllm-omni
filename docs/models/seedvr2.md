@@ -132,9 +132,16 @@ result on the target hardware is the operator's responsibility:
 
 | Variable | Default | Bounds |
 | --- | --- | --- |
-| `SEEDVR2_SHARDED_FRAME_PIXELS` | 3,768,320 | Pixels per frame on the sharded profile |
-| `SEEDVR2_SHARDED_CLIP_PIXELS` | 18,841,600 | Padded pixels per clip on the sharded profile |
-| `SEEDVR2_MAX_FRAMES` | 257 | Decoder-work frame cap, all profiles |
+| `VLLM_OMNI_SEEDVR2_SHARDED_FRAME_PIXELS` | 3,768,320 | Pixels per frame on the sharded profile |
+| `VLLM_OMNI_SEEDVR2_SHARDED_CLIP_PIXELS` | 18,841,600 | Padded pixels per clip on the sharded profile |
+| `VLLM_OMNI_SEEDVR2_MAX_FRAMES` | 257 | Decoder-work frame cap, all profiles |
+
+The sharded profile applies to any `ulysses_degree` of four or more, so eight
+ranks inherit a budget calibrated on four. Raising these caps trades a 400 for a
+CUDA OOM: the admission check passes and the request fails later inside the DiT
+forward or the VAE decode, which can abort every in-flight request on the engine
+rather than only the oversized one. Before serving with raised caps, restore the
+largest clip they admit once and confirm it completes.
 
 A 362-frame 1536×2688 2x upscale was restored on eight ranks with
 `ulysses_degree=8`, VAE tiling and height sharding, using 4,300,000 and
@@ -149,9 +156,23 @@ prompt, `size`, `num_frames` (up to 7,200), and optional `loop_input=true` and
 `color_correction_method`, which it applies to every window.
 The output is bounded to 768×1344 pixels per frame. It returns a job ID; poll
 `GET /v1/seedvr2/restore-long/{id}` and download the completed MP4 from
-`GET /v1/seedvr2/restore-long/{id}/content`. Set `SEEDVR2_LONG_OUTPUT_DIR` to
-the desired job-storage parent before starting the server. One job runs at a
-time with one API server.
+`GET /v1/seedvr2/restore-long/{id}/content`. `DELETE
+/v1/seedvr2/restore-long/{id}` asks a running job to stop; it settles as
+`cancelled` at the next window boundary. A job whose owning process is gone,
+such as after a server restart, reports `failed` on the next poll.
+
+Jobs live on the API server's local disk, so the route requires
+`--api-server-count 1` and runs one job at a time. Storage is bounded by an
+upload cap and by deleting settled jobs once they age out:
+
+| Variable | Default | Bounds |
+| --- | --- | --- |
+| `VLLM_OMNI_SEEDVR2_LONG_OUTPUT_DIR` | system temp dir | Parent of the job directories |
+| `VLLM_OMNI_SEEDVR2_LONG_MAX_UPLOAD_BYTES` | 8 GiB | Largest accepted upload |
+| `VLLM_OMNI_SEEDVR2_LONG_JOB_TTL_SECONDS` | 3,600 | Age at which a settled job is deleted |
+
+Download a completed job before its TTL expires; the sweep runs on each new
+submission and removes the output with the job directory.
 
 The service sends 12-frame windows through the existing SeedVR2 endpoint,
 blends four frames at each boundary, and writes one continuous MP4 encoder.

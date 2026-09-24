@@ -2,7 +2,6 @@
 # SPDX-FileCopyrightText: Copyright contributors to the vLLM-Omni project
 """Decode restoration inputs before scheduler admission."""
 
-import os
 from collections.abc import Iterator
 from dataclasses import dataclass
 from fractions import Fraction
@@ -12,34 +11,28 @@ import av
 import numpy as np
 import torch
 
+from vllm_omni.diffusion import envs
 from vllm_omni.errors import OmniClientError
-
-
-def _budget_from_env(name: str, default: int) -> int:
-    """Read a device-specific admission budget, keeping the calibrated default."""
-    value = os.environ.get(name)
-    if value is None:
-        return default
-    if not value.strip().isdigit() or not int(value):
-        raise ValueError(f"{name} must be a positive integer, got {value!r}")
-    return int(value)
-
 
 # Bound per-frame decode bookkeeping; the padded clip-pixel budget is tighter
 # for normal video resolutions.
-MAX_FRAMES = _budget_from_env("SEEDVR2_MAX_FRAMES", 257)
 MAX_FRAME_PIXELS = 848 * 480
 MAX_CLIP_PIXELS = 5 * MAX_FRAME_PIXELS
-# The sharded profile's budgets are calibrated for the smallest qualified device
-# at degree 4. Larger accelerators and higher degrees raise them here rather than
-# by editing code, and the operator owns validating the result.
-MAX_SHARDED_FRAME_PIXELS = _budget_from_env("SEEDVR2_SHARDED_FRAME_PIXELS", 2560 * 1472)
-MAX_SHARDED_CLIP_PIXELS = _budget_from_env("SEEDVR2_SHARDED_CLIP_PIXELS", 5 * 2560 * 1472)
+
+
+def max_frames() -> int:
+    """Decoder-work frame cap, shared by every serving profile."""
+    return envs.VLLM_OMNI_SEEDVR2_MAX_FRAMES
+
+
+def sharded_budget() -> tuple[int, int]:
+    """Per-frame and padded-clip budgets for the VAE-sharded serving profile."""
+    return envs.VLLM_OMNI_SEEDVR2_SHARDED_FRAME_PIXELS, envs.VLLM_OMNI_SEEDVR2_SHARDED_CLIP_PIXELS
 
 
 def validate_clip_size(frame_count: int, height: int, width: int, frame_pixels: int, clip_pixels: int) -> None:
     padded_frames = frame_count + (1 - frame_count) % 4
-    if frame_count > MAX_FRAMES or height * width > frame_pixels or padded_frames * height * width > clip_pixels:
+    if frame_count > max_frames() or height * width > frame_pixels or padded_frames * height * width > clip_pixels:
         raise OmniClientError("SeedVR2 clip exceeds the configured frame or pixel budget")
 
 
@@ -73,7 +66,7 @@ def _read_video(path: str | Path, frame_pixels: int, clip_pixels: int) -> tuple[
         if height > 0 and width > 0:
             validate_clip_size(max(1, stream.frames), height, width, frame_pixels, clip_pixels)
         if stream.duration is not None and stream.time_base is not None:
-            if stream.duration * stream.time_base * rate > MAX_FRAMES:
+            if stream.duration * stream.time_base * rate > max_frames():
                 raise OmniClientError("SeedVR2 input exceeds the maximum duration")
         frames = []
         pts = []

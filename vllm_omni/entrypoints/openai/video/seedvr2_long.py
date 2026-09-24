@@ -7,10 +7,11 @@ import hashlib
 import io
 import itertools
 import json
+import logging
 import os
 import shutil
 import subprocess
-import tempfile
+import time
 from collections.abc import Iterator
 from fractions import Fraction
 from pathlib import Path
@@ -19,25 +20,78 @@ from uuid import uuid4
 import av
 import imageio_ffmpeg
 import numpy as np
+import regex as re
 import requests
 from fastapi import APIRouter, File, Form, HTTPException, Request, UploadFile
 from fastapi.responses import FileResponse
 
+from vllm_omni.diffusion import envs
 from vllm_omni.inputs.data import COLOR_CORRECTION_METHODS, DEFAULT_COLOR_CORRECTION_METHOD
 
+logger = logging.getLogger(__name__)
 router = APIRouter()
 MAX_FRAMES = 7200
 MAX_FRAME_PIXELS = 768 * 1344
 FPS = 24
 WINDOW, OVERLAP = 12, 4
-JOBS = Path(os.environ.get("SEEDVR2_LONG_OUTPUT_DIR", tempfile.gettempdir())) / "seedvr2-long"
+UPLOAD_CHUNK = 1 << 20
+JOB_ID = re.compile(r"[0-9a-f]{32}")
 active_task: asyncio.Task[None] | None = None
 job_lock = asyncio.Lock()
 
 
+class JobError(Exception):
+    """An error whose message is safe to return to the client."""
+
+
+class JobCancelledError(JobError):
+    """The client asked the job to stop."""
+
+
+def _jobs_root() -> Path:
+    return Path(envs.VLLM_OMNI_SEEDVR2_LONG_OUTPUT_DIR) / "seedvr2-long"
+
+
+def _job_dir(job_id: str) -> Path:
+    """Resolve a client-supplied job id, which must never shape the path."""
+    if not JOB_ID.fullmatch(job_id):
+        raise HTTPException(404, "SeedVR2 long-video job not found")
+    return _jobs_root() / job_id
+
+
+def _sweep_expired_jobs() -> None:
+    """Drop settled job directories so repeated submissions cannot fill the disk."""
+    deadline = time.time() - envs.VLLM_OMNI_SEEDVR2_LONG_JOB_TTL_SECONDS
+    for job in _jobs_root().glob("*"):
+        status = job / "status.json"
+        if not job.is_dir() or not JOB_ID.fullmatch(job.name) or not status.exists():
+            continue
+        record = json.loads(status.read_text())
+        # A job owned by a dead process is settled too, or a restart would leak it.
+        settled = record["status"] not in {"queued", "running"} or record.get("pid") != os.getpid()
+        if settled and status.stat().st_mtime <= deadline:
+            shutil.rmtree(job, ignore_errors=True)
+
+
+def _store_upload(upload: UploadFile, destination: Path) -> None:
+    """Copy the upload under a size cap so one client cannot fill the disk."""
+    limit = envs.VLLM_OMNI_SEEDVR2_LONG_MAX_UPLOAD_BYTES
+    written = 0
+    with destination.open("wb") as target:
+        while chunk := upload.file.read(UPLOAD_CHUNK):
+            written += len(chunk)
+            if written > limit:
+                raise HTTPException(413, f"SeedVR2 long-video upload exceeds {limit} bytes")
+            target.write(chunk)
+    if not written:
+        raise HTTPException(400, "SeedVR2 long-video upload is empty")
+
+
 def _status(job: Path, stage: str, frames: int, error: str = "") -> None:
+    # The owning PID lets a poller detect a job that a server restart abandoned.
+    record = {"status": stage, "frames": frames, "error": error, "pid": os.getpid()}
     pending = job / "status.json.tmp"
-    pending.write_text(json.dumps({"status": stage, "frames": frames, "error": error}) + "\n")
+    pending.write_text(json.dumps(record) + "\n")
     pending.replace(job / "status.json")
 
 
@@ -47,14 +101,14 @@ def _frames(source: Path, width: int, height: int, loop: bool) -> Iterator[av.Vi
         with av.open(str(source)) as container:
             video = container.streams.video[0]
             if video.average_rate != Fraction(FPS):
-                raise ValueError("SeedVR2 long video requires 24 FPS input")
+                raise JobError("SeedVR2 long video requires 24 FPS input")
             for frame in container.decode(video=0):
                 if frame.pts is None or frame.time_base is None or frame.pts * frame.time_base != Fraction(count, FPS):
-                    raise ValueError("SeedVR2 long video requires constant 24 FPS timestamps starting at zero")
+                    raise JobError("SeedVR2 long video requires constant 24 FPS timestamps starting at zero")
                 count += 1
                 yield frame.reformat(width=width, height=height, format="yuv420p", interpolation="BICUBIC")
         if count == 0:
-            raise ValueError("Input video has no frames")
+            raise JobError("Input video has no frames")
         if not loop:
             return
 
@@ -98,14 +152,17 @@ def _restore(
         headers={"Authorization": authorization} if authorization else {},
         timeout=900,
     )
-    response.raise_for_status()
+    try:
+        response.raise_for_status()
+    except requests.HTTPError as error:
+        raise JobError("SeedVR2 window restoration failed") from error
     with av.open(io.BytesIO(response.content)) as container:
         video = container.streams.video[0]
         decoded = list(container.decode(video=0))
         if (video.width, video.height, video.average_rate, len(decoded)) != (width, height, Fraction(FPS), len(frames)):
-            raise ValueError("SeedVR2 window returned the wrong video geometry or frame count")
+            raise JobError("SeedVR2 window restoration returned an unexpected geometry or frame count")
         if [frame.pts * frame.time_base for frame in decoded] != [Fraction(index, FPS) for index in range(len(frames))]:
-            raise ValueError("SeedVR2 window returned invalid timestamps")
+            raise JobError("SeedVR2 window restoration returned invalid timestamps")
         return [frame.to_ndarray(format="rgb24") for frame in decoded]
 
 
@@ -126,7 +183,7 @@ def _run(
     source_frames = _frames(source, width, height, loop)
     batch = list(itertools.islice(source_frames, min(WINDOW, target)))
     if len(batch) != min(WINDOW, target):
-        raise ValueError("Input video has fewer frames than requested; set loop_input=true to repeat it")
+        raise JobError("Input video has fewer frames than requested; set loop_input=true to repeat it")
     start = written = 0
     pending: list[np.ndarray] = []
     with av.open(str(video_path), "w", format="mp4") as container:
@@ -143,6 +200,8 @@ def _run(
             written += 1
 
         while batch:
+            if (job / "cancel").exists():
+                raise JobCancelledError("SeedVR2 long-video job was cancelled")
             restored = _restore(batch, width, height, seed, color_correction_method, port, authorization)
             last = start + len(batch) == target
             if not pending:
@@ -161,13 +220,13 @@ def _run(
             fresh = min(WINDOW - OVERLAP, target - start - len(batch))
             next_frames = list(itertools.islice(source_frames, fresh))
             if len(next_frames) != fresh:
-                raise ValueError("Input video has fewer frames than requested; set loop_input=true to repeat it")
+                raise JobError("Input video has fewer frames than requested; set loop_input=true to repeat it")
             batch = batch[-OVERLAP:] + next_frames
             start += len(restored) - OVERLAP
         for packet in video.encode():
             container.mux(packet)
     if written != target:
-        raise ValueError(f"SeedVR2 restored {written} of {target} requested frames")
+        raise JobError(f"SeedVR2 restored {written} of {target} requested frames")
 
     with av.open(str(source)) as container:
         has_audio = bool(container.streams.audio)
@@ -217,17 +276,18 @@ def _run(
                 or frame.time_base is None
                 or frame.pts * frame.time_base != Fraction(decoded - 1, FPS)
             ):
-                raise ValueError("SeedVR2 final MP4 has invalid timestamps")
+                raise JobError("SeedVR2 output encoding produced invalid timestamps")
         if (video.width, video.height, video.average_rate, decoded) != (width, height, Fraction(FPS), target):
-            raise ValueError("SeedVR2 final MP4 failed frame or geometry validation")
+            raise JobError("SeedVR2 output encoding failed frame or geometry validation")
         if has_audio and not container.streams.audio:
-            raise ValueError("SeedVR2 final MP4 lost its audio track")
+            raise JobError("SeedVR2 output encoding lost the audio track")
     if has_audio:
         with av.open(str(output)) as container:
             audio = container.streams.audio[0]
             samples = sum(frame.samples for frame in container.decode(audio=0))
             if samples < (target / FPS - 1) * audio.rate:
-                raise ValueError("SeedVR2 final MP4 audio ends before the video")
+                raise JobError("SeedVR2 output audio ends before the video")
+    video_path.unlink(missing_ok=True)
     with output.open("rb") as content:
         digest = hashlib.file_digest(content, "sha256").hexdigest()
     (job / "result.json").write_text(
@@ -250,8 +310,10 @@ def _background(
     try:
         _run(job, width, height, target, loop, seed, color_correction_method, port, authorization)
     except Exception as error:
+        logger.exception("SeedVR2 long-video job %s failed", job.name)
         current = json.loads((job / "status.json").read_text())
-        _status(job, "failed", current["frames"], str(error))
+        detail = str(error) if isinstance(error, JobError) else "SeedVR2 long-video restoration failed"
+        _status(job, "cancelled" if isinstance(error, JobCancelledError) else "failed", current["frames"], detail)
 
 
 @router.post("/v1/seedvr2/restore-long", status_code=202)
@@ -283,11 +345,15 @@ async def create_long_video(
     async with job_lock:
         if active_task is not None and not active_task.done():
             raise HTTPException(409, "A SeedVR2 long-video job is already running")
+        await asyncio.to_thread(_sweep_expired_jobs)
         job_id = uuid4().hex
-        job = JOBS / job_id
+        job = _jobs_root() / job_id
         job.mkdir(parents=True)
-        with (job / "input.mp4").open("wb") as destination:
-            await asyncio.to_thread(shutil.copyfileobj, input_references.file, destination)
+        try:
+            await asyncio.to_thread(_store_upload, input_references, job / "input.mp4")
+        except HTTPException:
+            shutil.rmtree(job, ignore_errors=True)
+            raise
         _status(job, "queued", 0)
         active_task = asyncio.create_task(
             asyncio.to_thread(
@@ -308,15 +374,33 @@ async def create_long_video(
 
 @router.get("/v1/seedvr2/restore-long/{job_id}")
 async def get_long_video(job_id: str) -> dict[str, str | int]:
-    status = JOBS / job_id / "status.json"
-    if len(job_id) != 32 or not status.exists():
+    status = _job_dir(job_id) / "status.json"
+    if not status.exists():
         raise HTTPException(404, "SeedVR2 long-video job not found")
-    return json.loads(status.read_text())
+    record = json.loads(status.read_text())
+    if record["status"] in {"queued", "running"} and record.get("pid") != os.getpid():
+        # Only this process runs jobs, so another owner means a restart lost it.
+        record["status"], record["error"] = "failed", "SeedVR2 long-video job was interrupted by a server restart"
+    return record
 
 
 @router.get("/v1/seedvr2/restore-long/{job_id}/content")
 async def download_long_video(job_id: str) -> FileResponse:
-    job = JOBS / job_id
-    if len(job_id) != 32 or not (job / "result.json").exists():
+    job = _job_dir(job_id)
+    if not (job / "result.json").exists():
         raise HTTPException(404, "SeedVR2 long-video output is not ready")
     return FileResponse(job / "output.mp4", media_type="video/mp4", filename=f"{job_id}.mp4")
+
+
+@router.delete("/v1/seedvr2/restore-long/{job_id}", status_code=202)
+async def cancel_long_video(job_id: str) -> dict[str, str]:
+    """Ask the running job to stop; it settles at the next window boundary."""
+    job = _job_dir(job_id)
+    status = job / "status.json"
+    if not status.exists():
+        raise HTTPException(404, "SeedVR2 long-video job not found")
+    record = json.loads(status.read_text())
+    if record["status"] not in {"queued", "running"}:
+        raise HTTPException(409, f"SeedVR2 long-video job already {record['status']}")
+    (job / "cancel").touch()
+    return {"id": job_id, "status": "cancelling"}

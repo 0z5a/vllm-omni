@@ -6,9 +6,14 @@ import torch
 
 from vllm_omni.diffusion.data import OmniDiffusionConfig
 from vllm_omni.diffusion.models.seedvr2.parallel import validate_seedvr2_parallel_config
+from vllm_omni.diffusion.models.seedvr2.video import max_frames, sharded_budget
 
 
 def validate_seedvr2_config(config: OmniDiffusionConfig) -> None:
+    # Read the operator-tuned budgets here so a bad value is a startup error
+    # rather than a traceback from whichever module imports them first.
+    max_frames()
+    sharded_budget()
     if config.dtype != torch.float16:
         raise ValueError("SeedVR2 3B requires dtype=float16")
     if not config.enforce_eager:
