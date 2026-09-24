@@ -38,8 +38,10 @@ correction from external applications are separate execution semantics.
 
 RTX 5090 with 32 GiB per GPU, PCIe, one GPU for the default command or two/four
 for SP. Each GPU must fit a complete model copy and its activations. Host RAM
-must accommodate checkpoint staging per rank. Short-clip validation does not
-establish the maximum frame count or output resolution.
+must accommodate checkpoint staging per rank. Admission caps requests at six
+frames and a five-frame 848×480 output pixel budget by default. Only the
+validated SP4 configuration with VAE tiling and `vae_patch_parallel_size=4`
+admits up to five frames at 2560×1472. The model guide lists the exact limits.
 
 ## Software environment
 

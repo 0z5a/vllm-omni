@@ -64,6 +64,20 @@ frame is repeated internally to reach 4n+1, and the decoded output is cropped ba
 to the original frame count. Five frames remain five; six frames are internally
 padded to nine and return six.
 
+## Request admission
+
+The default 3B limit is six input frames, 848×480 pixels per input or output
+frame, and 2,035,200 pixels across the requested output clip. The frame and
+pixel budgets come from the five-frame 848×480 single-GPU run and the
+six-frame small-resolution run in the RTX 5090 results. With four-rank window
+SP, `vae_patch_parallel_size=4`, and VAE tiling, the per-frame limit rises to
+2560×1472 and the output-clip budget to 18,841,600 pixels, matching the
+validated five-frame SP4 request. The clip budget counts temporal padding
+(six input frames occupy nine internal frames); frame count is capped at six. The
+decoder checks declared duration, frame count and input dimensions when
+available, then enforces the limits as frames arrive. Requests outside these
+budgets return 400 before building the resized whole-clip tensor.
+
 ## Temporal and spatial VAE tiling
 
 Add `--vae-use-tiling` to bound VAE intermediate activations along time. The

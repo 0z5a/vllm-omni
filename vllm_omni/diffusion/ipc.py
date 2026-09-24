@@ -267,13 +267,6 @@ def _pack_diffusion_media(
         "__type__": _DIFFUSION_MEDIA_WIRE_TYPE,
         "schema_version": video.schema_version,
         "prepared_for_transport": True,
-        "fps": media.fps,
-        "audio": (
-            _pack_tensor_if_large(media.audio.detach().cpu().contiguous(), d2h_stream=None, created=created)
-            if media.audio is not None
-            else None
-        ),
-        "audio_sample_rate": media.audio_sample_rate,
         "video": {
             "tensor": packed_tensor,
             "layout": video.spec.layout.value,
@@ -316,9 +309,6 @@ def _unpack_diffusion_media(packed: dict[str, Any]) -> DiffusionMediaOutput:
             schema_version=1,
         ),
         prepared_for_transport=True,
-        fps=packed.get("fps"),
-        audio=_unpack_if_shm_handle(packed.get("audio")),
-        audio_sample_rate=packed.get("audio_sample_rate"),
     )
     media.validate()
     return media

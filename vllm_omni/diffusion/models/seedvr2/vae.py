@@ -18,7 +18,7 @@ from torch import nn
 from torch.nn import functional as F
 
 from vllm_omni.diffusion.distributed.autoencoders.distributed_vae_executor import DistributedVaeMixin
-from vllm_omni.diffusion.distributed.parallel_state import get_world_group
+from vllm_omni.diffusion.distributed.parallel_state import get_sp_group
 from vllm_omni.diffusion.models.seedvr2.vae_spatial import SpatialContext, tiled_convolution
 
 
@@ -260,9 +260,9 @@ class SeedVR2VAE(nn.Module, DistributedVaeMixin):
         if mode == "spatial_shard_width":
             raise ValueError("SeedVR2 VAE supports height sharding; select spatial_shard_height or tile")
         if parallel_size > 1:
-            group = get_world_group().device_group
+            group = get_sp_group().device_group
             if dist.get_world_size(group) != parallel_size:
-                raise ValueError("SeedVR2 VAE patch parallel size must match the worker group")
+                raise ValueError("SeedVR2 VAE patch parallel size must match the SP group")
             self._spatial_group = group
         else:
             self._spatial_group = None

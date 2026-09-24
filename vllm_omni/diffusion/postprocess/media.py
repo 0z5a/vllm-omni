@@ -28,11 +28,7 @@ def finalize_diffusion_media(
         raise ValueError("Diffusion media reached the engine before transport preparation")
 
     video = media.video
-    video_metadata: dict[str, object] = {}
     metadata: dict[str, object] = {}
-    if media.fps is not None:
-        video_metadata["fps"] = media.fps
-        metadata["video"] = video_metadata
     consumers = video.constraints.pending_float_consumers
     if FloatVideoConsumer.FRAME_INTERPOLATION in consumers:
         if video.spec.encoding is not VideoTensorEncoding.NORMALIZED_FLOAT:
@@ -62,8 +58,7 @@ def finalize_diffusion_media(
             tensor=interpolated,
             constraints=VideoTransportConstraints(pending_float_consumers=frozenset(consumers)),
         )
-        video_metadata["video_fps_multiplier"] = multiplier
-        metadata["video"] = video_metadata
+        metadata["video"] = {"video_fps_multiplier": multiplier}
 
     if consumers:
         names = sorted(consumer.value for consumer in consumers)
@@ -91,8 +86,7 @@ def finalize_diffusion_media(
             do_denormalize=[do_denormalize] * video.tensor.shape[2],
         )
 
-    payload: dict[str, object] = {"video": frames}
-    if media.audio is not None:
-        payload["audio"] = media.audio.detach().cpu()
-        metadata["audio"] = {"sample_rate": media.audio_sample_rate}
-    return {"payload": payload, "metadata": metadata}
+    return {
+        "payload": {"video": frames},
+        "metadata": metadata,
+    }

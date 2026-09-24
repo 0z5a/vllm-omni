@@ -21,6 +21,8 @@ def validate_seedvr2_config(config: OmniDiffusionConfig) -> None:
         raise ValueError("SeedVR2 native whole-clip execution does not support CPU offload")
     parallel = config.parallel_config
     validate_seedvr2_parallel_config(parallel)
+    if parallel.data_parallel_size is not None and parallel.data_parallel_size > 1:
+        raise ValueError("SeedVR2 does not support data_parallel_size > 1")
     if parallel.ulysses_degree > 20:
         raise ValueError("SeedVR2 3B Ulysses requires at least one of its 20 heads per rank")
     degrees = {

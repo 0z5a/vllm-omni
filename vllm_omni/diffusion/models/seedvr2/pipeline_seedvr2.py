@@ -4,30 +4,32 @@
 
 from collections.abc import Callable, Iterable
 from dataclasses import dataclass
+from functools import partial
 from pathlib import Path
 from typing import ClassVar
 
 import numpy as np
 import torch
+from diffusers.video_processor import VideoProcessor
 from PIL import Image
 from torch import nn
 from torch.nn import functional as F
 
 from vllm_omni.diffusion.data import DiffusionOutput, OmniDiffusionConfig
 from vllm_omni.diffusion.distributed.utils import get_local_device
-from vllm_omni.diffusion.media import (
-    DiffusionMediaOutput,
-    VideoMediaOutput,
-    VideoTensorEncoding,
-    VideoTensorLayout,
-    VideoTensorSpec,
-    VideoValueRange,
-)
 from vllm_omni.diffusion.model_loader.diffusers_loader import DiffusersPipelineLoader
 from vllm_omni.diffusion.models.seedvr2.config import validate_seedvr2_config
 from vllm_omni.diffusion.models.seedvr2.nadit import SEEDVR2_3B_CONFIG, SeedVR2NaDiT
 from vllm_omni.diffusion.models.seedvr2.vae import SeedVR2VAE
-from vllm_omni.diffusion.models.seedvr2.video import SourceVideo, read_video
+from vllm_omni.diffusion.models.seedvr2.video import (
+    MAX_CLIP_PIXELS,
+    MAX_FRAME_PIXELS,
+    MAX_SP4_CLIP_PIXELS,
+    MAX_SP4_FRAME_PIXELS,
+    SourceVideo,
+    read_video,
+    validate_clip_size,
+)
 from vllm_omni.diffusion.request import OmniDiffusionRequest
 from vllm_omni.diffusion.worker.request_batch import DiffusionRequestBatch
 from vllm_omni.errors import OmniClientError
@@ -59,28 +61,48 @@ class SeedVR2Input:
     source: SourceVideo | None = None
 
 
-def prepare_request(request: OmniDiffusionRequest) -> OmniDiffusionRequest:
+def _admission_budget(config: OmniDiffusionConfig) -> tuple[int, int]:
+    parallel = config.parallel_config
+    if config.vae_use_tiling and parallel.ulysses_degree == parallel.vae_patch_parallel_size == 4:
+        return MAX_SP4_FRAME_PIXELS, MAX_SP4_CLIP_PIXELS
+    return MAX_FRAME_PIXELS, MAX_CLIP_PIXELS
+
+
+def prepare_request(
+    request: OmniDiffusionRequest,
+    *,
+    frame_pixels: int = MAX_FRAME_PIXELS,
+    clip_pixels: int = MAX_CLIP_PIXELS,
+) -> OmniDiffusionRequest:
     params = request.sampling_params
     if params.num_inference_steps not in (None, 1) or params.guidance_scale != 1.0:
         raise OmniClientError("SeedVR2 whole-clip restoration requires one Euler step and guidance_scale=1")
     prompt = request.prompt
     if not isinstance(prompt, dict) or "multi_modal_data" not in prompt:
         raise OmniClientError("SeedVR2 requires multi_modal_data.video")
+    if params.height is None or params.width is None:
+        raise OmniClientError("SeedVR2 requires explicit output height and width")
+    if min(params.height, params.width) < 16 or params.height % 16 or params.width % 16:
+        raise OmniClientError("SeedVR2 output dimensions must be positive multiples of 16")
+    validate_clip_size(1, params.height, params.width, frame_pixels, clip_pixels)
     frames = prompt["multi_modal_data"].get("video")
     source = None
     if isinstance(frames, list) and len(frames) == 1 and isinstance(frames[0], (str, Path)):
         frames = frames[0]
     if isinstance(frames, (str, Path)):
-        frames, source = read_video(frames)
+        frames, source = read_video(frames, frame_pixels, clip_pixels)
         if params.fps is not None and abs(params.fps - source.fps) > 1e-6:
             raise OmniClientError("SeedVR2 preserves source FPS; omit fps or match the input frame rate")
     if isinstance(frames, list) and frames and all(isinstance(frame, Image.Image) for frame in frames):
+        for frame in frames:
+            validate_clip_size(len(frames), frame.height, frame.width, frame_pixels, clip_pixels)
         frames = torch.stack([torch.from_numpy(np.array(frame.convert("RGB"))) for frame in frames])
         frames = frames.permute(0, 3, 1, 2).float() / 255
     if not isinstance(frames, torch.Tensor):
         raise OmniClientError("SeedVR2 video must be a TCHW RGB tensor or a list of PIL frames")
-    if params.height is None or params.width is None:
-        raise OmniClientError("SeedVR2 requires explicit output height and width")
+    if frames.ndim == 4:
+        validate_clip_size(frames.shape[0], frames.shape[2], frames.shape[3], frame_pixels, clip_pixels)
+        validate_clip_size(frames.shape[0], params.height, params.width, frame_pixels, clip_pixels)
     if (prompt.get("prompt") or "").strip():
         raise OmniClientError("SeedVR2 uses fixed checkpoint conditioning; prompt text is unsupported")
     if params.num_outputs_per_prompt != 1:
@@ -92,7 +114,23 @@ def prepare_request(request: OmniDiffusionRequest) -> OmniDiffusionRequest:
 def get_seedvr2_pre_process_func(
     od_config: OmniDiffusionConfig,
 ) -> Callable[[OmniDiffusionRequest], OmniDiffusionRequest]:
-    return prepare_request
+    frame_pixels, clip_pixels = _admission_budget(od_config)
+    return partial(prepare_request, frame_pixels=frame_pixels, clip_pixels=clip_pixels)
+
+
+def _seedvr2_post_process(output: dict[str, object]) -> dict[str, object]:
+    payload = output["payload"]
+    assert isinstance(payload, dict)
+    video = payload["video"]
+    assert isinstance(video, torch.Tensor)
+    frames = VideoProcessor(vae_scale_factor=8).postprocess_video(
+        video, output_type="np", do_denormalize=[False] * video.shape[2]
+    )
+    return {"payload": {**payload, "video": frames}, "metadata": output["metadata"]}
+
+
+def get_seedvr2_post_process_func(_od_config: OmniDiffusionConfig) -> Callable[[dict[str, object]], dict[str, object]]:
+    return _seedvr2_post_process
 
 
 def sample_noise(condition: torch.Tensor, generator: torch.Generator) -> torch.Tensor:
@@ -111,6 +149,7 @@ class SeedVR2Pipeline(nn.Module):
         validate_seedvr2_config(od_config)
         self.device = get_local_device()
         self.od_config = od_config
+        self.frame_pixels, self.clip_pixels = _admission_budget(od_config)
         self.transformer = SeedVR2NaDiT(**SEEDVR2_3B_CONFIG, use_varlen_kernel=False)
         self.vae = SeedVR2VAE()
         self.weights_sources = [
@@ -160,7 +199,7 @@ class SeedVR2Pipeline(nn.Module):
         for request in batch.requests:
             params = request.sampling_params
             if not isinstance(request.prepared_layout, SeedVR2Input):
-                prepare_request(request)
+                prepare_request(request, frame_pixels=self.frame_pixels, clip_pixels=self.clip_pixels)
             prepared = request.prepared_layout
             sample = prepared.sample.to(self.device, dtype=torch.float16)
             generator = params.generator
@@ -185,21 +224,11 @@ class SeedVR2Pipeline(nn.Module):
             restored = noise - velocity.reshape_as(noise)
             decoded = self.vae.decode((restored / 0.9152).permute(3, 0, 1, 2).unsqueeze(0))
             decoded = ((decoded[:, :, : prepared.frame_count].float() + 1) / 2).clamp(0, 1)
-            outputs.append(
-                DiffusionOutput(
-                    media=DiffusionMediaOutput(
-                        fps=prepared.source.fps if prepared.source is not None else params.fps,
-                        audio=prepared.source.audio if prepared.source is not None else None,
-                        audio_sample_rate=prepared.source.audio_sample_rate if prepared.source is not None else None,
-                        video=VideoMediaOutput(
-                            tensor=decoded,
-                            spec=VideoTensorSpec(
-                                layout=VideoTensorLayout.BCTHW,
-                                encoding=VideoTensorEncoding.NORMALIZED_FLOAT,
-                                value_range=VideoValueRange.ZERO_TO_ONE,
-                            ),
-                        ),
-                    )
-                )
-            )
+            payload: dict[str, object] = {"video": decoded}
+            fps = prepared.source.fps if prepared.source is not None else params.fps
+            metadata: dict[str, object] = {"video": {"fps": fps}} if fps is not None else {}
+            if prepared.source is not None and prepared.source.audio is not None:
+                payload["audio"] = prepared.source.audio
+                metadata["audio"] = {"sample_rate": prepared.source.audio_sample_rate}
+            outputs.append(DiffusionOutput(output={"payload": payload, "metadata": metadata}))
         return outputs
