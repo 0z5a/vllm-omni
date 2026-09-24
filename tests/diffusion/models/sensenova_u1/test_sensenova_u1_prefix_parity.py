@@ -26,8 +26,7 @@ import torch
 pytestmark = [pytest.mark.core_model, pytest.mark.diffusion, pytest.mark.cpu]
 
 _TRANSFORMER_SRC = (
-    Path(__file__).resolve().parents[4]
-    / "vllm_omni/diffusion/models/sensenova_u1/sensenova_u1_transformer.py"
+    Path(__file__).resolve().parents[4] / "vllm_omni/diffusion/models/sensenova_u1/sensenova_u1_transformer.py"
 )
 
 BRANCHES = ("cond", "uncond", "img_cond")
@@ -116,8 +115,13 @@ def canonical_block_hash(
 
 
 def prefix_block_hashes(
-    branch: str, token_ids, reusable_tokens: int, chunk_size: int,
-    *, model_epoch: int, tp_rank: int,
+    branch: str,
+    token_ids,
+    reusable_tokens: int,
+    chunk_size: int,
+    *,
+    model_epoch: int,
+    tp_rank: int,
 ) -> list[str]:
     """Ancestor-chained hashes for a reusable prefix, one per full block."""
     if reusable_tokens % chunk_size:
@@ -126,8 +130,13 @@ def prefix_block_hashes(
     parent = ""
     for block_index in range(reusable_tokens // chunk_size):
         parent = canonical_block_hash(
-            branch, token_ids, block_index, chunk_size,
-            model_epoch=model_epoch, tp_rank=tp_rank, parent_hash=parent,
+            branch,
+            token_ids,
+            block_index,
+            chunk_size,
+            model_epoch=model_epoch,
+            tp_rank=tp_rank,
+            parent_hash=parent,
         )
         hashes.append(parent)
     return hashes
@@ -154,8 +163,7 @@ class FakeKVPool:
     def publish(self, hashes, values) -> None:
         for block_index, h in enumerate(hashes):
             for off in range(self.chunk_size):
-                self._data[(h, block_index * self.chunk_size + off)] = \
-                    values[block_index * self.chunk_size + off]
+                self._data[(h, block_index * self.chunk_size + off)] = values[block_index * self.chunk_size + off]
 
     def serve(self, hashes) -> tuple[str, list[int]]:
         out: list[int] = []
@@ -192,8 +200,7 @@ def test_closure_matches_the_repo_mask_exhaustively():
             far_helper = farthest_forward_attention(ids)
             assert far_mask == far_helper, ids
             for m in range(ln + 1):
-                assert (all(far_mask[i] < m for i in range(m))
-                        == all(far_helper[i] < m for i in range(m)))
+                assert all(far_mask[i] < m for i in range(m)) == all(far_helper[i] < m for i in range(m))
                 checked += 1
     assert checked > 0
 
@@ -254,9 +261,7 @@ def test_full_hit_leaves_zero_suffix_but_a_boundary_decision():
 def test_ancestor_hash_separates_differing_prefixes():
     chunk = 16
     a = prefix_block_hashes("cond", list(range(64)), 64, chunk, model_epoch=1, tp_rank=0)
-    b = prefix_block_hashes(
-        "cond", [99] * 16 + list(range(16, 64)), 64, chunk, model_epoch=1, tp_rank=0
-    )
+    b = prefix_block_hashes("cond", [99] * 16 + list(range(16, 64)), 64, chunk, model_epoch=1, tp_rank=0)
     assert a[0] != b[0]
     assert all(x != y for x, y in zip(a, b))
 
@@ -264,10 +269,7 @@ def test_ancestor_hash_separates_differing_prefixes():
 def test_branches_never_share_a_prefix_identity():
     chunk = 16
     token_ids = list(range(64))
-    all_hashes = {
-        br: prefix_block_hashes(br, token_ids, 64, chunk, model_epoch=1, tp_rank=0)
-        for br in BRANCHES
-    }
+    all_hashes = {br: prefix_block_hashes(br, token_ids, 64, chunk, model_epoch=1, tp_rank=0) for br in BRANCHES}
     flat = [h for hs in all_hashes.values() for h in hs]
     assert len(set(flat)) == len(flat) == 12
     with pytest.raises(ValueError, match="unknown branch"):
@@ -278,10 +280,8 @@ def test_epoch_and_rank_are_part_of_the_identity():
     chunk = 16
     token_ids = list(range(64))
     base = prefix_block_hashes("cond", token_ids, 64, chunk, model_epoch=1, tp_rank=0)
-    assert base[0] != prefix_block_hashes(
-        "cond", token_ids, 64, chunk, model_epoch=2, tp_rank=0)[0]
-    assert base[0] != prefix_block_hashes(
-        "cond", token_ids, 64, chunk, model_epoch=1, tp_rank=1)[0]
+    assert base[0] != prefix_block_hashes("cond", token_ids, 64, chunk, model_epoch=2, tp_rank=0)[0]
+    assert base[0] != prefix_block_hashes("cond", token_ids, 64, chunk, model_epoch=1, tp_rank=1)[0]
 
 
 def test_evicting_a_published_block_must_miss_not_silently_hit():
@@ -296,9 +296,7 @@ def test_evicting_a_published_block_must_miss_not_silently_hit():
     assert pool.serve(hashes)[0] == "hit"
 
     pool.evict_blocks(1)  # drop the oldest published block
-    assert pool.serve(hashes)[0] == "miss", (
-        "a hit here would serve KV the window already evicted"
-    )
+    assert pool.serve(hashes)[0] == "miss", "a hit here would serve KV the window already evicted"
 
 
 def test_input_validation():

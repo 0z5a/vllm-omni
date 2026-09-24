@@ -21,10 +21,7 @@ import pytest
 
 pytestmark = [pytest.mark.core_model, pytest.mark.diffusion, pytest.mark.cpu]
 
-_MODULE_PATH = (
-    Path(__file__).resolve().parents[4]
-    / "vllm_omni/diffusion/models/sensenova_u1/prefix_identity.py"
-)
+_MODULE_PATH = Path(__file__).resolve().parents[4] / "vllm_omni/diffusion/models/sensenova_u1/prefix_identity.py"
 
 
 def _load():
@@ -90,8 +87,7 @@ def test_hashes_are_stable_across_processes():
         "print(m.canonical_block_hash(i,list(range(8)),0,4).hex())"
     )
     outs = {
-        subprocess.run([sys.executable, "-c", code], capture_output=True, text=True,
-                       check=True).stdout.strip()
+        subprocess.run([sys.executable, "-c", code], capture_output=True, text=True, check=True).stdout.strip()
         for _ in range(2)
     }
     assert len(outs) == 1, f"hash is not stable across processes: {outs}"
@@ -112,15 +108,15 @@ def test_same_inputs_give_same_hash():
 
 def test_branch_separates():
     ids = list(range(8))
-    h = {b: pi.canonical_block_hash(_ident(branch=b), ids, 0, BLOCK)
-         for b in ("cond", "uncond", "img_cond")}
+    h = {b: pi.canonical_block_hash(_ident(branch=b), ids, 0, BLOCK) for b in ("cond", "uncond", "img_cond")}
     assert len(set(h.values())) == 3
 
 
 def test_model_epoch_separates():
     ids = list(range(8))
-    assert (pi.canonical_block_hash(_ident(model_epoch=1), ids, 0, BLOCK)
-            != pi.canonical_block_hash(_ident(model_epoch=2), ids, 0, BLOCK))
+    assert pi.canonical_block_hash(_ident(model_epoch=1), ids, 0, BLOCK) != pi.canonical_block_hash(
+        _ident(model_epoch=2), ids, 0, BLOCK
+    )
 
 
 def test_rank_and_degree_separate():
@@ -140,8 +136,8 @@ def test_extra_identity_separates():
 
 def test_parent_hash_separates_shared_suffix():
     ids = list(range(16))
-    a = pi.canonical_block_hash(_ident(), ids, 1, BLOCK, parent_hash=b"anc-A")
-    b = pi.canonical_block_hash(_ident(), ids, 1, BLOCK, parent_hash=b"anc-B")
+    a = pi.canonical_block_hash(_ident(), ids, 1, BLOCK, parent_hash=b"ancestor-A")
+    b = pi.canonical_block_hash(_ident(), ids, 1, BLOCK, parent_hash=b"ancestor-B")
     assert a != b
 
 

@@ -160,10 +160,7 @@ def canonical_block_hash(
     start = block_index * block_size
     end = start + block_size
     if end > len(token_ids):
-        raise ValueError(
-            f"block {block_index} is not a full block of {len(token_ids)} tokens "
-            f"(needs {end})"
-        )
+        raise ValueError(f"block {block_index} is not a full block of {len(token_ids)} tokens (needs {end})")
     block = tuple(int(t) for t in token_ids[start:end])
     if parent_hash is None:
         parent_hash = b""
@@ -188,9 +185,7 @@ def prefix_block_hashes(
     if num_reusable_tokens < 0:
         raise ValueError(f"num_reusable_tokens must be non-negative, got {num_reusable_tokens}")
     if num_reusable_tokens % block_size:
-        raise ValueError(
-            f"num_reusable_tokens={num_reusable_tokens} is not a multiple of block_size={block_size}"
-        )
+        raise ValueError(f"num_reusable_tokens={num_reusable_tokens} is not a multiple of block_size={block_size}")
     hashes: list[bytes] = []
     parent: bytes | None = None
     for block_index in range(num_reusable_tokens // block_size):

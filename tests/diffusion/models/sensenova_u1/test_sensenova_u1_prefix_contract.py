@@ -37,8 +37,7 @@ pytestmark = [pytest.mark.core_model, pytest.mark.diffusion, pytest.mark.cpu]
 
 # tests/diffusion/models/sensenova_u1/<this file> -> repo root is 4 levels up
 _TRANSFORMER_SRC = (
-    Path(__file__).resolve().parents[4]
-    / "vllm_omni/diffusion/models/sensenova_u1/sensenova_u1_transformer.py"
+    Path(__file__).resolve().parents[4] / "vllm_omni/diffusion/models/sensenova_u1/sensenova_u1_transformer.py"
 )
 
 
@@ -138,8 +137,7 @@ def test_oracle_bounds_every_naive_aligned_prefix():
     for time_ids in cases:
         farthest = farthest_forward_attention(time_ids)
         oracle = longest_closed_aligned_prefix(time_ids, len(time_ids), block_size)
-        closed = [m for m in range(block_size, len(time_ids) + 1, block_size)
-                  if all(farthest[i] < m for i in range(m))]
+        closed = [m for m in range(block_size, len(time_ids) + 1, block_size) if all(farthest[i] < m for i in range(m))]
         assert oracle == (max(closed) if closed else 0), (time_ids, oracle, closed)
         if oracle:
             assert all(farthest[i] < oracle for i in range(oracle))

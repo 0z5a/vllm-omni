@@ -35,8 +35,7 @@ import torch
 pytestmark = [pytest.mark.core_model, pytest.mark.diffusion, pytest.mark.cpu]
 
 _TRANSFORMER_SRC = (
-    Path(__file__).resolve().parents[4]
-    / "vllm_omni/diffusion/models/sensenova_u1/sensenova_u1_transformer.py"
+    Path(__file__).resolve().parents[4] / "vllm_omni/diffusion/models/sensenova_u1/sensenova_u1_transformer.py"
 )
 
 
@@ -120,14 +119,14 @@ class FakeSchedulerKV:
 
     def hash_for(self, identity: tuple, block_index: int, token_ids) -> tuple:
         start = block_index * self.chunk_size
-        block = tuple(int(t) for t in token_ids[start:start + self.chunk_size])
+        block = tuple(int(t) for t in token_ids[start : start + self.chunk_size])
         if len(block) != self.chunk_size:
             raise ValueError("not a full block")
         return identity + (block_index, block)
 
     def fill(self, hash_list, values) -> list[tuple]:
         for i, h in enumerate(hash_list):
-            self._kv[h] = values[i * self.chunk_size:(i + 1) * self.chunk_size]
+            self._kv[h] = values[i * self.chunk_size : (i + 1) * self.chunk_size]
         return hash_list
 
     def lookup(self, hash_list):
@@ -186,8 +185,7 @@ def test_lengths_are_never_conflated(chunk):
     matched = 3 * chunk
     reused = reusable_prefix_tokens(ids, matched, chunk)
     assert reused == matched  # fully closed and aligned here
-    c = ReuseCounters(logical_prefix_tokens=len(ids), reused_tokens=reused,
-                      processed_tokens=len(ids))
+    c = ReuseCounters(logical_prefix_tokens=len(ids), reused_tokens=reused, processed_tokens=len(ids))
     assert c.reused_tokens == matched
     assert c.suffix_tokens == len(ids) - matched
     assert c.valid_kv_tokens == len(ids)
@@ -208,7 +206,7 @@ def test_counters_reject_inconsistent_inputs():
 
 def test_partial_hit_executes_only_the_suffix():
     chunk = 16
-    system = list(range(32))          # shared, request-invariant
+    system = list(range(32))  # shared, request-invariant
     user_a = list(range(100, 108))
     user_b = list(range(200, 208))
     a = system + user_a
@@ -278,7 +276,6 @@ def test_full_hit_does_not_double_append_on_recompute():
 
 
 def test_cut_inside_a_tied_image_block_retreats_or_misses():
-    chunk = 16
     # 9 text + an 8-token tied run (positions 10..17) + 6 text, per _get_thw_indexes
     t = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9] + [10] * 8 + [11, 12, 13, 14, 15, 16]
     assert len(t) == 24
@@ -374,10 +371,10 @@ def test_epoch_and_adapter_and_scale_invalidate():
     kv.fill(base, ids)
 
     for changed in (
-        ("cond", 2, 0, "und"),            # weight epoch
-        ("cond", 1, 1, "und"),            # tp rank
-        ("cond", 1, 0, "und+adapterB"),   # adapter identity
-        ("cond", 1, 0, "und", 0.5),       # adapter scale
+        ("cond", 2, 0, "und"),  # weight epoch
+        ("cond", 1, 1, "und"),  # tp rank
+        ("cond", 1, 0, "und+adapterB"),  # adapter identity
+        ("cond", 1, 0, "und", 0.5),  # adapter scale
     ):
         other = [kv.hash_for(changed, i, ids) for i in range(2)]
         assert kv.lookup(other) is None, changed
@@ -411,9 +408,7 @@ def test_mutating_request_does_not_corrupt_the_shared_prefix():
 
     # B appends its own suffix into request-owned storage, not the shared blocks
     b_suffix_hashes = [
-        kv.hash_for(("cond", 1, 0, "und"), 2, suffix_b + [0] * 0) if False else
-        ("suffix-owner-b", i)
-        for i in range(1)
+        kv.hash_for(("cond", 1, 0, "und"), 2, suffix_b + [0] * 0) if False else ("suffix-owner-b", i) for i in range(1)
     ]
     kv.fill(b_suffix_hashes, suffix_b)
 
@@ -468,8 +463,8 @@ def test_instanceof_sidecar_missing_means_no_full_hit():
     hidden_spans = {0: "present", 1: "evicted"}
     required = (0, 1)
     all_available = all(hidden_spans.get(s) == "present" for s in required)
-    assert kv.lookup(hashes) == ids          # KV is fine
-    assert not all_available                 # but the sidecar is not
+    assert kv.lookup(hashes) == ids  # KV is fine
+    assert not all_available  # but the sidecar is not
     # the decision must therefore not be reported as a full hit
     reported_full_hit = kv.lookup(hashes) is not None and all_available
     assert not reported_full_hit
