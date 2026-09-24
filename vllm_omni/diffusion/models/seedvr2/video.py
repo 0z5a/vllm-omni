@@ -13,7 +13,9 @@ import torch
 
 from vllm_omni.errors import OmniClientError
 
-MAX_FRAMES = 6
+# Bound per-frame decode bookkeeping; the padded clip-pixel budget is tighter
+# for normal video resolutions.
+MAX_FRAMES = 257
 MAX_FRAME_PIXELS = 848 * 480
 MAX_CLIP_PIXELS = 5 * MAX_FRAME_PIXELS
 MAX_SP4_FRAME_PIXELS = 2560 * 1472

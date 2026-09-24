@@ -55,6 +55,20 @@ To shard VAE activations across the same ranks, use:
 ```
 
 The VAE patch degree must match the window-SP degree.
+For a 16-frame 1280×720 input restored at its original size, use four GPUs,
+VAE tiling, and height sharding with both degrees set to four:
+
+```bash
+CUDA_VISIBLE_DEVICES=0,1,2,3 vllm serve "$MODEL_DIR" --omni \
+  --model-class-name SeedVR2Pipeline --dtype float16 --enforce-eager \
+  --vae-use-tiling --num-gpus 4 --distributed-executor-backend mp \
+  --stage-overrides '{"0":{"ulysses_degree":4,"vae_patch_parallel_size":4,"vae_parallel_mode":"spatial_shard_height"}}' \
+  --host 127.0.0.1 --port 8098
+```
+
+Request `size=1280x720` for this landscape input or `size=720x1280` for a
+portrait input of the same dimensions. Keep the requested output size equal to
+the input size when testing restoration without upscaling.
 
 The multipart API requires a prompt field; a single space supplies a blank
 prompt. Nonblank text is rejected. Omit `fps` to retain the source frame rate;
@@ -66,17 +80,21 @@ padded to nine and return six.
 
 ## Request admission
 
-The default 3B limit is six input frames, 848×480 pixels per input or output
-frame, and 2,035,200 pixels across the requested output clip. The frame and
-pixel budgets come from the five-frame 848×480 single-GPU run and the
-six-frame small-resolution run in the RTX 5090 results. With four-rank window
-SP, `vae_patch_parallel_size=4`, and VAE tiling, the per-frame limit rises to
-2560×1472 and the output-clip budget to 18,841,600 pixels, matching the
-validated five-frame SP4 request. The clip budget counts temporal padding
-(six input frames occupy nine internal frames); frame count is capped at six. The
-decoder checks declared duration, frame count and input dimensions when
-available, then enforces the limits as frames arrive. Requests outside these
-budgets return 400 before building the resized whole-clip tensor.
+The default 3B limit is 848×480 pixels per input or output frame and 2,035,200
+pixels across the requested output clip. With four-rank window SP,
+`vae_patch_parallel_size=4`, and VAE tiling, the per-frame limit rises to
+2560×1472 and the clip budget to 18,841,600 pixels. Both budgets count temporal
+padding to 4n+1 frames: the default admits up to five 848×480 frames or 93
+192×112 frames; the SP4 profile admits up to 45 848×480 frames or five
+2560×1472 frames. A 16-frame 1280×720 or 720×1280 clip pads to 17 frames and
+uses 15,667,200 of the SP4 clip's 18,841,600 pixels. Both orientations passed
+original-size HTTP restoration on four RTX 5090 GPUs with VAE tiling and height
+sharding. An independent 257-frame cap bounds per-frame decoder work for tiny
+inputs. The other longer combinations above are admission bounds, not completed
+GPU validation. The decoder checks
+declared duration, frame count, and input dimensions when available, then
+enforces the limits as frames arrive. Requests outside these budgets return 400
+before building the resized whole-clip tensor.
 
 ## Temporal and spatial VAE tiling
 

@@ -38,10 +38,12 @@ correction from external applications are separate execution semantics.
 
 RTX 5090 with 32 GiB per GPU, PCIe, one GPU for the default command or two/four
 for SP. Each GPU must fit a complete model copy and its activations. Host RAM
-must accommodate checkpoint staging per rank. Admission caps requests at six
-frames and a five-frame 848×480 output pixel budget by default. Only the
-validated SP4 configuration with VAE tiling and `vae_patch_parallel_size=4`
-admits up to five frames at 2560×1472. The model guide lists the exact limits.
+must accommodate checkpoint staging per rank. Admission uses a padded
+five-frame 848×480 output pixel budget by default, allowing longer clips at
+smaller resolutions, plus a 257-frame decoder-work cap. The validated SP4
+configuration with VAE tiling and `vae_patch_parallel_size=4` uses a padded
+five-frame 2560×1472 budget. The model guide lists exact bounds and which
+profiles have completed GPU validation.
 
 ## Software environment
 
@@ -68,6 +70,19 @@ For SP=2, expose two GPUs and replace the GPU count with:
 
 Use degree 4 and four visible GPUs for SP=4. Combine any feature-specific
 settings below into the same stage-overrides object; do not repeat that flag.
+The validated 16-frame 720p original-size profile is:
+
+```bash
+CUDA_VISIBLE_DEVICES=0,1,2,3 vllm serve "$MODEL_DIR" --omni \
+  --model-class-name SeedVR2Pipeline --dtype float16 --enforce-eager \
+  --vae-use-tiling --num-gpus 4 --distributed-executor-backend mp \
+  --stage-overrides '{"0":{"ulysses_degree":4,"vae_patch_parallel_size":4,"vae_parallel_mode":"spatial_shard_height"}}' \
+  --host 127.0.0.1 --port 8098
+```
+
+Use `size=1280x720` for a landscape 1280×720 input or `size=720x1280` for a
+portrait 720×1280 input. Both require 16 decoded source frames and retain the
+source frame rate; no upscaling is requested.
 
 ## Verification
 
@@ -90,6 +105,18 @@ FPS, timestamps, and audio against the input. Repeat the same seed and compare
 decoded frames; changing the seed should change the restored video. Inspect
 matching first/middle/last frames at the same display scale. AAC is re-encoded,
 so input/output audio packet hashes need not be identical.
+
+The released 3B checkpoint also passed these four-GPU SP4 HTTP cases with the
+configuration above. Each input had 16 frames at 24 FPS; the output retained
+the original size, 16 decoded frames, timestamps, and decodable audio. All four
+workers and the server exited normally after each run.
+
+| 1× input → output | Earlier six-frame admission | Revised HTTP result | Request time |
+| --- | --- | --- | ---: |
+| 1280×720, 16 frames → 1280×720 | Rejected | HTTP 200; media checks passed | 3.553 s |
+| 720×1280, 16 frames → 720×1280 | Rejected | HTTP 200; media checks passed | 3.388 s |
+
+These are single requests on a shared host, not performance comparisons.
 
 For transformer-only SP=1/2/4 parity, set `VLLM_TEST_SEEDVR2_MODEL` to the 3B
 safetensors file and run:
