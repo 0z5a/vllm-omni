@@ -131,14 +131,15 @@ parallel outputs are numerically close rather than bitwise identical.
 | Timing | Constant frame rate, increasing PTS; normalize the video origin to zero |
 | Audio | First mono/stereo track, aligned by source PTS, cropped to the video interval, re-encoded as AAC |
 | Randomness | Per-request generator; preserve reference latent strides when sampling noise |
-| Sequence parallelism | Native engine SP1/2/4 correctness verified on five-frame L20 cases |
+| Sequence parallelism | SP1 whole-window path; SP2/4 head-sharded Ulysses window attention |
 | VAE placement | Replicated by default; optional height sharding on the window-SP group |
 | Unsupported | VFR, multichannel audio, 7B, other sampling schedules, quantization, cache acceleration, VAE width sharding / batch slicing, CPU offload, CFG/TP/PP parallelism, compiled execution, LoRA |
 
 Unsupported engine modes are rejected before process hooks and worker creation.
-`ulysses_degree` selects the model-owned SP group. This branch assigns whole
-windows to ranks; the specialized head-sharded path is a dependent change.
-Ring and AllGather-KV are unsupported.
+`ulysses_degree` selects the model-owned SP group. At SP>1, the DiT keeps MLP
+rows sharded by sequence and exchanges only attention QKV into head shards.
+Every head shard sees the complete regular or shifted window layout. Ring and
+AllGather-KV are unsupported.
 
 The practical P0 reference's five-frame batching, overlap, LAB correction, and
 CPU swapping are separate execution semantics. Temporal tiling and VAE patch
