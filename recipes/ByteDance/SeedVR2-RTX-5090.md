@@ -168,3 +168,28 @@ chunk boundary as well as five/six-frame clips, and inspect frames adjacent to
 chunk boundaries. Reduced peak memory does not by itself establish lower latency.
 High-resolution clips can still exceed device capacity; validate the intended
 frame count and output size on the target GPUs.
+
+### Short-clip VAE latency
+
+For up to 24 source frames and at most 2,060,800 padded model-input pixels,
+add `"additional_config":{"seedvr2_vae_short_clip":true}` to the SP4
+`--stage-overrides` object above. Keep `--vae-use-tiling` enabled. This uses
+24-frame encoder and seven-latent-frame decoder chunks; larger clips keep the
+default 8/2 chunks. It is an opt-in because FP16 rounding changes the pixels.
+
+Four RTX 5090 GPUs, original-size `/v1/videos/sync`, one Euler step, seed 7723,
+24 FPS, warm-request medians on the same host:
+
+| Input → output | Frames | Default | Short-clip VAE | Speedup | Peak GPU memory, default → opt-in | Output vs default |
+| --- | ---: | ---: | ---: | ---: | ---: | --- |
+| 192×320 → 192×320 | 16 | 0.780 s | 0.705 s | 1.11× | 8.86 → 9.46 GiB | 38.99 dB PSNR, 0.973 SSIM |
+| 192×320 → 192×320 | 24 | 1.011 s | 0.864 s | 1.17× | 8.87 → 10.02 GiB | 38.39 dB PSNR, 0.968 SSIM |
+| 224×368 → 224×368 | 24 | 1.047 s | 0.970 s | 1.08× | 9.09 → 10.74 GiB | 38.54 dB PSNR, 0.969 SSIM |
+
+The 24-frame 192×320 default has two interleaved server runs and four warm
+requests; each opt-in row has two warm requests on the exact implementation.
+An earlier two-server interleaved run of the same 24/7 VAE kernels measured
+0.871 s versus the 1.011 s default, with identical opt-in output hashes.
+Each request returned the original frame count, size, FPS, timestamps and
+decodable audio, with normal worker and server exit. The high-resolution
+768×1344 request stayed on 8/2 and reproduced the default output hash.
