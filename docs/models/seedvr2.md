@@ -78,6 +78,12 @@ Grouped SDPA row indices are built once per window layout and reused across
 layers. This removes per-layer GPU-to-CPU length reads; packed-varlen attention
 is a separate opt-in path.
 
+Experimental W8A8 projection quantization can be enabled with
+`additional_config.seedvr2_activation_quantization` set to `fp8` or `int8`.
+Video attention/MLP projections use quantized weights and dynamic activations;
+independent text projections stay FP16. This remains opt-in pending stable
+latency and quality validation.
+
 The multipart API requires a prompt field; a single space supplies a blank
 prompt. Nonblank text is rejected. Omit `fps` to retain the source frame rate;
 an explicit rate must match the source. Output dimensions are explicit multiples
@@ -141,7 +147,7 @@ parallel outputs are numerically close rather than bitwise identical.
 | Randomness | Per-request generator; preserve reference latent strides when sampling noise |
 | Sequence parallelism | SP1 whole-window path; SP2/4 head-sharded Ulysses window attention |
 | VAE placement | Replicated by default; optional height sharding on the window-SP group |
-| Unsupported | VFR, multichannel audio, 7B, other sampling schedules, quantization, cache acceleration, VAE width sharding / batch slicing, CPU offload, CFG/TP/PP parallelism, compiled execution, LoRA |
+| Unsupported | VFR, multichannel audio, 7B, other sampling schedules, cache acceleration, VAE width sharding / batch slicing, CPU offload, CFG/TP/PP parallelism, compiled execution, LoRA |
 
 Unsupported engine modes are rejected before process hooks and worker creation.
 `ulysses_degree` selects the model-owned SP group. At SP>1, the DiT keeps MLP

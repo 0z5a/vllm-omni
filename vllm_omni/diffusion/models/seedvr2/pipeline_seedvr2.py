@@ -149,6 +149,7 @@ class SeedVR2Pipeline(nn.Module):
         validate_seedvr2_config(od_config)
         self.device = get_local_device()
         self.od_config = od_config
+        self._activation_quantization = od_config.additional_config.get("seedvr2_activation_quantization")
         self.frame_pixels, self.clip_pixels = _admission_budget(od_config)
         self.transformer = SeedVR2NaDiT(**SEEDVR2_3B_CONFIG, use_varlen_kernel=False)
         self.vae = SeedVR2VAE()
@@ -195,6 +196,11 @@ class SeedVR2Pipeline(nn.Module):
 
     @torch.inference_mode()
     def forward(self, batch: DiffusionRequestBatch) -> list[DiffusionOutput]:
+        if self._activation_quantization is not None:
+            from .quantization import quantize_video_projections
+
+            quantize_video_projections(self.transformer, self._activation_quantization)
+            self._activation_quantization = None
         outputs = []
         for request in batch.requests:
             params = request.sampling_params
