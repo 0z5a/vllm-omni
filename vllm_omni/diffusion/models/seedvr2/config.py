@@ -9,6 +9,9 @@ from vllm_omni.diffusion.models.seedvr2.parallel import validate_seedvr2_paralle
 
 
 def validate_seedvr2_config(config: OmniDiffusionConfig) -> None:
+    mode = config.additional_config.get("seedvr2_activation_quantization")
+    if mode not in (None, "fp8", "int8"):
+        raise ValueError("seedvr2_activation_quantization must be fp8 or int8")
     if config.dtype != torch.float16:
         raise ValueError("SeedVR2 3B requires dtype=float16")
     if not config.enforce_eager:
