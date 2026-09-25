@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: Apache-2.0
 # SPDX-FileCopyrightText: Copyright contributors to the vLLM-Omni project
-"""Full-checkpoint DiT parity and native video restoration.
+"""Full-checkpoint DiT parity, native video restoration, and the long route.
 
 Set VLLM_TEST_SEEDVR2_MODEL to the released 3B FP16 safetensors file.
 Set VLLM_TEST_SEEDVR2_MODEL_DIR to the directory containing the DiT, VAE,
@@ -15,6 +15,8 @@ import os
 import socket
 import subprocess
 import sys
+import time
+from fractions import Fraction
 from pathlib import Path
 
 import pytest
@@ -22,6 +24,10 @@ import pytest
 pytestmark = [pytest.mark.local_model, pytest.mark.cuda, pytest.mark.diffusion, pytest.mark.parallel]
 MODEL_ENV = "VLLM_TEST_SEEDVR2_MODEL"
 MODEL_DIR_ENV = "VLLM_TEST_SEEDVR2_MODEL_DIR"
+# Two model windows with one four-frame seam, at the smallest legal frame size.
+LONG_FRAMES = 20
+LONG_SIZE = 64
+FPS = 24
 
 
 @pytest.mark.skipif(not os.environ.get(MODEL_ENV), reason=f"set {MODEL_ENV} to an authorized 3B checkpoint path")
@@ -110,6 +116,136 @@ def test_seedvr2_native_video_e2e() -> None:
     restored = np.asarray(output[0].images[0])
     assert restored.shape == (1, 5, 128, 224, 3)
     assert np.isfinite(restored).all()
+
+
+def _write_source(path: Path, frames: int) -> None:
+    """A constant-rate source with audio, which the route requires."""
+    import imageio_ffmpeg
+
+    subprocess.run(
+        [
+            imageio_ffmpeg.get_ffmpeg_exe(),
+            "-nostdin",
+            "-y",
+            "-hide_banner",
+            "-loglevel",
+            "error",
+            "-f",
+            "lavfi",
+            "-i",
+            f"testsrc=size={LONG_SIZE}x{LONG_SIZE}:rate={FPS}",
+            "-f",
+            "lavfi",
+            "-i",
+            "sine=frequency=440",
+            # The generators are endless, so bound the video by frame count and
+            # the audio by a slightly longer wall time.
+            "-frames:v",
+            str(frames),
+            "-t",
+            str((frames + 1) / FPS),
+            "-c:v",
+            "libx264",
+            "-pix_fmt",
+            "yuv420p",
+            "-c:a",
+            "aac",
+            str(path),
+        ],
+        check=True,
+    )
+
+
+def _await_status(base: str, job_id: str, timeout: float) -> dict:
+    """Poll until the job leaves the queued/running states."""
+    import requests
+
+    deadline = time.monotonic() + timeout
+    while time.monotonic() < deadline:
+        record = requests.get(f"{base}/{job_id}", timeout=30).json()
+        if record["status"] not in {"queued", "running"}:
+            return record
+        time.sleep(2)
+    raise AssertionError(f"SeedVR2 long-video job stayed {record['status']} for {timeout}s")
+
+
+@pytest.mark.skipif(not os.environ.get(MODEL_DIR_ENV), reason=f"set {MODEL_DIR_ENV} to an authorized model directory")
+def test_seedvr2_long_video_route_e2e(tmp_path: Path) -> None:
+    """Restore a clip spanning two model windows, then cancel a longer job."""
+    import av
+    import requests
+
+    from tests.helpers.runtime import OmniServer
+    from vllm_omni.entrypoints.openai.video.seedvr2_long import MAX_FRAMES
+
+    model_dir = Path(os.environ[MODEL_DIR_ENV]).resolve()
+    source = tmp_path / "input.mp4"
+    _write_source(source, LONG_FRAMES)
+    server = OmniServer(
+        model=str(model_dir),
+        serve_args=[
+            "--model-class-name",
+            "SeedVR2Pipeline",
+            "--dtype",
+            "float16",
+            "--enforce-eager",
+            "--num-gpus",
+            "1",
+            "--api-server-count",
+            "1",
+        ],
+        env_dict={"VLLM_OMNI_SEEDVR2_LONG_OUTPUT_DIR": str(tmp_path / "jobs")},
+    )
+
+    with server:
+        base = f"http://{server.host}:{server.port}/v1/seedvr2/restore-long"
+
+        def submit(**overrides: str) -> requests.Response:
+            with source.open("rb") as upload:
+                return requests.post(
+                    base,
+                    data={
+                        "prompt": " ",
+                        "size": f"{LONG_SIZE}x{LONG_SIZE}",
+                        "num_frames": str(LONG_FRAMES),
+                        "seed": "7723",
+                        **overrides,
+                    },
+                    files={"input_references": ("input.mp4", upload, "video/mp4")},
+                    timeout=120,
+                )
+
+        assert submit(num_frames=str(MAX_FRAMES + 1)).status_code == 400
+
+        accepted = submit()
+        assert accepted.status_code == 202, accepted.text
+        job_id = accepted.json()["id"]
+        record = _await_status(base, job_id, timeout=900)
+        assert record["status"] == "completed", record["error"]
+        assert record["frames"] == LONG_FRAMES
+
+        restored = tmp_path / "restored.mp4"
+        content = requests.get(f"{base}/{job_id}/content", timeout=300)
+        assert content.status_code == 200
+        restored.write_bytes(content.content)
+        with av.open(str(restored)) as container:
+            video = container.streams.video[0]
+            timestamps = [frame.pts * frame.time_base for frame in container.decode(video=0)]
+            assert (video.width, video.height) == (LONG_SIZE, LONG_SIZE)
+            assert video.average_rate == Fraction(FPS)
+            assert timestamps == [Fraction(index, FPS) for index in range(LONG_FRAMES)]
+            assert container.streams.audio, "the route must carry the source audio through"
+
+        # Many windows, so the cancel lands well before the job could finish.
+        running = submit(num_frames="600", loop_input="true")
+        assert running.status_code == 202, running.text
+        cancelled_id = running.json()["id"]
+        assert submit().status_code == 409, "the route runs one job per server"
+        assert requests.delete(f"{base}/{cancelled_id}", timeout=30).status_code == 202
+        settled = _await_status(base, cancelled_id, timeout=900)
+        assert settled["status"] == "cancelled", settled
+        assert settled["frames"] < 600
+        assert requests.get(f"{base}/{cancelled_id}/content", timeout=30).status_code == 404
 
 
 def _run_rank(output_dir: Path) -> None:

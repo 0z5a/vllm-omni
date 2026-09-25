@@ -2,6 +2,7 @@
 # SPDX-FileCopyrightText: Copyright contributors to the vLLM-Omni project
 """Decode restoration inputs before scheduler admission."""
 
+import functools
 from collections.abc import Iterator
 from dataclasses import dataclass
 from fractions import Fraction
@@ -11,20 +12,95 @@ import av
 import numpy as np
 import torch
 
+from vllm_omni.diffusion import envs
 from vllm_omni.errors import OmniClientError
 
 # Bound per-frame decode bookkeeping; the padded clip-pixel budget is tighter
 # for normal video resolutions.
-MAX_FRAMES = 257
 MAX_FRAME_PIXELS = 848 * 480
 MAX_CLIP_PIXELS = 5 * MAX_FRAME_PIXELS
-MAX_SP4_FRAME_PIXELS = 2560 * 1472
-MAX_SP4_CLIP_PIXELS = 5 * MAX_SP4_FRAME_PIXELS
+
+
+def max_frames() -> int:
+    """Decoder-work frame cap, shared by every serving profile."""
+    return envs.VLLM_OMNI_SEEDVR2_MAX_FRAMES
+
+
+# The sharded clip budget validated on the smallest qualified device (32 GB, SP4):
+# five 2560x1472 frames.
+CALIBRATED_SHARDED_CLIP_PIXELS = 5 * 2560 * 1472
+# The largest clip run through the forward at SP4 on a 268 GiB B300 (513 frames
+# at 1536x2688, 55.5 GiB peak activations). Past it the DiT's fp32 RoPE
+# intermediates and allocator fragmentation outgrow the model below, so the
+# scaled budget stops here. It also keeps one channel of a clip under 2**31
+# elements.
+VALIDATED_SHARDED_CLIP_PIXELS = 513 * 1536 * 2688
+# Peak activation bytes per rank of one sharded forward at SP4, the smallest
+# sharded degree (more ranks need less). Measured on B300 from 5 to 1,921 frames
+# at 768x1344, 2560x1472 and 1536x2688, weights excluded:
+#   max(ENCODER * frame_pixels * min(frames, 9) + CLIP * clip_pixels,
+#       DECODED * clip_pixels)
+# The VAE encoder's first temporal chunk (up to nine frames) peaks for short
+# clips; the whole-clip fp16 input and gathered decode peak for long ones.
+ENCODER_CHUNK_FRAMES = 9
+ENCODER_BYTES_PER_PIXEL = 1140
+CLIP_BYTES_PER_PIXEL = 8.5
+DECODED_BYTES_PER_PIXEL = 28
+WEIGHT_BYTES = 7 * 1024**3
+# Room for the CUDA context and communicator buffers, then for allocator
+# fragmentation, which reached 37% of the allocated activations near OOM.
+USABLE_MEMORY_FRACTION = 0.85
+FRAGMENTATION = 1.37
+
+
+@functools.cache
+def _device_memory() -> int | None:
+    """Smallest total memory among the visible accelerators, if it can be read."""
+    from vllm_omni.platforms import current_omni_platform
+
+    try:
+        count = torch.accelerator.device_count()
+        return min(int(current_omni_platform.get_device_total_memory(index)) for index in range(count)) or None
+    except (AttributeError, NotImplementedError, RuntimeError, ValueError):
+        return None
+
+
+def scaled_clip_pixels(frame_pixels: int, device_memory: int | None) -> int:
+    """Largest padded clip the memory model admits on ``device_memory``.
+
+    The result never falls below the calibrated budget or rises above the
+    validated one. The worst case for a clip budget is a clip of full-size
+    frames, so the model is evaluated at ``frame_pixels``; smaller frames only
+    need less.
+    """
+    if device_memory is None:
+        return CALIBRATED_SHARDED_CLIP_PIXELS
+    budget = (device_memory * USABLE_MEMORY_FRACTION - WEIGHT_BYTES) / FRAGMENTATION
+    chunk = ENCODER_CHUNK_FRAMES * frame_pixels
+    clip = budget / (ENCODER_BYTES_PER_PIXEL + CLIP_BYTES_PER_PIXEL)
+    if clip > chunk:
+        clip = min(
+            (budget - ENCODER_BYTES_PER_PIXEL * chunk) / CLIP_BYTES_PER_PIXEL,
+            budget / DECODED_BYTES_PER_PIXEL,
+        )
+    return min(max(CALIBRATED_SHARDED_CLIP_PIXELS, int(clip)), VALIDATED_SHARDED_CLIP_PIXELS)
+
+
+def sharded_budget() -> tuple[int, int]:
+    """Per-frame and padded-clip budgets for the VAE-sharded serving profile.
+
+    An unset clip budget scales with the smallest visible device's memory.
+    """
+    frame_pixels = envs.VLLM_OMNI_SEEDVR2_SHARDED_FRAME_PIXELS
+    clip_pixels = envs.VLLM_OMNI_SEEDVR2_SHARDED_CLIP_PIXELS
+    if clip_pixels is None:
+        clip_pixels = scaled_clip_pixels(frame_pixels, _device_memory())
+    return frame_pixels, clip_pixels
 
 
 def validate_clip_size(frame_count: int, height: int, width: int, frame_pixels: int, clip_pixels: int) -> None:
     padded_frames = frame_count + (1 - frame_count) % 4
-    if frame_count > MAX_FRAMES or height * width > frame_pixels or padded_frames * height * width > clip_pixels:
+    if frame_count > max_frames() or height * width > frame_pixels or padded_frames * height * width > clip_pixels:
         raise OmniClientError("SeedVR2 clip exceeds the configured frame or pixel budget")
 
 
@@ -58,7 +134,7 @@ def _read_video(path: str | Path, frame_pixels: int, clip_pixels: int) -> tuple[
         if height > 0 and width > 0:
             validate_clip_size(max(1, stream.frames), height, width, frame_pixels, clip_pixels)
         if stream.duration is not None and stream.time_base is not None:
-            if stream.duration * stream.time_base * rate > MAX_FRAMES:
+            if stream.duration * stream.time_base * rate > max_frames():
                 raise OmniClientError("SeedVR2 input exceeds the maximum duration")
         frames = []
         pts = []
@@ -106,7 +182,9 @@ def _read_video(path: str | Path, frame_pixels: int, clip_pixels: int) -> tuple[
                 if stop > start:
                     waveform[:, start:stop] = chunk[:, start - offset : stop - offset]
             audio = torch.from_numpy(waveform).unsqueeze(0)
-    return torch.stack(frames).permute(0, 3, 1, 2).float() / 255, SourceVideo(
+    # Frames stay uint8 THWC: the device converts them, so the host never builds
+    # (or ships to every rank) a float copy four times the size.
+    return torch.stack(frames), SourceVideo(
         float(rate),
         tuple(pts),
         time_base,

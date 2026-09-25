@@ -12,8 +12,8 @@
 ## When to use this recipe
 
 Run short, constant-frame-rate videos with the native SeedVR2 pipeline. This
-recipe covers the whole-clip path. Long-video batching, overlap, and color
-correction from external applications are separate execution semantics.
+recipe covers the whole-clip path and the separate long-video route. Color
+correction from external applications is a separate execution semantic.
 
 ## Supported model contract
 
@@ -42,8 +42,12 @@ must accommodate checkpoint staging per rank. Admission uses a padded
 five-frame 848×480 output pixel budget by default, allowing longer clips at
 smaller resolutions, plus a 257-frame decoder-work cap. The validated SP4
 configuration with VAE tiling and `vae_patch_parallel_size=4` uses a padded
-five-frame 2560×1472 budget. The model guide lists exact bounds and which
-profiles have completed GPU validation.
+five-frame 2560×1472 budget, as does any higher matched degree. On devices
+with more memory the clip budget grows automatically; the other caps are raised
+through `VLLM_OMNI_SEEDVR2_SHARDED_FRAME_PIXELS` and
+`VLLM_OMNI_SEEDVR2_MAX_FRAMES`, and `VLLM_OMNI_SEEDVR2_SHARDED_CLIP_PIXELS`
+overrides the clip budget. The model guide lists
+exact bounds and which profiles have completed GPU validation.
 
 ## Software environment
 
@@ -118,12 +122,46 @@ workers and the server exited normally after each run.
 
 These are single requests on a shared host, not performance comparisons.
 
+### One long-video request
+
+For a 24 FPS source, the long route can restore up to 7,200 frames at
+768×1344. Use the SP4/VAE height-sharding command above, serve with
+`--api-server-count 1`, and set a persistent
+`VLLM_OMNI_SEEDVR2_LONG_OUTPUT_DIR` before starting. If the source is shorter
+than 300 seconds, `loop_input=true` repeats its frames and audio. The service
+runs the longest model windows the clip budget admits, with four-frame overlap,
+and writes one MP4;
+it does not concatenate separate video files. Download the result within
+`VLLM_OMNI_SEEDVR2_LONG_JOB_TTL_SECONDS`, after which the job directory is
+swept; `DELETE` on the job URL stops a run at the next window boundary.
+
+```bash
+curl --fail-with-body http://127.0.0.1:8098/v1/seedvr2/restore-long \
+  -F 'input_references=@input.mp4;type=video/mp4' \
+  -F 'prompt= ' -F 'size=768x1344' -F 'num_frames=7200' \
+  -F 'loop_input=true' -F 'seed=7723' -F 'color_correction_method=lab'
+# Use the returned id to poll /v1/seedvr2/restore-long/{id};
+# download /v1/seedvr2/restore-long/{id}/content when completed.
+```
+
+The input must have constant 24 FPS timestamps starting at zero. Only one job
+can run per API server, and `--api-server-count` must be one. The existing
+whole-clip `/v1/videos/sync` limits remain in force. Full 7,200-frame GPU
+validation is in progress; use this route only with a memory-checked SP4
+deployment.
+
 For transformer-only SP=1/2/4 parity, set `VLLM_TEST_SEEDVR2_MODEL` to the 3B
 safetensors file and run:
 
 ```bash
 python -m pytest -o addopts='' -v tests/diffusion/models/seedvr2/test_seedvr2_e2e.py
 ```
+
+The same file covers the long route end to end. Set
+`VLLM_TEST_SEEDVR2_MODEL_DIR` to the model directory; the test starts a
+single-GPU server, restores a 20-frame clip spanning two model windows, checks
+the geometry, frame rate, timestamps and audio of the download, and then
+cancels a longer job.
 
 This checkpoint-gated test does not validate the HTTP server or an optional
 optimization. Feature validation must use its enabled configuration, full model
@@ -137,6 +175,7 @@ outputs, and the actual backend selected by the worker.
 | CPU offload, LoRA, compiled execution, CFG/TP/PP | Unsupported |
 | VFR or multichannel audio | Unsupported |
 | VAE temporal/spatial tiling | Available with `--vae-use-tiling` |
+| [Colour correction](../../docs/models/seedvr2.md) | On by default; `color_correction_method=lab\|wavelet\|adain\|none` |
 | Quantization | Separate opt-in feature |
 
 ## Measurement scope
