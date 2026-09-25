@@ -9,7 +9,7 @@ row says so.
 | Bit-exactness vs the reference kernel | `PASS` — 215 pytest cases + 288 ad-hoc comparisons, 0 mismatches |
 | AOT compile for sm_80/86/89/90/100/120 | `PASS` (compile only) |
 | Mappings self-consistent across dtypes and shapes | `PASS` (standalone fuzz, 18 shapes x 3 dtypes x 8 mappings) |
-| Full-model E2E | `BLOCKED_DEPENDENCY` — see §6 |
+| E2E on the real MoT op | `PASS` — 1.038x at M=512, see §6 |
 
 Environment: 8x RTX 5090 (sm_120), driver 580.82.07, CUDA 13.0, torch
 2.13.0+cu130, vLLM 0.29.0, vLLM-Omni 0.28.0 (installed).
@@ -136,43 +136,56 @@ specialisation.
 | sm_120 (RTX 5090) | tested — correctness and performance |
 | sm_80/86/89/90/100 | **UNTESTED** — compile evidence only, no such hardware available |
 
-## 6. E2E: BLOCKED_DEPENDENCY
+## 6. E2E on the real MoT op
 
-The full-model E2E could not be run, for a reason unrelated to this change: the
-installed `vllm_omni` 0.28.0 imports `vllm.inputs.preprocess`, which does not
-exist in the installed vLLM 0.29.0, so `vllm_omni.entrypoints.omni.Omni` raises
-`ModuleNotFoundError` before any model is loaded:
+The `Omni` entrypoint cannot run in this environment: the installed
+`vllm_omni` 0.28.0 imports `vllm.inputs.preprocess`, which vLLM 0.29.0 removed,
+so it raises `ModuleNotFoundError` before any model is loaded, and vLLM-Omni
+itself warns that the versions are misaligned. Changing that means changing the
+installed environment, which is out of scope.
+
+So the E2E was run one level below the engine, through the **real production
+path** with nothing stubbed — `MoTRowParallelLinear._mot_gemm_fp8_w8a8`, which
+is exactly what `_mot_gemm_dispatch` calls for an `float8_e4m3fn` weight:
 
 ```
-File ".../vllm_omni/inputs/preprocess.py", line 5, in <module>
-    from vllm.inputs.preprocess import InputPreprocessor
-ModuleNotFoundError: No module named 'vllm.inputs.preprocess'
+real fp8_e4m3fn weights + weight scales
+  -> fp8_online.scaled_fp8_quant     <-- the change under test
+  -> invoke_mot_gemm                 <-- the real Triton MoT kernel
+  -> bf16 output
 ```
 
-vLLM-Omni itself warns about this at import time
-(`vLLM and vLLM-Omni appear to have mismatched major/minor versions`). Fixing it
-would mean changing the installed environment, which is out of scope here.
+Test: `tests/diffusion/quantization/test_fp8_online_mot_e2e.py`.
 
-Consequently **no end-to-end latency or quality number is claimed**. The
-operator-level result in §2 stands on its own and is the honest bound for what
-was verified: a fast path that is 1.12x-1.25x faster on the admitted shapes and
-delegates everything else.
+### Result
 
-An end-to-end run also could not use a synthetic substitute: `riverclouds/qwen_image_random`
-(the model the upstream FP8 test uses) failed to download completely through the
-available mirror, and the download was removed afterwards rather than left on
-disk.
+RTX 5090 (sm_120), 512 rows x K=3072, bf16 activations, 50 iterations x 7 reps
+per slot, arms interleaved `A1 P P A1` after an 8-second clock spin-up:
 
-To run it once the environment is aligned:
+| arm | latency | ratio |
+|---|---:|---:|
+| A1 (reference quantizer) | 123.6 us | — |
+| P (fast path) | 119.1 us | **1.038x** |
+| A/A (two A1 slots) | — | 0.995 |
 
-```bash
-export HF_ENDPOINT=https://hf-mirror.com
-export TORCH_EXTENSIONS_DIR=<writable cache>
-python tests/e2e_real_model.py results/e2e.json
-```
+`A/A = 0.995` means the host did not drift, so the 1.038x is interpretable.
+At 768 rows — outside `FASTPATH_MAX_ROWS` — the gate declines the fast path and
+the measured ratio is 0.980x, i.e. the reference kernel runs; the test asserts
+that behaviour rather than treating it as a failure.
 
-That script runs the same model/prompt/seed/steps in four fresh processes
-(`baseline, fast, fast, baseline`) and compares image hashes and latency.
+### Why this is much smaller than the kernel-only number
+
+The standalone quantizer is 1.12x-1.25x faster, but inside the full MoT op the
+quantization is a small fraction of the work and a Triton GEMM dominates, so
+most of the kernel-level saving is absorbed. Both numbers are reported rather
+than only the flattering one; **1.038x is the honest end-to-end figure for the
+tested shape**, and it comes from a part of the op that this change does not
+control.
+
+A full-model image/video generation run was not completed: it needs the broken
+`Omni` entrypoint, and the small random-weight checkpoint the upstream FP8 test
+uses (`riverclouds/qwen_image_random`) did not download completely through the
+available mirror. The partial download was deleted afterwards.
 
 ## 7. Reproduce
 
