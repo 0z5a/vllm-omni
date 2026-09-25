@@ -33,6 +33,10 @@ from vllm.model_executor.models.utils import AutoWeightsLoader
 
 from vllm_omni.diffusion.data import DiffusionOutput, OmniDiffusionConfig
 from vllm_omni.diffusion.distributed.autoencoders.autoencoder_kl import DistributedAutoencoderKL
+from vllm_omni.diffusion.distributed.parallel_state import (
+    get_cfg_group,
+    get_classifier_free_guidance_rank,
+)
 from vllm_omni.diffusion.distributed.utils import get_local_device
 from vllm_omni.diffusion.model_loader.diffusers_loader import DiffusersPipelineLoader
 from vllm_omni.diffusion.model_loader.hub_prefetch import prefetch_subfolders
@@ -163,6 +167,7 @@ def retrieve_timesteps(
 
 class ZImagePipeline(nn.Module, DiffusionPipelineProfilerMixin, SupportsComponentDiscovery):
     supports_request_batch = False
+    cfg_parallel_size = 1
 
     _dit_modules: ClassVar[list[str]] = ["transformer"]
     _encoder_modules: ClassVar[list[str]] = ["text_encoder"]
@@ -582,6 +587,11 @@ class ZImagePipeline(nn.Module, DiffusionPipelineProfilerMixin, SupportsComponen
 
         actual_batch_size = batch_size * num_images_per_prompt
 
+        cfg_group = get_cfg_group() if self.cfg_parallel_size == 2 else None
+        cfg_rank = get_classifier_free_guidance_rank() if cfg_group is not None else 0
+        if cfg_group is not None:
+            cfg_group.broadcast(latents, src=0)
+
         # 5. Prepare timesteps
         if image is None:
             # for both [B, C, H, W] and multi-layer/frame [B, C, F, H, W]
@@ -643,7 +653,11 @@ class ZImagePipeline(nn.Module, DiffusionPipelineProfilerMixin, SupportsComponen
             apply_cfg = self.do_classifier_free_guidance and current_guidance_scale > 0
             latents_typed = latents.to(self.od_config.dtype)
 
-            if apply_cfg:
+            if apply_cfg and cfg_group is not None:
+                latent_model_input = latents_typed
+                prompt_embeds_model_input = prompt_embeds if cfg_rank == 0 else negative_prompt_embeds
+                timestep_model_input = timestep
+            elif apply_cfg:
                 repeat_dims = (2,) + (1,) * (latents_typed.ndim - 1)
                 latent_model_input = latents_typed.repeat(*repeat_dims)
                 prompt_embeds_model_input = prompt_embeds + negative_prompt_embeds
@@ -666,11 +680,15 @@ class ZImagePipeline(nn.Module, DiffusionPipelineProfilerMixin, SupportsComponen
                 prompt_embeds_model_input,
             )[0]
 
-            if apply_cfg:
+            if apply_cfg and cfg_group is not None:
+                local_out = torch.stack(model_out_list, dim=0)
+                pos_out, neg_out = cfg_group.all_gather(local_out, separate_tensors=True)
+            elif apply_cfg:
                 # Perform CFG
                 pos_out = model_out_list[:actual_batch_size]
                 neg_out = model_out_list[actual_batch_size:]
 
+            if apply_cfg:
                 noise_pred = []
                 for j in range(actual_batch_size):
                     pos = pos_out[j].float()
@@ -695,6 +713,8 @@ class ZImagePipeline(nn.Module, DiffusionPipelineProfilerMixin, SupportsComponen
                 noise_pred = torch.stack(noise_pred, dim=0)
             else:
                 noise_pred = torch.stack([t.float() for t in model_out_list], dim=0)
+                if cfg_group is not None:
+                    cfg_group.broadcast(noise_pred, src=0)
 
             if latents.ndim == 4:
                 noise_pred = noise_pred.squeeze(2)

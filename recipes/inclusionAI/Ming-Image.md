@@ -39,6 +39,27 @@ vllm serve "$MODEL" --omni --deploy-config vllm_omni/deploy/ming_image.yaml --po
 
 For layer decomposition, set `MODEL` to `inclusionAI/Ming-Image-0.1-Design-Layer`.
 
+### Design-Layer CFG parallel
+
+For Design-Layer, two Stage 1 ranks can evaluate the positive and zero-condition
+branches concurrently. The ranks share the initial latent and gather predictions
+before each scheduler step. Stage 0 remains on one GPU in this profile:
+
+```bash
+vllm serve inclusionAI/Ming-Image-0.1-Design-Layer --omni \
+  --deploy-config vllm_omni/deploy/ming_image_layer_cfg2.yaml --port 8091
+```
+
+### One GPU
+
+This profile places both stages on device 0 with separate memory budgets for an
+80 GB CUDA GPU:
+
+```bash
+vllm serve inclusionAI/Ming-Image-0.1-Design --omni \
+  --deploy-config vllm_omni/deploy/ming_image_single_gpu.yaml --port 8091
+```
+
 ## Text-to-image
 
 Note that a prompt refiner is expected to describe the prompts with details; we will refine with more example inputs soon.

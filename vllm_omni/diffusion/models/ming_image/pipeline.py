@@ -21,6 +21,7 @@ from vllm_omni.diffusion.data import DiffusionOutput, OmniDiffusionConfig
 from vllm_omni.diffusion.distributed.autoencoders.autoencoder_kl_qwenimage import (
     DistributedAutoencoderKLQwenImage,
 )
+from vllm_omni.diffusion.distributed.parallel_state import get_classifier_free_guidance_rank
 from vllm_omni.diffusion.distributed.utils import get_local_device
 from vllm_omni.diffusion.forward_context import (
     set_forward_context_direct_condition,
@@ -132,6 +133,11 @@ class MingImageDiffusionPipeline(ZImagePipeline):
             model_index,
             transformer_config,
         )
+        self.cfg_parallel_size = od_config.parallel_config.cfg_parallel_size
+        if self.cfg_parallel_size not in (1, 2):
+            raise ValueError("Ming-Image supports cfg_parallel_size=1 or 2 only.")
+        if self.cfg_parallel_size == 2 and not self.is_layer_decomposition:
+            raise ValueError("Ming-Image CFG parallel is supported for Design-Layer only.")
 
         self.default_num_inference_steps = 12
         self.default_guidance_scale = 2.0 if self.is_layer_decomposition else 1.0
@@ -334,11 +340,16 @@ class MingImageDiffusionPipeline(ZImagePipeline):
         self._pending_negative_prompt_embeds = negative
 
         apply_cfg = cfg > 0
-        context_direct = (
-            torch.cat([direct_condition, torch.zeros_like(direct_condition)], dim=0) if apply_cfg else direct_condition
-        )
+        if apply_cfg and self.cfg_parallel_size == 2:
+            context_direct = (
+                direct_condition if get_classifier_free_guidance_rank() == 0 else torch.zeros_like(direct_condition)
+            )
+        elif apply_cfg:
+            context_direct = torch.cat([direct_condition, torch.zeros_like(direct_condition)], dim=0)
+        else:
+            context_direct = direct_condition
         context_ref = ref_latent
-        if apply_cfg and context_ref is not None:
+        if apply_cfg and self.cfg_parallel_size == 1 and context_ref is not None:
             context_ref = context_ref.repeat(2, 1, 1, 1, 1)
 
         inner_sampling = OmniDiffusionSamplingParams(
