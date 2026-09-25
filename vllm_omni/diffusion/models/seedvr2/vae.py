@@ -36,6 +36,10 @@ class TemporalContext:
 def _frame_norm_silu(norm: nn.GroupNorm, x: torch.Tensor, context: TemporalContext | None = None) -> torch.Tensor:
     if context is not None and context.spatial is not None:
         return F.silu(context.spatial.normalize(norm, x))
+    if x.is_cuda and x.dtype == torch.float16:
+        from vllm_omni.diffusion.models.seedvr2.frame_norm import frame_norm_silu
+
+        return frame_norm_silu(norm, x)
     return F.silu(_frame_norm(norm, x))
 
 
