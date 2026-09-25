@@ -39,6 +39,25 @@ vllm serve "$MODEL" --omni --deploy-config vllm_omni/deploy/ming_image.yaml --po
 
 For layer decomposition, set `MODEL` to `inclusionAI/Ming-Image-0.1-Design-Layer`.
 
+### Stage 1 FP8
+
+The FP8 profile keeps Stage 0 in BF16 and quantizes eligible Stage 1 DiT linears
+when the checkpoint loads. Use the same prompt, seed, dimensions, step count,
+and GPU topology as the BF16 profile when comparing outputs and latency:
+
+```bash
+vllm serve inclusionAI/Ming-Image-0.1-Design --omni \
+  --deploy-config vllm_omni/deploy/ming_image_fp8.yaml --port 8091
+```
+
+Save the complete chat responses as `bf16.json` and `fp8.json`, then generate a
+PSNR, SSIM, and speed comparison row:
+
+```bash
+python benchmarks/diffusion/compare_ming_image_fp8.py bf16.json fp8.json \
+  --bf16-seconds <measured-seconds> --fp8-seconds <measured-seconds>
+```
+
 ## Text-to-image
 
 Note that a prompt refiner is expected to describe the prompts with details; we will refine with more example inputs soon.
