@@ -51,6 +51,7 @@ already in the next step. Warmup/dummy runs are never fed.
 from __future__ import annotations
 
 import logging
+import os
 import threading
 from collections import deque
 from collections.abc import Iterable, Mapping
@@ -791,6 +792,10 @@ class OmniPrefixCacheManager:
         self._prefetch_pool.shutdown(wait=False, cancel_futures=True)
         self._prefetch_queue.clear()
         self._controller.shutdown()
+        if os.environ.get("OMNI_PREFIX_CACHE_TRANSFER_STATS"):
+            # Which transfer path each pool write actually took, so a run can
+            # show the plan was executed and not merely imported.
+            logger.info("prefix_cache transfer stats: %s", self._pool.stats)
 
     # ------------------------------------------------------ new_step
 
@@ -832,13 +837,19 @@ class OmniPrefixCacheManager:
 
     @torch.inference_mode()
     def _prefetch_hit(self, src: _SlotRef, n_new: int) -> torch.Tensor:
-        """Prefetch thread: gather the hit span and pre-build the merged
-        buffer with the prefix filled. materialize writes only this step's
-        rows at the tail — the gather AND the prefix copy both happen while
-        the forward runs, and the cat leaves the critical path."""
-        rows = self._fetch_source(src)
-        out = torch.empty((rows.shape[0] + n_new, rows.shape[-1]), dtype=rows.dtype)
-        out[: rows.shape[0]] = rows
+        """Prefetch thread: build the merged buffer with the prefix filled.
+
+        The hit gather is written straight into the reserved prefix slice, so
+        the gather and the prefix copy are one traversal instead of two.
+        materialize writes only this step's rows at the tail — the gather
+        happens while the forward runs and neither the gather nor the prefix
+        copy is on the critical path.
+        """
+        out = self._pool.empty_rows(src.key, int(src.slots.numel()) + n_new)
+        try:
+            self._fetch_source_into(src, out)
+        finally:
+            self._unregister_pending_read(src)
         return out
 
     # ---------------------------------------------------------- save
@@ -1309,7 +1320,7 @@ class OmniPrefixCacheManager:
             self._pending_reads = [ref for ref in self._pending_reads if ref is not src]
 
     def _fetch_source(self, src: _SlotRef) -> torch.Tensor:
-        """Fetch a planned row source (execute phase, no lock).
+        """Fetch a planned row source into a fresh buffer (execute phase, no lock).
 
         One key is one schedule: ``join_tids`` (JOIN_NEXT_STEP) and
         ``staged_list`` (JOIN_ON_FINISH) do not coexist. Immediate: wait
@@ -1319,17 +1330,32 @@ class OmniPrefixCacheManager:
         (copied under the lock before that write claimed them).
         """
         try:
-            return self._fetch_source_inner(src)
+            return self._fetch_source_into(src, None)
         finally:
             self._unregister_pending_read(src)
 
-    def _fetch_source_inner(self, src: _SlotRef) -> torch.Tensor:
+    def _fetch_source_into(self, src: _SlotRef, target: torch.Tensor | None, offset: int = 0) -> torch.Tensor:
+        """Fill ``target[offset : offset + n]`` with the planned rows.
+
+        A caller that already owns the destination (the prefetch buffer, whose
+        tail this step's rows still have to land in) gets the pool gather
+        written straight into place: the gather and the prefix copy become one
+        traversal instead of a gather followed by a copy of the gather. With
+        no destination, one is allocated here at the same point the previous
+        code allocated its temporary.
+        """
+        n = int(src.slots.numel())
+        dest = None if target is None else target[offset : offset + n]
+
         # For JOIN_NEXT_STEP, wait `done`, drain, read the pool
         if src.join_tids:
             self._controller.join(src.join_tids)
             with self._state_lock:
                 self._commit_drained_writes()
-            joined = self._apply_preserved_rows(src, self._pool.rows(src.key, src.slots))
+            if dest is None:
+                dest = self._pool.empty_rows(src.key, n)
+            self._pool.rows_into(dest, src.key, src.slots)
+            self._apply_preserved_rows(src, dest)
             self._ensure_not_reassigned(
                 src.slots,
                 src.key,
@@ -1337,13 +1363,13 @@ class OmniPrefixCacheManager:
                 planned_version=src.reserved_version,
                 preserved_slots=src.preserved,
             )
-            return joined
+            return dest
 
         # For JOIN_ON_FINISH, pool rows already written, overlay `fetch_host`
-        n = int(src.slots.numel())
-        out: torch.Tensor | None = None
         if src.already_staged:
-            out = self._pool.rows(src.key, src.slots)
+            if dest is None:
+                dest = self._pool.empty_rows(src.key, n)
+            self._pool.rows_into(dest, src.key, src.slots)
         in_transit = None
         for task, mask in src.staged_list:
             try:
@@ -1354,12 +1380,12 @@ class OmniPrefixCacheManager:
                     src.key,
                     f"entry {task.tid} (req {task.req_id}, write_n {task.write_n}) cannot serve them",
                 )
-            if out is None:
-                out = torch.zeros((n, rows.shape[-1]), dtype=rows.dtype)
-            out[mask] = rows
+            if dest is None:
+                dest = torch.zeros((n, rows.shape[-1]), dtype=rows.dtype)
+            dest[mask] = rows
             in_transit = mask if in_transit is None else in_transit | mask
-        if out is not None:
-            out = self._apply_preserved_rows(src, out)
+        if dest is not None:
+            self._apply_preserved_rows(src, dest)
         self._ensure_not_reassigned(
             src.slots,
             src.key,
@@ -1368,9 +1394,9 @@ class OmniPrefixCacheManager:
             planned_version=src.reserved_version,
             preserved_slots=src.preserved,
         )
-        if out is None:
+        if dest is None:
             _raise_unreadable_hit(src.req_id, src.key, "no source")
-        return out
+        return dest
 
     def _ensure_not_reassigned(
         self,
