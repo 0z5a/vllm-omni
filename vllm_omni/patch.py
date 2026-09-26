@@ -482,6 +482,37 @@ _patch_fp8_use_quack_fused_bias()
 
 
 # =============================================================================
+# Patch vLLM FP8 activation quantization to use the sm_80+ CUDA fast path
+# =============================================================================
+# WHY: every online-FP8 path that is not the MoT layers quantizes inside vLLM
+# (Fp8LinearMethod -> ScaledMMLinearKernel -> QuantFP8.forward_cuda).  That call
+# ends in torch.ops._C.dynamic_per_token_scaled_fp8_quant, which is the same
+# kernel vllm_omni.quantization.fp8_online accelerates.  Without this hook the
+# fast path only ever benefits the MoT layers, and every per-model FP8
+# integration keeps paying the unaccelerated version.
+#
+# SCOPE: only the CUDA dynamic per-token branch is redirected, and only for
+# inputs the fast path accepts; everything else falls through to the original
+# method unchanged.  Disable with VLLM_OMNI_FP8_ONLINE_DISABLE=1.
+#
+# FRAGILITY / REMOVE WHEN: this replaces the QuantFP8.forward_cuda attribute.
+# If vLLM moves activation quantization off QuantFP8 the patch silently becomes
+# a no-op, so the installer logs when it cannot find the method.  After a vLLM
+# bump, re-verify that quantized layers still route through
+# `vllm_omni.quantization.fp8_online`.
+def _patch_fp8_online_quant() -> None:
+    try:
+        from vllm_omni.quantization.fp8_online import install_fp8_online_quant_patch
+
+        install_fp8_online_quant_patch()
+    except Exception:  # noqa: BLE001
+        _PATCH_LOGGER.debug("FP8 online quant patch not installed", exc_info=True)
+
+
+_patch_fp8_online_quant()
+
+
+# =============================================================================
 # Patch torch inductor: prove factorable symbolic divisibility (CantSplit)
 # =============================================================================
 # WHY: torch 2.13's SizeVarAllocator.statically_known_multiple_of proves
