@@ -44,6 +44,10 @@ from __future__ import annotations
 import os
 import threading
 
+from vllm.logger import init_logger
+
+logger = init_logger(__name__)
+
 # torch.utils.cpp_extension resolves the CUDA toolkit directory once, when that
 # module is first imported, from CUDA_HOME/CUDA_PATH or by finding nvcc on PATH.
 # A serving process may inherit neither, so pin CUDA_HOME here -- before torch is
@@ -62,6 +66,7 @@ __all__ = [
     "FASTPATH_ARCH_FLOOR",
     "FASTPATH_MAX_PER_TENSOR_ELEMS",
     "compiled_ok",
+    "install_fp8_online_quant_patch",
     "per_tensor",
     "per_token",
     "scaled_fp8_quant",
@@ -335,3 +340,74 @@ def scaled_fp8_quant(
         s = torch.empty(1, device=x.device, dtype=torch.float32)
         per_tensor(out, x, s, scale_ub)
     return out, s
+
+
+def install_fp8_online_quant_patch() -> None:
+    """Route vLLM's dynamic per-token FP8 activation quant through this module.
+
+    Why this is needed
+    ------------------
+    vLLM-Omni has exactly one place that quantizes activations itself (the MoT
+    layers).  Every other online-FP8 path -- the per-model ``quantization.py``
+    modules that swap HF ``nn.Linear`` for ``vllm`` ``LinearBase`` carrying an
+    ``Fp8Config`` -- quantizes inside vLLM:
+
+        Fp8LinearMethod -> ScaledMMLinearKernel -> self.quant_fp8 (QuantFP8)
+          -> QuantFP8.forward_cuda -> ops.scaled_fp8_quant
+          -> torch.ops._C.dynamic_per_token_scaled_fp8_quant
+
+    That last call is the same kernel this module accelerates, so without this
+    patch the fast path only benefits the MoT layers and every per-model FP8
+    integration keeps paying the unaccelerated version.
+
+    Scope
+    -----
+    Only the CUDA dynamic per-token branch is redirected.  Static, group/block,
+    XPU/HIP/native, and any input this module declines keep their existing
+    implementation, because ``scaled_fp8_quant`` falls back to vLLM's op for
+    everything it does not handle.  The wrapper is therefore semantics
+    preserving even if the fast path is unavailable.
+
+    Disable with ``VLLM_OMNI_FP8_ONLINE_DISABLE=1``.
+    """
+    if _DISABLED:
+        logger.info("FP8 online quant patch skipped: VLLM_OMNI_FP8_ONLINE_DISABLE=1")
+        return
+    try:
+        from vllm.model_executor.layers.quantization.input_quant_fp8 import (
+            QuantFP8,
+        )
+    except ImportError:  # pragma: no cover - vLLM layout change
+        logger.debug("FP8 online quant patch skipped: QuantFP8 not importable")
+        return
+
+    original = QuantFP8.forward_cuda
+    if getattr(original, "_vllm_omni_fp8_online_patched", False):
+        return
+
+    def forward_cuda(self, x, scale=None, scale_ub=None, use_triton=False):
+        # Exactly the conditions under which the reference implementation ends
+        # up in ops.scaled_fp8_quant(x, None, use_per_token_if_dynamic=True).
+        # Anything else keeps the original method, including its assertions.
+        if (
+            scale is None
+            and not self.static
+            and not self.is_group_quant
+            and self.use_per_token_if_dynamic
+            and (scale_ub is None or scale_ub.numel() == 1)
+        ):
+            return scaled_fp8_quant(
+                x,
+                None,
+                num_token_padding=self.num_token_padding,
+                scale_ub=scale_ub,
+                use_per_token_if_dynamic=True,
+            )
+        return original(self, x, scale, scale_ub, use_triton)
+
+    forward_cuda._vllm_omni_fp8_online_patched = True
+    QuantFP8.forward_cuda = forward_cuda
+    logger.info(
+        "FP8 online quant patch installed: dynamic per-token activation "
+        "quantization is routed through vllm_omni.quantization.fp8_online."
+    )
