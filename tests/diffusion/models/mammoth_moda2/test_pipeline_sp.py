@@ -181,11 +181,11 @@ def test_single_rank_runtime_matches_pre_boundary_pipeline_and_replays_requests(
             # One context per request, with two differently shaped CFG branches.
             for text_len in (3, 2, 3):
                 with set_forward_context(omni_diffusion_config=config):
-                    actual = pipeline(_request(text_len, guidance)).output
+                    actual = pipeline(_request(text_len, guidance))[0].output
                     ctx = get_forward_context()
                     assert (ctx.sp_original_seq_len, ctx.sp_padding_size, ctx._sp_shard_depth) == (None, 0, 0)
                 with set_forward_context(omni_diffusion_config=config):
-                    expected = baseline(_request(text_len, guidance)).output
+                    expected = baseline(_request(text_len, guidance))[0].output
                 assert actual.shape == (1, 3, 32, 48)
                 assert actual.dtype == torch.float32 and torch.isfinite(actual).all()
                 torch.testing.assert_close(actual, expected, rtol=0, atol=0)
