@@ -10,6 +10,7 @@ from diffusers.models.modeling_utils import ModelMixin
 from einops import rearrange
 from torch import nn
 from transformers.models.qwen2.modeling_qwen2 import Qwen2RMSNorm
+
 from vllm_omni.diffusion.attention.backends.abstract import AttentionMetadata
 from vllm_omni.diffusion.attention.layer import Attention as OmniAttention
 from vllm_omni.diffusion.distributed.sp_plan import SequenceParallelInput, SequenceParallelOutput
