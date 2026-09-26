@@ -162,16 +162,50 @@ def test_scaled_fp8_quant_falls_back_for_static_scale():
     assert torch.equal(ref_s, got_s)
 
 
-def test_per_tensor_matches_reference():
-    x = _fixture(torch.bfloat16, 256, 4096, "spread")
-    ref = torch.empty(1, device="cuda", dtype=torch.float32)
-    getattr(torch.ops._C, "dynamic_scaled_fp8_quant")(
-        torch.empty_like(x, dtype=torch.float8_e4m3fn), x, ref
-    )
-    ref_out = torch.empty_like(x, dtype=torch.float8_e4m3fn)
-    getattr(torch.ops._C, "dynamic_scaled_fp8_quant")(ref_out, x, ref)
+def _reference_per_tensor(x):
+    out = torch.empty_like(x, dtype=torch.float8_e4m3fn)
+    scale = torch.empty(1, device=x.device, dtype=torch.float32)
+    getattr(torch.ops._C, "dynamic_scaled_fp8_quant")(out, x, scale)
+    return out, scale
+
+
+# The per-tensor payload is x * (1/s), NOT x / s -- the opposite of the
+# per-token path.  Dividing instead of multiplying by the reciprocal differs
+# from the reference on roughly 1 byte per 3M, which is far too rare to show up
+# in a single small fixture: it was found with [512, 3072] fp32 and reproduced
+# on 3 of 6 random tensors at that shape.  These shapes and dtypes are the ones
+# that actually exercise the difference, so they are the regression guard.
+@pytest.mark.parametrize("dtype", DTYPES)
+@pytest.mark.parametrize(
+    "m,n",
+    [(1, 4096), (1, 16384), (8, 4096), (512, 3072), (128, 4096), (8192, 512)],
+)
+def test_per_tensor_matches_reference_bitwise(dtype, m, n):
+    """Payload bytes and scale bits must match, inside and outside the gate."""
+    torch.manual_seed(1234)
+    x = (torch.randn(m, n, device="cuda", dtype=dtype) * 2).to(dtype)
+    ref_out, ref_scale = _reference_per_tensor(x)
     got_out = torch.empty_like(x, dtype=torch.float8_e4m3fn)
-    got = torch.empty(1, device="cuda", dtype=torch.float32)
-    fp8_online.per_tensor(got_out, x, got)
-    assert torch.equal(ref_out.view(torch.uint8), got_out.view(torch.uint8))
-    assert torch.equal(ref, got)
+    got_scale = torch.empty(1, device="cuda", dtype=torch.float32)
+    fp8_online.per_tensor(got_out, x, got_scale)
+    assert torch.equal(ref_out.view(torch.uint8), got_out.view(torch.uint8)), (
+        f"payload mismatch for {dtype} [{m}, {n}]"
+    )
+    assert torch.equal(ref_scale, got_scale), f"scale mismatch for {dtype} [{m}, {n}]"
+
+
+def test_per_tensor_gate_declines_large_tensors():
+    """Above FASTPATH_MAX_PER_TENSOR_ELEMS the reference must be used."""
+    n = fp8_online.FASTPATH_MAX_PER_TENSOR_ELEMS
+    small = torch.randn(1, n, device="cuda", dtype=torch.bfloat16)
+    large = torch.randn(1, n * 2, device="cuda", dtype=torch.bfloat16)
+    # The gate is a pure predicate over numel; assert the boundary directly.
+    assert small.numel() <= fp8_online.FASTPATH_MAX_PER_TENSOR_ELEMS
+    assert large.numel() > fp8_online.FASTPATH_MAX_PER_TENSOR_ELEMS
+    for x in (small, large):
+        ref_out, ref_scale = _reference_per_tensor(x)
+        got_out = torch.empty_like(x, dtype=torch.float8_e4m3fn)
+        got_scale = torch.empty(1, device="cuda", dtype=torch.float32)
+        fp8_online.per_tensor(got_out, x, got_scale)
+        assert torch.equal(ref_out.view(torch.uint8), got_out.view(torch.uint8))
+        assert torch.equal(ref_scale, got_scale)

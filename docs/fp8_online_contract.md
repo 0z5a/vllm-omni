@@ -30,7 +30,36 @@ round-to-nearest, **ties away from zero**, saturating.
 
 ## Per-tensor
 
-Identical, except there is no `min_scale` floor.
+Same scale rule, except there is **no `min_scale` floor**:
+
+```text
+amax      = max_j |x[j]|
+scale[0]  = (double)amax / 448.0                -> fp32      (no floor)
+out[j]    = e4m3_rn( x[j] * (1.0f / scale[0]) )            # RECIPROCAL MULTIPLY
+```
+
+### The payload operator is the opposite of the per-token one
+
+This is the single easiest thing to get wrong in this codebase, because the two
+per-tensor/per-token kernels look interchangeable and are not:
+
+| path | payload |
+|---|---|
+| per-token (`dynamic_per_token_scaled_fp8_quant`) | `x / s` (a divide) |
+| per-tensor (`dynamic_scaled_fp8_quant`) | `x * (1/s)` (a reciprocal multiply) |
+
+Measured on `[512, 3072]` fp32, using the reference's own scale so only the
+payload operator varies:
+
+| payload formula | differing bytes over 9,437,184 |
+|---|---:|
+| `x * (1/s)` | **0** |
+| `x / s` | 3 (on 3 of 6 random tensors, 1 byte each) |
+
+A rate of roughly one byte in three million is invisible to `allclose`, to any
+tolerance-based check, and to almost any fixture that is not this exact shape —
+which is precisely why it is worth pinning in a test rather than trusting a
+spot check.
 
 ## Two details that are easy to get wrong
 

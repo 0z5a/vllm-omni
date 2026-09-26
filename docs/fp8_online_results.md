@@ -187,6 +187,66 @@ A full-model image/video generation run was not completed: it needs the broken
 uses (`riverclouds/qwen_image_random`) did not download completely through the
 available mirror. The partial download was deleted afterwards.
 
+## 6b. Per-tensor path: two defects found and fixed
+
+The per-tensor (non-per-token) dynamic path was written alongside the per-token
+one but was never validated.  Checking it against
+`torch.ops._C.dynamic_scaled_fp8_quant` found two independent defects.
+
+### Defect 1 — wrong payload operator (correctness)
+
+The kernel divided by the scale; the reference multiplies by its reciprocal.
+Over 9,437,184 payload bytes the divide form differs from the reference on
+**3 bytes** (1 byte on each of 3 of 6 random tensors at `[512, 3072]` fp32),
+while the reciprocal form differs on **0**.  Fixed.  Full detail in
+`docs/fp8_online_contract.md`.
+
+This is the kind of defect that a tolerance-based check cannot see, and it is
+the opposite convention from the per-token path, which really does divide.
+
+### Defect 2 — single-CTA reduction (performance)
+
+The kernel ran the whole tensor through one CTA of 256 threads.  Measured
+against the reference:
+
+| shape | elements | before | after |
+|---|---:|---:|---:|
+| `[1, 4096]` | 4,096 | 1.569x | 1.538x |
+| `[8, 4096]` | 32,768 | — | **1.534x** |
+| `[128, 4096]` | 524,288 | **0.164x** | 0.994x |
+| `[512, 3072]` | 1,572,864 | **0.046x** | 0.965x |
+| `[2048, 4096]` | 8,388,608 | 0.915x | 0.984x |
+
+Rewritten as a two-pass multi-block form: a grid-strided partial amax folded
+with `atomicMax` over the non-negative float bit patterns, then a grid-strided
+quantize pass that re-derives the scale per block (one double divide each, so no
+third launch and no grid barrier).  Worst case went from **0.046x to 0.965x**.
+
+### Correctness after the fixes
+
+| coverage | result |
+|---|---|
+| 7 shapes x 3 dtypes (bf16/fp16/fp32), payload + scale | **0 mismatches** |
+| per-token regression re-run after the kernel edits | 0 mismatches, 185 pytest passed |
+
+### Gate
+
+`FASTPATH_MAX_PER_TENSOR_ELEMS = 32768`: inside it the fast path wins
+1.53x-1.82x; above it the reference is used, so no caller is made slower.  The
+gate checks `numel` first so that the decline path costs almost nothing — with
+the cheap check last, declining shapes measured 0.90x purely from the wrapper's
+own Python overhead, which would have made the dispatch layer itself the
+regression.
+
+### Reachability caveat
+
+On sm_120 this path is **not reached by vLLM's dense FP8 layers**: with
+`cutlass_fp8_supported() == True` (verified on this host), vLLM selects
+`kFp8DynamicTokenSym` (per-token) for dynamic activation quantization, and only
+falls back to `kFp8DynamicTensorSym` (per-tensor) when cutlass is unavailable.
+The fix matters because the code shipped a latent wrong-answer path and a
+pathologically slow kernel; it is not a claim that this path is hot on RTX 5090.
+
 ## 7. Reproduce
 
 ```bash

@@ -60,6 +60,7 @@ import torch
 __all__ = [
     "ARCH_EXTENSION_NAME",
     "FASTPATH_ARCH_FLOOR",
+    "FASTPATH_MAX_PER_TENSOR_ELEMS",
     "compiled_ok",
     "per_tensor",
     "per_token",
@@ -81,6 +82,17 @@ FASTPATH_ARCH_FLOOR = (8, 0)
 #: row count it admits, it stops at the largest bound that was verified
 #: uniformly.  See docs/fp8_online_results.md for the full table.
 FASTPATH_MAX_ROWS = 512
+
+#: Largest element count for which the *per-tensor* fast path is selected.
+#:
+#: The per-tensor kernel has two forms: a fused single-CTA form for small
+#: tensors, and a two-pass multi-block form above that.  Measured on RTX 5090
+#: across bf16/fp16/fp32: the single-CTA form wins 1.51x-1.82x up to 32768
+#: elements, while the multi-block form is still behind the reference at
+#: 524288 elements and above (0.83x-0.99x, because it pays one extra launch and
+#: a 4-byte scratch allocation).  The gate therefore admits only the range that
+#: was measured to win; larger per-tensor calls fall back to the reference.
+FASTPATH_MAX_PER_TENSOR_ELEMS = 32768
 
 #: Compiled code objects shipped in the extension, for auditability.
 ARCH_EXTENSION_NAME = "sm_80;sm_86;sm_89;sm_90;sm_100;sm_120"
@@ -262,8 +274,16 @@ def per_token(out: torch.Tensor, x: torch.Tensor, scale: torch.Tensor,
 
 def per_tensor(out: torch.Tensor, x: torch.Tensor, scale: torch.Tensor,
                scale_ub: torch.Tensor | None = None) -> None:
-    """Per-tensor dynamic FP8 quantization into preallocated ``out``/``scale``."""
-    if supported(x) and (scale_ub is None or scale_ub.numel() == 1):
+    """Per-tensor dynamic FP8 quantization into preallocated ``out``/``scale``.
+
+    Only the element range where the fast path was measured to beat the
+    reference is admitted; outside it the reference kernel runs.
+    """
+    # Cheapest predicate first: on the decline path this wrapper must cost
+    # almost nothing, otherwise adding the dispatch layer would itself be the
+    # regression for every tensor the fast path rejects.
+    if (x.numel() <= FASTPATH_MAX_PER_TENSOR_ELEMS and supported(x)
+            and (scale_ub is None or scale_ub.numel() == 1)):
         ext = _load_extension()
         if ext is not None:
             ext.fp8_online_per_tensor_quant(out, x, scale, scale_ub)
