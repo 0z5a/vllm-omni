@@ -174,7 +174,7 @@ def test_sp_context_is_restored_when_a_branch_raises(monkeypatch, failure_at, ou
     def fail(*args, **kwargs):
         raise RuntimeError("injected branch failure")
 
-    def local_identity(hidden_states, *args):
+    def local_identity(hidden_states, *args, **kwargs):
         return hidden_states
 
     for layer in model.layers:

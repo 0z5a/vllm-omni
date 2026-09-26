@@ -141,7 +141,7 @@ def test_dlo_forward_preserves_runner_no_grad_for_storage_rebinding(monkeypatch,
     try:
         with torch.no_grad(), set_forward_context(omni_diffusion_config=config):
             for _ in range(2):
-                result = pipeline(_request(3, guidance))
+                result = pipeline(_request(3, guidance))[0]
                 assert torch.isfinite(result.output).all()
     finally:
         handle.remove()
@@ -163,10 +163,10 @@ def test_dlo_request_recovers_after_intermediate_layer_failure(monkeypatch, guid
         raise RuntimeError("injected intermediate layer failure")
 
     with torch.no_grad(), set_forward_context(omni_diffusion_config=config):
-        expected = pipeline(_request(3, guidance)).output.clone()
+        expected = pipeline(_request(3, guidance))[0].output.clone()
         backend.enable(pipeline)
         try:
-            torch.testing.assert_close(pipeline(_request(3, guidance)).output, expected, rtol=0, atol=0)
+            torch.testing.assert_close(pipeline(_request(3, guidance))[0].output, expected, rtol=0, atol=0)
             handle = pipeline.gen_transformer.layers[1].register_forward_pre_hook(fail_layer)
             try:
                 with pytest.raises(RuntimeError, match="injected intermediate layer failure"):
@@ -174,6 +174,6 @@ def test_dlo_request_recovers_after_intermediate_layer_failure(monkeypatch, guid
             finally:
                 handle.remove()
             for _ in range(2):
-                torch.testing.assert_close(pipeline(_request(3, guidance)).output, expected, rtol=0, atol=0)
+                torch.testing.assert_close(pipeline(_request(3, guidance))[0].output, expected, rtol=0, atol=0)
         finally:
             backend.disable()
