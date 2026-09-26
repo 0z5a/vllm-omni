@@ -3,12 +3,31 @@
 Source: `0z5a/vllm-omni` branch `codex/omni-prefix-multigroup`, head `5cd1f6c5bbe78c2d221beaaa43e3e9df6851091e`.
 Snapshot verified byte-identical to that tree: 3455/3455 files under `vllm_omni/`, `tests/`, `benchmarks/`, `examples/`.
 Driver: `examples/offline_inference/prefix_cache_hybrid_e2e.py` (in-tree), comparer `compare_prefix_cache_hybrid_e2e.py`.
-Model: `google/gemma-3-1b-it` (`gemma3_text`, one sliding + one full attention layer, `sliding_window` 512), SHA-256 verified during download.
-Host: one RTX 5090, `0z5a` venv unmodified, vLLM 0.29.0.
+Model: `google/gemma-3-1b-it` (`gemma3_text`, sliding plus full attention layers, `sliding_window` 512), SHA-256 verified during download.
+Host: one RTX 5090, `0z5a` venv unmodified, vLLM 0.29.0. Each arm is a fresh process with its own engine.
 
-Each arm is a fresh process with its own engine. Arms run `off, on, on, off` so a slow drift cannot land on one label.
+## Engine-side measurement (the one that resolves)
 
-## Result
+The driver's own `seconds` wraps the whole `omni.generate()` round trip and turns out to be flat in prompt length, so a second pass reads the engine's per-request stats instead (`--log-stats` → `StageRequestStats`: `vllm_ttft_ms`, `vllm_tpot_ms`, `stage_gen_time_ms`, plus `[OmniTiming] engine=`). Both arms carry `--log-stats` so its cost is symmetric, and the compared numbers are engine-reported, not wall time.
+
+`--max-tokens 8`, 7 measured requests per arm after one warmup:
+
+| Arm | Prompt tokens | Cached | TTFT p50 (ms) | TTFT min-max (ms) | TPOT p50 (ms) | engine p50 (ms) |
+|:--|--:|--:|--:|:--|--:|--:|
+| off-p520 | 520 | 0 | 63.12 | 53.22-85.31 | 39.60 | 340 |
+| off-p4000 | 4,000 | 0 | 78.71 | 57.57-86.33 | 40.62 | 360 |
+| on-p520 | 520 | 512 | 59.26 | 48.28-75.52 | 36.86 | 340 |
+| on-p4000 | 4,000 | 3,984 | 82.01 | 54.14-94.28 | 41.36 | 370 |
+
+**The metric does resolve prefill.** Cache-off TTFT rises 15.6 ms when the prompt grows from 520 to 4,000 tokens, so prefill is in TTFT, unlike in the round-trip number.
+
+**The cache does not reduce it.** At 520 tokens, serving 512 from the cache moves TTFT 63.12 → 59.26 ms (−6%); at 4,000 tokens, serving 3,984 moves it 78.71 → 82.01 ms (+4%). Within-arm spread is about 30 ms, so neither direction is separable from noise at n=7. Serving 3,984 of 4,000 prompt tokens produces no TTFT reduction beyond noise.
+
+The reason is visible in the same table: the entire prefill contribution TTFT can see is 15.6 ms against a ~63 ms fixed per-request cost. Even a perfect skip is at the edge of what this workload can show, which is why no speed claim is supportable here — in either direction.
+
+## Round-trip measurement (kept for the record)
+
+The driver's own metric, arms run `off, on, on, off`:
 
 | Arm | Cache | p50 (s) | min-max (s) | n | cached tokens |
 |:--|:--|--:|:--|--:|--:|
@@ -19,42 +38,30 @@ Each arm is a fresh process with its own engine. Arms run `off, on, on, off` so 
 
 | Prompt tokens | Cache off p50 (s) | Cache on p50 (s) | Speedup |
 |--:|--:|--:|--:|
-| 960 (n=14+14) | 1.105 | 1.149 | 0.96x |
+| 960 (n=14+14), `--max-tokens 32` | 1.105 | 1.149 | 0.96x |
 
 Output parity: identical token ids across all four arms.
 
-## The driver cannot resolve a prefix-cache effect
+This number is not a measurement of the cache. Cache-off p50 is flat in prompt length — 0.2934 s at 520 tokens, 0.2862 at 960, 0.2893 at 1,920, 0.2909 at 4,000, all with `--max-tokens 8`. A 7.7x prompt increase moves it 0.9%. What it does track is decode steps: the 960-token pair above used 32 output tokens and measured 1.105 s, while the same prompt at 8 output tokens measures 0.286 s, i.e. 34 ms per extra step. The published 1.65x row for "Gemma 3 hybrid groups, 960 tokens (n=7)" is not reproducible at this head, and its off/on values look transposed relative to what is measured now.
 
-All four rows below are cache-off, same driver, same `--max-tokens 8`; only the prompt length changes:
+A caution for anyone rerunning this: do not pass `--log-stats` to an arm timed by the round-trip metric. It moved the cache-off arm from 1.10 s to 0.66 s, a 40% swing on the compared number.
 
-| Prompt tokens | Cache off p50 (s) | n |
-|--:|--:|--:|
-| 520 | 0.2934 | 7 |
-| 960 | 0.2862 | 7 |
-| 1,920 | 0.2893 | 7 |
-| 4,000 | 0.2909 | 7 |
+## What would settle it
 
-Growing the prompt 7.7x from 520 to 4,000 tokens moves the measured p50 by 0.9%. Whatever the driver is timing, it is not prefill: a 3,480-token prefill difference would have to cost under 3 ms to hide here. Carrying a 3,984-token hit into the measured request does not change it either — a single 4,000-token request measures 0.298 s cache-off against 0.313 s cache-on.
-
-The cost that does show up is per decode step. The 960-token pair in the table above used `--max-tokens 32` and measured 1.105 s cache-off; the same 960-token prompt at `--max-tokens 8` measures 0.286 s. That is 34 ms for each of the 24 extra steps, which is where the request time actually goes.
-
-So this harness measures a roughly constant per-request engine round trip plus a per-step cost. It can establish parity and that hits land, which it does. It cannot support a speed claim in either direction, and the 1.65x row previously published for "Gemma 3 hybrid groups, 960 tokens (n=7)" is not reproducible at this head.
-
-## What a usable measurement needs
-
-Report engine-side work rather than the entrypoint round trip: time to first token per request, or `num_computed_tokens` against `num_scheduled_tokens` per step, or a server-level benchmark with a shared prefix. `prompt_cache_hit_tokens` from the serving API plus TTFT would separate prefill from the fixed cost directly.
+A workload where prefill is large next to the fixed per-request cost: a larger model, or a batch of requests sharing one long prefix so the skipped prefill is amortised over real work. Both are outside this PR's scope, and neither is needed to state what this evidence supports — the hybrid-group path runs, reuses the expected tokens, and produces identical output.
 
 ## Reproduce
 
 ```bash
 SRC=/home/gongji/0z5a/work/omni7902/review-8056/src
 export PYTHONPATH=$SRC TRITON_CACHE_DIR=/home/gongji/0z5a/work/.triton/cache
-for spec in 0:off-a 1:on-a 1:on-b 0:off-b; do
-  cache=${spec%%:*}; tag=${spec##*:}
+for spec in 520:0:off-p520 4000:0:off-p4000 4000:1:on-p4000 520:1:on-p520; do
+  p=${spec%%:*}; rest=${spec#*:}; cache=${rest%%:*}; tag=${rest##*:}
   CUDA_VISIBLE_DEVICES=5 python "$SRC/examples/offline_inference/prefix_cache_hybrid_e2e.py" \
     --model "$MODEL" --output "out/$tag" --cache "$cache" \
-    --device 0 --prompt-tokens 960 --requests 7 > "out/$tag.log" 2>&1
+    --device 0 --prompt-tokens "$p" --requests 7 --max-tokens 8 --log-stats > "out/$tag.log" 2>&1
 done
+python parse_engine_stats.py out --skip-warmup 1
 ```
 
-Do not pass `--log-stats` to a timed arm: on this workload it moved the cache-off arm from 1.10 s to 0.66 s, which is a 40% swing on the metric being compared.
+`parse_engine_stats.py` is the reader for that log format; it joins the `[OmniTiming]` line to its request after the whole file is read, because that line is emitted before its own stats block.
