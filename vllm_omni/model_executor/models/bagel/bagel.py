@@ -706,7 +706,15 @@ class OmniBagelForConditionalGeneration(BagelForConditionalGeneration, SupportsE
         return [EncoderItemSpec(input_size=tokens, output_tokens=tokens) for _ in range(pixels.shape[0])]
 
     def select_encoder_cudagraph_items(self, mm_kwargs: dict[str, Any], indices: list[int]) -> dict[str, Any]:
-        return {"pixel_values": self._encoder_pixel_values(mm_kwargs)[indices]}
+        pixels = self._encoder_pixel_values(mm_kwargs)
+        if (
+            indices
+            and 0 <= indices[0]
+            and indices[0] + len(indices) <= pixels.shape[0]
+            and all(index == indices[0] + offset for offset, index in enumerate(indices))
+        ):
+            return {"pixel_values": pixels.narrow(0, indices[0], len(indices))}
+        return {"pixel_values": pixels[indices]}
 
     def prepare_encoder_cudagraph_capture_inputs(
         self,

@@ -68,6 +68,17 @@ def test_item_specs_and_reordered_selection(model, extra_dim):
     assert model.select_encoder_cudagraph_items(kwargs, [])["pixel_values"].shape == (0, 3, 8, 8)
 
 
+@pytest.mark.parametrize(
+    "indices,shares_storage",
+    [([], False), ([0], True), ([0, 1], True), ([1, 2], True), ([2, 0], False), ([1, 1], False), ([-1], False)],
+)
+def test_contiguous_selection_uses_view_only_when_ordered(model, indices, shares_storage):
+    pixels = torch.arange(3 * 3 * 8 * 8).reshape(3, 3, 8, 8).float()
+    selected = model.select_encoder_cudagraph_items({"pixel_values": pixels}, indices)["pixel_values"]
+    torch.testing.assert_close(selected, pixels[indices])
+    assert (selected.untyped_storage().data_ptr() == pixels.untyped_storage().data_ptr()) is shares_storage
+
+
 def test_incompatible_shape_rejected_before_replay(model):
     with pytest.raises(ValueError, match="BAGEL image encoder expects"):
         model.get_encoder_cudagraph_item_specs({"pixel_values": torch.zeros(1, 3, 4, 16)})
