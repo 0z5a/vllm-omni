@@ -42,7 +42,7 @@ def _new_pipeline(config, dtype):
 
 def _run(pipeline, config, request):
     with set_forward_context(omni_diffusion_config=config):
-        result = pipeline(request).output
+        result = pipeline(request)[0].output
         context = get_forward_context()
         assert context._sp_shard_depth == 0
         assert context._sp_equal_pad_stack == []
