@@ -163,24 +163,31 @@ negative prompting.
 
 ## RTX 5090 online FP8 CUDA hot-path E2E
 
-The official Anima checkpoint and Diffusers-layout components were verified
-before a full text-to-image A1/P1/P2/A2 comparison on an RTX 5090. Each arm ran
-in a fresh process with three warmups and six measured requests. Every request
-generated one 1024x1024 image with 50 denoising steps, CFG scale 4.0, seed 42,
-and `max_sequence_length=512`. The run used BF16, eager execution, no offload,
-and the same three prompts in every arm. Load and first-use CUDA compilation
-were excluded from request timings.
+The official checkpoint passed SHA256 verification before a full text-to-image
+A1/P1/P2/A2 comparison on one RTX 5090 (GPU 5). Each arm used a fresh process,
+three warmups, and six measured requests. Requests generated one 1024×1024 image
+with 50 steps, CFG 4.0, seed 42, an empty negative prompt, and
+`max_sequence_length=512`. The run used BF16, eager execution, no offload, and
+the same three positive prompts in every arm. Model loading, first-use CUDA
+compilation, and graph capture were excluded from measured requests.
 
-| Arm | Online FP8 activation quantizer | Full request mean ± SD (s) | Speedup vs pooled A | Peak allocated (GiB) |
+| Arm | Online FP8 route | Full request mean ± SD (s) | Speedup vs pooled A | Peak allocated (GiB) |
 |---|---|---:|---:|---:|
-| A1 | current CUDA path | 8.976 ± 0.009 | 1.001× | 7.86 |
-| P1 | sm_80+ CUDA hot path | 8.979 ± 0.015 | 1.001× | 7.86 |
-| P2 | sm_80+ CUDA hot path | 8.999 ± 0.014 | 0.998× | 7.86 |
-| A2 | current CUDA path | 8.991 ± 0.033 | 0.999× | 7.86 |
+| A1 | Existing dynamic FP8 CUDA path | 8.913 ± 0.008 | 1.000× | 7.86 |
+| P1 | sm_120 CFG CUDA graphs + request K/V + empty-negative conditioning cache | 8.454 ± 0.020 | 1.055× | 8.25 |
+| P2 | Same optimized route | 8.425 ± 0.008 | 1.058× | 8.25 |
+| A2 | Existing dynamic FP8 CUDA path | 8.920 ± 0.010 | 1.000× | 7.86 |
+| Pooled A / P | Existing / optimized route | 8.916 / 8.440 | **1.056×** | 7.86 / 8.25 |
 
-The pooled full-request means were 8.984 s (A) and 8.989 s (P), or **0.999×**
-speedup. This workload showed no measurable end-to-end improvement. All four
-arms loaded 280 online-FP8 denoiser linears. Each optimized request recorded
-5,600 CUDA quantizer calls; baseline requests recorded zero. All 12 paired
-measured images were pixel-exact (mean SSIM 1.000000). PyTorch was
-2.13.0+cu130, vLLM 0.29.0, and the GPU was an NVIDIA GeForce RTX 5090.
+The pooled means give **1.0565×** full-request speedup; the pooled median ratio
+is **1.0570×**. All 12 paired measured images were pixel-exact. Every arm loaded
+280 dynamic-FP8 denoiser linears. The optimized warmups captured 336 custom CUDA
+quantizer calls at shape 512×1024; the measured graph replays do not invoke the
+Python quantizer. The 4096-row denoiser quantizations remain on vLLM's CUDA
+reference path. The gain comes from replaying the CFG pair, sharing its common
+prefix and request K/V, and reusing deterministic conditioning for the default
+empty negative prompt. A separate graph-only comparison reached 1.048×; the
+4096×2048 custom quantizer candidate did not improve full-request latency and
+is excluded. The cache is used in evaluation mode for the empty negative prompt;
+other negative prompts use regular encoding. PyTorch was 2.13.0+cu130 and vLLM
+was 0.29.0.
