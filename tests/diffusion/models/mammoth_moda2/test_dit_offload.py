@@ -123,6 +123,15 @@ def test_experimental_dlo_rejects_unqualified_modes(monkeypatch, degree, field, 
         _pipeline(_dlo_config(degree, **{field: value}), monkeypatch)
 
 
+def test_dlo_rejects_four_rank_ulysses_at_construction(monkeypatch):
+    monkeypatch.setattr(
+        "vllm_omni.diffusion.models.mammoth_moda2.pipeline_mammothmoda2_dit.AutoencoderKL.from_config",
+        lambda *_args, **_kwargs: pytest.fail("VAE constructed before DLO validation"),
+    )
+    with pytest.raises(ValueError, match="two-rank Ulysses"):
+        _pipeline(_dlo_config(4), monkeypatch)
+
+
 def test_dlo_rejects_dev_before_construction(monkeypatch):
     config = _dlo_config()
     config.tf_model_config.params["llm_config"]["model_type"] = "mammothmoda2_qwen3_vl"

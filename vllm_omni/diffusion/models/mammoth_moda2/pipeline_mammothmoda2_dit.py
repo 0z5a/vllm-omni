@@ -333,6 +333,8 @@ def _validate_experimental_dlo_runtime(od_config: OmniDiffusionConfig, config: M
     if od_config.host_weight_runtime_mode != "disabled" or od_config.lora_path:
         raise ValueError("Experimental MammothModa2 DLO does not support Host Weight Runtime or LoRA")
     parallel = od_config.parallel_config
+    if (parallel.ulysses_degree, parallel.sequence_parallel_size) not in ((1, 1), (2, 2)):
+        raise ValueError("Experimental MammothModa2 DLO supports only single-rank or two-rank Ulysses SP")
     if parallel.use_hsdp or any(
         getattr(parallel, field) != 1
         for field in (
