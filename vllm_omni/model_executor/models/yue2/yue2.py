@@ -358,7 +358,7 @@ class Yue2ForCausalLM(nn.Module):
         num_scheduled_tokens: Any,
         input_ids: torch.Tensor,
         positions: torch.Tensor,
-        sampling_extra_args: list[dict[str, Any]] | None = None,
+        sampling_extra_args: list[dict[str, object]] | None = None,
         **_: Any,
     ) -> tuple[torch.Tensor, torch.Tensor]:
         """Bind rows and initialize new requests before graph replay."""

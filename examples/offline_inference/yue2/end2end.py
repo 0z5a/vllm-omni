@@ -170,7 +170,8 @@ def main() -> None:
     truncated = False
     meta = mm.get("meta") or {}
     if "truncated" in meta:
-        truncated = bool(int(meta["truncated"][0]))
+        flag = meta["truncated"]
+        truncated = bool(int(flag[0] if isinstance(flag, (list, tuple)) else flag))
 
     waveform = audio.float()
     # soundfile wants [frames, channels] float in [-1, 1]; torchaudio has no
