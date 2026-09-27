@@ -110,49 +110,6 @@ def test_repeated_switches_do_not_accumulate(dtype: torch.dtype):
     assert torch.equal(layer.base_layer.weight, base)
 
 
-def test_failed_second_write_restores_base(monkeypatch: pytest.MonkeyPatch):
-    manager, foo, bar = _two_layers()
-    manager._registered_adapters[1] = _StubLoRAModel(
-        {"transformer.foo": _named_lora("foo", 6, 40), "transformer.bar": _named_lora("bar", 5, 41)}
-    )
-    manager._registered_adapters[2] = _StubLoRAModel(
-        {"transformer.foo": _named_lora("foo", 6, 42), "transformer.bar": _named_lora("bar", 5, 43)}
-    )
-    bases = (foo.base_layer.weight.detach().clone(), bar.base_layer.weight.detach().clone())
-    manager._activate_adapter(1, 1.0)
-    real_add = torch.add
-    calls = 0
-
-    def fail_second(*args, **kwargs):
-        nonlocal calls
-        calls += 1
-        if calls == 2:
-            raise RuntimeError("injected write failure")
-        return real_add(*args, **kwargs)
-
-    monkeypatch.setattr(torch, "add", fail_second)
-    with pytest.raises(RuntimeError, match="injected write failure"):
-        manager._activate_adapter(2, 1.0)
-    assert torch.equal(foo.base_layer.weight, bases[0])
-    assert torch.equal(bar.base_layer.weight, bases[1])
-    assert manager._active_adapter_id is None
-    assert not manager._merged_layer_names
-
-
-def test_external_write_while_merged_is_rejected():
-    layer = _MergeableLoRALayer((6,))
-    manager = _make_manager(merge_on_load=True, layer=layer)
-    _register(manager, 1, _make_lora(2, 6, 50))
-    _register(manager, 2, _make_lora(2, 6, 51))
-    base = layer.base_layer.weight.detach().clone()
-    manager._activate_adapter(1, 1.0)
-    with torch.no_grad():
-        layer.base_layer.weight.add_(1.0)
-    with pytest.raises(RuntimeError, match="modified outside the manager"):
-        manager._activate_adapter(2, 1.0)
-    assert torch.equal(layer.base_layer.weight, base)
-
-
 def test_base_update_after_deactivation_gets_a_fresh_snapshot():
     layer = _MergeableLoRALayer((6,))
     manager = _make_manager(merge_on_load=True, layer=layer)
@@ -170,17 +127,3 @@ def test_base_update_after_deactivation_gets_a_fresh_snapshot():
     assert torch.equal(layer.base_layer.weight, _expected(new_base, second))
     manager._deactivate_all_adapters()
     assert torch.equal(layer.base_layer.weight, new_base)
-
-
-def test_shared_storage_is_rejected():
-    manager, foo, bar = _two_layers()
-    bar = _MergeableLoRALayer((6,))
-    manager._lora_modules["transformer.bar"] = bar
-    bar.base_layer.weight = torch.nn.Parameter(foo.base_layer.weight.data)
-    manager._registered_adapters[1] = _StubLoRAModel(
-        {"transformer.foo": _named_lora("foo", 6, 60), "transformer.bar": _named_lora("bar", 6, 61)}
-    )
-    base = foo.base_layer.weight.detach().clone()
-    with pytest.raises(RuntimeError, match="shared storage"):
-        manager._activate_adapter(1, 1.0)
-    assert torch.equal(foo.base_layer.weight, base)

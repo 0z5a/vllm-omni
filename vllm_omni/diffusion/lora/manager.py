@@ -119,7 +119,6 @@ class DiffusionLoRAManager:
         self._merged: bool = False
         self._merged_layer_names: set[str] = set()
         self._pristine_weights: dict[str, torch.Tensor] = {}
-        self._merged_weight_versions: dict[str, int] = {}
         # True once wrappers have been installed into the module tree the
         # standard way; merge mode keeps them as shadow objects instead, and
         # the two modes are never mixed.
@@ -585,17 +584,9 @@ class DiffusionLoRAManager:
             logger.debug("Adapter %d already active at scale %.3f skipping", adapter_id, scale)
             return
 
-        try:
-            self._bind_adapter_weights(adapter_id, scale)
-            if self._merge_enabled:
-                self._merge_active_adapter()
-        except Exception:
-            self._unmerge_active_adapter()
-            for lora_layer in self._lora_modules.values():
-                lora_layer.reset_lora(0)
-            self._active_adapter_id = None
-            raise
-
+        self._bind_adapter_weights(adapter_id, scale)
+        if self._merge_enabled:
+            self._merge_active_adapter()
         self._active_adapter_id = adapter_id
         self._update_adapter_scale(adapter_id, scale)
 
@@ -770,68 +761,38 @@ class DiffusionLoRAManager:
                 f"merge_on_load: {len(ineligible)} layer(s) cannot be weight-merged (e.g. {ineligible[0]})"
             )
 
-        old_names = set(self._merged_layer_names)
+        old_names = self._merged_layer_names
         new_names: set[str] = set()
-        touched: set[str] = set()
-        try:
-            for name in old_names:
-                weight = self._lora_modules[name].base_layer.weight
-                if weight._version != self._merged_weight_versions[name]:
-                    raise RuntimeError(f"merge_on_load: {name} was modified outside the manager")
+        plan: list[tuple[str, torch.Tensor, torch.Tensor]] = []
+        for name, layer in self._lora_modules.items():
+            delta = self._compute_layer_delta(layer)
+            if delta is None:
+                continue
+            weight = layer.base_layer.weight
+            if delta.shape != weight.shape or delta.device != weight.device:
+                raise RuntimeError(f"merge_on_load: delta shape or device mismatch for {name}")
+            if name not in self._pristine_weights:
+                self._pristine_weights[name] = weight.detach().clone()
+            plan.append((name, weight, delta.to(weight.dtype)))
+            new_names.add(name)
 
-            plan: list[tuple[str, BaseLayerWithLoRA, torch.Tensor, torch.Tensor]] = []
-            storage_owners: dict[tuple[str, int], str] = {}
-            for name, layer in self._lora_modules.items():
-                delta = self._compute_layer_delta(layer)
-                if delta is None:
-                    continue
-                weight = layer.base_layer.weight
-                if delta.shape != weight.shape or delta.device != weight.device:
-                    raise RuntimeError(f"merge_on_load: delta shape or device mismatch for {name}")
-                storage_id = (str(weight.device), weight.untyped_storage().data_ptr())
-                owner = storage_owners.setdefault(storage_id, name)
-                if owner != name:
-                    raise RuntimeError(f"merge_on_load: {owner} and {name} use shared storage")
-                if weight.layout != torch.strided or torch._debug_has_internal_overlap(weight) != 0:
-                    raise RuntimeError(f"merge_on_load: {name} has overlapping weight storage")
-                pristine = self._pristine_weights.get(name)
-                if pristine is None:
-                    pristine = weight.detach().clone()
-                    self._pristine_weights[name] = pristine
-                plan.append((name, layer, pristine, delta.to(weight.dtype)))
-                new_names.add(name)
+        if not plan:
+            raise ValueError("merge_on_load: active adapter produced no mergeable delta")
 
-            if not plan:
-                raise ValueError("merge_on_load: active adapter produced no mergeable delta")
-
-            old_only = old_names - new_names
-            with torch.no_grad():
-                for name in old_only:
-                    touched.add(name)
-                    self._lora_modules[name].base_layer.weight.copy_(self._pristine_weights[name])
-                for name, layer, pristine, delta in plan:
-                    touched.add(name)
-                    torch.add(pristine, delta, out=layer.base_layer.weight)
-
-            for layer in self._lora_modules.values():
-                layer.reset_lora(0)
+        old_only = old_names - new_names
+        with torch.no_grad():
             for name in old_only:
-                self._pristine_weights.pop(name)
-            self._merged_layer_names = new_names
-            self._merged_weight_versions = {
-                name: self._lora_modules[name].base_layer.weight._version for name in new_names
-            }
-            self._merged = True
-            logger.debug("Merged LoRA into %d base weights; restored %d old targets", len(new_names), len(old_only))
-        except Exception:
-            with torch.no_grad():
-                for name in old_names | touched:
-                    self._lora_modules[name].base_layer.weight.copy_(self._pristine_weights[name])
-            self._merged_layer_names.clear()
-            self._merged_weight_versions.clear()
-            self._merged = False
-            self._pristine_weights.clear()
-            raise
+                self._lora_modules[name].base_layer.weight.copy_(self._pristine_weights[name])
+            for name, weight, delta in plan:
+                torch.add(self._pristine_weights[name], delta, out=weight)
+
+        for layer in self._lora_modules.values():
+            layer.reset_lora(0)
+        for name in old_only:
+            self._pristine_weights.pop(name)
+        self._merged_layer_names = new_names
+        self._merged = True
+        logger.debug("Merged LoRA into %d base weights; restored %d old targets", len(new_names), len(old_only))
 
     def _unmerge_active_adapter(self) -> None:
         """Restore only weights containing the active adapter's delta."""
@@ -840,7 +801,6 @@ class DiffusionLoRAManager:
                 self._lora_modules[name].base_layer.weight.copy_(self._pristine_weights[name])
         restored = len(self._merged_layer_names)
         self._merged_layer_names.clear()
-        self._merged_weight_versions.clear()
         self._pristine_weights.clear()
         self._merged = False
         logger.debug("Restored pristine base weights for %d layers", restored)
