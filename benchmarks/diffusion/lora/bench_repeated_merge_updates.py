@@ -19,7 +19,7 @@ import time
 from collections import OrderedDict
 from collections.abc import Callable
 from pathlib import Path
-from typing import Any
+from typing import TypedDict
 
 import torch
 from vllm import __version__ as vllm_version
@@ -28,6 +28,15 @@ from vllm.lora.lora_weights import LoRALayerWeights
 from vllm_omni import __version__ as vllm_omni_version
 from vllm_omni.diffusion.lora.manager import DiffusionLoRAManager
 from vllm_omni.platforms import current_omni_platform
+
+
+class TimingSample(TypedDict):
+    block_id: int
+    position: int
+    gpu_ms: float
+    wall_ms: float
+    valid: bool
+    error: str | None
 
 
 class _BenchLayer(torch.nn.Module):
@@ -189,7 +198,7 @@ def _paired_samples(
     device: torch.device,
     warmup: int,
     samples: int,
-) -> dict[str, Any]:
+) -> dict[str, object]:
     names = tuple(operations)
     assert len(names) == 2
     for index in range(warmup):
@@ -197,7 +206,7 @@ def _paired_samples(
         for name in order:
             _measure(operations[name], device)
 
-    raw: dict[str, list[dict[str, float | int]]] = {name: [] for name in names}
+    raw: dict[str, list[TimingSample]] = {name: [] for name in names}
     for index in range(samples):
         order = names if index % 2 == 0 else tuple(reversed(names))
         for position, name in enumerate(order):
@@ -235,7 +244,7 @@ def _run_l1(
     device: torch.device,
     warmup: int,
     samples: int,
-) -> dict[str, Any]:
+) -> dict[str, object]:
     out_dim, in_dim = shape
     generator = torch.Generator(device="cpu").manual_seed(7)
     base = torch.randn(shape, generator=generator).to(device=device, dtype=dtype)
@@ -290,7 +299,7 @@ def _run_l2(
     device: torch.device,
     warmup: int,
     samples: int,
-) -> dict[str, Any]:
+) -> dict[str, object]:
     out_dim, in_dim = shape
     generator = torch.Generator(device="cpu").manual_seed(11)
     base = torch.randn(shape, generator=generator).to(device=device, dtype=dtype)
@@ -382,7 +391,7 @@ def main() -> None:
         if device.index is None:
             device = torch.device("cuda", 0)
         current_omni_platform.set_device(device)
-    dtype = getattr(torch, args.dtype)
+    dtype = {"float32": torch.float32, "float16": torch.float16, "bfloat16": torch.bfloat16}[args.dtype]
     if device.type == "cpu" and dtype == torch.float16:
         raise ValueError("CPU float16 GEMM is not a supported benchmark configuration")
     if args.warmup < 0 or args.samples < 2:
