@@ -160,3 +160,27 @@ curl http://localhost:8099/v1/images/generations \
 The same generation knobs used by other text-to-image recipes apply:
 `num_inference_steps`, `seed`, `height` / `width` through `size`, and optional
 negative prompting.
+
+## RTX 5090 online FP8 CUDA hot-path E2E
+
+The official Anima checkpoint and Diffusers-layout components were verified
+before a full text-to-image A1/P1/P2/A2 comparison on an RTX 5090. Each arm ran
+in a fresh process with three warmups and six measured requests. Every request
+generated one 1024x1024 image with 50 denoising steps, CFG scale 4.0, seed 42,
+and `max_sequence_length=512`. The run used BF16, eager execution, no offload,
+and the same three prompts in every arm. Load and first-use CUDA compilation
+were excluded from request timings.
+
+| Arm | Online FP8 activation quantizer | Full request mean ± SD (s) | Speedup vs pooled A | Peak allocated (GiB) |
+|---|---|---:|---:|---:|
+| A1 | current CUDA path | 8.976 ± 0.009 | 1.001× | 7.86 |
+| P1 | sm_80+ CUDA hot path | 8.979 ± 0.015 | 1.001× | 7.86 |
+| P2 | sm_80+ CUDA hot path | 8.999 ± 0.014 | 0.998× | 7.86 |
+| A2 | current CUDA path | 8.991 ± 0.033 | 0.999× | 7.86 |
+
+The pooled full-request means were 8.984 s (A) and 8.989 s (P), or **0.999×**
+speedup. This workload showed no measurable end-to-end improvement. All four
+arms loaded 280 online-FP8 denoiser linears. Each optimized request recorded
+5,600 CUDA quantizer calls; baseline requests recorded zero. All 12 paired
+measured images were pixel-exact (mean SSIM 1.000000). PyTorch was
+2.13.0+cu130, vLLM 0.29.0, and the GPU was an NVIDIA GeForce RTX 5090.
