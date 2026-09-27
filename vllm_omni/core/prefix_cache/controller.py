@@ -43,6 +43,7 @@ from vllm_omni.core.prefix_cache.interface import (
     Tid,
     WriteSchedule,
 )
+from vllm_omni.core.prefix_cache.transfer_plan import TransferPlan
 
 logger = logging.getLogger(__name__)
 
@@ -207,6 +208,8 @@ class WriteTask:
     staging_slot: int | None = None
     # Immediate path: this step's CUDA device→host event (shared). None if deferred.
     step_d2h_event: torch.cuda.Event | None = None
+    direct: bool = False
+    direct_spans: int = 0
     # slot -> (which chunk, row in that tensor). Built on demand
     # when a write has more than one `_WriteChunk`; pool write uses slot, the tensor uses row.
     _slot_to_row: dict[int, tuple[int, int]] | None = None
@@ -467,9 +470,9 @@ class StepD2HClaim:
 
 
 class OmniPrefixCacheController:
-    """Staging pool + committer. Step device→host is launched at save;
-    this thread waits that event (JOIN_NEXT_STEP) or copies deferred
-    rows (JOIN_ON_FINISH), then writes into the CPU pool.
+    """Staging pool and committer. Step D2H starts at save; the committer
+    waits for its event. Direct writes already target the pool, while the
+    staging and deferred paths write pool rows after host data is ready.
     """
 
     def __init__(self, pool: PrefixBlockPool, config: PrefixCacheConfig, eager: bool | None = None):
@@ -557,6 +560,34 @@ class OmniPrefixCacheController:
             return StepD2HClaim(staging_slot=slot, views=views, event=event)
         except Exception:
             self._staging_pool.release(slot, step_holder)
+            raise
+
+    def stage_direct_pool(
+        self,
+        key: str,
+        source: torch.Tensor,
+        plan: TransferPlan,
+        freeze_event: torch.cuda.Event | None,
+    ) -> torch.cuda.Event | None:
+        """Copy a reserved single-request snapshot into final pinned pool rows."""
+
+        def copy() -> None:
+            for span in plan.spans:
+                dst = self._pool.contiguous_rows(key, span.dst, span.length)
+                if source.is_cuda and not dst.is_pinned():
+                    raise OmniPrefixCacheUnmatchError("direct prefix-cache destination is not pinned")
+                dst.copy_(source[span.src : span.src + span.length], non_blocking=source.is_cuda)
+
+        if self._eager or not source.is_cuda:
+            copy()
+            return None
+        if self._copy_stream is None:
+            raise OmniPrefixCacheUnmatchError("direct prefix-cache copy requires a CUDA stream")
+        try:
+            return self._d2h_on_stream(self._copy_stream, freeze_event, copy)
+        except Exception:
+            # A failed submission can leave earlier spans in flight.
+            self._copy_stream.synchronize()
             raise
 
     def staging_bind(self, slot: int, holder: StagingBufferHolder) -> None:
@@ -733,6 +764,11 @@ class OmniPrefixCacheController:
             while self._failed:
                 out.append(self._failed.popleft())
         return out
+
+    def fail_registered(self, tasks: list[WriteTask]) -> None:
+        """Wake readers if direct copy submission failed before dispatch."""
+        for task in tasks:
+            self._fail_task(task.tid)
 
     def get_task(self, tid: int) -> WriteTask | None:
         return self._tasks.get(tid)
@@ -964,8 +1000,16 @@ class OmniPrefixCacheController:
 
     @torch.inference_mode()
     def _scatter(self, task: WriteTask) -> None:
-        for key, slots, host in task.scatter_rows():
-            self._pool.write(key, slots, host)
+        if task.direct:
+            with task.lock:
+                if any(slots.numel() for slots in task.reassigned.values()):
+                    raise OmniPrefixCacheUnmatchError("direct prefix-cache rows were reassigned before completion")
+            self._pool.stats.direct_writes += 1
+            self._pool.stats.direct_rows += int(task.chunks[0].slots_cpu.numel())
+            self._pool.stats.direct_spans += task.direct_spans
+        else:
+            for key, slots, host in task.scatter_rows():
+                self._pool.write(key, slots, host)
         # `done` is set LAST: a join(done) waiter (the save barrier) must find
         # the completion record on its next drain and the staging slot free —
         # a done-but-undrained window would leave occupancy IN_TRANSIT and

@@ -127,6 +127,8 @@ def run_step(
     finished=(),
     mm=None,
     num_tokens_padded=None,
+    hidden_delta=0,
+    hidden_device="cpu",
 ) -> int:
     """One step: reqs = req_id -> (blocks, sched_start_pos, sched_tokens)."""
     view.order = list(reqs.keys())
@@ -140,7 +142,9 @@ def run_step(
         num_sched[req_id] = sched
         slots = view.slots_for(req_id, start_pos, start_pos + sched)
         slot_parts.append(slots)
-        hidden_parts.append(slots.to(DTYPE).unsqueeze(1).expand(sched, HIDDEN).clone())
+        hidden_parts.append(
+            (slots.to(DTYPE) + hidden_delta).unsqueeze(1).expand(sched, HIDDEN).clone().to(hidden_device)
+        )
         hit = (new_hits or {}).get(req_id, 0)
         new_reqs.append(FakeNewReq(req_id, num_computed_tokens=hit, block_ids=[list(blocks)]))
     view.step_slot_mapping = torch.cat(slot_parts)
@@ -221,6 +225,120 @@ def test_no_hit_passthrough():
     sid = run_step(mgr, view, {"a": ([0, 1], 0, 8)})
     outs = mgr.materialize(sid, ["a"])
     assert torch.equal(outs.hidden_states["a"], expected_rows(view.slots_for("a", 0, 8)))
+
+
+def test_direct_pool_write_keeps_delayed_current_rows(monkeypatch):
+    monkeypatch.setenv("OMNI_PREFIX_CACHE_DIRECT_WRITE", "1")
+    mgr = OmniPrefixCacheManager(PrefixCacheConfig(num_blocks=128, block_size=BLOCK_SIZE), eager=True)
+    view = FakeView()
+    blocks = list(range(64))
+    first = run_step(mgr, view, {"a": (blocks, 0, 256)})
+    assert mgr._step_ctxs[first].current_refs
+    assert mgr._step_ctxs[first].d2h is None
+
+    second = run_step(mgr, view, {"b": (blocks, 0, 256)}, finished=["a"], hidden_delta=1000)
+    assert mgr._step_ctxs[first].current_refs[HIDDEN_KEY].preserved
+    old = mgr.materialize(first, ["a"]).hidden_states["a"]
+    new = mgr.materialize(second, ["b"]).hidden_states["b"]
+    assert torch.equal(old, expected_rows(view.slots_for("a", 0, 256)))
+    assert torch.equal(new, expected_rows(view.slots_for("b", 0, 256)) + 1000)
+    assert mgr._pool.stats.direct_writes == 2
+    assert mgr._pool.stats.direct_rows == 512
+    assert not mgr._pending_reads
+
+
+def test_direct_pool_write_falls_back_for_reordered_slots(monkeypatch):
+    monkeypatch.setenv("OMNI_PREFIX_CACHE_DIRECT_WRITE", "1")
+    mgr = OmniPrefixCacheManager(PrefixCacheConfig(num_blocks=128, block_size=BLOCK_SIZE), eager=True)
+    view = FakeView()
+    blocks = list(range(64))
+    blocks[0], blocks[1] = blocks[1], blocks[0]
+    step = run_step(mgr, view, {"a": (blocks, 0, 256)})
+    assert mgr._step_ctxs[step].d2h is not None
+    assert not mgr._step_ctxs[step].current_refs
+    mgr.materialize(step, ["a"])
+    assert mgr._pool.stats.direct_writes == 0
+
+
+def test_direct_pool_write_falls_back_for_full_chunk_or_continuation(monkeypatch):
+    monkeypatch.setenv("OMNI_PREFIX_CACHE_DIRECT_WRITE", "1")
+    view = FakeView()
+    blocks = list(range(128))
+    full = OmniPrefixCacheManager(
+        PrefixCacheConfig(num_blocks=256, block_size=BLOCK_SIZE, staging_capacity_tokens=256), eager=True
+    )
+    step = run_step(full, view, {"a": (blocks, 0, 256)})
+    assert full._step_ctxs[step].d2h is not None
+    full.materialize(step, ["a"])
+
+    mgr = OmniPrefixCacheManager(PrefixCacheConfig(num_blocks=256, block_size=BLOCK_SIZE), eager=True)
+    first = run_step(mgr, view, {"b": (blocks, 0, 256)})
+    assert mgr._step_ctxs[first].d2h is None
+    second = run_step(mgr, view, {"b": (blocks, 256, 256)})
+    assert mgr._step_ctxs[second].d2h is not None
+    mgr.materialize(first, ["b"])
+    mgr.materialize(second, ["b"])
+    assert mgr._pool.stats.direct_writes == 1
+
+
+def test_direct_pool_write_discard_releases_current_read(monkeypatch):
+    monkeypatch.setenv("OMNI_PREFIX_CACHE_DIRECT_WRITE", "1")
+    mgr = OmniPrefixCacheManager(PrefixCacheConfig(num_blocks=128, block_size=BLOCK_SIZE), eager=True)
+    view = FakeView()
+    blocks = list(range(64))
+    step = run_step(mgr, view, {"a": (blocks, 0, 256)})
+    mgr.discard_step(step)
+    assert not mgr._pending_reads
+    later = run_step(mgr, view, {"b": (blocks, 0, 256)}, finished=["a"], hidden_delta=1000)
+    assert torch.equal(
+        mgr.materialize(later, ["b"]).hidden_states["b"], expected_rows(view.slots_for("b", 0, 256)) + 1000
+    )
+
+
+@pytest.mark.skipif(not torch.cuda.is_available(), reason="CUDA direct pool copy")
+def test_direct_pool_write_cuda_event_and_reuse(monkeypatch):
+    monkeypatch.setenv("OMNI_PREFIX_CACHE_DIRECT_WRITE", "1")
+    mgr = OmniPrefixCacheManager(PrefixCacheConfig(num_blocks=128, block_size=BLOCK_SIZE), eager=False)
+    view = FakeView()
+    blocks = list(range(64))
+    first = run_step(mgr, view, {"a": (blocks, 0, 256)}, hidden_device="cuda")
+    first_ctx = mgr._step_ctxs[first]
+    assert first_ctx.d2h is None
+    assert first_ctx.current_refs[HIDDEN_KEY].join_tids
+    second = run_step(mgr, view, {"b": (blocks, 0, 256)}, finished=["a"], hidden_delta=1000, hidden_device="cuda")
+    assert first_ctx.current_refs[HIDDEN_KEY].preserved
+    old = mgr.materialize(first, ["a"]).hidden_states["a"]
+    new = mgr.materialize(second, ["b"]).hidden_states["b"]
+    assert torch.equal(old, expected_rows(view.slots_for("a", 0, 256)))
+    assert torch.equal(new, expected_rows(view.slots_for("b", 0, 256)) + 1000)
+    assert mgr._pool.stats.direct_writes == 2
+    mgr.shutdown()
+
+
+@pytest.mark.skipif(not torch.cuda.is_available(), reason="CUDA direct pool copy")
+def test_direct_pool_write_partial_submission_fails_all_readers(monkeypatch):
+    monkeypatch.setenv("OMNI_PREFIX_CACHE_DIRECT_WRITE", "1")
+    mgr = OmniPrefixCacheManager(PrefixCacheConfig(num_blocks=128, block_size=BLOCK_SIZE), eager=False)
+    view = FakeView()
+    blocks = list(range(32)) + list(range(64, 96))
+    original = mgr._pool.contiguous_rows
+    calls = 0
+
+    def fail_second_span(key, start, length):
+        nonlocal calls
+        calls += 1
+        if calls == 2:
+            raise RuntimeError("injected second span failure")
+        return original(key, start, length)
+
+    monkeypatch.setattr(mgr._pool, "contiguous_rows", fail_second_span)
+    with pytest.raises(RuntimeError, match="second span failure"):
+        run_step(mgr, view, {"a": (blocks, 0, 256)}, hidden_device="cuda")
+    assert not mgr._step_ctxs
+    assert not mgr._pending_reads
+    assert mgr._fatal_write_failure is not None
+    assert mgr._controller._staged_bytes == 0
+    mgr.shutdown()
 
 
 def test_hit_merge_from_mirror():
