@@ -675,7 +675,15 @@ class OmniBagelForConditionalGeneration(BagelForConditionalGeneration, SupportsE
             modalities=["image"],
             buffer_keys=["pixel_values"],
             out_hidden_size=self.config.llm_config.hidden_size,
+            padding_logics={"pixel_values": self._copy_padded_pixels},
         )
+
+    @staticmethod
+    def _copy_padded_pixels(dst: torch.Tensor, src: torch.Tensor) -> None:
+        rows = src.shape[0]
+        dst[:rows].copy_(src)
+        if rows < dst.shape[0]:
+            dst[rows:].zero_()
 
     def _encoder_tokens_per_image(self) -> int:
         config = self.config.vit_config

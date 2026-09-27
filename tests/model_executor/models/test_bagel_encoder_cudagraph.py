@@ -47,6 +47,17 @@ def test_protocol_and_config(model):
     assert "img2img" not in config.modalities
     assert config.buffer_keys == ["pixel_values"]
     assert config.out_hidden_size == 12
+    assert "pixel_values" in config.padding_logics
+
+
+def test_pixel_padding_copy_clears_only_unused_rows(model):
+    copy = model.get_encoder_cudagraph_config().padding_logics["pixel_values"]
+    buffer = torch.empty(3, 3, 8, 8)
+    for count in (3, 1, 2, 1):
+        source = torch.full((count, 3, 8, 8), count, dtype=buffer.dtype)
+        copy(buffer, source)
+        torch.testing.assert_close(buffer[:count], source)
+        assert torch.count_nonzero(buffer[count:]) == 0
 
 
 @pytest.mark.parametrize("max_tokens,max_seqs,expected", [(100, 3, (16, 48)), (8, 3, (16, 16))])
