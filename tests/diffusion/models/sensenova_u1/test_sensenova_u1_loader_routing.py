@@ -2,7 +2,7 @@
 # SPDX-FileCopyrightText: Copyright contributors to the vLLM-Omni project
 """CPU checks for SenseNova-U1's checkpoint loader."""
 
-import os
+from types import SimpleNamespace
 
 import pytest
 import torch
@@ -21,10 +21,14 @@ PREFIX = "language_model.model.layers.0"
 
 
 @pytest.fixture(autouse=True)
-def tp_group():
-    os.environ.setdefault("MASTER_ADDR", "localhost")
-    os.environ.setdefault("MASTER_PORT", "29517")
-    init_distributed_environment(world_size=1, rank=0, local_rank=0, distributed_init_method="env://")
+def tp_group(tmp_path):
+    init_distributed_environment(
+        world_size=1,
+        rank=0,
+        local_rank=0,
+        distributed_init_method=f"file://{tmp_path}/store",
+        backend="gloo",
+    )
     initialize_model_parallel()
     yield
     cleanup_dist_env_and_memory()
@@ -33,6 +37,7 @@ def tp_group():
 class TinyPipeline(SenseNovaU1Pipeline):
     def __init__(self, pixel_head: bool = False):
         nn.Module.__init__(self)
+        self.llm_cfg = SimpleNamespace(num_experts=0, gen_num_experts=0)
         self.language_model = nn.Module()
         self.language_model.model = nn.Module()
         layer = nn.Module()
