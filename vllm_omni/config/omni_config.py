@@ -497,6 +497,7 @@ class OmniStageModelConfig(_TrackExplicitConfigFields):
     interleave_mm_strings: bool | None = None
     media_io_kwargs: dict[str, Any] | None = None
     final_output: bool = False
+    single_stage_pipeline: bool = False
     active_stream_window: int = Field(default=0, ge=0)
     session_mode: str = "turn"
     duplex_max_sessions: int = Field(default=1, ge=1)
@@ -1972,6 +1973,7 @@ def _build_model_config(
     if "active_stream_window" not in kwargs:
         kwargs["active_stream_window"] = _copy_value(deploy.active_stream_window)
     kwargs["final_output"] = topology.final_output
+    kwargs["single_stage_pipeline"] = len(pipeline.stages) == 1
     if "custom_voice_dir" not in kwargs and deploy.custom_voice_dir is not None:
         kwargs["custom_voice_dir"] = _copy_value(deploy.custom_voice_dir)
     kwargs.setdefault("use_v2_model_runner", deploy.model_runner == "v2")
