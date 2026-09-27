@@ -114,6 +114,29 @@ conversion. This does not reduce checkpoint size or guarantee lower peak load
 memory. Validate generated output against the unquantized baseline for your
 model and workload before deployment.
 
+### Wan2.2 UMT5 encoder
+
+Opt in explicitly with a BF16/FP16 checkpoint:
+
+```python
+from vllm_omni import Omni
+
+omni = Omni(
+    model="Wan-AI/Wan2.2-TI2V-5B-Diffusers",
+    quantization_config={"text_encoder": {"method": "fp8"}},
+)
+```
+
+This covers the T2V/TI2V and I2V pipelines and the inherited VACE path. S2V
+uses a separate encoder. A global `quantization="fp8"` does not enable this path.
+Only dynamic online FP8 is accepted; serialized FP8 and static activation
+scales are not supported.
+
+Only FFN input projections (`wi_0` and `wi_1`) use vLLM FP8 linears. Attention,
+FFN output, embeddings, relative position bias and norms retain their original
+precision. HF casts activations to `wo.weight.dtype`, so `wo` must retain BF16.
+The encoder stays replicated. Its full precision checkpoint loads before conversion.
+
 ## Parameters
 
 | Parameter | Methods | Description |
