@@ -8,6 +8,8 @@ import torch
 from torch import nn
 from vllm import _custom_ops as ops
 
+from vllm_omni.quantization.fp8_online import scaled_fp8_quant
+
 QuantizationMode = Literal["fp8", "int8"]
 
 
@@ -27,7 +29,7 @@ class SeedVR2W8A8Linear(nn.Module):
         if x.shape[0] == 0:
             return x.new_empty((0, self.weight.shape[1]))
         if self.mode == "fp8":
-            quantized, scale = ops.scaled_fp8_quant(x, use_per_token_if_dynamic=True)
+            quantized, scale = scaled_fp8_quant(x, use_per_token_if_dynamic=True)
         else:
             quantized, scale, _ = ops.scaled_int8_quant(x)
         return ops.cutlass_scaled_mm(quantized, self.weight, scale, self.scale, x.dtype, self.bias)
