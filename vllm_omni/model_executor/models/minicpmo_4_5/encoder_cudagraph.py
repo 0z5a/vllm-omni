@@ -136,10 +136,14 @@ class _MiniCPMO45EncoderCudaGraphMixin(SupportsEncoderCudaGraph):
             else mm_kwargs
         )
         if len(kwargs["pixel_values"]) == 0:
-            return modality, [], torch.empty((0, 2), dtype=torch.int32), []
+            parsed = modality, [], torch.empty((0, 2), dtype=torch.int32), []
+            mm_kwargs[_PARSE_KEY] = parsed
+            return parsed
         data = self._parse_and_validate_vision_input(modality, **kwargs)
         counts = data["num_slices"].tolist()
-        return modality, data["pixel_values"], data["tgt_sizes"], counts
+        parsed = modality, data["pixel_values"], data["tgt_sizes"], counts
+        mm_kwargs[_PARSE_KEY] = parsed
+        return parsed
 
     def get_encoder_cudagraph_item_specs(self, mm_kwargs: dict[str, Any]) -> list[EncoderItemSpec]:
         if _SPECS_KEY in mm_kwargs:

@@ -171,6 +171,24 @@ def test_empty_encoder_shard_has_no_items(modality: str) -> None:
     assert model.get_encoder_cudagraph_item_specs(selected) == []
 
 
+def test_item_specs_and_selection_parse_vision_input_once(monkeypatch) -> None:
+    model = _EncoderModel().eval()
+    kwargs = {"pixel_values": [[torch.randn(3, 2, 12)]], "tgt_sizes": [torch.tensor([[2, 3]])]}
+    parse = model._parse_and_validate_vision_input
+    calls = 0
+
+    def counted_parse(*args, **kw):
+        nonlocal calls
+        calls += 1
+        return parse(*args, **kw)
+
+    monkeypatch.setattr(model, "_parse_and_validate_vision_input", counted_parse)
+    specs = model.get_encoder_cudagraph_item_specs(kwargs)
+    selected = model.select_encoder_cudagraph_items(kwargs, [0])
+    assert len(specs) == 1 and calls == 1
+    assert model.get_encoder_cudagraph_item_specs(selected) == specs
+
+
 @pytest.mark.parametrize("grids", [((2, 3), (1, 4)), ((3, 2), (2, 3))])
 def test_vision_capture_metadata_matches_eager(grids, monkeypatch) -> None:
     torch.manual_seed(42)
