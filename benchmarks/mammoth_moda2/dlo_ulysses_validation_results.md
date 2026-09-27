@@ -27,10 +27,40 @@ determines the distributed operation's elapsed time.
 This is a tiny-model validation benchmark with one run per source revision.
 It excludes checkpoint download/loading, DLO buffer setup, AR, denoising,
 and VAE decoding. It does not measure valid-request inference throughput.
-The real `bytedance-research/MammothModa2-Preview` checkpoint at revision
-`ef5a5e41dbf0de1ef6275586b7580f0d4248b4c6` is still unavailable on
-the test machine, so full-checkpoint E2E and its speed comparison remain
-pending.
+
+## Full-checkpoint E2E and valid-request speed
+
+On the same RTX 5090 machine, starting from PR head `b08254c4`, the full 37.1 GB
+`bytedance-research/MammothModa2-Preview` checkpoint at revision
+`ef5a5e41dbf0de1ef6275586b7580f0d4248b4c6` was downloaded directly
+and verified shard by shard against the Hugging Face SHA-256 manifest. The
+shared text-to-image example generated one real AR-conditioned 1024×1024
+image with BF16, Ulysses SP2, SDPA, 50 denoising steps, and seed 42. The
+same recorded conditioning was then replayed through the native DiT engine
+on GPUs 1 and 3 in resident, rank-local DLO, and AllGather DLO modes. Each
+mode used one warmup and three measured requests. Timings include the DiT
+request and output transfer, but exclude AR, engine startup, and result
+serialization.
+
+| DiT mode | Mean latency (ms) | Speed vs resident | Peak allocated per rank (GiB) | Memory saved vs resident |
+| --- | ---: | ---: | ---: | ---: |
+| Resident | 11,513.07 | 1.00× | 7.95 | — |
+| Rank-local DLO | 12,801.72 | 0.90× | 5.17 | 35.0% |
+| AllGather DLO | 14,422.86 | 0.80× | 5.37 | 32.5% |
+
+Both DLO modes reproduced the resident decoded tensor exactly: maximum
+absolute difference 0, normalized RGB MAE 0, and SSIM 1.0. The offload
+modes saved GPU memory but were slower for this one-request workload.
+
+The 5090's preinstalled vLLM `0.29.0` required four API compatibility edits
+in the test copy only: omit the removed `gelu_and_mul_sparse` IR priority,
+call `_init_model_kwargs()` without `num_reqs`, use the current structured
+output grammar interface, and skip an unrelated Cosmos3 import while
+detecting Mammoth's direct-mmap adapter. The Mammoth model, DLO hooks,
+checkpoint, request, and replay code were unchanged; all modes used the
+same test copy. The model files were removed after E2E completion. Raw
+timings and comparisons are in
+`/home/gongji/0z5a-work/mm2v-results-20260927` on the 5090 machine.
 
 ## Correctness checks
 
@@ -40,7 +70,9 @@ pending.
 | Two-GPU BF16 rank-local lifecycle | 1 passed |
 | Two-GPU BF16 AllGather lifecycle | 1 passed |
 | Ruff on changed files | passed |
-| Full-checkpoint E2E | pending model download |
+| Full-checkpoint AR→DiT generation | passed; 1024×1024 image produced |
+| Resident, rank-local, AllGather replay | passed; 3 measured requests each |
+| DLO decoded output vs resident | exact match in both modes |
 
 The measured rank records are retained in
 `/home/gongji/0z5a-work/mm2v/bench_invalid_ulysses_base_v2.log` and
