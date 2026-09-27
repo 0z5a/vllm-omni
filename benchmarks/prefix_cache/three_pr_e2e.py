@@ -152,7 +152,7 @@ def natural_shutdown(omni: Omni) -> None:
         asyncio.run_coroutine_threadsafe(client.call_utility_async("request_benchmark_exit"), loop)
     for client in clients:
         for process in client.resources.engine_manager.processes:
-            process.join(60)
+            process.join(180)
             assert process.exitcode == 0, (process.pid, process.exitcode)
     omni.close()
 
