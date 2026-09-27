@@ -1,0 +1,5 @@
+{"index": 0, "warmup": true, "seconds": 5.521566038019955, "batch": 1, "cache": true, "prompt_tokens": 2000, "cached_tokens": [0], "token_ids": [[12010, 2479, 28383, 496, 1944, 19077, 236761, 669]]}
+{"index": 1, "warmup": false, "seconds": 0.39545695899869315, "batch": 1, "cache": true, "prompt_tokens": 2000, "cached_tokens": [0], "token_ids": [[12010, 2479, 28383, 496, 1944, 19077, 236761, 669]]}
+{"index": 2, "warmup": false, "seconds": 0.3941629600012675, "batch": 1, "cache": true, "prompt_tokens": 2000, "cached_tokens": [0], "token_ids": [[12010, 2479, 28383, 496, 1944, 19077, 236761, 669]]}
+{"index": 3, "warmup": false, "seconds": 0.39783423201879486, "batch": 1, "cache": true, "prompt_tokens": 2000, "cached_tokens": [0], "token_ids": [[12010, 2479, 28383, 496, 1944, 19077, 236761, 669]]}
+{"index": 4, "warmup": false, "seconds": 0.39331938402028754, "batch": 1, "cache": true, "prompt_tokens": 2000, "cached_tokens": [0], "token_ids": [[12010, 2479, 28383, 496, 1944, 19077, 236761, 669]]}

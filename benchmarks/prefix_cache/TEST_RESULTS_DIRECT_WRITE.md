@@ -1,13 +1,13 @@
 # Direct D2H into the prefix cache pool: test results
 
 Base: `9e633772ecc818b30802b93e0bf2c0ea9f699cf1` (A1 transfer-plan PR).
-Hardware: RTX 5090, GPU 1; existing `/home/gongji/0z5a` environment, CUDA visible device 0 inside the process. The implementation is opt-in with `OMNI_PREFIX_CACHE_DIRECT_WRITE=1`.
+Hardware: 8×RTX 5090 host; GPU 1 for Qwen, GPU 7 for the stable Gemma comparisons. All runs used the existing `/home/gongji/0z5a` environment, with no package changes. The implementation is opt-in with `OMNI_PREFIX_CACHE_DIRECT_WRITE=1`.
 
 ## Correctness
 
 | Check | Result |
 |---|---|
-| Prefix-cache core, adapter, block-layout, runner-mixin and transfer-plan tests | 152 passed |
+| Prefix-cache core, adapter, block-layout, runner-mixin and transfer-plan tests | 153 passed |
 | Direct CUDA event, slot reuse and old-version read | Passed, exact rows |
 | Direct partial-copy submission failure | Passed, event drained, readers failed, budget released |
 | Direct discard and reordered-slot fallback | Passed |
@@ -38,4 +38,35 @@ The selector also requires one request, one immediate field, the request's first
 
 ## Model end-to-end
 
-Pending the model weights already downloading on the test host. The full three-stage Qwen2.5-Omni workload will compare cache off, A1, and A1 plus direct, including the known 2,938-token / 2,048-prefill-chunk correctness case. No model speedup is claimed from the microbenchmark above.
+Each arm used a fresh process and the same model, prompt, GPU, backend and memory limits. One warmup request preceded the measured requests. Speedup is baseline median divided by candidate median; values below 1 mean the candidate was slower. Qwen compared A1 `9e633772` with A2 code `d401281a`; both source trees had the same local Qwen talker guard at `qwen2_5_omni.py:363` (`sampling_metadata is not None and sampling_metadata.prompt_token_ids is not None`) for the installed versions. Gemma used a separate screening overlay `17e2da04` on upstream #8056 `5cd1f6c5`, **not** independent validation of this PR's A1 parent.
+
+### Qwen2.5-Omni-3B: three-stage text and audio, GPU 1
+
+The prompt has 1,978 tokens (one 1,978-row prefill); the allocator/kernel block layout is 128/64. Cache hits reuse 1,920 tokens. Each row below is the median of five measured requests, following one warmup, in a fresh process. Text token IDs match across all three arms. All audio outputs are finite with 245,760 samples; A1 and direct also have identical per-request audio SHA-256 hashes. Cache-off audio hashes vary between repeated requests, so their hash difference is not treated as a direct-write failure.
+
+| Arm | Full E2E p50 (s) | Range (s) | Text-stage p50 (s) | Speedup vs A1 |
+|---|---:|---:|---:|---:|
+| Cache off | 13.102 | 12.622–13.379 | 0.911 | — |
+| A1 cache | 12.666 | 12.374–13.556 | 0.911 | 1.000× |
+| A1 + direct | 12.728 | 12.645–13.427 | 1.025 | **0.995×** |
+
+The direct arm logged `direct_writes=1`, `direct_rows=1978`, `direct_spans=1`. The selected path ran and produced the same text and audio as A1, but this full text/audio workload shows no E2E speedup. Raw outputs: [off](results/qwen_short_off.jsonl), [A1](results/qwen_short_a1.jsonl), [direct](results/qwen_short_direct.jsonl).
+
+### Gemma-3-1B-IT: exploratory full-attention screening
+
+This model required upstream #8056's hybrid-group adapter, so its screening source is #8056 plus A1 and A2, with the direct flag toggled between fresh processes. Cold 2,000-token requests use distinct prompts, batch 1 and 8 generated tokens; all five token-ID rows match between A1 and direct, and no prefix tokens are reused. Each paired median is four measured requests after one warmup on GPU 7. The direct arm logged five direct writes of 2,000 rows each.
+
+| GPU 7 order | A1 p50 (s) | Direct p50 (s) | A1 / direct |
+|---|---:|---:|---:|
+| A1 → direct | 0.401 | 0.395 | **1.016×** |
+| Direct → A1 | 0.409 | 0.405 | **1.010×** |
+
+These ~1% differences are screening signals, not a reliable model-level gain. The corresponding cache-off cold median was 0.386 s, so neither cached path improves this deliberately non-reusing workload. A second reverse-order pair on GPU 2 ran at ~0.9 s/request under visibly different load and is excluded from the stable comparison. Raw GPU 7 outputs: [off](results/gemma_cold_off.jsonl), [A1-first](results/gemma_cold_a1.jsonl), [direct-second](results/gemma_cold_direct.jsonl), [direct-first](results/gemma_cold_direct_reverse.jsonl), [A1-second](results/gemma_cold_a1_reverse.jsonl).
+
+The shared-prefix batch-8 case validates the cache-hit path: cache off took 0.837 s p50 and cache on with direct enabled took 0.534 s p50 (1.566×), with identical token IDs in all five rounds and 1,984 cached tokens on subsequent requests. It logged one direct first write; the speedup principally measures **prefix caching vs no caching**, so it is not attributed to A2. Raw outputs: [off](results/gemma_shared_off.jsonl), [cache on](results/gemma_shared_direct.jsonl).
+
+### Known 2,938-token / 2,048-chunk failure
+
+The long Qwen prompt was run with cache off, A1, ungated direct, and the final gated candidate. On the cache hit, A1 reused 2,816 tokens but inserted token `894` before `1008` relative to cache off; the audio shrank from 245,760 to 13,440 samples. This is the inherited #8051 correctness failure, also reproduced with this branch's direct flag disabled. Ungated direct also changed the cold output, so the final selector only permits the first write with fewer than `staging_capacity_tokens` rows. With this gate, the long run logged `direct_writes=0` and matched A1's cold and hit outputs exactly, including the inherited hit failure. These invalid-output runs are not used as performance evidence. Raw outputs: [cache off](results/qwen_long_off.jsonl), [A1](results/qwen_long_a1.jsonl), [candidate flag off](results/qwen_long_candidate_off.jsonl), [ungated direct](results/qwen_long_direct_ungated.jsonl), [gated direct](results/qwen_long_direct_gated.jsonl).
+
+The PR therefore remains draft. The existing A1 path already prefetches hit rows into the final CPU buffer via `rows_into`; it does not require a second prefix gather/copy for an A4a experiment. The long-prefix hit mismatch must be resolved in its owning cache/attention path before an overall correctness or production E2E claim.
