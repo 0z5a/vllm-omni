@@ -57,7 +57,10 @@ from vllm_omni.config.stage_config import (
 )
 from vllm_omni.diffusion.diffusion_kv.config import DiffusionKVCacheMode
 from vllm_omni.engine.stage_engine_startup import _serialize_stage_config
-from vllm_omni.engine.stage_init_utils import build_legacy_engine_args_dict
+from vllm_omni.engine.stage_init_utils import (
+    build_engine_args_dict_from_omni_stage_config,
+    build_legacy_engine_args_dict,
+)
 
 pytestmark = [pytest.mark.core_model, pytest.mark.cpu]
 
@@ -1430,6 +1433,30 @@ def test_from_pipeline_config_accepts_pre_resolved_pipeline():
     omni_config = VllmOmniConfig.from_pipeline_config(resolved_pipeline)
 
     assert omni_config.pipeline_config is resolved_pipeline
+
+
+@pytest.mark.parametrize("stage_count", [1, 2])
+def test_text_stage_knows_when_pipeline_has_no_downstream_stage(stage_count: int):
+    pipeline = PipelineConfig(
+        model_type="text-stage-topology",
+        stages=tuple(
+            StagePipelineConfig(
+                stage_id=stage_id,
+                model_stage=f"text-{stage_id}",
+                input_sources=(stage_id - 1,) if stage_id else (),
+                final_output=stage_id == stage_count - 1,
+                engine_output_type="text",
+            )
+            for stage_id in range(stage_count)
+        ),
+    )
+
+    config = VllmOmniConfig.from_pipeline_config(pipeline, user_deploy_config=DeployConfig(async_chunk=False))
+
+    for stage in config.stage_configs:
+        assert stage.model_config.single_stage_pipeline is (stage_count == 1)
+        engine_args = build_engine_args_dict_from_omni_stage_config(stage, "text-stage-topology")
+        assert engine_args["single_stage_pipeline"] is (stage_count == 1)
 
 
 def test_from_pipeline_config_prefers_loaded_user_deploy_config(monkeypatch):
