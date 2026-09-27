@@ -25,6 +25,9 @@ class TransferStats:
     write_spans: int = 0
     gathers: int = 0
     gather_rows: int = 0
+    direct_writes: int = 0
+    direct_rows: int = 0
+    direct_spans: int = 0
 
 
 class PrefixBlockPool:
@@ -93,6 +96,16 @@ class PrefixBlockPool:
 
     def row_dtype(self, key: str) -> torch.dtype:
         return self._caches[key].dtype
+
+    def row_is_pinned(self, key: str) -> bool:
+        return self._caches[key].is_pinned()
+
+    def contiguous_rows(self, key: str, start: int, length: int) -> torch.Tensor:
+        """Stable pinned pool slice for the controller's reserved direct write."""
+        flat = self._flat(key)
+        if start < 0 or length < 1 or start + length > flat.shape[0]:
+            raise IndexError(f"pool span [{start}, {start + length}) is out of bounds")
+        return flat[start : start + length]
 
     def empty_rows(self, key: str, rows: int) -> torch.Tensor:
         """Uninitialised CPU rows shaped like this key's pool rows.

@@ -91,6 +91,7 @@ from vllm_omni.core.prefix_cache.interface import (
     is_hidden_key,
     without_hidden,
 )
+from vllm_omni.core.prefix_cache.transfer_plan import TransferPlan, compile_write_plan
 
 logger = logging.getLogger(__name__)
 
@@ -296,6 +297,8 @@ class _StepContext:
 
     # Staging slot for this step id (empty views when only leftover mm).
     d2h: StepD2HClaim | None = None
+    # Direct writes read their current rows through a version-bound pool ref.
+    current_refs: dict[TensorName, _SlotRef] = field(default_factory=dict)
 
 
 class _SlotStatus(NamedTuple):
@@ -431,6 +434,7 @@ class OmniPrefixCacheManager:
         eager: bool | None = None,
     ):
         self._config = config
+        self._direct_write = os.environ.get("OMNI_PREFIX_CACHE_DIRECT_WRITE") == "1"
         self._pool = PrefixBlockPool(config)
         self._controller = OmniPrefixCacheController(self._pool, config, eager=eager)
         self._policy = ModelCachePolicy()
@@ -576,18 +580,18 @@ class OmniPrefixCacheManager:
         """Write this step's outputs into the cache; returns the step id.
 
         Engine thread only, after the forward and before materialize.
-        Immediately-cached rows: one on-device clone, one whole-step
-        device→host into the staging pool, then one JOIN_NEXT_STEP
-        WriteTask per request whose `chunk.host` is a view of that page.
+        Immediately-cached rows keep one on-device clone. The default path
+        copies it into whole-step staging; eligible single-request saves
+        copy directly into reserved pinned pool rows. Both use the existing
+        JOIN_NEXT_STEP write state machine.
         Deferred rows stay on the device clone (JOIN_ON_FINISH); the
         committer copies them later. Leftover mm (this-step deferred rows
         + mm not written to the pool) is copied to CPU here so materialize
         never reads live graph buffers.
         Snapshots everything materialize needs. The returned step id MUST
         be consumed exactly once — by materialize() or discard_step().
-        Every step id claims one staging slot (saves with only leftover mm
-        included); a later save waits for a free slot and times out if
-        none return.
+        Default-path step ids claim a staging slot (including leftover-only
+        saves); a later default-path save waits for one if all are busy.
 
         The state lock never covers a blocking wait: the previous step's
         JOIN_NEXT_STEP wait, the clone build, the GPU-byte-budget reserve
@@ -645,6 +649,40 @@ class OmniPrefixCacheManager:
             # then opens a fresh one, so a long request cannot pin the
             # whole budget.
             self._controller.reserve(step_outputs.budget_bytes())
+
+        direct_plan = self._direct_plan(step_outputs, slots_cpu, req_order, num_tokens_unpadded)
+        if direct_plan is not None:
+            step_id, queued = self._publish_saved_step(
+                req_order=req_order,
+                query_start=query_start,
+                num_sched=num_sched,
+                num_tokens_unpadded=num_tokens_unpadded,
+                step_outputs=step_outputs,
+                slots_cpu=slots_cpu,
+                mm_keys=set(mm_outputs.keys()),
+                freeze_event=freeze_event,
+                d2h_claim=None,
+                bound_tids=[],
+                direct_plan=direct_plan,
+            )
+            key, source = next(iter(step_outputs.immediate.items()))
+            event = None
+            try:
+                event = self._controller.stage_direct_pool(key, source, direct_plan, freeze_event)
+                for task in queued:
+                    task.step_d2h_event = event
+                self._controller.dispatch(queued)
+                return step_id
+            except Exception:
+                if event is not None:
+                    event.synchronize()
+                self._controller.fail_registered(queued)
+                with self._state_lock:
+                    ctx = self._step_ctxs.pop(step_id)
+                    self._fatal_write_failure = f"direct prefix-cache copy failed for step {step_id}"
+                    saved_ids = {id(ref) for ref in ctx.current_refs.values()}
+                    self._pending_reads = [ref for ref in self._pending_reads if id(ref) not in saved_ids]
+                raise
 
         # 5. Claim a staging slot (unlocked), optional device→host into it,
         #    register the writes + store the step snapshot (locked), then
@@ -739,7 +777,9 @@ class OmniPrefixCacheManager:
                 ctx.mm_cpu_snapshot_event.synchronize()
                 ctx.mm_cpu_snapshot = _unpin_leftover(ctx.mm_cpu_snapshot)
             current: dict[str, torch.Tensor] = {}
-            if ctx.d2h is not None:
+            if ctx.current_refs:
+                current = {key: self._fetch_source(ref) for key, ref in ctx.current_refs.items()}
+            elif ctx.d2h is not None:
                 # Whole-step device→host was launched at save. One event wait
                 # (usually already complete), then a contiguous copy-out per
                 # key so consumers no longer depend on the reusable slot.
@@ -776,6 +816,9 @@ class OmniPrefixCacheManager:
         finally:
             if ctx is not None and not step_released:
                 self._release_step_staging(ctx, step_id)
+            if ctx is not None:
+                for ref in ctx.current_refs.values():
+                    self._unregister_pending_read(ref)
 
     @_locked
     def discard_step(self, step_id: int) -> None:
@@ -787,6 +830,9 @@ class OmniPrefixCacheManager:
         """
         ctx = self._take_step_ctx(step_id)
         self._release_step_staging(ctx, step_id)
+        if ctx.current_refs:
+            saved_ids = {id(ref) for ref in ctx.current_refs.values()}
+            self._pending_reads = [ref for ref in self._pending_reads if id(ref) not in saved_ids]
 
     def shutdown(self) -> None:
         self._prefetch_pool.shutdown(wait=False, cancel_futures=True)
@@ -854,6 +900,46 @@ class OmniPrefixCacheManager:
 
     # ---------------------------------------------------------- save
 
+    def _direct_plan(
+        self,
+        outputs: _StepOutputs,
+        slots_cpu: torch.Tensor | None,
+        req_order: list[str],
+        rows: int,
+    ) -> TransferPlan | None:
+        """Keep the experimental path to one owned, well-coalesced field."""
+        if (
+            not self._direct_write
+            or len(req_order) != 1
+            or len(outputs.immediate) != 1
+            or outputs.deferred_chunks
+            or slots_cpu is None
+            or rows < 256
+        ):
+            return None
+        key, source = next(iter(outputs.immediate.items()))
+        if source.ndim != 2 or source.shape[0] != rows or not source.is_contiguous():
+            return None
+        storage = outputs.new_key_storage.get(key)
+        if storage is None:
+            if not self._pool.has_key(key):
+                return None
+            if self._pool.row_dtype(key) != source.dtype or self._pool.row_width(key) != source.shape[1]:
+                return None
+            if source.is_cuda and not self._pool.row_is_pinned(key):
+                return None
+        elif storage.dtype != source.dtype or storage.shape[-1] != source.shape[1]:
+            return None
+        if source.is_cuda and storage is not None and not storage.is_pinned():
+            return None
+        plan = compile_write_plan(slots_cpu)
+        if plan is None or not plan.coalesces() or len(plan.spans) > 16:
+            return None
+        end = plan.spans[-1].dst + plan.spans[-1].length
+        if plan.spans[0].dst < 0 or end > self._config.num_blocks * self._config.block_size:
+            return None
+        return plan
+
     def _stage_step_host(
         self,
         device_snapshot: dict[str, torch.Tensor],
@@ -907,8 +993,9 @@ class OmniPrefixCacheManager:
         slots_cpu: torch.Tensor | None,
         mm_keys: set[str],
         freeze_event: torch.cuda.Event | None,
-        d2h_claim: StepD2HClaim,
+        d2h_claim: StepD2HClaim | None,
         bound_tids: list[int],
+        direct_plan: TransferPlan | None = None,
     ) -> tuple[StepId, list[WriteTask]]:
         """Takes ``_state_lock``. Register this step's writes and store the
         consume-once snapshot. Copies live hits into the snapshot, then
@@ -928,13 +1015,19 @@ class OmniPrefixCacheManager:
                 step_outputs.immediate,
                 step_outputs.immediate_budget,
                 slots_cpu,
-                d2h_claim.views,
+                {} if d2h_claim is None else d2h_claim.views,
                 freeze_event,
-                d2h_claim.staging_slot,
-                d2h_claim.event,
+                None if d2h_claim is None else d2h_claim.staging_slot,
+                None if d2h_claim is None else d2h_claim.event,
                 bound_tids,
+                direct_spans=0 if direct_plan is None else len(direct_plan.spans),
             )
         self._stage_deferred(step_outputs.deferred_chunks, freeze_event)
+        current_refs = (
+            {key: self._slot_ref(slots_cpu, key, req_order[0]) for key in step_outputs.immediate}
+            if direct_plan is not None
+            else {}
+        )
         if self._hit_spans:
             # Same-step hits: their rows are registered now (IN_TRANSIT on
             # this step's tasks); start the gather before the next step.
@@ -950,6 +1043,7 @@ class OmniPrefixCacheManager:
             mm_cpu_snapshot=step_outputs.leftover,
             mm_cpu_snapshot_event=step_outputs.leftover_event,
             d2h=d2h_claim,
+            current_refs=current_refs,
         )
         self._clear_hit_infos()
         return step_id, queued
@@ -1061,9 +1155,10 @@ class OmniPrefixCacheManager:
         slots_cpu: torch.Tensor,
         host_views: dict[str, torch.Tensor],
         freeze_event,
-        staging_slot: int,
+        staging_slot: int | None,
         step_d2h_event,
         bound_tids: list[int],
+        direct_spans: int = 0,
     ) -> list[WriteTask]:
         """Caller holds ``_state_lock``. Register one WriteTask per request;
         returns them for the caller to dispatch once the lock is released.
@@ -1093,12 +1188,15 @@ class OmniPrefixCacheManager:
                 freeze_event=freeze_event,
                 staging_slot=staging_slot,
                 step_d2h_event=step_d2h_event,
+                direct=direct_spans > 0,
+                direct_spans=direct_spans,
             )
             self._map_slots(slots_cpu[start:end], tid, tensors.keys())
             # Bind and pin before register: the slot must never be holder-free
             # while the task is live (released at its pool write).
-            self._controller.staging_bind(staging_slot, StagingBufferHolder.for_task(tid))
-            bound_tids.append(tid)
+            if staging_slot is not None:
+                self._controller.staging_bind(staging_slot, StagingBufferHolder.for_task(tid))
+                bound_tids.append(tid)
             if budget is not None:
                 self._controller.pin_budget(budget, tid)
             self._controller.register(task)
