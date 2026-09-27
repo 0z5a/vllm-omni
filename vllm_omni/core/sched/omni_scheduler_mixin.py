@@ -56,7 +56,9 @@ def accept_structured_output_tokens(
     manager: StructuredOutputManager, request: Request, new_token_ids: list[int]
 ) -> bool:
     """Advance either vLLM manager API with the sampled token delta."""
-    if hasattr(type(manager), "accept_tokens"):
+    if hasattr(type(manager), "accept_tokens") or (
+        not isinstance(manager, StructuredOutputManager) and hasattr(manager, "accept_tokens")
+    ):
         return bool(manager.accept_tokens(request, new_token_ids))
     if not manager.should_advance(request, new_token_ids=new_token_ids):
         return True

@@ -11,8 +11,8 @@ Two properties are load-bearing and pinned here:
 
 * it is a module-level function, so scheduler stubs that call
   ``update_from_output`` unbound do not have to grow an attribute for it;
-* it dispatches on the manager *class*, because an ``getattr`` on a ``MagicMock``
-  instance is never ``None`` and would make the older branch unreachable.
+* a real 0.29 manager takes the reasoning-aware fallback, while scheduler
+  stubs with an instance-bound ``accept_tokens`` use the current API.
 """
 
 from types import SimpleNamespace
@@ -61,7 +61,7 @@ def test_helper_is_module_level_not_a_mixin_method():
 
 def test_manager_without_accept_tokens_gates_on_should_advance():
     request = _request()
-    manager = MagicMock()
+    manager = MagicMock(spec=["should_advance", "trim_reasoning_for_advance"])
     manager.should_advance.return_value = False
 
     assert accept_structured_output_tokens(manager, request, [7]) is True
@@ -71,7 +71,7 @@ def test_manager_without_accept_tokens_gates_on_should_advance():
 
 def test_manager_without_accept_tokens_accepts_through_the_grammar():
     request = _request()
-    manager = MagicMock()
+    manager = MagicMock(spec=["should_advance", "trim_reasoning_for_advance"])
     manager.should_advance.return_value = True
     manager.trim_reasoning_for_advance.side_effect = lambda request, tokens: tokens
 
@@ -82,7 +82,7 @@ def test_manager_without_accept_tokens_accepts_through_the_grammar():
 def test_manager_without_accept_tokens_reports_a_grammar_rejection():
     request = _request()
     request.structured_output_request.grammar.accept_tokens.return_value = False
-    manager = MagicMock()
+    manager = MagicMock(spec=["should_advance", "trim_reasoning_for_advance"])
     manager.should_advance.return_value = True
     manager.trim_reasoning_for_advance.side_effect = lambda request, tokens: tokens
 
@@ -103,6 +103,15 @@ def test_manager_class_with_accept_tokens_reports_rejection():
     manager = _NewLayoutManager(accepted=False)
 
     assert accept_structured_output_tokens(manager, request, [3]) is False
+
+
+def test_scheduler_stub_with_instance_bound_accept_tokens():
+    request = _request()
+    accept_tokens = MagicMock(return_value=True)
+    manager = SimpleNamespace(accept_tokens=accept_tokens)
+
+    assert accept_structured_output_tokens(manager, request, [4]) is True
+    accept_tokens.assert_called_once_with(request, [4])
 
 
 @pytest.mark.parametrize("tokens,suffix", [([10, 99, 123], [123]), ([10, 99], []), ([10], None)])
