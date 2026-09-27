@@ -260,6 +260,27 @@ def test_direct_pool_write_falls_back_for_reordered_slots(monkeypatch):
     assert mgr._pool.stats.direct_writes == 0
 
 
+def test_direct_pool_write_falls_back_for_full_chunk_or_continuation(monkeypatch):
+    monkeypatch.setenv("OMNI_PREFIX_CACHE_DIRECT_WRITE", "1")
+    view = FakeView()
+    blocks = list(range(128))
+    full = OmniPrefixCacheManager(
+        PrefixCacheConfig(num_blocks=256, block_size=BLOCK_SIZE, staging_capacity_tokens=256), eager=True
+    )
+    step = run_step(full, view, {"a": (blocks, 0, 256)})
+    assert full._step_ctxs[step].d2h is not None
+    full.materialize(step, ["a"])
+
+    mgr = OmniPrefixCacheManager(PrefixCacheConfig(num_blocks=256, block_size=BLOCK_SIZE), eager=True)
+    first = run_step(mgr, view, {"b": (blocks, 0, 256)})
+    assert mgr._step_ctxs[first].d2h is None
+    second = run_step(mgr, view, {"b": (blocks, 256, 256)})
+    assert mgr._step_ctxs[second].d2h is not None
+    mgr.materialize(first, ["b"])
+    mgr.materialize(second, ["b"])
+    assert mgr._pool.stats.direct_writes == 1
+
+
 def test_direct_pool_write_discard_releases_current_read(monkeypatch):
     monkeypatch.setenv("OMNI_PREFIX_CACHE_DIRECT_WRITE", "1")
     mgr = OmniPrefixCacheManager(PrefixCacheConfig(num_blocks=128, block_size=BLOCK_SIZE), eager=True)

@@ -915,6 +915,8 @@ class OmniPrefixCacheManager:
             or outputs.deferred_chunks
             or slots_cpu is None
             or rows < 256
+            or rows >= self._config.staging_capacity_tokens
+            or self._request_tasks.write_n.get(req_order[0], 0) != 0
         ):
             return None
         key, source = next(iter(outputs.immediate.items()))

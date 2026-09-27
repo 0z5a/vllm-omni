@@ -34,7 +34,7 @@ Both arms start with the same immutable CUDA snapshot and finish with identical 
 | 4,096 | 16 | 16 MiB | 2,456.9 | 1,783.0 | 1.42× / 1.34× | direct |
 | 4,096 | 64 | 16 MiB | 3,393.1 | 1,877.9 | 1.59× / 2.05× | A1 |
 
-The selector also requires one request, one immediate field, at least 256 contiguous rows, pinned destination, compatible shape and dtype, strictly increasing slots, mean span length at least 64 rows, and at most 16 spans. The 4,096-row/64-span case is left on A1 by that conservative bound. These microbenchmarks are a copy-path signal, not an end-to-end speedup claim. Raw samples: [`results/a1_vs_direct_5090.jsonl`](results/a1_vs_direct_5090.jsonl). Reproduce with [`bench_direct_d2h.py`](bench_direct_d2h.py).
+The selector also requires one request, one immediate field, the request's first write, 256 or more rows but fewer than the configured staging capacity, pinned destination, compatible shape and dtype, strictly increasing slots, mean span length at least 64 rows, and at most 16 spans. The table's selector column assumes capacity exceeds the listed row count; 4,096-row cases therefore stay on A1 when capacity is 2,048. The 4,096-row/64-span case is left on A1 by the span-count bound regardless of capacity. These microbenchmarks are a copy-path signal, not an end-to-end speedup claim. Raw samples: [`results/a1_vs_direct_5090.jsonl`](results/a1_vs_direct_5090.jsonl). Reproduce with [`bench_direct_d2h.py`](bench_direct_d2h.py).
 
 ## Model end-to-end
 
