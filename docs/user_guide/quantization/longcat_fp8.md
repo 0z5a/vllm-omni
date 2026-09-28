@@ -55,7 +55,7 @@ Pooled reference/candidate ratio: **0.933×**. All **12/12 paired images**
 were pixel-identical. A2/A1 was 0.978× and P2/P1 was 0.948× on this shared host.
 The candidate did not show an E2E benefit and was withdrawn; this PR retains
 reference fallback for these shapes. The earlier incomplete GPU3 run is excluded.
-LongCat-Image-Edit full E2E is pending.
+LongCat-Image-Edit CUDA E2E is recorded below.
 
 
 ### DiT compilation comparison
@@ -79,3 +79,25 @@ A2/A1 drift is 1.043×; P2/P1 is 1.013×. Peak allocated memory was 21.91 GiB.
 pixel error was 1.207 on the 0–255 scale, with maximum channel error 189.
 This is a speed/rounding tradeoff, not an output-equivalent replacement or a
 quality validation. Keep eager execution when exact eager output is required.
+
+
+### LongCat-Image-Edit CUDA-path comparison
+
+The official Edit checkpoint was SHA-verified. Same GPU3, 512×512/50 steps,
+seed 42, guidance 4.5, three warmups plus six measured full requests per arm.
+A temporary SM120 BF16 gate admitted 667×3584 and 667×18944; the existing
+block-per-row mapping was selected in every arm. Payload and scale matched
+the reference for three random seeds including a zero row. Candidate warmups
+made **196 CUDA quantizer calls per request**, reference warmups made zero.
+Instrumentation was removed before timing.
+
+| Arm | Quantizer | Full request mean ± SD (s) |
+| --- | --- | ---: |
+| A1 | Reference | 5.828 ± 0.033 |
+| P1 | Candidate CUDA | 5.884 ± 0.022 |
+| P2 | Candidate CUDA | 5.900 ± 0.031 |
+| A2 | Reference | 5.871 ± 0.031 |
+
+Pooled ratio: **0.993×** (5.850 / 5.892 s), with **12/12 pixel-identical pairs**.
+A2/A1 drift was 1.007× and P2/P1 1.003×; peak allocation was 21.91 GiB.
+There was no E2E improvement, so the temporary gate was withdrawn.
