@@ -101,3 +101,24 @@ Instrumentation was removed before timing.
 Pooled ratio: **0.993×** (5.850 / 5.892 s), with **12/12 pixel-identical pairs**.
 A2/A1 drift was 1.007× and P2/P1 1.003×; peak allocation was 21.91 GiB.
 There was no E2E improvement, so the temporary gate was withdrawn.
+
+
+### LongCat-Image-Edit compilation comparison
+
+Same GPU3 and Edit configuration, three warmups and six measured requests per
+arm. Only execution configuration changed; CUDA activation routing was disabled
+in all arms and counting instrumentation was removed before timing.
+
+| Arm | Execution | Full request mean ± SD (s) |
+| --- | --- | ---: |
+| A1 | Eager | 5.867 ± 0.022 |
+| P1 | Compiled | 5.686 ± 0.030 |
+| P2 | Compiled | 5.695 ± 0.022 |
+| A2 | Eager | 5.906 ± 0.024 |
+
+Pooled eager/compiled ratio: **1.034×** (5.887 / 5.691 s).
+A2/A1 drift was 1.007× and P2/P1 was 1.002×; peak allocation was 21.91 GiB.
+Cross-configuration images were **0/12 pixel-identical**, with pixel MAE
+1.471 on the 0–255 scale and maximum channel error 202. This measures a
+compilation configuration tradeoff, not a CUDA quantizer gain or quality
+validation. The default CUDA gate and original kernels remain unchanged.
