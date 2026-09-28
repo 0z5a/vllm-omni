@@ -3,12 +3,28 @@
 """Pinned CPU block mirror (mirrors vLLM BlockPool)."""
 
 import logging
+from dataclasses import dataclass
 
 import torch
 
 from vllm_omni.core.prefix_cache.interface import PrefixCacheConfig, TensorName
+from vllm_omni.core.prefix_cache.transfer_plan import compile_write_plan
 
 logger = logging.getLogger(__name__)
+
+
+@dataclass
+class TransferStats:
+    """Why each pool write took the path it took. Counters only, no samples."""
+
+    writes: int = 0
+    span_writes: int = 0
+    indexed_writes: int = 0
+    unplannable_writes: int = 0
+    write_rows: int = 0
+    write_spans: int = 0
+    gathers: int = 0
+    gather_rows: int = 0
 
 
 class PrefixBlockPool:
@@ -31,6 +47,7 @@ class PrefixBlockPool:
     def __init__(self, config: PrefixCacheConfig):
         self._config = config
         self._caches: dict[TensorName, torch.Tensor] = {}
+        self.stats = TransferStats()
 
     def _alloc(self, dtype: torch.dtype, feat: int) -> torch.Tensor:
         return torch.zeros(
@@ -71,14 +88,57 @@ class PrefixBlockPool:
         cache = self._caches[key]
         return cache.view(-1, cache.shape[-1])
 
+    def row_width(self, key: str) -> int:
+        return int(self._caches[key].shape[-1])
+
+    def row_dtype(self, key: str) -> torch.dtype:
+        return self._caches[key].dtype
+
+    def empty_rows(self, key: str, rows: int) -> torch.Tensor:
+        """Uninitialised CPU rows shaped like this key's pool rows.
+
+        Lets a caller reserve its own destination and have the gather write
+        straight into it instead of gathering a copy and copying again.
+        """
+        return torch.empty((rows, self.row_width(key)), dtype=self.row_dtype(key))
+
+    def rows_into(self, dst: torch.Tensor, key: str, slots: torch.Tensor) -> torch.Tensor:
+        """Gather ``slots`` rows straight into ``dst`` (row-aligned, same length).
+
+        One traversal: ``index_select`` writes into the destination slice.
+        The two-step ``rows()`` + ``copy_`` costs a second pass over the same
+        bytes for no benefit.
+        """
+        self.stats.gathers += 1
+        self.stats.gather_rows += int(slots.numel())
+        return torch.index_select(self._flat(key), 0, self._to_slots(slots), out=dst)
+
     def rows(self, key: str, slots: torch.Tensor) -> torch.Tensor:
         """Gather rows for non-contiguous slots (returns a copy)."""
-        return self._flat(key).index_select(0, slots)
+        return self.rows_into(self.empty_rows(key, int(slots.numel())), key, slots)
 
     def write(self, key: str, slots: torch.Tensor, src_cpu: torch.Tensor) -> None:
         """Write rows into the pool; caller (committer thread) is the single writer."""
-        if slots.dtype != torch.int64:
-            slots = slots.to(torch.int64)
+        slots = self._to_slots(slots)
+        flat = self._flat(key)
+        plan = compile_write_plan(slots)
+        self.stats.writes += 1
+        self.stats.write_rows += int(slots.numel())
+        if plan is None:
+            # Repeated or reordered destination: keep the audited
+            # last-writer-wins order of the indexed op.
+            self.stats.unplannable_writes += 1
+        elif plan.coalesces():
+            self.stats.span_writes += 1
+            self.stats.write_spans += len(plan.spans)
+            for span in plan.spans:
+                flat[span.dst : span.dst + span.length] = src_cpu[span.src : span.src + span.length]
+            return
+        self.stats.indexed_writes += 1
         # index_copy_ dispatches to a faster single-dim CPU path than
         # advanced-indexing assignment (aten::index_put_).
-        self._flat(key).index_copy_(0, slots, src_cpu)
+        flat.index_copy_(0, slots, src_cpu)
+
+    @staticmethod
+    def _to_slots(slots: torch.Tensor) -> torch.Tensor:
+        return slots if slots.dtype == torch.int64 else slots.to(torch.int64)
