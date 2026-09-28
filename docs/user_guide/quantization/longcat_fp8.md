@@ -56,3 +56,26 @@ were pixel-identical. A2/A1 was 0.978× and P2/P1 was 0.948× on this shared hos
 The candidate did not show an E2E benefit and was withdrawn; this PR retains
 reference fallback for these shapes. The earlier incomplete GPU3 run is excluded.
 LongCat-Image-Edit full E2E is pending.
+
+
+### DiT compilation comparison
+
+A separate same-GPU A/P/P/A comparison changed only `enforce_eager`:
+A uses eager execution, P uses compilation. CUDA activation routing was
+**disabled in all four arms**; these results are not CUDA quantizer speedups.
+The same 512×512/50-step configuration used three warmups and six measured
+full requests per arm. Download writers cooperatively waited during measurement.
+
+| Arm | Execution | Full request mean ± SD (s) |
+| --- | --- | ---: |
+| A1 | Eager | 7.661 ± 0.301 |
+| P1 | Compiled | 6.457 ± 0.058 |
+| P2 | Compiled | 6.542 ± 0.109 |
+| A2 | Eager | 7.987 ± 0.340 |
+
+The pooled configuration ratio is **1.204×** (7.824 s / 6.500 s).
+A2/A1 drift is 1.043×; P2/P1 is 1.013×. Peak allocated memory was 21.91 GiB.
+**0/12 cross-configuration image pairs were pixel-identical**. Mean absolute
+pixel error was 1.207 on the 0–255 scale, with maximum channel error 189.
+This is a speed/rounding tradeoff, not an output-equivalent replacement or a
+quality validation. Keep eager execution when exact eager output is required.
