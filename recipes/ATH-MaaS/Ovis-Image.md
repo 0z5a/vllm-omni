@@ -93,3 +93,54 @@ These samples establish smoke coverage, not general quality equivalence.
 The text encoder was slower with FP8 at this request size. Shared GPU workloads
 caused substantial E2E timing variation, so these runs establish memory savings
 and functional coverage without a reliable latency speedup claim.
+
+## RTX 5090 online FP8 CUDA hot path E2E
+
+The official checkpoint at revision `41be1c5821a92c970d63d7eb595a2fd3fe32b22e`
+was verified against the 19 required files' LFS SHA256 values. On one RTX 5090,
+the same checkpoint ran in A/P/P/A order with the CUDA activation quantizer
+disabled (A) or enabled (P). Both modes used online FP8 for the Qwen3 text
+encoder; the diffusion transformer and VAE remained at their original precision.
+Each arm used three warmups and six timed full image requests, cycling three
+prompts at 768×512, 30 denoising steps, guidance scale 4, and seed 142.
+Execution was eager, with one GPU and no CFG parallelism. Model loading was
+excluded from the request timings.
+
+| Arm | Activation quantizer | Full request mean ± SD | Speedup vs pooled A | Peak allocated |
+| --- | --- | ---: | ---: | ---: |
+| A1 | reference | 6.448 ± 0.046 s | 1.000× | 16.77 GiB |
+| P1 | sm_80+ CUDA | 6.434 ± 0.082 s | 1.002× | 16.77 GiB |
+| P2 | sm_80+ CUDA | 6.479 ± 0.011 s | 0.995× | 16.77 GiB |
+| A2 | reference | 6.451 ± 0.026 s | 1.000× | 16.77 GiB |
+
+The pooled full-request speedup was **0.999×**. A2/A1 timing drift was 1.000×
+and P2/P1 was 1.007×. The text encoder contained 196 online FP8 linear
+modules. Instrumentation recorded zero CUDA activation quantizer calls per A
+request and 392 per P request. All 12 paired A/P RGB images matched pixel for
+pixel. These measurements establish correct CUDA path execution and output
+equivalence at this workload size, with no measurable full-request speedup.
+
+With the existing regional `torch.compile` path enabled (`enforce_eager=False`),
+the same GPU, checkpoint, prompts and A/P/P/A protocol produced:
+
+| Arm | Activation quantizer | Full request mean ± SD | Speedup vs pooled A | Peak allocated |
+| --- | --- | ---: | ---: | ---: |
+| A1 | reference | 6.178 ± 0.073 s | 1.004× | 16.77 GiB |
+| P1 | sm_80+ CUDA | 6.194 ± 0.054 s | 1.001× | 16.77 GiB |
+| P2 | sm_80+ CUDA | 6.185 ± 0.076 s | 1.003× | 16.77 GiB |
+| A2 | reference | 6.226 ± 0.067 s | 0.996× | 16.77 GiB |
+
+The compiled run's pooled CUDA-path speedup was **1.002×**. Its A2/A1 drift
+was 1.008×; all 12 paired A/P images remained pixel-identical. Relative to the
+separate eager run above, regional compilation reduced pooled full-request time
+from about 6.45 s to 6.20 s (approximately **1.04×**); this comparison was not
+interleaved across compilation modes. Compiled and eager images are not pixel
+identical to each other, so compare outputs within the same execution mode.
+The CUDA activation calls observed in a shape audit were BF16 tensors of
+284×2048 and 284×6144; every observed call satisfied the CUDA fast-path gate.
+
+The run used PyTorch `2.13.0+cu130`, vLLM `0.29.0`, vLLM-Omni `0.28.0`,
+Transformers `5.10.4`, and Diffusers `0.40.0`. Its runtime source overlay used
+the existing CUDA platform compatibility adjustment from #27 for the installed
+vLLM `IrOpPriorityConfig`; the same overlay was used in all four arms and is
+not part of this model diff.
