@@ -148,6 +148,11 @@ class FluxKontextPipeline(
             local_files_only=local_files_only,
         ).to(self._execution_device)
 
+        if od_config.enable_layerwise_offload:
+            self.text_encoder.to("cpu")
+            self.text_encoder_2.to("cpu")
+            self.vae.to("cpu")
+
         transformer_kwargs = get_transformer_config_kwargs(od_config.tf_model_config, FluxKontextTransformer2DModel)
         transformer_kwargs["od_config"] = od_config
         # A per-component config must be narrowed to the transformer entry; vLLM
