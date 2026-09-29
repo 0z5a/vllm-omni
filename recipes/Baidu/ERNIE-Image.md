@@ -172,3 +172,45 @@ curl -X POST http://localhost:8091/v1/images/generations \
 - **Recommended settings:**
     - ERNIE-Image: `num_inference_steps=50`, `guidance_scale=4.0`
     - ERNIE-Image-Turbo: `num_inference_steps=8`, `guidance_scale=1.0`
+
+
+### RTX 5090 CUDA activation quantization E2E (2026-09-29)
+
+Full-model A/P/P/A on gj5090 GPU 7 with `baidu/ERNIE-Image-Turbo`
+revision `bc68c81e2a1730a394d5fc9fae70713dee940140`.
+All 13 required files were verified against revision SHA/Git-blob hashes.
+Prompt enhancement is disabled; enhancer weights are excluded.
+All arms use combined transformer and text-encoder online FP8.
+A disables CUDA activation quantization; P enables the existing shared route.
+No model-specific gate or kernel changes were introduced.
+
+Workload: 1024×1024, 8 steps, guidance 1, seed 42, eager execution,
+VAE tiling, no offload. Four fresh processes, three warmups and six measured
+full requests each, cycling three prompts. Loading and output export are
+excluded from timing; call counters are removed before measured requests.
+
+| Arm | CUDA path | E2E mean ± sample SD (s) | Peak allocated (GiB) |
+| --- | --- | ---: | ---: |
+| A1 | Reference | 2.317 ± 0.015 | 14.65 |
+| P1 | Shared route | 2.324 ± 0.011 | 14.65 |
+| P2 | Shared route | 2.322 ± 0.011 | 14.65 |
+| A2 | Reference | 2.320 ± 0.007 | 14.65 |
+
+Pooled A/P **0.998×**, A2/A1 drift 1.002×, P2/P1 drift 0.999×:
+no reliable CUDA E2E benefit. No model-specific CUDA candidate is included;
+model support and shared #22 routing remain.
+
+**12/12 raw uint8 images are bit-exact.** Census: 252 DiT FP8 modules
+(7,851,737,088 weight elements) and 182 text FP8 modules
+(3,026,190,336 weight elements). P warmups confirm 182 CUDA calls/request:
+130 at width 3072, 26 at width 4096, and 26 at width 9216, with BF16
+inputs of 15/16/19 rows across the prompts. A has zero CUDA calls.
+The full-request shape audit also observes DiT inputs `(4115,4096)` and
+`(4115,12288)` falling back under the existing row gate.
+
+Evidence: `results/ernie/abba_gpu7`, `ernie_e2e_hotpath.py`,
+`run_ernie_abba.sh`, `summarize_ernie_abba.py`, and the separate
+`results/ernie/shape_audit_gpu7` audit. The test-source-only platform
+compatibility overlay is identical in all arms; the installed environment
+is unchanged. All four processes exited naturally. Earlier PRO 6000
+BF16/FP8 comparisons above are independent of this CUDA test.
