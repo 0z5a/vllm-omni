@@ -27,6 +27,7 @@ from vllm_omni.diffusion.models.seedvr2 import config as envs
 from vllm_omni.diffusion.models.seedvr2.config import COLOR_CORRECTION_METHODS, DEFAULT_COLOR_CORRECTION_METHOD
 from vllm_omni.diffusion.models.seedvr2.nadit import SEEDVR2_3B_CONFIG, SeedVR2NaDiT, validate_seedvr2_parallel_config
 from vllm_omni.diffusion.models.seedvr2.vae import SeedVR2VAE
+from vllm_omni.diffusion.offloader.config import offload_enabled
 from vllm_omni.diffusion.request import OmniDiffusionRequest
 from vllm_omni.diffusion.worker.request_batch import DiffusionRequestBatch
 from vllm_omni.errors import OmniClientError
@@ -383,7 +384,7 @@ def validate_seedvr2_config(config: OmniDiffusionConfig) -> None:
         raise ValueError("SeedVR2 requires unquantized weights and cache_backend=none for its single Euler step")
     if config.vae_use_slicing:
         raise ValueError("SeedVR2 whole-clip VAE does not support batch slicing")
-    if config.enable_cpu_offload or config.enable_layerwise_offload or config.enable_distributed_layerwise_offload:
+    if offload_enabled(config):
         raise ValueError("SeedVR2 native whole-clip execution does not support CPU offload")
     parallel = config.parallel_config
     validate_seedvr2_parallel_config(parallel)
