@@ -1,51 +1,59 @@
 # SPDX-License-Identifier: Apache-2.0
 # SPDX-FileCopyrightText: Copyright contributors to the vLLM-Omni project
-"""Supported execution contract for the native whole-clip SeedVR2 pipeline."""
+"""Operator limits and colour options owned by SeedVR2."""
 
-import torch
+import os
+import tempfile
+from collections.abc import Callable
+from typing import Any
 
-from vllm_omni.diffusion.data import OmniDiffusionConfig
-from vllm_omni.diffusion.models.seedvr2.parallel import validate_seedvr2_parallel_config
-from vllm_omni.diffusion.models.seedvr2.video import max_frames, sharded_budget
+COLOR_CORRECTION_METHODS = ("lab", "wavelet", "adain", "none")
+DEFAULT_COLOR_CORRECTION_METHOD = "lab"
 
 
-def validate_seedvr2_config(config: OmniDiffusionConfig) -> None:
-    # Read the operator-tuned budgets here so a bad value is a startup error
-    # rather than a traceback from whichever module imports them first.
-    max_frames()
-    sharded_budget()
-    if config.dtype != torch.float16:
-        raise ValueError("SeedVR2 3B requires dtype=float16")
-    if not config.enforce_eager:
-        raise ValueError("SeedVR2 requires enforce_eager=True; compiled execution is not supported")
-    if config.cache_backend != "none" or config.quantization_config is not None:
-        raise ValueError("SeedVR2 requires unquantized weights and cache_backend=none for its single Euler step")
-    if config.vae_use_slicing:
-        raise ValueError("SeedVR2 whole-clip VAE does not support batch slicing")
-    if config.enable_cpu_offload or config.enable_layerwise_offload or config.enable_distributed_layerwise_offload:
-        raise ValueError("SeedVR2 native whole-clip execution does not support CPU offload")
-    parallel = config.parallel_config
-    validate_seedvr2_parallel_config(parallel)
-    if parallel.data_parallel_size is not None and parallel.data_parallel_size > 1:
-        raise ValueError("SeedVR2 does not support data_parallel_size > 1")
-    if parallel.ulysses_degree > 20:
-        raise ValueError("SeedVR2 3B Ulysses requires at least one of its 20 heads per rank")
-    degrees = {
-        "cfg_parallel_size": parallel.cfg_parallel_size,
-        "tensor_parallel_size": parallel.tensor_parallel_size,
-        "pipeline_parallel_size": parallel.pipeline_parallel_size,
-        "text_encoder_tp_size": parallel.text_encoder_tp_size,
-        "ring_degree": parallel.ring_degree,
-        "allgather_degree": parallel.allgather_degree,
-    }
-    for name, degree in degrees.items():
-        if degree != 1:
-            raise ValueError(f"SeedVR2 requires {name}=1; use ulysses_degree for its model-owned SP")
-    if parallel.vae_patch_parallel_size > 1 and parallel.vae_patch_parallel_size != parallel.ulysses_degree:
-        raise ValueError("SeedVR2 requires vae_patch_parallel_size to match ulysses_degree")
-    if parallel.vae_parallel_mode == "spatial_shard_width":
-        raise ValueError("SeedVR2 VAE supports spatial_shard_height or tile mode")
-    if parallel.use_hsdp or parallel.enable_expert_parallel:
-        raise ValueError("SeedVR2 does not support HSDP or expert parallelism")
-    if config.lora_path is not None:
-        raise ValueError("SeedVR2 does not support LoRA adapters")
+def _positive_int(name: str, default: int | None) -> int | None:
+    """Read an operator-tuned limit, rejecting values that would disable it."""
+    value = os.environ.get(name)
+    if value is None:
+        return default
+    if not value.strip().isdigit() or not int(value):
+        raise ValueError(f"{name} must be a positive integer, got {value!r}")
+    return int(value)
+
+
+environment_variables: dict[str, Callable[[], Any]] = {
+    # ================== SeedVR2 Restoration Env Vars ==================
+    # Admission budgets for the sharded serving profile. The defaults are
+    # calibrated for the smallest qualified device, so larger accelerators raise
+    # them here; setting them beyond what the device holds surfaces as a CUDA
+    # OOM during the forward pass. See docs/models/seedvr2.md.
+    "VLLM_OMNI_SEEDVR2_MAX_FRAMES": lambda: _positive_int("VLLM_OMNI_SEEDVR2_MAX_FRAMES", 257),
+    "VLLM_OMNI_SEEDVR2_SHARDED_FRAME_PIXELS": lambda: _positive_int(
+        "VLLM_OMNI_SEEDVR2_SHARDED_FRAME_PIXELS", 2560 * 1472
+    ),
+    # Unset, the clip budget scales with device memory from the calibrated
+    # 32 GB value; see seedvr2.pipeline_seedvr2.sharded_budget.
+    "VLLM_OMNI_SEEDVR2_SHARDED_CLIP_PIXELS": lambda: _positive_int("VLLM_OMNI_SEEDVR2_SHARDED_CLIP_PIXELS", None),
+    # Bounds for the long-video restoration route.
+    "VLLM_OMNI_SEEDVR2_LONG_MAX_UPLOAD_BYTES": lambda: _positive_int(
+        "VLLM_OMNI_SEEDVR2_LONG_MAX_UPLOAD_BYTES", 8 * 1024**3
+    ),
+    # Longest model window. The clip budget usually binds first; this caps it
+    # at 30 latent frames, the DiT's largest temporal attention window.
+    "VLLM_OMNI_SEEDVR2_LONG_MAX_WINDOW": lambda: _positive_int("VLLM_OMNI_SEEDVR2_LONG_MAX_WINDOW", 121),
+    "VLLM_OMNI_SEEDVR2_LONG_JOB_TTL_SECONDS": lambda: _positive_int("VLLM_OMNI_SEEDVR2_LONG_JOB_TTL_SECONDS", 3600),
+    "VLLM_OMNI_SEEDVR2_LONG_OUTPUT_DIR": lambda: os.environ.get(
+        "VLLM_OMNI_SEEDVR2_LONG_OUTPUT_DIR", tempfile.gettempdir()
+    ),
+}
+
+
+def __getattr__(name):
+    # lazy evaluation of environment variables
+    if name in environment_variables:
+        return environment_variables[name]()
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
+
+
+def __dir__():
+    return list(environment_variables.keys())

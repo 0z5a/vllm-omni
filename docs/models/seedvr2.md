@@ -4,6 +4,21 @@ The native `SeedVR2Pipeline` restores an input video using the released 3B FP16
 NaDiT and s8/c16/t4 causal VAE. It uses fixed checkpoint conditioning, CFG=1,
 and one Euler step. Text prompts do not change conditioning.
 
+## Code ownership
+
+The model package groups each computation stage in one file: `nadit.py` owns
+window geometry, routing, RoPE and the DiT; `vae.py` owns the causal VAE and its
+temporal/spatial tiling; `pipeline_seedvr2.py` owns input validation, decoding,
+conditioning, the Euler step and colour transfer. `config.py` owns model limits,
+and `long_video.py` owns the optional HTTP job/window lifecycle. Framework code
+only registers the model, its pre/postprocessors, metadata and HTTP routes.
+
+`color_correction_method` is model-specific: online requests use the existing
+`extra_params` JSON object, and offline sampling uses
+`extra_args={"color_correction_method": "wavelet"}`. The default remains `lab`;
+invalid values are rejected by model-side validation before inference. It is
+not a top-level field in the common video API.
+
 ## Model directory
 
 Place these files together, retaining their names:
@@ -82,7 +97,7 @@ padded to nine and return six.
 
 Restoration reproduces detail faithfully but shifts global colour, so the
 resized input is used to transfer colour back onto the restored frames. This is
-on by default; pass `color_correction_method` to choose how:
+on by default; pass `extra_params={"color_correction_method":"wavelet"}` to choose how:
 
 | Value | Behavior |
 | --- | --- |
@@ -95,7 +110,7 @@ on by default; pass `color_correction_method` to choose how:
 curl --fail-with-body http://127.0.0.1:8098/v1/videos/sync \
   -F 'prompt= ' -F 'input_references=@input.mp4;type=video/mp4' \
   -F 'size=224x128' -F 'num_inference_steps=1' -F 'guidance_scale=1' \
-  -F 'seed=7723' -F 'color_correction_method=wavelet' \
+  -F 'seed=7723' -F 'extra_params={"color_correction_method":"wavelet"}' \
   --output restored.mp4
 ```
 
@@ -129,7 +144,7 @@ The per-frame cap is calibrated for the smallest qualified device. The clip cap
 scales with the smallest visible device's memory: it stays at the calibrated
 five 2560×1472 frames on a 32 GB device and grows on larger ones from a
 per-rank memory model measured at SP4 (see `sharded_budget` in
-`vllm_omni/diffusion/models/seedvr2/video.py`), which keeps 15% of the device
+`vllm_omni/diffusion/models/seedvr2/pipeline_seedvr2.py`), which keeps 15% of the device
 free and leaves room for allocator fragmentation. It stops at 2,118,057,984
 padded pixels (513 frames at 1536×2688), the largest clip validated on four
 B300 ranks; 80 GB devices get about 1.08 billion and 141 GB or larger devices
@@ -162,7 +177,7 @@ each window covers.
 
 `POST /v1/seedvr2/restore-long` accepts one uploaded 24 FPS video, a blank
 prompt, `size`, `num_frames` (up to 7,200), and optional `loop_input=true` and
-`color_correction_method`, which it applies to every window.
+`extra_params={"color_correction_method":"wavelet"}`, which it applies to every window.
 An output frame must fit the sharded per-frame pixel cap. It returns a job ID; poll
 `GET /v1/seedvr2/restore-long/{id}` and download the completed MP4 from
 `GET /v1/seedvr2/restore-long/{id}/content`. `DELETE
@@ -261,5 +276,5 @@ service to restore availability; automatic rank recovery is not provided.
 
 See the [RTX 5090 recipe](https://github.com/vllm-project/vllm-omni/blob/main/recipes/ByteDance/SeedVR2-RTX-5090.md) for the
 input/output contract, complete serving command, and media checks. The local
-checkpoint test in `tests/diffusion/models/seedvr2/test_seedvr2_e2e.py` checks
-3B transformer SP parity. The PR test result covers complete HTTP restoration.
+tests in `tests/diffusion/models/seedvr2/test_seedvr2_e2e.py` exercise the full
+3B pipeline, all colour modes, and HTTP restoration with USP 1 and 8.

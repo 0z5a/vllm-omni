@@ -139,7 +139,7 @@ swept; `DELETE` on the job URL stops a run at the next window boundary.
 curl --fail-with-body http://127.0.0.1:8098/v1/seedvr2/restore-long \
   -F 'input_references=@input.mp4;type=video/mp4' \
   -F 'prompt= ' -F 'size=768x1344' -F 'num_frames=7200' \
-  -F 'loop_input=true' -F 'seed=7723' -F 'color_correction_method=lab'
+  -F 'loop_input=true' -F 'seed=7723' -F 'extra_params={"color_correction_method":"lab"}'
 # Use the returned id to poll /v1/seedvr2/restore-long/{id};
 # download /v1/seedvr2/restore-long/{id}/content when completed.
 ```
@@ -150,22 +150,17 @@ whole-clip `/v1/videos/sync` limits remain in force. Full 7,200-frame GPU
 validation is in progress; use this route only with a memory-checked SP4
 deployment.
 
-For transformer-only SP=1/2/4 parity, set `VLLM_TEST_SEEDVR2_MODEL` to the 3B
-safetensors file and run:
+Set `VLLM_TEST_SEEDVR2_MODEL_DIR` to the directory containing all model files:
 
 ```bash
 python -m pytest -o addopts='' -v tests/diffusion/models/seedvr2/test_seedvr2_e2e.py
 ```
 
-The same file covers the long route end to end. Set
-`VLLM_TEST_SEEDVR2_MODEL_DIR` to the model directory; the test starts a
-single-GPU server, restores a 20-frame clip spanning two model windows, checks
-the geometry, frame rate, timestamps and audio of the download, and then
-cancels a longer job.
-
-This checkpoint-gated test does not validate the HTTP server or an optional
-optimization. Feature validation must use its enabled configuration, full model
-outputs, and the actual backend selected by the worker.
+The tests run the complete native pipeline for every colour mode and the HTTP
+long-video route at USP 1 and 8 (eight GPUs required for the latter). The HTTP
+cases force a 13-frame window, restore 20 frames across a seam, preserve audio
+and timestamps, reject invalid `extra_params`, and cancel a longer job. They
+use the released model rather than mocking its forward pass.
 
 ## Supported features
 

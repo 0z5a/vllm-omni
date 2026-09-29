@@ -26,12 +26,12 @@ import imageio_ffmpeg
 import numpy as np
 import regex as re
 import requests
-from fastapi import APIRouter, File, Form, HTTPException, Request, UploadFile
+from fastapi import APIRouter, FastAPI, File, Form, HTTPException, Request, UploadFile
 from fastapi.responses import FileResponse
 
-from vllm_omni.diffusion import envs
-from vllm_omni.diffusion.models.seedvr2.video import max_frames, sharded_budget
-from vllm_omni.inputs.data import COLOR_CORRECTION_METHODS, DEFAULT_COLOR_CORRECTION_METHOD
+from vllm_omni.diffusion.models.seedvr2 import config as envs
+from vllm_omni.diffusion.models.seedvr2.config import COLOR_CORRECTION_METHODS, DEFAULT_COLOR_CORRECTION_METHOD
+from vllm_omni.diffusion.models.seedvr2.pipeline_seedvr2 import max_frames, sharded_budget
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -178,8 +178,9 @@ def _restore(
             "num_inference_steps": "1",
             "guidance_scale": "1",
             "seed": str(seed),
-            "color_correction_method": color_correction_method,
-            "extra_params": json.dumps({"video_codec_options": LOSSLESS}),
+            "extra_params": json.dumps(
+                {"video_codec_options": LOSSLESS, "color_correction_method": color_correction_method}
+            ),
         },
         files={"input_references": ("window.mkv", _segment(frames), "video/x-matroska")},
         headers={"Authorization": authorization} if authorization else {},
@@ -356,7 +357,10 @@ def _restore_to(
             if samples < (target / FPS - 1) * audio.rate:
                 raise JobError("SeedVR2 output audio ends before the video")
     with output.open("rb") as content:
-        digest = hashlib.file_digest(content, "sha256").hexdigest()
+        hasher = hashlib.sha256()
+        for chunk in iter(lambda: content.read(UPLOAD_CHUNK), b""):
+            hasher.update(chunk)
+        digest = hasher.hexdigest()
     # One sequential copy is the only write to the job directory, which may sit
     # on network storage where the encoder's and muxer's small writes are slow.
     staged = job / "output.mp4.tmp"
@@ -397,7 +401,7 @@ async def create_long_video(
     loop_input: bool = Form(False),
     prompt: str = Form(" "),
     seed: int = Form(7723),
-    color_correction_method: str = Form(DEFAULT_COLOR_CORRECTION_METHOD),
+    extra_params: str | None = Form(None),
 ) -> dict[str, str | int]:
     global active_task
     if raw_request.app.state.api_server_count != 1:
@@ -414,6 +418,18 @@ async def create_long_video(
         raise HTTPException(400, "SeedVR2 long video output exceeds the configured SeedVR2 frame or clip budget")
     if not 0 <= seed <= 2**32 - 1:
         raise HTTPException(400, "Seed must be a 32-bit unsigned integer")
+    try:
+        options = json.loads(extra_params) if extra_params is not None else {}
+    except (TypeError, ValueError) as error:
+        raise HTTPException(400, "extra_params must be a JSON object") from error
+    if not isinstance(options, dict):
+        raise HTTPException(400, "extra_params must be a JSON object")
+    unknown = options.keys() - {"color_correction_method"}
+    if unknown:
+        raise HTTPException(400, f"Unsupported SeedVR2 long-video extra_params: {sorted(unknown)}")
+    color_correction_method = options.get("color_correction_method", DEFAULT_COLOR_CORRECTION_METHOD)
+    if color_correction_method is None:
+        color_correction_method = DEFAULT_COLOR_CORRECTION_METHOD
     if color_correction_method not in COLOR_CORRECTION_METHODS:
         raise HTTPException(400, f"color_correction_method must be one of {list(COLOR_CORRECTION_METHODS)}")
     async with job_lock:
@@ -478,3 +494,9 @@ async def cancel_long_video(job_id: str) -> dict[str, str]:
         raise HTTPException(409, f"SeedVR2 long-video job already {record['status']}")
     (job / "cancel").touch()
     return {"id": job_id, "status": "cancelling"}
+
+
+def register_routes(app: FastAPI, port: int) -> None:
+    """Attach this model's optional long-video API to its serving process."""
+    app.state.seedvr2_long_port = port
+    app.include_router(router)

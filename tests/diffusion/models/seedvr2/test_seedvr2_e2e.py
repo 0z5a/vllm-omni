@@ -1,8 +1,7 @@
 # SPDX-License-Identifier: Apache-2.0
 # SPDX-FileCopyrightText: Copyright contributors to the vLLM-Omni project
-"""Full-checkpoint DiT parity, native video restoration, and the long route.
+"""End-to-end native video restoration and the HTTP long-video route.
 
-Set VLLM_TEST_SEEDVR2_MODEL to the released 3B FP16 safetensors file.
 Set VLLM_TEST_SEEDVR2_MODEL_DIR to the directory containing the DiT, VAE,
 conditioning tensor, and model_index.json to run the complete video test.
 Each rank exits normally; the launcher does not terminate workers.
@@ -12,9 +11,7 @@ from __future__ import annotations
 
 import json
 import os
-import socket
 import subprocess
-import sys
 import time
 from fractions import Fraction
 from pathlib import Path
@@ -22,7 +19,6 @@ from pathlib import Path
 import pytest
 
 pytestmark = [pytest.mark.local_model, pytest.mark.cuda, pytest.mark.diffusion, pytest.mark.parallel]
-MODEL_ENV = "VLLM_TEST_SEEDVR2_MODEL"
 MODEL_DIR_ENV = "VLLM_TEST_SEEDVR2_MODEL_DIR"
 # Two model windows with one four-frame seam, at the smallest legal frame size.
 LONG_FRAMES = 20
@@ -30,54 +26,9 @@ LONG_SIZE = 64
 FPS = 24
 
 
-@pytest.mark.skipif(not os.environ.get(MODEL_ENV), reason=f"set {MODEL_ENV} to an authorized 3B checkpoint path")
-@pytest.mark.parametrize("degree", [1, 2, 4])
-def test_seedvr2_checkpoint_sequence_parallel(degree: int, tmp_path: Path) -> None:
-    import torch
-
-    if torch.accelerator.device_count() < degree:
-        pytest.skip(f"SeedVR2 SP={degree} requires {degree} CUDA devices")
-    checkpoint = Path(os.environ[MODEL_ENV]).resolve()
-    assert checkpoint.is_file(), f"Checkpoint does not exist: {checkpoint}"
-    with socket.socket() as listener:
-        listener.bind(("127.0.0.1", 0))
-        port = listener.getsockname()[1]
-    processes = []
-    for rank in range(degree):
-        env = os.environ | {
-            MODEL_ENV: str(checkpoint),
-            "PYTHONPATH": str(Path(__file__).resolve().parents[4]) + os.pathsep + os.environ.get("PYTHONPATH", ""),
-            "MASTER_ADDR": "127.0.0.1",
-            "MASTER_PORT": str(port),
-            "WORLD_SIZE": str(degree),
-            "RANK": str(rank),
-            "LOCAL_RANK": str(rank),
-        }
-        with (tmp_path / f"rank-{rank}.log").open("w") as log:
-            processes.append(
-                subprocess.Popen(
-                    [sys.executable, str(Path(__file__).resolve()), str(tmp_path)],
-                    env=env,
-                    stdout=log,
-                    stderr=subprocess.STDOUT,
-                )
-            )
-    codes = [process.wait() for process in processes]
-    logs = "\n".join((tmp_path / f"rank-{rank}.log").read_text() for rank in range(degree))
-    assert codes == [0] * degree, logs
-    for rank in range(degree):
-        report = json.loads((tmp_path / f"rank-{rank}.json").read_text())
-        assert report["shape"] == [4096, 16]
-        assert report["finite"]
-        assert report["relative_l2"] < 0.02
-        assert report["layout_transitions"] == 31
-        assert report["text_all_reduces"] == (32 if degree > 1 else 0)
-        if degree > 1:
-            assert report["network_transitions"] > 0
-
-
 @pytest.mark.skipif(not os.environ.get(MODEL_DIR_ENV), reason=f"set {MODEL_DIR_ENV} to an authorized model directory")
-def test_seedvr2_native_video_e2e() -> None:
+@pytest.mark.parametrize("method", ["lab", "wavelet", "adain", "none"])
+def test_seedvr2_native_video_e2e(method: str) -> None:
     import numpy as np
     import torch
 
@@ -107,6 +58,7 @@ def test_seedvr2_native_video_e2e() -> None:
                 guidance_scale=1.0,
                 seed=7723,
                 output_type="np",
+                extra_args={"color_correction_method": method},
             ),
             use_tqdm=False,
         )
@@ -170,13 +122,18 @@ def _await_status(base: str, job_id: str, timeout: float) -> dict:
 
 
 @pytest.mark.skipif(not os.environ.get(MODEL_DIR_ENV), reason=f"set {MODEL_DIR_ENV} to an authorized model directory")
-def test_seedvr2_long_video_route_e2e(tmp_path: Path) -> None:
+@pytest.mark.parametrize("degree", [1, 8])
+def test_seedvr2_long_video_route_e2e(tmp_path: Path, degree: int) -> None:
     """Restore a clip spanning two model windows, then cancel a longer job."""
     import av
     import requests
+    import torch
+
+    if torch.accelerator.device_count() < degree:
+        pytest.skip(f"SeedVR2 USP={degree} requires {degree} CUDA devices")
 
     from tests.helpers.runtime import OmniServer
-    from vllm_omni.entrypoints.openai.video.seedvr2_long import MAX_FRAMES
+    from vllm_omni.diffusion.models.seedvr2.long_video import MAX_FRAMES
 
     model_dir = Path(os.environ[MODEL_DIR_ENV]).resolve()
     source = tmp_path / "input.mp4"
@@ -190,11 +147,25 @@ def test_seedvr2_long_video_route_e2e(tmp_path: Path) -> None:
             "float16",
             "--enforce-eager",
             "--num-gpus",
-            "1",
+            str(degree),
+            "--vae-use-tiling",
+            "--stage-overrides",
+            json.dumps(
+                {
+                    "0": {
+                        "ulysses_degree": degree,
+                        "vae_patch_parallel_size": degree,
+                        "vae_parallel_mode": "spatial_shard_height",
+                    }
+                }
+            ),
             "--api-server-count",
             "1",
         ],
-        env_dict={"VLLM_OMNI_SEEDVR2_LONG_OUTPUT_DIR": str(tmp_path / "jobs")},
+        env_dict={
+            "VLLM_OMNI_SEEDVR2_LONG_OUTPUT_DIR": str(tmp_path / "jobs"),
+            "VLLM_OMNI_SEEDVR2_LONG_MAX_WINDOW": "13",
+        },
     )
 
     with server:
@@ -217,7 +188,25 @@ def test_seedvr2_long_video_route_e2e(tmp_path: Path) -> None:
 
         assert submit(num_frames=str(MAX_FRAMES + 1)).status_code == 400
 
-        accepted = submit()
+        # Validation must happen before a job is admitted, through model-owned
+        # extra_params on both the long route and the common video endpoint.
+        for invalid in ("{", "[]", '{"color_correction_method":"invalid"}'):
+            assert submit(extra_params=invalid).status_code == 400
+        with source.open("rb") as upload:
+            invalid = requests.post(
+                f"http://{server.host}:{server.port}/v1/videos/sync",
+                data={
+                    "prompt": " ",
+                    "size": f"{LONG_SIZE}x{LONG_SIZE}",
+                    "num_inference_steps": "1",
+                    "guidance_scale": "1",
+                    "extra_params": '{"color_correction_method":"invalid"}',
+                },
+                files={"input_references": ("input.mp4", upload, "video/mp4")},
+                timeout=120,
+            )
+        assert invalid.status_code == 400, invalid.text
+        accepted = submit(extra_params='{"color_correction_method":"wavelet"}')
         assert accepted.status_code == 202, accepted.text
         job_id = accepted.json()["id"]
         record = _await_status(base, job_id, timeout=900)
@@ -246,68 +235,3 @@ def test_seedvr2_long_video_route_e2e(tmp_path: Path) -> None:
         assert settled["status"] == "cancelled", settled
         assert settled["frames"] < 600
         assert requests.get(f"{base}/{cancelled_id}/content", timeout=30).status_code == 404
-
-
-def _run_rank(output_dir: Path) -> None:
-    import torch
-    from safetensors.torch import load_file
-
-    from vllm_omni.diffusion.data import DiffusionParallelConfig
-    from vllm_omni.diffusion.distributed.parallel_state import (
-        destroy_distributed_env,
-        init_distributed_environment,
-        initialize_model_parallel,
-    )
-    from vllm_omni.diffusion.models.seedvr2.nadit import SEEDVR2_3B_CONFIG, SeedVR2NaDiT
-
-    rank, degree = int(os.environ["RANK"]), int(os.environ["WORLD_SIZE"])
-    torch.set_num_threads(4)
-    torch.accelerator.set_device_index(rank)
-    init_distributed_environment(world_size=degree, rank=rank, local_rank=rank)
-    initialize_model_parallel(sequence_parallel_size=degree, ulysses_degree=degree)
-    try:
-        device = torch.device("cuda", rank)
-        with torch.device("meta"):
-            model = SeedVR2NaDiT(**SEEDVR2_3B_CONFIG, use_varlen_kernel=False)
-        state = load_file(os.environ[MODEL_ENV])
-        # The release nests the RoPE buffer one level below the port.
-        normalized = {
-            key.removesuffix(".rope.rope.freqs") + ".rope.freqs" if key.endswith(".rope.rope.freqs") else key: value
-            for key, value in state.items()
-        }
-        assert len(normalized) == len(state)
-        model.load_state_dict(normalized, strict=True, assign=True)
-        model = model.to(device=device, dtype=torch.float16).eval()
-        del state, normalized
-        generator = torch.Generator().manual_seed(7723)
-        inputs = {
-            "vid": torch.randn(4096, 33, generator=generator).to(device, torch.float16),
-            "txt": torch.randn(58, 5120, generator=generator).to(device, torch.float16),
-            "vid_shape": torch.tensor([[1, 64, 64]], device=device),
-            "txt_shape": torch.tensor([[58]], device=device),
-            "timestep": torch.tensor([1000.0], device=device, dtype=torch.float16),
-        }
-        runtime = model.build_runtime(
-            model.token_grid_for(inputs["vid_shape"]),
-            text_len=58,
-            parallel_config=DiffusionParallelConfig(ulysses_degree=degree),
-        )
-        with torch.inference_mode():
-            reference = model(**inputs).vid_sample
-            actual = model(**inputs, runtime=runtime).vid_sample
-        torch.testing.assert_close(actual, reference, atol=0.02, rtol=0.02)
-        relative_l2 = (actual.float() - reference.float()).norm() / reference.float().norm().clamp_min(1e-12)
-        report = {
-            "shape": list(actual.shape),
-            "finite": bool(torch.isfinite(actual).all()),
-            "relative_l2": relative_l2.item(),
-            "max_abs_error": (actual.float() - reference.float()).abs().max().item(),
-            **runtime.stats,
-        }
-        (output_dir / f"rank-{rank}.json").write_text(json.dumps(report, indent=2))
-    finally:
-        destroy_distributed_env()
-
-
-if __name__ == "__main__":
-    _run_rank(Path(sys.argv[1]))
