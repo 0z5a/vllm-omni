@@ -344,6 +344,17 @@ class AnimaPipeline(nn.Module, DiffusionPipelineProfilerMixin, ProgressBarMixin)
         if isinstance(transformer_quant, Fp8Config):
             replaced = prepare_anima_transformer_fp8(self.transformer, transformer_quant)
             logger.info("Prepared %d Anima transformer linears for online FP8.", replaced)
+            if (
+                replaced
+                and self.od_config.dtype == torch.bfloat16
+                and torch.device(self.device).type == "cuda"
+                and torch.cuda.get_device_capability(self.device) == (12, 0)
+                and os.environ.get("VLLM_OMNI_FP8_ONLINE_DISABLE") != "1"
+                and os.environ.get("VLLM_OMNI_ANIMA_FP8_CUDA_GRAPH", "1") != "0"
+            ):
+                from vllm_omni.diffusion.models.anima.fp8_cuda_graph import install_anima_fp8_cuda_graph
+
+                install_anima_fp8_cuda_graph(self)
         self.vae_scale_factor = _anima_vae_scale_factor_from_vae(self.vae)
         self._setup_profiler()
         return loaded

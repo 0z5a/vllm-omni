@@ -160,3 +160,62 @@ curl http://localhost:8099/v1/images/generations \
 The same generation knobs used by other text-to-image recipes apply:
 `num_inference_steps`, `seed`, `height` / `width` through `size`, and optional
 negative prompting.
+
+## RTX 5090 CFG graph and conditioning-cache E2E
+
+These measurements were collected on the fork CUDA-routing stack (fork PR #32,
+base PR #22), before this upstream port. They are historical evidence for the
+combined optimization, not a new benchmark of this upstream branch. This port
+uses the existing vLLM FP8 operators and adds no custom quantization extension.
+
+The official checkpoint passed SHA256 verification before a full text-to-image
+A1/P1/P2/A2 comparison on one RTX 5090 (GPU 5). Each arm used a fresh process,
+three warmups, and six measured requests. Requests generated one 1024×1024 image
+with 50 steps, CFG 4.0, seed 42, an empty negative prompt, and
+`max_sequence_length=512`. The run used BF16, eager execution, no offload, and
+the same three positive prompts in every arm. Model loading, first-use CUDA
+compilation, and graph capture were excluded from measured requests.
+
+| Arm | Online FP8 route | Full request mean ± SD (s) | Speedup vs pooled A | Peak allocated (GiB) |
+|---|---|---:|---:|---:|
+| A1 | Existing dynamic FP8 CUDA path | 8.913 ± 0.008 | 1.000× | 7.86 |
+| P1 | sm_120 CFG CUDA graphs + request K/V + empty-negative conditioning cache | 8.454 ± 0.020 | 1.055× | 8.25 |
+| P2 | Same optimized route | 8.425 ± 0.008 | 1.058× | 8.25 |
+| A2 | Existing dynamic FP8 CUDA path | 8.920 ± 0.010 | 1.000× | 7.86 |
+| Pooled A / P | Existing / optimized route | 8.916 / 8.440 | **1.056×** | 7.86 / 8.25 |
+
+The pooled means give **1.0565×** full-request speedup; the pooled median ratio
+is **1.0570×**. All 12 paired measured images were pixel-exact. Every arm loaded
+280 dynamic-FP8 denoiser linears. The optimized warmups captured 336 custom CUDA
+quantizer calls at shape 512×1024; the measured graph replays do not invoke the
+Python quantizer. The 4096-row denoiser quantizations remain on vLLM's CUDA
+reference path. The gain comes from replaying the CFG pair, sharing its common
+prefix and request K/V, and reusing deterministic conditioning for the default
+empty negative prompt. A separate graph-only comparison reached 1.048×; the
+4096×2048 custom quantizer candidate did not improve full-request latency and
+is excluded. The cache is used in evaluation mode for the empty negative prompt;
+other negative prompts use regular encoding. PyTorch was 2.13.0+cu130 and vLLM
+was 0.29.0.
+
+### Torch fallback
+
+Set `VLLM_OMNI_ANIMA_FP8_CUDA_GRAPH=0` to use the original Torch eager
+Anima diffusion path. `VLLM_OMNI_FP8_ONLINE_DISABLE=1` also disables graph
+installation for compatibility with the benchmark switch. The graph path is
+limited to BF16 online FP8 on sm_120, one 1024×1024 image, CFG, and 512-token
+conditioning. Unsupported inputs use the original Torch path. A graph setup
+or capture failure restores all temporarily replaced forwards and disables
+further graph attempts for that pipeline. Errors during actual diffusion are
+propagated, so a partially advanced scheduler is never retried. Standard BF16
+and the existing vLLM FP8 implementation remain available.
+
+### Calculated combined improvement
+
+Combining the earlier BF16 → online-FP8 factor (1.125×) with the measured
+FP8 graph/cache factor (1.0565×) gives **1.125 × 1.0565 = 1.1885625×**,
+or approximately **1.189× speedup / 15.9% lower latency** at fixed workload.
+This is a calculated composition assuming the factors transfer between the
+configurations, not a directly measured BF16 → optimized-FP8 result: the first
+comparison used 20 steps and medians, while the graph/cache comparison used
+50 steps and pooled means on the fork CUDA-routing stack. The separate measured
+results above remain the reproducible evidence.
