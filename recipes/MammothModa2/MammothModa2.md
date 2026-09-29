@@ -356,8 +356,6 @@ text, token IDs and stop reasons before and after the SP changes (12 requests
 per revision). This preserves existing Dev end-marker formatting; it is not
 an understanding-accuracy benchmark or Dev text-to-image validation.
 
-For exact capture, replay and understanding commands, see
-[the qualification tools](../../benchmarks/mammoth_moda2/README.md).
 Keep code, weights, backend, dtype, inputs and sampling fixed in paired runs.
 SP replicates weights and VAE, so do not infer peak-memory or GPU-cost savings
 from a reduction in DiT latency.
