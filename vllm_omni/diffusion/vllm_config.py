@@ -5,13 +5,13 @@
 
 from __future__ import annotations
 
+import os
 from dataclasses import dataclass, field
 from typing import Any, cast
 
 import torch
 from vllm.config import CompilationConfig, DeviceConfig, KVTransferConfig, VllmConfig
 from vllm.transformers_utils.config import get_hf_text_config
-
 from vllm_omni.diffusion.data import OmniDiffusionConfig
 from vllm_omni.diffusion.diffusion_kv.config import DiffusionKVCacheMode
 from vllm_omni.platforms import current_omni_platform
@@ -197,7 +197,13 @@ def create_base_diffusion_vllm_config(
 
     return VllmConfig(
         compilation_config=CompilationConfig(
-            custom_ops=["+quant_fp8"] if device.type == "cuda" and current_omni_platform.is_cuda() else []
+            custom_ops=(
+                ["-quant_fp8"]
+                if os.environ.get("VLLM_OMNI_FP8_FORCE_TORCH") == "1"
+                else ["+quant_fp8"]
+                if device.type == "cuda" and current_omni_platform.is_cuda()
+                else []
+            )
         ),
         device_config=DeviceConfig(device=device),
         additional_config=od_config.additional_config,
