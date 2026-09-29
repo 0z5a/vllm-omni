@@ -8,7 +8,7 @@ import torch
 from torch import nn
 from vllm import _custom_ops as ops
 
-from vllm_omni.quantization.fp8_online import scaled_fp8_quant
+from vllm_omni.quantization import fp8_online
 
 QuantizationMode = Literal["fp8", "int8"]
 
@@ -17,6 +17,16 @@ class SeedVR2W8A8Linear(nn.Module):
     def __init__(self, linear: nn.Linear, mode: QuantizationMode) -> None:
         super().__init__()
         self.mode = mode
+        self._activation_quantizer = ops.scaled_fp8_quant
+        if mode == "fp8":
+            if fp8_online.torch_fallback_enabled():
+                from vllm.model_executor.layers.quantization.input_quant_fp8 import QuantFP8
+                from vllm.model_executor.layers.quantization.utils.quant_utils import GroupShape
+
+                quantizer = QuantFP8(static=False, group_shape=GroupShape.PER_TOKEN, compile_native=False)
+                self._activation_quantizer = lambda x, **kwargs: quantizer.forward_native(x)
+            elif fp8_online.hot_path_enabled():
+                self._activation_quantizer = fp8_online.scaled_fp8_quant
         if mode == "fp8":
             weight, scale = ops.scaled_fp8_quant(linear.weight, use_per_token_if_dynamic=True)
         else:
@@ -29,7 +39,7 @@ class SeedVR2W8A8Linear(nn.Module):
         if x.shape[0] == 0:
             return x.new_empty((0, self.weight.shape[1]))
         if self.mode == "fp8":
-            quantized, scale = scaled_fp8_quant(x, use_per_token_if_dynamic=True)
+            quantized, scale = self._activation_quantizer(x, use_per_token_if_dynamic=True)
         else:
             quantized, scale, _ = ops.scaled_int8_quant(x)
         return ops.cutlass_scaled_mm(quantized, self.weight, scale, self.scale, x.dtype, self.bias)

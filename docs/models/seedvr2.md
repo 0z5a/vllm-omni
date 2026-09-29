@@ -195,3 +195,18 @@ The high-resolution case used the long-video HTTP endpoint and returned 32,768
 audio samples. All 16 responses had identical decoded frame hashes across A/P.
 The high-resolution CUDA path was 3.9% slower in this full E2E measurement;
 these results do not imply a speedup at every clip size.
+
+
+## Optional activation hot path and Torch fallback
+
+This change stays on downstream fork PR #30. The LGTM upstream SeedVR2
+PR #7876, now handed over to princepride, is not changed.
+
+Set `VLLM_OMNI_FP8_ONLINE_ENABLE=1` before launch to reproduce the short-clip
+CUDA route. The 1.045× short-clip result and 0.963× high-resolution regression
+above limit its scope; it is disabled by default.
+`VLLM_OMNI_FP8_ONLINE_DISABLE=1` keeps the reference CUDA quantizer.
+`VLLM_OMNI_FP8_FORCE_TORCH=1` explicitly selects vLLM's Torch native activation
+quantization. Weight quantization and the INT8 branch retain their existing
+implementations. Native Torch and CUDA rounding are not bit-equivalent.
+See [complete dispatch and evidence notes](../fp8_online_e2e_followup.md).
