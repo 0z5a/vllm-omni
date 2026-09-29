@@ -56,3 +56,46 @@ the dog prompt, 0.8474 for the sailboat prompt, and 0.8756 for the two-duck
 prompt. Runtime inspection found 196 FP8 Qwen projections on both ranks; the
 second text encoder, video transformer, and VAE retained their original
 precision.
+
+
+### RTX 5090 CUDA activation quantization E2E (2026-09-29)
+
+Full-model A/P/P/A on gj5090 GPU 7, pinned
+`hunyuanvideo-community/HunyuanVideo-1.5-Diffusers-480p_t2v_distilled`
+revision `1abb14f06518f37448dcf3a6917dd086dd7045c7`.
+All 32 required files were verified against official SHA/Git-blob hashes.
+All arms use encoder-only online FP8; A disables CUDA activation quantization,
+P enables a temporary sm120 BF16 gate for exactly `(1108,3584)` and
+`(1108,18944)`. The existing block kernel is unchanged. These inputs exceed
+the default 512-row gate and normally fall back to the reference kernel.
+
+Workload: 384×640, 33 frames, 50 steps, guidance 1, 24 fps, seed 42;
+eager execution, layer offload for `dit` and `text_encoder` (both encoders),
+VAE tiling. Four fresh processes, three warmups and six measured full requests
+each. Loading and output export are excluded from timing.
+
+| Arm | CUDA path | E2E mean ± sample SD (s) | Peak allocated (GiB) |
+| --- | --- | ---: | ---: |
+| A1 | Reference | 27.753 ± 0.020 | 13.14 |
+| P1 | Temporary narrow gate | 27.799 ± 0.020 | 13.14 |
+| P2 | Temporary narrow gate | 27.792 ± 0.100 | 13.14 |
+| A2 | Reference | 27.802 ± 0.027 | 13.14 |
+
+Pooled A/P **0.999×**, A2/A1 drift 1.002× and P2/P1 drift 1.000×:
+no reliable E2E benefit. The temporary Python gate was reverted and its SHA
+checked against the original backup. No model-specific CUDA candidate is
+included; model support and shared #22 routing remain.
+
+**12/12 raw uint8 videos are bit-exact.** Census: 196 FP8 modules,
+6,525,288,448 weight elements. P warmups confirm 196 CUDA calls/request
+(168 at width 3584 and 28 at width 18944); A has zero. Counting is removed
+before measured requests. Independent seed 0/1/42 checks including zero rows
+match reference FP8 payload and scale bit-for-bit for both shapes.
+
+Evidence: `results/hunyuan15/abba_gpu7`, `hunyuan15_e2e_hotpath.py`,
+`run_hunyuan15_abba.sh`, `summarize_hunyuan15_abba.py`,
+`hunyuan15-1108-correctness.json`. A test-source-only platform compatibility
+overlay is identical in all arms; the installed environment is unchanged.
+Initial configuration failure and shape audit are retained separately and
+excluded from performance evidence. All four processes exited naturally.
+Earlier BF16/FP8 model comparisons above are independent of this CUDA test.
