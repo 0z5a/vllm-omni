@@ -4,6 +4,7 @@ import sys
 from functools import cached_property
 
 import torch
+import vllm_omni.logger  # noqa: F401
 from aenum import extend_enum
 from vllm.config import ModelConfig as _OriginalModelConfig
 from vllm.inputs import TokensPrompt as _OriginalTokensPrompt
@@ -16,8 +17,6 @@ from vllm.v1.engine import EngineCoreRequest as _OriginalEngineCoreRequest
 from vllm.v1.request import Request as _OriginalRequest
 from vllm.v1.request import RequestStatus
 from vllm.v1.request import StreamingUpdate as _OriginalStreamingUpdate
-
-import vllm_omni.logger  # noqa: F401
 from vllm_omni.engine import OmniEngineCoreOutput, OmniEngineCoreOutputs, OmniEngineCoreRequest
 from vllm_omni.inputs.data import OmniTokensPrompt
 from vllm_omni.model_executor.layers.rotary_embedding import OmniMRotaryEmbedding
@@ -571,3 +570,16 @@ def _patch_cumem_free_callback_cuda() -> None:
 
 
 _patch_cumem_free_callback_cuda()
+
+
+# Experimental FP8 CUDA activation path is opt-in. Keep native/compiled dispatch
+# untouched; users can select the preserved Torch implementation explicitly.
+def _patch_opt_in_fp8_online_quant() -> None:
+    if not (os.environ.get("VLLM_OMNI_FP8_ONLINE_ENABLE") == "1" or os.environ.get("VLLM_OMNI_FP8_FORCE_TORCH") == "1"):
+        return
+    from vllm_omni.quantization.fp8_online import install_fp8_online_quant_patch
+
+    install_fp8_online_quant_patch()
+
+
+_patch_opt_in_fp8_online_quant()
