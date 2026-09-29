@@ -20,6 +20,8 @@ from __future__ import annotations
 
 import argparse
 import copy
+import json
+import time
 from pathlib import Path
 
 import soundfile as sf
@@ -87,6 +89,7 @@ def main() -> None:
     parser.add_argument("--max-frames", type=int, default=200, help="semantic frame budget (25 frames = 1 s)")
     parser.add_argument("--abc-file", default=None, help="external ABC score (requires cot=melody/full)")
     parser.add_argument("--output", default="yue2_song.wav")
+    parser.add_argument("--deploy-config", default=None, help="deploy YAML for eager/Graph comparisons")
     parser.add_argument(
         "--dump-tokens",
         default=None,
@@ -110,11 +113,15 @@ def main() -> None:
 
     tokenizer = YuE2TextTokenizer(Path(args.model) / "qwen.tiktoken")
     engine_kwargs: dict = {"trust_remote_code": True}
+    if args.deploy_config is not None:
+        engine_kwargs["deploy_config"] = args.deploy_config
     if args.gpu_memory_utilization is not None:
         engine_kwargs["gpu_memory_utilization"] = args.gpu_memory_utilization
     engine = Omni(model=args.model, **engine_kwargs)
 
     abc_ids = None
+    abc_s = 0.0
+    abc_tokens = 0
     if args.abc_file is not None:
         if args.cot == "off":
             raise SystemExit("--abc-file requires --cot melody|full")
@@ -124,8 +131,11 @@ def main() -> None:
         prompt_ids = abc_prefix_ids(tokenizer.encode, args.style, args.lyrics, args.cot)
         prompt = {"prompt_token_ids": prompt_ids}
         params = sampling_params(engine, phase="abc", seed=args.seed, max_frames=args.max_frames, prompt_ids=prompt_ids)
+        start = time.perf_counter()
         outputs = engine.generate([prompt], [params])
+        abc_s = time.perf_counter() - start
         generated = list(outputs[0].outputs[0].token_ids)
+        abc_tokens = len(generated)
         abc_ids = abc_ids_from_generated(generated)
         print(f"Generated ABC score ({len(abc_ids)} tokens):\n{tokenizer.decode(abc_ids)}\n")
 
@@ -134,12 +144,12 @@ def main() -> None:
     params = sampling_params(
         engine, phase="semantic", seed=args.seed, max_frames=args.max_frames, prompt_ids=prompt_ids
     )
+    start = time.perf_counter()
     outputs = engine.generate([prompt], [params])
+    semantic_s = time.perf_counter() - start
     output = outputs[0].outputs[0]
     generated_ids = list(output.token_ids)
     if args.dump_tokens:
-        import json
-
         payload = {
             "prompt_token_ids": prompt_ids,
             "generated_token_ids": generated_ids,
@@ -160,7 +170,8 @@ def main() -> None:
     truncated = False
     meta = mm.get("meta") or {}
     if "truncated" in meta:
-        truncated = bool(int(meta["truncated"][0]))
+        flag = meta["truncated"]
+        truncated = bool(int(flag[0] if isinstance(flag, (list, tuple)) else flag))
 
     waveform = audio.float()
     # soundfile wants [frames, channels] float in [-1, 1]; torchaudio has no
@@ -170,6 +181,15 @@ def main() -> None:
         f"Saved {args.output}: {waveform.shape[-1] / sr:.1f}s @ {sr} Hz stereo, "
         f"truncated={truncated}, generated {len(output.token_ids)} semantic tokens"
     )
+    metrics = {
+        "abc_s": abc_s,
+        "abc_tokens": abc_tokens,
+        "semantic_s": semantic_s,
+        "semantic_tokens": len(generated_ids),
+        "audio_s": waveform.shape[-1] / sr,
+        "truncated": truncated,
+    }
+    print(json.dumps(metrics))
 
 
 if __name__ == "__main__":

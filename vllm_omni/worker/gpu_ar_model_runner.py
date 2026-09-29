@@ -1100,7 +1100,7 @@ class GPUARModelRunner(OmniGPUModelRunner, OmniConnectorModelRunnerMixin, Duplex
         # for multimodal position detection, fix decode position offsets).
         prepare_runner_inputs = getattr(self.model, "prepare_runner_inputs", None)
         if callable(prepare_runner_inputs):
-            input_ids, positions = prepare_runner_inputs(
+            hook_kwargs = dict(
                 input_ids=input_ids,
                 positions=positions,
                 inputs_embeds=inputs_embeds,
@@ -1109,6 +1109,12 @@ class GPUARModelRunner(OmniGPUModelRunner, OmniConnectorModelRunnerMixin, Duplex
                 num_scheduled_tokens=num_scheduled_tokens_np[:num_reqs],
                 input_ids_buffer=self.input_ids.gpu[:num_tokens_padded],
             )
+            if hasattr(self.model, "accepts_runner_sampling_extra_args"):
+                hook_kwargs["sampling_extra_args"] = [
+                    params.extra_args if params and params.extra_args else {}
+                    for params in (self.requests[rid].sampling_params for rid in req_ids[:num_reqs])
+                ]
+            input_ids, positions = prepare_runner_inputs(**hook_kwargs)
 
         runner_assisted_context_enabled = False
         if runner_assisted_full_attn:

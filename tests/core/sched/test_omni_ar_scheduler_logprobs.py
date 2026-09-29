@@ -34,6 +34,12 @@ _MIXIN_UPDATE_HELPERS = (
 )
 
 
+def test_plain_request_skips_grammar_api_absent_in_vllm_029() -> None:
+    scheduler = SimpleNamespace(structured_output_manager=object())
+    request = SimpleNamespace(use_structured_output=False)
+    assert not OmniSchedulerMixin._reject_invalid_grammar_tokens(scheduler, request, [7])
+
+
 def _logprobs(
     token_ids: list[list[int]],
     values: list[list[float]],

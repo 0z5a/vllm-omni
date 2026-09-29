@@ -18,6 +18,9 @@ touch the per-request dicts set up here. ``_finish_request`` (the ODE+VAE
 pass) is stubbed and its calls recorded.
 """
 
+from contextlib import nullcontext
+from types import SimpleNamespace
+
 import pytest
 import torch
 
@@ -39,6 +42,8 @@ from vllm_omni.model_executor.models.yue2.yue2 import (
     _RequestState,
     _RowConstants,
 )
+from vllm_omni.worker import gpu_ar_model_runner as runner_module
+from vllm_omni.worker.gpu_ar_model_runner import GPUARModelRunner
 
 pytestmark = [pytest.mark.core_model, pytest.mark.cpu]
 
@@ -47,8 +52,10 @@ def make_model() -> Yue2ForCausalLM:
     model = object.__new__(Yue2ForCausalLM)
     model._states = {}
     model._row_constants = {}
+    model._audio_queue = []
     model._step_rows = []
     model._decode_t0 = {}
+    model._last_mm = None
     return model
 
 
@@ -367,3 +374,115 @@ class TestCaptureConstants:
         assert model._states["b"].constants.seed == 2
         assert model._states["a"].prefix_ids == [1, 2]
         assert model._states["b"].prefix_ids == [3, 4, 5]
+
+
+def test_runner_hook_keeps_request_state_across_replay_and_row_compaction():
+    model = make_model()
+    positions = torch.zeros(5, dtype=torch.int32)
+    args = {
+        "a": {KEY_PREFIX_IDS: [1, 2], KEY_SEED: 11},
+        "b": {KEY_PREFIX_IDS: [3, 4, 5], KEY_SEED: 22},
+        "c": {KEY_PREFIX_IDS: [6, 7], KEY_SEED: 33},
+    }
+    model.prepare_runner_inputs(
+        req_ids=["a", "b"],
+        num_computed_tokens=[0, 0],
+        num_scheduled_tokens=[2, 3],
+        input_ids=torch.tensor([1, 2, 3, 4, 5]),
+        positions=positions,
+        sampling_extra_args=[args["a"], args["b"]],
+    )
+    a, b = model._states["a"], model._states["b"]
+    a.history.append(CODEC_OFFSET)
+    model.prepare_runner_inputs(
+        req_ids=["b", "a"],
+        num_computed_tokens=[3, 2],
+        num_scheduled_tokens=[1, 1],
+        input_ids=torch.tensor([88, 99]),
+        positions=positions,
+        sampling_extra_args=[args["b"], args["a"]],
+    )
+    assert model._states["a"] is a
+    assert model._states["b"] is b
+    assert a.history == [CODEC_OFFSET]
+    assert model._step_rows == [("b", 3, 1), ("a", 2, 1)]
+
+    model.on_requests_finished(["a"])
+    model.prepare_runner_inputs(
+        req_ids=["b", "c"],
+        num_computed_tokens=[4, 0],
+        num_scheduled_tokens=[1, 2],
+        input_ids=torch.tensor([77, 6, 7]),
+        positions=positions,
+        sampling_extra_args=[args["b"], args["c"]],
+    )
+    assert model._states["b"] is b
+    assert model._states["c"].constants.seed == 33
+    assert "a" not in model._states
+
+
+def test_finish_only_step_releases_request_state_without_forward():
+    model = make_model()
+    model.prepare_runner_inputs(
+        req_ids=["r"],
+        num_computed_tokens=[0],
+        num_scheduled_tokens=[2],
+        input_ids=torch.tensor([1, 2]),
+        positions=torch.zeros(2, dtype=torch.int32),
+        sampling_extra_args=[{KEY_PREFIX_IDS: [1, 2]}],
+    )
+    model._decode_t0["r"] = 1.0
+    audio = torch.ones((2, 8))
+    output = model.make_omni_output(torch.zeros(1))
+    model._ship_audio("r", audio, False)
+
+    model.on_requests_finished(["r"])
+    model.on_requests_finished(["r"])
+    assert not model._states
+    assert not model._row_constants
+    assert not model._decode_t0
+    assert not model._step_rows
+    assert model._last_mm is None
+    assert torch.equal(output.multimodal_outputs["model_outputs"][0], audio)
+
+    model.make_omni_output(torch.zeros(1))
+    assert torch.equal(output.multimodal_outputs["model_outputs"][0], audio)
+
+
+def test_runner_finish_only_step_cleans_yue2_state(monkeypatch):
+    model = make_model()
+    model.prepare_runner_inputs(
+        req_ids=["r"],
+        num_computed_tokens=[0],
+        num_scheduled_tokens=[2],
+        input_ids=torch.tensor([1, 2]),
+        positions=torch.zeros(2, dtype=torch.int32),
+        sampling_extra_args=[{KEY_PREFIX_IDS: [1, 2]}],
+    )
+    runner = object.__new__(GPUARModelRunner)
+    runner.execute_model_state = None
+    runner.routed_experts_initialized = False
+    runner._warmup_state_cleared = True
+    runner.model = model
+    runner._prefix_cache_step_begin = lambda _: None
+    runner.kv_transfer_manager = SimpleNamespace(handle_finished_requests_kv_transfer=lambda **_: None)
+    runner.kv_caches = {}
+    runner.cache_config = SimpleNamespace(block_size=16, cache_dtype="auto")
+    runner._resolve_global_request_id = lambda rid: rid
+    runner.speculative_config = None
+    runner.synchronize_input_prep = nullcontext
+    runner._update_states = lambda _: None
+    runner.parallel_config = SimpleNamespace(distributed_executor_backend="mp", data_parallel_size=1)
+    runner.attach_omni_connector_output = lambda output: output
+    monkeypatch.setattr(runner_module, "has_kv_transfer_group", lambda: False)
+    monkeypatch.setattr(runner_module, "has_ec_transfer", lambda: False)
+
+    runner.execute_model(
+        SimpleNamespace(
+            total_num_scheduled_tokens=0,
+            finished_req_ids={"r"},
+            finished_requests_needing_kv_transfer={},
+        )
+    )
+    assert not model._states
+    assert not model._row_constants

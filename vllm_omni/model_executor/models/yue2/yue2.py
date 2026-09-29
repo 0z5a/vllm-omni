@@ -235,6 +235,7 @@ class Yue2ForCausalLM(nn.Module):
     have_multimodal_outputs = True
     prefer_model_sampler = True
     has_postprocess = False
+    accepts_runner_sampling_extra_args = True
     # The song is decoded in-model and shipped via make_omni_output; per-step
     # hidden states must NOT ride the pooler payload, or the output pipeline
     # remaps the accumulated "hidden" rows to the audio modality key and the
@@ -282,7 +283,6 @@ class Yue2ForCausalLM(nn.Module):
         self._states: dict[str, _RequestState] = {}
         self._row_constants: dict[str, _RowConstants] = {}
         self._audio_queue: list[tuple[str, torch.Tensor, bool, bool]] = []
-        self._deferred_cleanup_ids: set[str] = set()
         self._step_rows: list[tuple[str, int, int]] = []  # (req_id, computed, scheduled)
         self._decode_t0: dict[str, float] = {}  # first decode-step wall time, for AR tok/s
         self._last_mm: dict[str, Any] | None = None  # current step's make_omni_output payload
@@ -358,15 +358,14 @@ class Yue2ForCausalLM(nn.Module):
         num_scheduled_tokens: Any,
         input_ids: torch.Tensor,
         positions: torch.Tensor,
+        sampling_extra_args: list[dict[str, object]] | None = None,
         **_: Any,
     ) -> tuple[torch.Tensor, torch.Tensor]:
-        """Bind rows to requests for the step; prompt tokens are captured in
-        ``forward``, where the state is created (see ``_capture_constants``).
-        Decode rows feed tokens the model itself sampled, so they never
-        contribute to the prompt prefix."""
+        """Bind rows and initialize new requests before graph replay."""
         computed = [int(v) for v in num_computed_tokens]
         scheduled = [int(v) for v in num_scheduled_tokens]
         self._step_rows = [(str(rid), computed[i], scheduled[i]) for i, rid in enumerate(req_ids)]
+        self._capture_constants({"sampling_extra_args": sampling_extra_args}, input_ids)
         return input_ids, positions
 
     def forward(
@@ -377,8 +376,7 @@ class Yue2ForCausalLM(nn.Module):
         inputs_embeds: torch.Tensor | None = None,
         **kwargs: Any,
     ) -> torch.Tensor:
-        del intermediate_tensors
-        self._capture_constants(kwargs, input_ids)
+        del intermediate_tensors, kwargs
         hidden = self.model(
             input_ids=input_ids if inputs_embeds is None else None,
             positions=positions,
@@ -386,7 +384,6 @@ class Yue2ForCausalLM(nn.Module):
         )
         if isinstance(hidden, tuple):
             hidden = hidden[0]
-        self._flush_deferred_cleanup()
         return hidden
 
     def _capture_constants(self, kwargs: dict[str, Any], input_ids: torch.Tensor | None) -> None:
@@ -666,12 +663,8 @@ class Yue2ForCausalLM(nn.Module):
         return OmniOutput(text_hidden_states=model_outputs, multimodal_outputs=mm)
 
     def on_requests_finished(self, finished_req_ids: Iterable[str]) -> None:
-        # Fires before forward; defer the free so the in-flight step can read.
-        for rid in finished_req_ids:
-            self._deferred_cleanup_ids.add(_request_key(rid))
-
-    def _flush_deferred_cleanup(self) -> None:
-        for req_id in self._deferred_cleanup_ids:
+        finished = {_request_key(rid) for rid in finished_req_ids}
+        for req_id in finished:
             state = self._states.pop(req_id, None)
             if state is not None and not state.finished:
                 logger.warning(
@@ -680,4 +673,6 @@ class Yue2ForCausalLM(nn.Module):
                     req_id,
                 )
             self._row_constants.pop(req_id, None)
-        self._deferred_cleanup_ids.clear()
+            self._decode_t0.pop(req_id, None)
+        self._step_rows = [row for row in self._step_rows if row[0] not in finished]
+        self._last_mm = None
