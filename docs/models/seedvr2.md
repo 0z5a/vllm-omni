@@ -173,3 +173,42 @@ See the [RTX 5090 recipe](https://github.com/vllm-project/vllm-omni/blob/main/re
 input/output contract, complete serving command, and media checks. The local
 checkpoint test in `tests/diffusion/models/seedvr2/test_seedvr2_e2e.py` checks
 3B transformer SP parity. The PR test result covers complete HTTP restoration.
+
+## FP8 online CUDA path E2E (RTX 5090)
+
+The 3B checkpoint was SHA-verified and served with four RTX 5090 GPUs, eager
+execution, window SP4, VAE height sharding and tiling, and dynamic FP8 video
+projection activations. With `VLLM_OMNI_FP8_ONLINE_ENABLE=1`,
+`VLLM_OMNI_FP8_ONLINE_DISABLE=1` selects the reference quantizer (A); `0`
+selects the CUDA path (P). Both arms used the same model,
+request, seed, and output checks. Each arm loaded the model separately and ran
+one warmup request before the measured requests. The sequence was A1, P1, P2,
+A2. Times cover the complete HTTP request and encoded video response.
+
+| Full E2E scenario | A1 reference (s) | P1 CUDA (s) | P2 CUDA (s) | A2 reference (s) | Pooled A/P speedup |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| 5 frames, 192×112, 25 fps; 6 measured/arm | 0.421 ± 0.039 | 0.392 ± 0.017 | 0.392 ± 0.027 | 0.398 ± 0.020 | **1.045×** |
+| 24 frames, 768×1344, 24 fps; 3 measured/arm | 10.855 ± 0.301 | 11.361 ± 0.296 | 11.071 ± 0.331 | 10.737 ± 0.065 | **0.963×** |
+
+The short case used the native synchronous video endpoint and returned 4,096
+audio samples. All 28 responses had identical decoded frame hashes across A/P.
+The high-resolution case used the long-video HTTP endpoint and returned 32,768
+audio samples. All 16 responses had identical decoded frame hashes across A/P.
+The high-resolution CUDA path was 3.9% slower in this full E2E measurement;
+these results do not imply a speedup at every clip size.
+
+
+## Optional activation hot path and Torch fallback
+
+The optional activation hot path and fallback controls from downstream fork
+PR #30 are included in this upstream update. The table above is historical
+ABBA evidence; this port does not claim a new GPU E2E run.
+
+Set `VLLM_OMNI_FP8_ONLINE_ENABLE=1` before launch to reproduce the short-clip
+CUDA route. The 1.045× short-clip result and 0.963× high-resolution regression
+above limit its scope; it is disabled by default.
+`VLLM_OMNI_FP8_ONLINE_DISABLE=1` keeps the reference CUDA quantizer.
+`VLLM_OMNI_FP8_FORCE_TORCH=1` explicitly selects vLLM's Torch native activation
+quantization. Weight quantization and the INT8 branch retain their existing
+implementations. Native Torch and CUDA rounding are not bit-equivalent.
+See [complete dispatch and evidence notes](../fp8_online_e2e_followup.md).
