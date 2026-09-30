@@ -13,6 +13,8 @@ and then apply two more pointwise steps::
 That is seven full-width kernels and five ``[batch, seq, channels]`` intermediates per block
 per step, all of them pure elementwise work around an otherwise untouched native LayerNorm.
 These kernels read the compact parameter row directly and emit only the final tensor.
+The parent prepares shared scale/gate rows once per timestep; ``prepared=True`` skips
+their repeated add/tanh work while retaining the same BF16 rounding.
 
 ``_select_modulation_rows`` is ported from diffusers'
 ``transformer_qwenimage21._select_modulation_rows``: with ``causal_condition`` the parameters
@@ -72,6 +74,7 @@ def _modulate_kernel(
     channels: tl.constexpr,
     block: tl.constexpr,
     has_mask: tl.constexpr,
+    prepared: tl.constexpr,
 ):
     batch = tl.program_id(0)
     token = tl.program_id(1)
@@ -81,7 +84,7 @@ def _modulate_kernel(
     row = _select_row(batch, token, mask_ptr, num_rows, has_mask)
     x = tl.load(x_ptr + batch * x_stride_b + token * x_stride_s + offset, mask=live, other=0.0).to(tl.float32)
     params = tl.load(params_ptr + row * params_stride_r + offset, mask=live, other=0.0).to(tl.float32)
-    one_plus = round_bf16_to_fp32(add_rn_f32(1.0, params))
+    one_plus = params if prepared else round_bf16_to_fp32(add_rn_f32(1.0, params))
     tl.store(
         out_ptr + batch * out_stride_b + token * out_stride_s + offset,
         mul_rn_f32(x, one_plus),
@@ -103,6 +106,7 @@ def _gated_residual_kernel(
     channels: tl.constexpr,
     block: tl.constexpr,
     has_mask: tl.constexpr,
+    prepared: tl.constexpr,
 ):
     batch = tl.program_id(0)
     token = tl.program_id(1)
@@ -112,7 +116,7 @@ def _gated_residual_kernel(
 
     row = _select_row(batch, token, mask_ptr, num_rows, has_mask)
     params = tl.load(params_ptr + row * params_stride_r + offset, mask=live, other=0.0).to(tl.float32)
-    gate = round_bf16_to_fp32(tanh_f32(params))
+    gate = params if prepared else round_bf16_to_fp32(tanh_f32(params))
     sublayer = tl.load(sublayer_ptr + element, mask=live, other=0.0).to(tl.float32)
     residual = tl.load(residual_ptr + element, mask=live, other=0.0).to(tl.float32)
     gated = round_bf16_to_fp32(mul_rn_f32(gate, sublayer))
@@ -127,8 +131,17 @@ def select_modulation_rows(params: torch.Tensor, token_mask: torch.Tensor | None
     return torch.where(token_mask.view(1, -1, 1), real, zero)
 
 
-def _reference_modulate(x: torch.Tensor, params: torch.Tensor, token_mask: torch.Tensor | None) -> torch.Tensor:
-    return x * (1 + select_modulation_rows(params, token_mask))
+def prepare_modulation(params: torch.Tensor) -> torch.Tensor:
+    """Prepare the shared BF16 scale/gate rows once per timestep, before all blocks."""
+    scale1, gate1, scale2, gate2 = params.chunk(4, dim=-1)
+    return torch.cat((1 + scale1, gate1.tanh(), 1 + scale2, gate2.tanh()), dim=-1)
+
+
+def _reference_modulate(
+    x: torch.Tensor, params: torch.Tensor, token_mask: torch.Tensor | None, prepared: bool = False
+) -> torch.Tensor:
+    scale = select_modulation_rows(params, token_mask)
+    return x * (scale if prepared else 1 + scale)
 
 
 def _reference_gated_residual(
@@ -136,8 +149,10 @@ def _reference_gated_residual(
     sublayer: torch.Tensor,
     params: torch.Tensor,
     token_mask: torch.Tensor | None,
+    prepared: bool = False,
 ) -> torch.Tensor:
-    return residual + select_modulation_rows(params, token_mask).tanh() * sublayer
+    gate = select_modulation_rows(params, token_mask)
+    return residual + (gate if prepared else gate.tanh()) * sublayer
 
 
 def _supported(x: torch.Tensor, params: torch.Tensor, token_mask: torch.Tensor | None) -> bool:
@@ -174,7 +189,9 @@ def _grid(x: torch.Tensor) -> tuple[int, int, int]:
     return (x.shape[0], x.shape[1], triton.cdiv(x.shape[-1], _BLOCK))
 
 
-def _launch_modulate(x: torch.Tensor, params: torch.Tensor, token_mask: torch.Tensor | None) -> torch.Tensor:
+def _launch_modulate(
+    x: torch.Tensor, params: torch.Tensor, token_mask: torch.Tensor | None, prepared: bool = False
+) -> torch.Tensor:
     out = torch.empty_like(x)
     if out.numel() == 0:
         return out
@@ -192,12 +209,17 @@ def _launch_modulate(x: torch.Tensor, params: torch.Tensor, token_mask: torch.Te
         channels=x.shape[-1],
         block=_BLOCK,
         has_mask=token_mask is not None,
+        prepared=prepared,
     )
     return out
 
 
 def _launch_gated_residual(
-    residual: torch.Tensor, sublayer: torch.Tensor, params: torch.Tensor, token_mask: torch.Tensor | None
+    residual: torch.Tensor,
+    sublayer: torch.Tensor,
+    params: torch.Tensor,
+    token_mask: torch.Tensor | None,
+    prepared: bool = False,
 ) -> torch.Tensor:
     out = torch.empty_like(residual)
     if out.numel() == 0:
@@ -215,12 +237,15 @@ def _launch_gated_residual(
         channels=residual.shape[-1],
         block=_BLOCK,
         has_mask=token_mask is not None,
+        prepared=prepared,
     )
     return out
 
 
-def _modulate_fake(x: torch.Tensor, params: torch.Tensor, token_mask: torch.Tensor | None) -> torch.Tensor:
-    del params, token_mask
+def _modulate_fake(
+    x: torch.Tensor, params: torch.Tensor, token_mask: torch.Tensor | None, prepared: bool = False
+) -> torch.Tensor:
+    del params, token_mask, prepared
     return torch.empty_like(x)
 
 
@@ -229,8 +254,9 @@ def _gated_residual_fake(
     sublayer: torch.Tensor,
     params: torch.Tensor,
     token_mask: torch.Tensor | None,
+    prepared: bool = False,
 ) -> torch.Tensor:
-    del sublayer, params, token_mask
+    del sublayer, params, token_mask, prepared
     return torch.empty_like(residual)
 
 
@@ -253,15 +279,17 @@ if not hasattr(torch.ops.vllm_omni, _GATED_RESIDUAL_OP):
     )
 
 
-def apply_modulation(x: torch.Tensor, params: torch.Tensor, token_mask: torch.Tensor | None) -> torch.Tensor:
-    """``x * (1 + select_modulation_rows(params, token_mask))`` in one launch."""
+def apply_modulation(
+    x: torch.Tensor, params: torch.Tensor, token_mask: torch.Tensor | None, prepared: bool = False
+) -> torch.Tensor:
+    """Modulate with raw scale rows, or precomputed ``1 + scale`` when prepared."""
     if x.ndim != 3:
         raise ValueError(f"x must be [batch, seq, channels], got {tuple(x.shape)}")
     _check_rows(x, params, token_mask)
     # Keep the expression visible to Inductor so it can fuse the adjacent LayerNorm.
     if torch.compiler.is_compiling() or not _supported(x, params, token_mask):
-        return _reference_modulate(x, params, token_mask)
-    return torch.ops.vllm_omni.qwen_image_21_modulate(x, params, token_mask)
+        return _reference_modulate(x, params, token_mask, prepared)
+    return torch.ops.vllm_omni.qwen_image_21_modulate(x, params, token_mask, prepared)
 
 
 def apply_gated_residual(
@@ -269,15 +297,16 @@ def apply_gated_residual(
     sublayer: torch.Tensor,
     params: torch.Tensor,
     token_mask: torch.Tensor | None,
+    prepared: bool = False,
 ) -> torch.Tensor:
-    """``residual + tanh(select_modulation_rows(params, token_mask)) * sublayer`` in one launch."""
+    """Add a gated sublayer with raw gate rows, or precomputed ``tanh(gate)`` when prepared."""
     if residual.shape != sublayer.shape:
         raise ValueError(f"residual and sublayer must match, got {tuple(residual.shape)} vs {tuple(sublayer.shape)}")
     _check_rows(residual, params, token_mask)
     # Inductor can combine the residual with the next normalization and modulation.
     if torch.compiler.is_compiling() or not _supported(residual, params, token_mask):
-        return _reference_gated_residual(residual, sublayer, params, token_mask)
-    return torch.ops.vllm_omni.qwen_image_21_gated_residual(residual, sublayer, params, token_mask)
+        return _reference_gated_residual(residual, sublayer, params, token_mask, prepared)
+    return torch.ops.vllm_omni.qwen_image_21_gated_residual(residual, sublayer, params, token_mask, prepared)
 
 
-__all__ = ["apply_gated_residual", "apply_modulation", "select_modulation_rows"]
+__all__ = ["apply_gated_residual", "apply_modulation", "prepare_modulation", "select_modulation_rows"]

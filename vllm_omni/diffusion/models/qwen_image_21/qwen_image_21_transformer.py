@@ -37,6 +37,7 @@ from vllm_omni.diffusion.models.qwen_image_21.decode_graph import QwenImage21Dec
 from vllm_omni.diffusion.models.qwen_image_21.ops.modulation import (
     apply_gated_residual,
     apply_modulation,
+    prepare_modulation,
 )
 from vllm_omni.diffusion.models.qwen_image_21.ops.qk_norm_rope import apply_qk_norm_rope
 from vllm_omni.diffusion.models.qwen_image_21.ops.swiglu import fused_silu_mul
@@ -646,6 +647,7 @@ class QwenImage21TransformerBlock(nn.Module):
         kv_cache: dict[str, dict[str, torch.Tensor]] | None = None,
         cache_branch: str = "cond",
         cache_write_len: int | None = None,
+        modulation_prepared: bool = False,
     ) -> torch.Tensor:
         # Each half carries a compact `[rows, 2 * channels]` scale/gate pair per sample; the
         # fused ops read those rows directly instead of expanding them over the token axis.
@@ -653,7 +655,9 @@ class QwenImage21TransformerBlock(nn.Module):
         mod1_scale, mod1_gate = mod1.chunk(2, dim=-1)
         mod2_scale, mod2_gate = mod2.chunk(2, dim=-1)
 
-        img_modulated = apply_modulation(self.img_norm1(hidden_states), mod1_scale, target_token_mask)
+        img_modulated = apply_modulation(
+            self.img_norm1(hidden_states), mod1_scale, target_token_mask, modulation_prepared
+        )
         attn_output = self.attn(
             img_modulated,
             freqs,
@@ -664,11 +668,15 @@ class QwenImage21TransformerBlock(nn.Module):
             cache_branch=cache_branch,
             cache_write_len=cache_write_len,
         )
-        hidden_states = apply_gated_residual(hidden_states, attn_output, mod1_gate, target_token_mask)
-
-        img_modulated2 = apply_modulation(self.img_norm2(hidden_states), mod2_scale, target_token_mask)
         hidden_states = apply_gated_residual(
-            hidden_states, self.img_mlp(img_modulated2), mod2_gate, target_token_mask
+            hidden_states, attn_output, mod1_gate, target_token_mask, modulation_prepared
+        )
+
+        img_modulated2 = apply_modulation(
+            self.img_norm2(hidden_states), mod2_scale, target_token_mask, modulation_prepared
+        )
+        hidden_states = apply_gated_residual(
+            hidden_states, self.img_mlp(img_modulated2), mod2_gate, target_token_mask, modulation_prepared
         )
 
         if hidden_states.dtype == torch.float16:
@@ -1124,7 +1132,7 @@ class QwenImage21Transformer2DModel(CachedTransformer):
         else:
             modulation_mask = None
         temb = self.time_text_embed(timestep, joint_hidden_states)
-        modulation = self.modulation(temb)
+        modulation = prepare_modulation(self.modulation(temb))
 
         # Align the modulation mask with the local [prefix, target shard] layout.
         if modulation_mask is not None:
@@ -1196,6 +1204,7 @@ class QwenImage21Transformer2DModel(CachedTransformer):
                 kv_cache=block_kv_cache,
                 cache_branch=cache_branch,
                 cache_write_len=cache_write_len,
+                modulation_prepared=True,
             )
 
         if (
@@ -1241,7 +1250,7 @@ class QwenImage21Transformer2DModel(CachedTransformer):
         hidden_states = self.img_in(entry.hidden)
         timestep = torch.cat([entry.timestep, entry.timestep.new_zeros(1)], dim=0)
         temb = self.time_text_embed(timestep, hidden_states)
-        modulation = self.modulation(temb)
+        modulation = prepare_modulation(self.modulation(temb))
         for index_block, block in enumerate(self.transformer_blocks):
             hidden_states = block(
                 hidden_states=hidden_states,
@@ -1254,6 +1263,7 @@ class QwenImage21Transformer2DModel(CachedTransformer):
                 kv_cache=entry.block_caches[index_block],
                 cache_branch=entry.branch,
                 cache_write_len=None,
+                modulation_prepared=True,
             )
         hidden_states = self.norm_out(hidden_states, temb, entry.target_token_mask)
         return self.proj_out(hidden_states)

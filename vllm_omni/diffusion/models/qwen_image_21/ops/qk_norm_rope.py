@@ -132,7 +132,9 @@ def _launch(
     # Complex64 -> FP32 doubles the stride of every outer axis, so read the view's own
     # strides rather than the complex tensor's.
     view = freqs.view(torch.float32)
-    grid = (seq, batch, triton.cdiv(num_heads, _HEADS_PER_PROGRAM))
+    sm80 = torch.cuda.get_device_capability(qk.device) == (8, 0)
+    heads_per_program = 8 if sm80 else _HEADS_PER_PROGRAM
+    grid = (seq, batch, triton.cdiv(num_heads, heads_per_program))
     _qk_norm_rope_kernel[grid](
         qk,
         q_weight,
@@ -154,9 +156,10 @@ def _launch(
         eps,
         head_dim=head_dim,
         half_dim=head_dim // 2,
-        heads_per_program=_HEADS_PER_PROGRAM,
-        imag_fma_on_real=torch.cuda.get_device_capability(qk.device) == (8, 0),
-        num_warps=4,
+        heads_per_program=heads_per_program,
+        imag_fma_on_real=sm80,
+        # One warp per head keeps ATen's reduction order when widening the group.
+        num_warps=heads_per_program,
     )
     return out
 

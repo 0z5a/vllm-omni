@@ -10,6 +10,7 @@ from vllm_omni.diffusion.models.qwen_image_21 import qwen_image_21_transformer a
 from vllm_omni.diffusion.models.qwen_image_21.ops.modulation import (
     apply_gated_residual,
     apply_modulation,
+    prepare_modulation,
     select_modulation_rows,
 )
 
@@ -52,9 +53,7 @@ def test_fused_modulation_matches_eager_pointwise(device, batch, seq, prefix):
 
     for params in (packed[:, :channels], packed[:, channels:]):
         assert not params.is_contiguous()
-        torch.testing.assert_close(
-            apply_modulation(x, params, mask), _eager_modulate(x, params, mask), rtol=0, atol=0
-        )
+        torch.testing.assert_close(apply_modulation(x, params, mask), _eager_modulate(x, params, mask), rtol=0, atol=0)
         torch.testing.assert_close(
             apply_gated_residual(residual, sublayer, params, mask),
             _eager_gated_residual(residual, sublayer, params, mask),
@@ -87,9 +86,7 @@ def test_t_zero_row_only_reaches_unmasked_tokens():
     out = apply_modulation(x, params, mask)
     torch.testing.assert_close(out[:, :10], torch.full_like(out[:, :10], 101.0), rtol=0, atol=0)
     for row in range(batch):
-        torch.testing.assert_close(
-            out[row, 10:], x[row, 10:] * (1 + params[row].unsqueeze(0)), rtol=0, atol=0
-        )
+        torch.testing.assert_close(out[row, 10:], x[row, 10:] * (1 + params[row].unsqueeze(0)), rtol=0, atol=0)
 
 
 @pytest.mark.cuda
@@ -170,9 +167,17 @@ def test_block_forward_is_unchanged_by_modulation_fusion(monkeypatch):
     mask = torch.zeros(seq, dtype=torch.bool, device="cuda")
     mask[16:] = True
 
-    block(hidden_states=hidden, modulation=modulation, freqs=freqs, target_token_mask=mask)
+    output = block(hidden_states=hidden, modulation=modulation, freqs=freqs, target_token_mask=mask)
     fused_attn_input = recorded["input"]
 
     mod1, mod2 = modulation.chunk(2, dim=-1)
     want_attn_input = _eager_modulate(block.img_norm1(hidden), mod1[:, :512], mask)
     torch.testing.assert_close(fused_attn_input, want_attn_input, rtol=0, atol=0)
+    prepared_output = block(
+        hidden_states=hidden,
+        modulation=prepare_modulation(modulation),
+        freqs=freqs,
+        target_token_mask=mask,
+        modulation_prepared=True,
+    )
+    torch.testing.assert_close(prepared_output, output, rtol=0, atol=0)
