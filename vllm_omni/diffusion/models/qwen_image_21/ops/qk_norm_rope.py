@@ -68,6 +68,7 @@ def _qk_norm_rope_kernel(
     head_dim: tl.constexpr,
     half_dim: tl.constexpr,
     heads_per_program: tl.constexpr,
+    imag_fma_on_real: tl.constexpr,
 ):
     token = tl.program_id(0)
     batch = tl.program_id(1)
@@ -99,11 +100,13 @@ def _qk_norm_rope_kernel(
     freq_offset = token * freqs_stride_s + pairs * 2
     cos = tl.load(freqs_ptr + freq_offset)
     sin = tl.load(freqs_ptr + freq_offset + 1)
-    # ATen's complex64 multiply contracts one of the two products in each part, and the
-    # fused form is what reproduces it bit for bit: re = fma(a, c, -(b * d)),
-    # im = fma(b, c, a * d).
+    # ATen contracts a different imaginary product on SM80 than on SM120. Keep the
+    # qualified contraction order so values at a BF16 rounding boundary stay exact.
     out_real = fma_rn_f32(real, cos[None, :], -mul_rn_f32(imag, sin[None, :]))
-    out_imag = fma_rn_f32(imag, cos[None, :], mul_rn_f32(real, sin[None, :]))
+    if imag_fma_on_real:
+        out_imag = fma_rn_f32(real, sin[None, :], mul_rn_f32(imag, cos[None, :]))
+    else:
+        out_imag = fma_rn_f32(imag, cos[None, :], mul_rn_f32(real, sin[None, :]))
 
     out_row = batch * out_stride_b + token * out_stride_s + slot[:, None] * out_stride_h
     pair_offset = out_row + pairs[None, :] * (2 * out_stride_d)
@@ -152,6 +155,7 @@ def _launch(
         head_dim=head_dim,
         half_dim=head_dim // 2,
         heads_per_program=_HEADS_PER_PROGRAM,
+        imag_fma_on_real=torch.cuda.get_device_capability(qk.device) == (8, 0),
         num_warps=4,
     )
     return out

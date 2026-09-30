@@ -43,11 +43,11 @@ def _freqs(seq, device, dtype=torch.complex64):
     "device",
     [pytest.param("cpu", marks=pytest.mark.cpu), pytest.param("cuda", marks=[pytest.mark.cuda, pytest.mark.gpu])],
 )
-@pytest.mark.parametrize("batch,seq", [(1, 1), (1, 17), (2, 255), (1, 256)])
-def test_fused_qk_norm_rope_matches_eager_rounding(monkeypatch, device, batch, seq):
+@pytest.mark.parametrize("batch,seq,num_q_heads", [(1, 1, 4), (1, 17, 4), (2, 255, 4), (1, 256, 4), (1, 4097, 32)])
+def test_fused_qk_norm_rope_matches_eager_rounding(monkeypatch, device, batch, seq, num_q_heads):
     _single_rank(monkeypatch)
     torch.manual_seed(0)
-    num_q_heads, num_kv_heads = 4, 4
+    num_kv_heads = num_q_heads
     total = (num_q_heads + num_kv_heads) * HEAD_DIM
     packed = (torch.randn(batch, seq, total, device=device) * 3.0).to(torch.bfloat16)
     # A strided view over the Q-then-K region of a packed QKV projection, as in the block.
@@ -95,7 +95,7 @@ def test_fused_ops_fall_back_for_ineligible_inputs(monkeypatch):
     k_weight = torch.linspace(1.5, 0.5, HEAD_DIM, device="cuda", dtype=torch.bfloat16)
     freqs = _freqs(seq, "cuda")
 
-    # A head slice is not contiguous, so the op must stay on the eager chain.
+    # Packed QKV views can have a larger token stride; they must preserve eager rounding.
     sliced = packed.unflatten(-1, (num_heads, HEAD_DIM))[:, :, 2:6]
     assert not sliced.is_contiguous()
     q, k = apply_qk_norm_rope(sliced, q_weight, k_weight, freqs, 1e-6, 2)
