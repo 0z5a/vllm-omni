@@ -34,6 +34,12 @@ from vllm_omni.diffusion.distributed.sp_plan import (
 )
 from vllm_omni.diffusion.forward_context import get_forward_context, is_forward_context_available
 from vllm_omni.diffusion.models.qwen_image_21.decode_graph import QwenImage21DecodeGraphManager
+from vllm_omni.diffusion.models.qwen_image_21.ops.modulation import (
+    apply_gated_residual,
+    apply_modulation,
+)
+from vllm_omni.diffusion.models.qwen_image_21.ops.qk_norm_rope import apply_qk_norm_rope
+from vllm_omni.diffusion.models.qwen_image_21.ops.swiglu import fused_silu_mul
 
 if TYPE_CHECKING:
     from vllm.model_executor.layers.quantization.base_config import QuantizationConfig
@@ -122,21 +128,6 @@ def _resolve_qwen_image21_lookup_name(
             continue
         return lookup_name.replace(weight_name, param_name), shard_id
     return lookup_name, None
-
-
-def _select_modulation_rows(params: torch.Tensor, target_token_mask: torch.Tensor | None) -> torch.Tensor:
-    r"""Broadcast per-sample modulation `params` over the token axis.
-
-    With `causal_condition`, `params` holds `batch_size + 1` rows: rows `[0, batch_size)` come from the real timestep
-    and the trailing row from `t = 0`. Text and condition-image tokens take the `t = 0` row, target-image tokens take
-    their own sample's row.
-
-    Ported from diffusers' transformer_qwenimage21._select_modulation_rows.
-    """
-    if target_token_mask is None:
-        return params.unsqueeze(1)
-    real, zero = params[:-1].unsqueeze(1), params[-1:].unsqueeze(0)
-    return torch.where(target_token_mask.view(1, -1, 1), real, zero)
 
 
 class QwenImage21TemporalTimesteps(nn.Module):
@@ -289,7 +280,9 @@ class QwenImage21SwiGLUFeedForward(nn.Module):
         self.activation_fn = nn.SiLU()
 
     def forward(self, hidden_states: torch.Tensor) -> torch.Tensor:
-        return self.out(self.activation_fn(self.gate_layer(hidden_states)) * self.proj(hidden_states))
+        # One launch instead of `silu` + `mul`, and no BF16 activation intermediate. The
+        # two projections stay independent, so no per-forward `torch.cat` is introduced.
+        return self.out(fused_silu_mul(self.gate_layer(hidden_states), self.proj(hidden_states)))
 
 
 class QwenImage21AdaLayerNormContinuous(nn.Module):
@@ -318,8 +311,7 @@ class QwenImage21AdaLayerNormContinuous(nn.Module):
         target_token_mask: torch.Tensor | None = None,
     ) -> torch.Tensor:
         scale = self.linear(self.silu(conditioning_embedding).to(hidden_states.dtype))
-        scale = _select_modulation_rows(scale, target_token_mask)
-        return self.norm(hidden_states) * (1 + scale)
+        return apply_modulation(self.norm(hidden_states), scale, target_token_mask)
 
 
 class QwenImage21Rope(nn.Module):
@@ -522,17 +514,21 @@ class QwenImage21Attention(nn.Module):
         qkv, _ = self.to_qkv(hidden_states)
         q_size = self.num_heads * self.head_dim
         kv_size = self.num_kv_heads * self.head_dim
-        query, key, value = qkv.split([q_size, kv_size, kv_size], dim=-1)
 
-        query = query.unflatten(-1, (self.num_heads, self.head_dim))
-        key = key.unflatten(-1, (self.num_kv_heads, self.head_dim))
-        value = value.unflatten(-1, (self.num_kv_heads, self.head_dim))
-
-        query = self.norm_q(query).to(value.dtype)
-        key = self.norm_k(key).to(value.dtype)
-
-        query = self._apply_rotary_emb(query, freqs)
-        key = self._apply_rotary_emb(key, freqs)
+        # Q and K are adjacent in the packed projection, so the whole norm + rotation
+        # chain fuses into one launch over a strided view; V is untouched. The helper
+        # falls back to norm_q/norm_k + `_apply_rotary_emb` for any ineligible input.
+        query, key = apply_qk_norm_rope(
+            qkv[..., : q_size + kv_size].unflatten(-1, (self.num_heads + self.num_kv_heads, self.head_dim)),
+            self.norm_q.weight,
+            self.norm_k.weight,
+            freqs,
+            self.norm_q.eps,
+            self.num_heads,
+        )
+        value = qkv[..., q_size + kv_size :].unflatten(-1, (self.num_kv_heads, self.head_dim))
+        query = query.to(value.dtype)
+        key = key.to(value.dtype)
 
         cached_key = cached_value = None
         if kv_cache is not None:
@@ -638,17 +634,6 @@ class QwenImage21TransformerBlock(nn.Module):
             prefix=f"{prefix}.img_mlp",
         )
 
-    def _modulate(
-        self,
-        hidden_states: torch.Tensor,
-        mod_params: torch.Tensor,
-        target_token_mask: torch.Tensor | None,
-    ) -> tuple[torch.Tensor, torch.Tensor]:
-        scale, gate = mod_params.chunk(2, dim=-1)
-        scale = _select_modulation_rows(scale, target_token_mask)
-        gate = _select_modulation_rows(gate, target_token_mask)
-        return hidden_states * (1 + scale), gate
-
     def forward(
         self,
         hidden_states: torch.Tensor,
@@ -662,9 +647,13 @@ class QwenImage21TransformerBlock(nn.Module):
         cache_branch: str = "cond",
         cache_write_len: int | None = None,
     ) -> torch.Tensor:
+        # Each half carries a compact `[rows, 2 * channels]` scale/gate pair per sample; the
+        # fused ops read those rows directly instead of expanding them over the token axis.
         mod1, mod2 = modulation.chunk(2, dim=-1)
+        mod1_scale, mod1_gate = mod1.chunk(2, dim=-1)
+        mod2_scale, mod2_gate = mod2.chunk(2, dim=-1)
 
-        img_modulated, img_gate1 = self._modulate(self.img_norm1(hidden_states), mod1, target_token_mask)
+        img_modulated = apply_modulation(self.img_norm1(hidden_states), mod1_scale, target_token_mask)
         attn_output = self.attn(
             img_modulated,
             freqs,
@@ -675,10 +664,12 @@ class QwenImage21TransformerBlock(nn.Module):
             cache_branch=cache_branch,
             cache_write_len=cache_write_len,
         )
-        hidden_states = hidden_states + img_gate1.tanh() * attn_output
+        hidden_states = apply_gated_residual(hidden_states, attn_output, mod1_gate, target_token_mask)
 
-        img_modulated2, img_gate2 = self._modulate(self.img_norm2(hidden_states), mod2, target_token_mask)
-        hidden_states = hidden_states + img_gate2.tanh() * self.img_mlp(img_modulated2)
+        img_modulated2 = apply_modulation(self.img_norm2(hidden_states), mod2_scale, target_token_mask)
+        hidden_states = apply_gated_residual(
+            hidden_states, self.img_mlp(img_modulated2), mod2_gate, target_token_mask
+        )
 
         if hidden_states.dtype == torch.float16:
             hidden_states = hidden_states.clip(-65504, 65504)
