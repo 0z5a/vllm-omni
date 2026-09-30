@@ -96,7 +96,7 @@ def fused_silu_mul(gate: torch.Tensor, up: torch.Tensor) -> torch.Tensor:
     """``silu(gate) * up`` for two independently projected tensors of equal shape."""
     if gate.shape != up.shape:
         raise ValueError(f"gate and up must match, got {tuple(gate.shape)} and {tuple(up.shape)}")
-    if not _supported(gate, up):
+    if torch.compiler.is_compiling() or not _supported(gate, up):
         # CPU and non-contiguous inputs stay on plain torch, so the op never needs a
         # non-CUDA kernel registration.
         return _reference(gate, up)

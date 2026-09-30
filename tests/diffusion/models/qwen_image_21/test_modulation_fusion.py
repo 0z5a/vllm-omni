@@ -94,6 +94,32 @@ def test_t_zero_row_only_reaches_unmasked_tokens():
 
 @pytest.mark.cuda
 @pytest.mark.gpu
+@pytest.mark.parametrize("masked", [False, True])
+def test_compiled_residual_norm_modulation_matches_torch(masked):
+    def fused(residual, sublayer, gate, scale, mask):
+        hidden = apply_gated_residual(residual, sublayer, gate, mask)
+        normed = torch.nn.functional.layer_norm(hidden, (512,), eps=1e-6)
+        return hidden, apply_modulation(normed, scale, mask)
+
+    def reference(residual, sublayer, gate, scale, mask):
+        hidden = _eager_gated_residual(residual, sublayer, gate, mask)
+        normed = torch.nn.functional.layer_norm(hidden, (512,), eps=1e-6)
+        return hidden, _eager_modulate(normed, scale, mask)
+
+    actual = torch.compile(fused, fullgraph=True, dynamic=True)
+    expected = torch.compile(reference, fullgraph=True, dynamic=True)
+    torch.manual_seed(7945)
+    for batch, seq in ((1, 17), (2, 256)):
+        residual = torch.randn(batch, seq, 512, device="cuda", dtype=torch.bfloat16)
+        sublayer = torch.randn_like(residual)
+        packed = torch.randn(batch + int(masked), 2048, device="cuda", dtype=torch.bfloat16)
+        mask = torch.arange(seq, device="cuda") >= seq // 2 if masked else None
+        inputs = (residual, sublayer, packed[:, :512], packed[:, 1024:1536], mask)
+        torch.testing.assert_close(actual(*inputs), expected(*inputs), atol=0, rtol=0)
+
+
+@pytest.mark.cuda
+@pytest.mark.gpu
 def test_fused_modulation_falls_back_for_ineligible_inputs():
     torch.manual_seed(0)
     batch, seq, channels = 2, 32, 1024

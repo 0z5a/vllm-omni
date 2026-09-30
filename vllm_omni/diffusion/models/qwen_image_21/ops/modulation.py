@@ -258,7 +258,8 @@ def apply_modulation(x: torch.Tensor, params: torch.Tensor, token_mask: torch.Te
     if x.ndim != 3:
         raise ValueError(f"x must be [batch, seq, channels], got {tuple(x.shape)}")
     _check_rows(x, params, token_mask)
-    if not _supported(x, params, token_mask):
+    # Keep the expression visible to Inductor so it can fuse the adjacent LayerNorm.
+    if torch.compiler.is_compiling() or not _supported(x, params, token_mask):
         return _reference_modulate(x, params, token_mask)
     return torch.ops.vllm_omni.qwen_image_21_modulate(x, params, token_mask)
 
@@ -273,7 +274,8 @@ def apply_gated_residual(
     if residual.shape != sublayer.shape:
         raise ValueError(f"residual and sublayer must match, got {tuple(residual.shape)} vs {tuple(sublayer.shape)}")
     _check_rows(residual, params, token_mask)
-    if not _supported(residual, params, token_mask):
+    # Inductor can combine the residual with the next normalization and modulation.
+    if torch.compiler.is_compiling() or not _supported(residual, params, token_mask):
         return _reference_gated_residual(residual, sublayer, params, token_mask)
     return torch.ops.vllm_omni.qwen_image_21_gated_residual(residual, sublayer, params, token_mask)
 
