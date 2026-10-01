@@ -666,6 +666,7 @@ class DiffusersPipelineLoader(HWRLoaderMixin):
         # For online quantization, load on device so quantization can run on accelerator,
         # then move back to CPU afterward.
         offload_after_quant = False
+        cpu_quant_init = False
         quant_cfg = self.quant_config
         has_weight_quantization = quant_cfg is not None
         # These HF encoder helpers quantize locally and restore their load device.
@@ -677,6 +678,8 @@ class DiffusersPipelineLoader(HWRLoaderMixin):
                 config is not None and not prefix.startswith("text_encoder")
                 for prefix, config in quant_cfg.component_configs.items()
             )
+            transformer_quant = quant_cfg.resolve("transformer")
+            cpu_quant_init = transformer_quant is not None and transformer_quant.get_name() == "fp8"
         if load_device == "cpu" and has_weight_quantization and device is not None:
             is_offline = getattr(quant_cfg, "data_type", None) == "mx_fp" or getattr(
                 quant_cfg, "is_checkpoint_quantized", False
@@ -709,7 +712,17 @@ class DiffusersPipelineLoader(HWRLoaderMixin):
 
                 fallback_ctx = load_unquantizable_fallback_on_cpu() if offload_after_quant else contextlib.nullcontext()
                 with fallback_ctx:
-                    model = self._init_from_load_format(load_format, target_device, custom_pipeline_name, is_hsdp=False)
+                    init_device = torch.device("cpu") if offload_after_quant and cpu_quant_init else target_device
+                    model = self._init_from_load_format(load_format, init_device, custom_pipeline_name, is_hsdp=False)
+                if offload_after_quant and cpu_quant_init:
+                    from vllm.model_executor.model_loader.reload.layerwise import get_layerwise_info
+
+                    # Keep BF16 layers on the host; online FP8 materializes only
+                    # the current layer on the quantization device.
+                    for module in model.modules():
+                        info = get_layerwise_info(module)
+                        if info.can_load():
+                            info.restore_device = target_device
 
                 resolved_offload = resolve_offload(self.od_config)
                 distributed_offload = resolved_offload.strategy is OffloadStrategy.DISTRIBUTED_LAYER_WISE

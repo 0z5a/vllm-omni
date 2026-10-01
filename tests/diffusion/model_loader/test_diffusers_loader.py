@@ -2150,6 +2150,7 @@ def test_hsdp_broadcast_weight_load_online_quant_multiprocess():
 )
 def test_offloaded_dit_load_device_follows_its_component_quantization(monkeypatch, scope):
     from vllm.model_executor.layers.quantization.fp8 import Fp8Config
+    from vllm.model_executor.model_loader.reload.layerwise import get_layerwise_info
 
     fp8 = Fp8Config()
     configs = {
@@ -2181,6 +2182,8 @@ def test_offloaded_dit_load_device_follows_its_component_quantization(monkeypatc
     loader = DiffusersPipelineLoader(LoadConfig(), config)
     model = nn.Module()
     model.transformer = nn.Linear(2, 2, bias=False)
+    info = get_layerwise_info(model.transformer)
+    info.load_numel_total = model.transformer.weight.numel()
     initialize = MagicMock(return_value=model)
     monkeypatch.setattr(loader, "_init_from_load_format", initialize)
     monkeypatch.setattr(loader, "load_weights", MagicMock())
@@ -2188,6 +2191,10 @@ def test_offloaded_dit_load_device_follows_its_component_quantization(monkeypatc
     monkeypatch.setattr(loader, "_apply_skip_softmax_calibration", MagicMock())
 
     assert loader.load_model(load_device="cpu", device=torch.device("cuda")) is model
-    expected = "cpu" if scope in ("encoder", "none", "klein_encoder") else "cuda"
+    expected = "cpu" if scope in ("encoder", "none", "klein_encoder", "transformer", "both", "default") else "cuda"
     assert initialize.call_args.args[1] == torch.device(expected)
+    if scope in ("transformer", "both", "default"):
+        assert info.restore_device == torch.device("cuda")
+        assert model.transformer.weight.device.type == "cpu"
+        assert loader._process_weights_after_loading.call_args.args[1] == torch.device("cuda")
     assert loader.quant_config is configs[scope]
