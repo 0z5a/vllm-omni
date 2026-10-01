@@ -5,6 +5,7 @@
 
 import hashlib
 from collections.abc import Iterable, Iterator, Mapping, Sequence
+from dataclasses import replace
 from functools import partial
 from typing import Any
 
@@ -89,7 +90,8 @@ from vllm.sequence import IntermediateTensors
 from vllm.utils.collection_utils import is_list_of
 
 from vllm_omni.quantization.component_config import (
-    resolve_encoder_quant_config,
+    PRE_QUANTIZED_METHODS,
+    ComponentQuantizationConfig,
 )
 
 try:
@@ -1078,13 +1080,30 @@ class Qwen2_5OmniThinkerForConditionalGeneration(
                 "in the audio tower part."
             )
 
-        self.quant_config = quant_config
-
         # Pre-quantized checkpoints (modelopt NVFP4/FP8/MXFP8) only quantize
-        # the Thinker LM. Vision encoder weights remain in BF16 with no FP8
-        # scale tensors; passing quant_config causes FP8 kernels to run on
-        # BF16 weights, producing garbage embeddings. Keep None for encoders.
-        visual_quant_config = resolve_encoder_quant_config(quant_config)
+        # the Thinker LM (language model). Vision and audio encoder weights
+        # remain in BF16 and have no corresponding scale tensors in the
+        # checkpoint. Dynamic quantization methods (e.g. --quantization fp8)
+        # should also only target the language model.
+        visual_prefix = maybe_prefix(prefix, "visual")
+        language_prefix = maybe_prefix(prefix, "language_model")
+        if isinstance(quant_config, ComponentQuantizationConfig):
+            visual_quant_config = quant_config.resolve(visual_prefix)
+        elif quant_config is not None:
+            if quant_config.get_name() in PRE_QUANTIZED_METHODS:
+                visual_quant_config = None
+            else:
+                quant_config = ComponentQuantizationConfig(
+                    component_configs={language_prefix: quant_config},
+                    default_config=None,
+                )
+                vllm_config = replace(vllm_config, quant_config=quant_config)
+                visual_quant_config = None
+        else:
+            visual_quant_config = None
+
+        self.vllm_config = vllm_config
+        self.quant_config = quant_config
 
         with self._mark_tower_model(vllm_config, "audio"):
             if multimodal_config.get_limit_per_prompt("audio"):
@@ -1098,7 +1117,7 @@ class Qwen2_5OmniThinkerForConditionalGeneration(
                     vision_config=thinker_config.vision_config,
                     norm_eps=getattr(thinker_config.text_config, "rms_norm_eps", 1e-6),
                     quant_config=visual_quant_config,
-                    prefix=maybe_prefix(prefix, "visual"),
+                    prefix=visual_prefix,
                 )
             else:
                 self.visual = None
@@ -1106,7 +1125,7 @@ class Qwen2_5OmniThinkerForConditionalGeneration(
         with self._mark_language_model(vllm_config):
             self.language_model = init_vllm_registered_model(
                 vllm_config=vllm_config,
-                prefix=maybe_prefix(prefix, "language_model"),
+                prefix=language_prefix,
                 hf_config=thinker_config.text_config,
                 architectures=["Qwen2ForCausalLM"],
             )
