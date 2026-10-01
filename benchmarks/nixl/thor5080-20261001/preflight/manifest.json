@@ -10,9 +10,11 @@
     "sha256": "cb815e4e9bfe358a5780cd7250fc20d37bfe1df8f19ab4ab8811de7e31e746dd"
   },
   {
-    "file": "cpu-regression-5080.log",
-    "bytes": 24754,
-    "sha256": "df5254fa0b9293e15f578300c80ce09e91e7e9435381eae69f2223b50651344e"
+    "file": "cpu-regression-5080.log.gz",
+    "bytes": 2051,
+    "sha256": "d15bc55da9f20e3787c4e2e93efbf1cda57565784a8c1862d1db288965d851f0",
+    "uncompressed_bytes": 24754,
+    "uncompressed_sha256": "df5254fa0b9293e15f578300c80ce09e91e7e9435381eae69f2223b50651344e"
   },
   {
     "file": "cpu-regression-5080.xml",
