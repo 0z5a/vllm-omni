@@ -31,7 +31,7 @@ def test_compiled_gated_norm_precision(batch, seq, masked, prepared):
     args = (residual, sublayer, gate, scale, mask, norm, prepared)
 
     # Eager retains the original operations exactly; compiled normalization has
-    # a different FP32 reduction, bounded by BF16 precision rather than bit equality.
+    # an FP32 norm/scale epilogue, bounded by BF16 precision rather than bit equality.
     eager = apply_gated_norm_modulation(*args)
     torch.testing.assert_close(eager, (hidden, expected), rtol=0, atol=0)
     compiled = torch.compile(apply_gated_norm_modulation, fullgraph=True, dynamic=True)

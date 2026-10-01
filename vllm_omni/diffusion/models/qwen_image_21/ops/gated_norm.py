@@ -47,7 +47,7 @@ def _kernel(
     mean = tl.sum(x, 0) / 4096
     centered = x - mean
     variance = tl.sum(centered * centered, 0) / 4096
-    norm = round_bf16_to_fp32(centered * tl.rsqrt(variance + eps))
+    norm = centered * tl.rsqrt(variance + eps)
     weight = tl.load(scale + row * scale_stride + col).to(tl.float32)
     if not prepared:
         weight = round_bf16_to_fp32(add_rn_f32(1.0, weight))
@@ -122,8 +122,8 @@ def apply_gated_norm_modulation(
     """Return the residual and modulated LayerNorm input to the MLP.
 
     Eager uses native LayerNorm. The compiled BF16/4096 path preserves residual
-    rounding and uses FP32 norm statistics; its reduction can differ from native
-    Welford at BF16 rounding boundaries.
+    rounding and keeps the norm/scale epilogue in FP32. Its reduction and fused
+    epilogue can differ from native Welford at BF16 rounding boundaries.
     """
     if (
         torch.compiler.is_compiling()
