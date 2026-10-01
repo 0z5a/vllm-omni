@@ -1,8 +1,18 @@
 [
   {
+    "file": "5080-model-download-complete.json",
+    "bytes": 2293,
+    "sha256": "0bbe31b05c8dfd492939b81cd07f4a2758683d5653a328241028f4d4dcb1fcaf"
+  },
+  {
+    "file": "5080-model-download-proxy.exit",
+    "bytes": 2,
+    "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+  },
+  {
     "file": "README.md",
-    "bytes": 3047,
-    "sha256": "caa44f5ac785590e54541ddc4f6c406b9307f1c4edee126f5415931bd624a7e6"
+    "bytes": 4416,
+    "sha256": "77b56b42e286c3108b139b6fa04cd4ab0f406e0d6bde92797201abaa0b1de0f3"
   },
   {
     "file": "arm-private-runtime-pins.json",

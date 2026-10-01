@@ -11,6 +11,7 @@ completed model E2E or a model speedup measurement.
 | Same Hunyuan/native NIXL regressions | Thor CPU, 76 cases | 76 passed, zero skips, 15.447 s including setup | Not measured |
 | Disk-backed native weight offload | RTX 5080, six BF16 linear forwards | Exact outputs; modified weights restored to the same backing file | Not measured |
 | Native UCX READ across architectures | 5080 host DRAM → Thor DRAM, 1 MiB | Exact bytes; both processes exited normally without a CUDA context | Not measured |
+| Native UCX VRAM READ across architectures | RTX 5080 → Thor, 1 MiB | Exact bytes; Workers and controller exited normally; both GPU leases returned | Not measured |
 | Remote DiT normal shutdown delivery | Both hosts' CPUs, peer connects after 1 s | Shutdown received; contexts closed; tests exited normally without a CUDA context | Not measured |
 | Full AR → 50-step DiT → VAE | RTX 5080 + Thor | Pending checkpoint completion and GPU availability | Pending |
 
@@ -18,10 +19,30 @@ The offload check also verifies FP32, BF16 and FP8 CPU values and strides.
 GPU pinning and UVA are disabled for the disk-backed deployment. The test
 does not load the full FP8 MoE checkpoint.
 
-The DRAM proof uses native NIXL 1.3.0 with UCX TCP through task-private SSH
-relays. It does not establish that the same route supports native VRAM READ;
-that check remains pending. Transfer payload SHA-256 is
+The DRAM and VRAM proofs use native NIXL 1.3.0 with UCX TCP through task-private
+SSH relays. Both compare the complete 1 MiB payload against its reference.
+Transfer payload SHA-256 is
 `fbbab289f7f94b25736c58be46a994c441fd02552cc6022352e3d86d2fab7c83`.
+
+The paired VRAM check obtains both real host locks and checks fresh GPU UUIDs,
+boot IDs, empty compute lists and the existing Thor queue before allocating
+CUDA tensors. Its lock scopes last 51.384 seconds on the 5080 and 57.671 seconds
+on Thor, including paired admission, initialization, handshake and transfer.
+These are not isolated transfer latencies or model speedup measurements.
+Successful proofs, source hashes and post-exit ownership checks are in
+[`vram-peer-v2`](../vram-peer-v2/).
+
+The first VRAM attempt fails: its 10-second completion ACK deadline lets the
+producer exit while the receiver still reports `PROC`. Restoring a 45-second
+ACK deadline and fixing buffered stdout handling in the paired controller
+permits the successful run. Its recorded interval from receiver registration
+to adding the remote agent is about 32.7 seconds. The failed run and its natural
+exits remain preserved in [`vram-peer-v1`](../vram-peer-v1/).
+
+The 5080 has all 18 checkpoint shards, verified against pinned LFS hashes and
+totalling 86,177,283,726 bytes. The downloader exits normally. Thor's remaining
+checkpoint download awaits a storage allocation that respects the existing
+queue; the full 50-step replay is still pending.
 
 The shutdown check exercises the real `StageDiffusionClient` sockets and
 encoder with a task-private flush helper. It verifies delayed-peer delivery

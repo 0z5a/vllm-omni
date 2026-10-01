@@ -172,9 +172,12 @@ latency varies, so these runs do not isolate a speed change from refactoring.
 The remaining full-model replay moves to an RTX 5080 AR producer and Jetson
 Thor DiT/VAE consumer. Both hosts pass the same 76 CPU regressions and normal
 shutdown delivery checks; the 5080 also passes six exact
-BF16 disk-backed native offload forwards, and a cross-architecture 1 MiB
-native UCX DRAM READ with exact bytes and normal process exits. Native VRAM
-READ and the full checkpoint replay remain pending; these preflight checks
+BF16 disk-backed native offload forwards, and cross-architecture 1 MiB
+native UCX DRAM and VRAM READs with exact bytes and normal process exits.
+The paired VRAM check returns both host leases after 51.384 and 57.671 seconds,
+including admission and handshake. All 18 pinned model shards are available
+on the 5080. Thor checkpoint completion and the full replay remain pending;
+these preflight checks
 add no model speedup claim. Evidence and the status table are preserved in
 [`5080/Thor preflight`](../../../../benchmarks/nixl/thor5080-20261001/preflight/).
 
