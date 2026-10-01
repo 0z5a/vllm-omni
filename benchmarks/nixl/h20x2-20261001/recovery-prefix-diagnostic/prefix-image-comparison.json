@@ -1,0 +1,30 @@
+[
+  {
+    "prompt_index": 0,
+    "repeat": -1,
+    "psnr_db": 39.20632443859574,
+    "ssim": 0.9916106340389099,
+    "ordinary_repeat_equal": true
+  },
+  {
+    "prompt_index": 1,
+    "repeat": -1,
+    "psnr_db": 10.620884329029842,
+    "ssim": 0.06054881215867855,
+    "ordinary_repeat_equal": true
+  },
+  {
+    "prompt_index": 0,
+    "repeat": 0,
+    "psnr_db": 12.463100446971104,
+    "ssim": 0.05891572665470931,
+    "ordinary_repeat_equal": false
+  },
+  {
+    "prompt_index": 1,
+    "repeat": 0,
+    "psnr_db": 10.620884329029842,
+    "ssim": 0.06054881215867855,
+    "ordinary_repeat_equal": true
+  }
+]

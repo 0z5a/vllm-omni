@@ -1,0 +1,1670 @@
+[
+  {
+    "name": "accelerate",
+    "version": "1.12.0",
+    "required": "==1.12.0",
+    "match": true
+  },
+  {
+    "name": "aenum",
+    "version": "3.1.16",
+    "required": "==3.1.16",
+    "match": true
+  },
+  {
+    "name": "agent-detector",
+    "version": "2.0.0",
+    "required": "==2.0.0",
+    "match": true
+  },
+  {
+    "name": "aiohappyeyeballs",
+    "version": "2.7.1",
+    "required": "==2.7.1",
+    "match": true
+  },
+  {
+    "name": "aiohttp",
+    "version": "3.14.3",
+    "required": "==3.14.3",
+    "match": true
+  },
+  {
+    "name": "aiosignal",
+    "version": "1.4.0",
+    "required": "==1.4.0",
+    "match": true
+  },
+  {
+    "name": "annotated-doc",
+    "version": "0.0.5",
+    "required": "==0.0.5",
+    "match": true
+  },
+  {
+    "name": "annotated-types",
+    "version": "0.8.0",
+    "required": "==0.8.0",
+    "match": true
+  },
+  {
+    "name": "anthropic",
+    "version": "1.8.0",
+    "required": "==1.8.0",
+    "match": true
+  },
+  {
+    "name": "antlr4-python3-runtime",
+    "version": "4.9.3",
+    "required": "==4.9.3",
+    "match": true
+  },
+  {
+    "name": "anyio",
+    "version": "4.15.1",
+    "required": "==4.15.1",
+    "match": true
+  },
+  {
+    "name": "apache-tvm-ffi",
+    "version": "0.1.11",
+    "required": "==0.1.11",
+    "match": true
+  },
+  {
+    "name": "astor",
+    "version": "0.8.1",
+    "required": "==0.8.1",
+    "match": true
+  },
+  {
+    "name": "attrs",
+    "version": "26.1.0",
+    "required": "==26.1.0",
+    "match": true
+  },
+  {
+    "name": "av",
+    "version": "18.1.0",
+    "required": "==18.1.0",
+    "match": true
+  },
+  {
+    "name": "better-profanity",
+    "version": "0.7.0",
+    "required": "==0.7.0",
+    "match": true
+  },
+  {
+    "name": "blake3",
+    "version": "1.0.9",
+    "required": "==1.0.9",
+    "match": true
+  },
+  {
+    "name": "cache_dit",
+    "version": "1.5.0",
+    "required": "==1.5.0",
+    "match": true
+  },
+  {
+    "name": "cachetools",
+    "version": "7.2.0",
+    "required": "==7.2.0",
+    "match": true
+  },
+  {
+    "name": "cbor2",
+    "version": "6.1.4",
+    "required": "==6.1.4",
+    "match": true
+  },
+  {
+    "name": "certifi",
+    "version": "2026.7.22",
+    "required": "==2026.7.22",
+    "match": true
+  },
+  {
+    "name": "cffi",
+    "version": "2.1.1",
+    "required": "==2.1.1",
+    "match": true
+  },
+  {
+    "name": "cfgv",
+    "version": "3.5.0",
+    "required": "==3.5.0",
+    "match": true
+  },
+  {
+    "name": "charset-normalizer",
+    "version": "3.5.1",
+    "required": "==3.5.1",
+    "match": true
+  },
+  {
+    "name": "click",
+    "version": "8.5.0",
+    "required": "==8.5.0",
+    "match": true
+  },
+  {
+    "name": "cloudpickle",
+    "version": "3.1.2",
+    "required": "==3.1.2",
+    "match": true
+  },
+  {
+    "name": "compressed-tensors",
+    "version": "0.17.0",
+    "required": "==0.17.0",
+    "match": true
+  },
+  {
+    "name": "cosmos-guardrail",
+    "version": "0.3.1",
+    "required": "==0.3.1",
+    "match": true
+  },
+  {
+    "name": "cryptography",
+    "version": "50.0.1",
+    "required": "==50.0.1",
+    "match": true
+  },
+  {
+    "name": "cuda-bindings",
+    "version": "13.4.3",
+    "required": "==13.4.3",
+    "match": true
+  },
+  {
+    "name": "cuda-core",
+    "version": "1.2.1",
+    "required": "==1.2.1",
+    "match": true
+  },
+  {
+    "name": "cuda-pathfinder",
+    "version": "1.8.2",
+    "required": "==1.8.2",
+    "match": true
+  },
+  {
+    "name": "cuda-python",
+    "version": "13.4.1",
+    "required": "==13.4.1",
+    "match": true
+  },
+  {
+    "name": "cuda-tile",
+    "version": "1.6.0",
+    "required": "==1.6.0",
+    "match": true
+  },
+  {
+    "name": "cuda-toolkit",
+    "version": "13.0.3.0",
+    "required": "==13.0.3.0",
+    "match": true
+  },
+  {
+    "name": "defusedxml",
+    "version": "0.7.1",
+    "required": "==0.7.1",
+    "match": true
+  },
+  {
+    "name": "depyf",
+    "version": "0.20.0",
+    "required": "==0.20.0",
+    "match": true
+  },
+  {
+    "name": "detect-installer",
+    "version": "0.2.1",
+    "required": "==0.2.1",
+    "match": true
+  },
+  {
+    "name": "diffusers",
+    "version": "0.40.0",
+    "required": "==0.40.0",
+    "match": true
+  },
+  {
+    "name": "dill",
+    "version": "0.4.1",
+    "required": "==0.4.1",
+    "match": true
+  },
+  {
+    "name": "distlib",
+    "version": "0.4.3",
+    "required": "==0.4.3",
+    "match": true
+  },
+  {
+    "name": "dnspython",
+    "version": "2.8.0",
+    "required": "==2.8.0",
+    "match": true
+  },
+  {
+    "name": "docstring_parser",
+    "version": "0.18.0",
+    "required": "==0.18.0",
+    "match": true
+  },
+  {
+    "name": "einops",
+    "version": "0.8.2",
+    "required": "==0.8.2",
+    "match": true
+  },
+  {
+    "name": "einx",
+    "version": "0.4.3",
+    "required": "==0.4.3",
+    "match": true
+  },
+  {
+    "name": "email-validator",
+    "version": "2.3.0",
+    "required": "==2.3.0",
+    "match": true
+  },
+  {
+    "name": "execnet",
+    "version": "2.1.2",
+    "required": "==2.1.2",
+    "match": true
+  },
+  {
+    "name": "fa3_fwd",
+    "version": "0.0.3",
+    "required": "==0.0.3",
+    "match": true
+  },
+  {
+    "name": "fastapi",
+    "version": "0.136.3",
+    "required": "==0.136.3",
+    "match": true
+  },
+  {
+    "name": "fastapi-cli",
+    "version": "0.0.32",
+    "required": "==0.0.32",
+    "match": true
+  },
+  {
+    "name": "fastapi-cloud-cli",
+    "version": "0.26.0",
+    "required": "==0.26.0",
+    "match": true
+  },
+  {
+    "name": "fastar",
+    "version": "0.12.0",
+    "required": "==0.12.0",
+    "match": true
+  },
+  {
+    "name": "fastsafetensors",
+    "version": "0.4.0",
+    "required": "==0.4.0",
+    "match": true
+  },
+  {
+    "name": "filelock",
+    "version": "4.0.6",
+    "required": "==4.0.6",
+    "match": true
+  },
+  {
+    "name": "flashinfer-python",
+    "version": "0.6.18.post1",
+    "required": "==0.6.18.post1",
+    "match": true
+  },
+  {
+    "name": "flatbuffers",
+    "version": "25.12.19",
+    "required": "==25.12.19",
+    "match": true
+  },
+  {
+    "name": "frozendict",
+    "version": "2.4.7",
+    "required": "==2.4.7",
+    "match": true
+  },
+  {
+    "name": "frozenlist",
+    "version": "1.8.0",
+    "required": "==1.8.0",
+    "match": true
+  },
+  {
+    "name": "fsspec",
+    "version": "2026.9.0",
+    "required": "==2026.9.0",
+    "match": true
+  },
+  {
+    "name": "gguf",
+    "version": "0.19.0",
+    "required": "==0.19.0",
+    "match": true
+  },
+  {
+    "name": "googleapis-common-protos",
+    "version": "1.75.4",
+    "required": "==1.75.4",
+    "match": true
+  },
+  {
+    "name": "grpcio",
+    "version": "1.84.0",
+    "required": "==1.84.0",
+    "match": true
+  },
+  {
+    "name": "h11",
+    "version": "0.16.0",
+    "required": "==0.16.0",
+    "match": true
+  },
+  {
+    "name": "hf-xet",
+    "version": "1.6.0",
+    "required": "==1.6.0",
+    "match": true
+  },
+  {
+    "name": "httpcore",
+    "version": "1.0.9",
+    "required": "==1.0.9",
+    "match": true
+  },
+  {
+    "name": "httpcore2",
+    "version": "2.13.1",
+    "required": "==2.13.1",
+    "match": true
+  },
+  {
+    "name": "httptools",
+    "version": "0.8.0",
+    "required": "==0.8.0",
+    "match": true
+  },
+  {
+    "name": "httpx",
+    "version": "0.28.1",
+    "required": "==0.28.1",
+    "match": true
+  },
+  {
+    "name": "httpx2",
+    "version": "2.13.1",
+    "required": "==2.13.1",
+    "match": true
+  },
+  {
+    "name": "huggingface_hub",
+    "version": "1.33.0",
+    "required": "==1.33.0",
+    "match": true
+  },
+  {
+    "name": "humming-kernels",
+    "version": "0.1.12",
+    "required": "==0.1.12",
+    "match": true
+  },
+  {
+    "name": "id",
+    "version": "1.6.1",
+    "required": "==1.6.1",
+    "match": true
+  },
+  {
+    "name": "identify",
+    "version": "2.6.20",
+    "required": "==2.6.20",
+    "match": true
+  },
+  {
+    "name": "idna",
+    "version": "3.20",
+    "required": "==3.20",
+    "match": true
+  },
+  {
+    "name": "ijson",
+    "version": "3.5.1",
+    "required": "==3.5.1",
+    "match": true
+  },
+  {
+    "name": "ImageIO",
+    "version": "2.38.0",
+    "required": "==2.38.0",
+    "match": true
+  },
+  {
+    "name": "imageio-ffmpeg",
+    "version": "0.6.0",
+    "required": "==0.6.0",
+    "match": true
+  },
+  {
+    "name": "importlib_metadata",
+    "version": "9.0.1",
+    "required": "==9.0.1",
+    "match": true
+  },
+  {
+    "name": "iniconfig",
+    "version": "2.3.0",
+    "required": "==2.3.0",
+    "match": true
+  },
+  {
+    "name": "instanttensor",
+    "version": "0.2.0",
+    "required": "==0.2.0",
+    "match": true
+  },
+  {
+    "name": "interegular",
+    "version": "0.3.3",
+    "required": "==0.3.3",
+    "match": true
+  },
+  {
+    "name": "janus",
+    "version": "2.0.0",
+    "required": "==2.0.0",
+    "match": true
+  },
+  {
+    "name": "Jinja2",
+    "version": "3.1.6",
+    "required": "==3.1.6",
+    "match": true
+  },
+  {
+    "name": "jiter",
+    "version": "0.17.0",
+    "required": "==0.17.0",
+    "match": true
+  },
+  {
+    "name": "jmespath",
+    "version": "1.1.0",
+    "required": "==1.1.0",
+    "match": true
+  },
+  {
+    "name": "joblib",
+    "version": "1.6.0",
+    "required": "==1.6.0",
+    "match": true
+  },
+  {
+    "name": "jsonschema",
+    "version": "4.26.0",
+    "required": "==4.26.0",
+    "match": true
+  },
+  {
+    "name": "jsonschema-specifications",
+    "version": "2025.9.1",
+    "required": "==2025.9.1",
+    "match": true
+  },
+  {
+    "name": "kernels",
+    "version": "0.16.1",
+    "required": "==0.16.1",
+    "match": true
+  },
+  {
+    "name": "kernels-data",
+    "version": "0.16.2",
+    "required": "==0.16.2",
+    "match": true
+  },
+  {
+    "name": "lark",
+    "version": "1.2.2",
+    "required": "==1.2.2",
+    "match": true
+  },
+  {
+    "name": "lazy-loader",
+    "version": "0.6",
+    "required": "==0.6",
+    "match": true
+  },
+  {
+    "name": "llguidance",
+    "version": "1.7.6",
+    "required": "==1.7.6",
+    "match": true
+  },
+  {
+    "name": "llvmlite",
+    "version": "0.47.0",
+    "required": "==0.47.0",
+    "match": true
+  },
+  {
+    "name": "lm-format-enforcer",
+    "version": "0.11.3",
+    "required": "==0.11.3",
+    "match": true
+  },
+  {
+    "name": "loguru",
+    "version": "0.7.3",
+    "required": "==0.7.3",
+    "match": true
+  },
+  {
+    "name": "markdown-it-py",
+    "version": "4.2.0",
+    "required": "==4.2.0",
+    "match": true
+  },
+  {
+    "name": "MarkupSafe",
+    "version": "3.0.3",
+    "required": "==3.0.3",
+    "match": true
+  },
+  {
+    "name": "mcp",
+    "version": "2.2.0",
+    "required": "==2.2.0",
+    "match": true
+  },
+  {
+    "name": "mcp-types",
+    "version": "2.2.0",
+    "required": "==2.2.0",
+    "match": true
+  },
+  {
+    "name": "mdurl",
+    "version": "0.1.2",
+    "required": "==0.1.2",
+    "match": true
+  },
+  {
+    "name": "mistral_common",
+    "version": "1.12.0",
+    "required": "==1.12.0",
+    "match": true
+  },
+  {
+    "name": "ml_dtypes",
+    "version": "0.6.0",
+    "required": "==0.6.0",
+    "match": true
+  },
+  {
+    "name": "model-hosting-container-standards",
+    "version": "0.1.16",
+    "required": "==0.1.16",
+    "match": true
+  },
+  {
+    "name": "more-itertools",
+    "version": "11.1.0",
+    "required": "==11.1.0",
+    "match": true
+  },
+  {
+    "name": "mpmath",
+    "version": "1.3.0",
+    "required": "==1.3.0",
+    "match": true
+  },
+  {
+    "name": "msgpack",
+    "version": "1.2.2",
+    "required": "==1.2.2",
+    "match": true
+  },
+  {
+    "name": "msgspec",
+    "version": "0.21.1",
+    "required": "==0.21.1",
+    "match": true
+  },
+  {
+    "name": "multidict",
+    "version": "6.9.1",
+    "required": "==6.9.1",
+    "match": true
+  },
+  {
+    "name": "mypy",
+    "version": "1.11.1",
+    "required": "==1.11.1",
+    "match": true
+  },
+  {
+    "name": "mypy_extensions",
+    "version": "1.1.0",
+    "required": "==1.1.0",
+    "match": true
+  },
+  {
+    "name": "nccl4py",
+    "version": "0.6.0",
+    "required": "==0.6.0",
+    "match": true
+  },
+  {
+    "name": "networkx",
+    "version": "3.7",
+    "required": "==3.7",
+    "match": true
+  },
+  {
+    "name": "ninja",
+    "version": "1.13.2",
+    "required": "==1.13.2",
+    "match": true
+  },
+  {
+    "name": "nixl",
+    "version": "1.3.0",
+    "required": "==1.3.0",
+    "match": true
+  },
+  {
+    "name": "nixl-cu12",
+    "version": "1.3.0",
+    "required": "==1.3.0",
+    "match": true
+  },
+  {
+    "name": "nixl-cu13",
+    "version": "1.3.0",
+    "required": "==1.3.0",
+    "match": true
+  },
+  {
+    "name": "nltk",
+    "version": "3.10.3",
+    "required": "==3.10.3",
+    "match": true
+  },
+  {
+    "name": "nodeenv",
+    "version": "1.11.0",
+    "required": "==1.11.0",
+    "match": true
+  },
+  {
+    "name": "numba",
+    "version": "0.65.0",
+    "required": "==0.65.0",
+    "match": true
+  },
+  {
+    "name": "numpy",
+    "version": "2.3.5",
+    "required": "==2.3.5",
+    "match": true
+  },
+  {
+    "name": "nvidia-cublas",
+    "version": "13.1.1.3",
+    "required": "==13.1.1.3",
+    "match": true
+  },
+  {
+    "name": "nvidia-cuda-cccl",
+    "version": "13.3.4.3.1",
+    "required": "==13.3.4.3.1",
+    "match": true
+  },
+  {
+    "name": "nvidia-cuda-crt",
+    "version": "13.4.92",
+    "required": "==13.4.92",
+    "match": true
+  },
+  {
+    "name": "nvidia-cuda-cupti",
+    "version": "13.0.85",
+    "required": "==13.0.85",
+    "match": true
+  },
+  {
+    "name": "nvidia-cuda-nvcc",
+    "version": "13.4.92",
+    "required": "==13.4.92",
+    "match": true
+  },
+  {
+    "name": "nvidia-cuda-nvdisasm",
+    "version": "13.4.92",
+    "required": "==13.4.92",
+    "match": true
+  },
+  {
+    "name": "nvidia-cuda-nvrtc",
+    "version": "13.0.88",
+    "required": "==13.0.88",
+    "match": true
+  },
+  {
+    "name": "nvidia-cuda-runtime",
+    "version": "13.0.96",
+    "required": "==13.0.96",
+    "match": true
+  },
+  {
+    "name": "nvidia-cudnn-cu13",
+    "version": "9.20.0.48",
+    "required": "==9.20.0.48",
+    "match": true
+  },
+  {
+    "name": "nvidia-cudnn-frontend",
+    "version": "1.30.0",
+    "required": "==1.30.0",
+    "match": true
+  },
+  {
+    "name": "nvidia-cufft",
+    "version": "12.0.0.61",
+    "required": "==12.0.0.61",
+    "match": true
+  },
+  {
+    "name": "nvidia-cufile",
+    "version": "1.15.1.6",
+    "required": "==1.15.1.6",
+    "match": true
+  },
+  {
+    "name": "nvidia-curand",
+    "version": "10.4.0.35",
+    "required": "==10.4.0.35",
+    "match": true
+  },
+  {
+    "name": "nvidia-cusolver",
+    "version": "12.0.4.66",
+    "required": "==12.0.4.66",
+    "match": true
+  },
+  {
+    "name": "nvidia-cusparse",
+    "version": "12.6.3.3",
+    "required": "==12.6.3.3",
+    "match": true
+  },
+  {
+    "name": "nvidia-cusparselt-cu13",
+    "version": "0.8.1",
+    "required": "==0.8.1",
+    "match": true
+  },
+  {
+    "name": "nvidia-cutlass-dsl",
+    "version": "4.7.1",
+    "required": "==4.7.1",
+    "match": true
+  },
+  {
+    "name": "nvidia-cutlass-dsl-libs-base",
+    "version": "4.7.1",
+    "required": "==4.7.1",
+    "match": true
+  },
+  {
+    "name": "nvidia-cutlass-dsl-libs-core",
+    "version": "4.7.1",
+    "required": "==4.7.1",
+    "match": true
+  },
+  {
+    "name": "nvidia-cutlass-dsl-libs-cu12",
+    "version": "4.7.1",
+    "required": "==4.7.1",
+    "match": true
+  },
+  {
+    "name": "nvidia-cutlass-dsl-libs-cu13",
+    "version": "4.7.1",
+    "required": "==4.7.1",
+    "match": true
+  },
+  {
+    "name": "nvidia-ml-py",
+    "version": "13.615.71",
+    "required": "==13.615.71",
+    "match": true
+  },
+  {
+    "name": "nvidia-nccl-cu13",
+    "version": "2.29.7",
+    "required": "==2.29.7",
+    "match": true
+  },
+  {
+    "name": "nvidia-nvjitlink",
+    "version": "13.4.92",
+    "required": "==13.4.92",
+    "match": true
+  },
+  {
+    "name": "nvidia-nvshmem-cu13",
+    "version": "3.4.5",
+    "required": "==3.4.5",
+    "match": true
+  },
+  {
+    "name": "nvidia-nvtx",
+    "version": "13.0.85",
+    "required": "==13.0.85",
+    "match": true
+  },
+  {
+    "name": "nvidia-nvvm",
+    "version": "13.4.92",
+    "required": "==13.4.92",
+    "match": true
+  },
+  {
+    "name": "nvtx",
+    "version": "0.2.15",
+    "required": "==0.2.15",
+    "match": true
+  },
+  {
+    "name": "omegaconf",
+    "version": "2.3.1",
+    "required": "==2.3.1",
+    "match": true
+  },
+  {
+    "name": "onnx",
+    "version": "1.23.0",
+    "required": "==1.23.0",
+    "match": true
+  },
+  {
+    "name": "onnxruntime",
+    "version": "1.30.0",
+    "required": "==1.30.0",
+    "match": true
+  },
+  {
+    "name": "openai",
+    "version": "3.22.0",
+    "required": "==3.22.0",
+    "match": true
+  },
+  {
+    "name": "openai-harmony",
+    "version": "0.0.8",
+    "required": "==0.0.8",
+    "match": true
+  },
+  {
+    "name": "openai-whisper",
+    "version": "20250625",
+    "required": "==20250625",
+    "match": true
+  },
+  {
+    "name": "opencv-python",
+    "version": "5.0.0.93",
+    "required": "==5.0.0.93",
+    "match": true
+  },
+  {
+    "name": "opencv-python-headless",
+    "version": "5.0.0.93",
+    "required": "==5.0.0.93",
+    "match": true
+  },
+  {
+    "name": "opentelemetry-api",
+    "version": "1.45.0",
+    "required": "==1.45.0",
+    "match": true
+  },
+  {
+    "name": "opentelemetry-exporter-http-transport",
+    "version": "0.66b0",
+    "required": "==0.66b0",
+    "match": true
+  },
+  {
+    "name": "opentelemetry-exporter-otlp",
+    "version": "1.45.0",
+    "required": "==1.45.0",
+    "match": true
+  },
+  {
+    "name": "opentelemetry-exporter-otlp-common",
+    "version": "0.66b0",
+    "required": "==0.66b0",
+    "match": true
+  },
+  {
+    "name": "opentelemetry-exporter-otlp-proto-common",
+    "version": "1.45.0",
+    "required": "==1.45.0",
+    "match": true
+  },
+  {
+    "name": "opentelemetry-exporter-otlp-proto-grpc",
+    "version": "1.45.0",
+    "required": "==1.45.0",
+    "match": true
+  },
+  {
+    "name": "opentelemetry-exporter-otlp-proto-http",
+    "version": "1.45.0",
+    "required": "==1.45.0",
+    "match": true
+  },
+  {
+    "name": "opentelemetry-proto",
+    "version": "1.45.0",
+    "required": "==1.45.0",
+    "match": true
+  },
+  {
+    "name": "opentelemetry-sdk",
+    "version": "1.45.0",
+    "required": "==1.45.0",
+    "match": true
+  },
+  {
+    "name": "opentelemetry-semantic-conventions",
+    "version": "0.66b0",
+    "required": "==0.66b0",
+    "match": true
+  },
+  {
+    "name": "opentelemetry-semantic-conventions-ai",
+    "version": "0.5.1",
+    "required": "==0.5.1",
+    "match": true
+  },
+  {
+    "name": "outlines_core",
+    "version": "0.2.14",
+    "required": "==0.2.14",
+    "match": true
+  },
+  {
+    "name": "packaging",
+    "version": "26.3",
+    "required": "==26.3",
+    "match": true
+  },
+  {
+    "name": "partial-json-parser",
+    "version": "0.2.1.1.post7",
+    "required": "==0.2.1.1.post7",
+    "match": true
+  },
+  {
+    "name": "peft",
+    "version": "0.21.0",
+    "required": "==0.21.0",
+    "match": true
+  },
+  {
+    "name": "pillow",
+    "version": "12.3.0",
+    "required": "==12.3.0",
+    "match": true
+  },
+  {
+    "name": "platformdirs",
+    "version": "4.12.2",
+    "required": "==4.12.2",
+    "match": true
+  },
+  {
+    "name": "pluggy",
+    "version": "1.6.0",
+    "required": "==1.6.0",
+    "match": true
+  },
+  {
+    "name": "pre_commit",
+    "version": "4.6.2",
+    "required": "==4.6.2",
+    "match": true
+  },
+  {
+    "name": "prettytable",
+    "version": "3.18.0",
+    "required": "==3.18.0",
+    "match": true
+  },
+  {
+    "name": "prometheus-fastapi-instrumentator",
+    "version": "8.1.0",
+    "required": "==8.1.0",
+    "match": true
+  },
+  {
+    "name": "prometheus_client",
+    "version": "0.26.0",
+    "required": "==0.26.0",
+    "match": true
+  },
+  {
+    "name": "propcache",
+    "version": "0.5.4",
+    "required": "==0.5.4",
+    "match": true
+  },
+  {
+    "name": "protobuf",
+    "version": "7.36.2",
+    "required": "==7.36.2",
+    "match": true
+  },
+  {
+    "name": "psutil",
+    "version": "7.2.2",
+    "required": "==7.2.2",
+    "match": true
+  },
+  {
+    "name": "py-cpuinfo",
+    "version": "9.0.0",
+    "required": "==9.0.0",
+    "match": true
+  },
+  {
+    "name": "pyasn1",
+    "version": "0.6.4",
+    "required": "==0.6.4",
+    "match": true
+  },
+  {
+    "name": "pybase64",
+    "version": "1.5.0",
+    "required": "==1.5.0",
+    "match": true
+  },
+  {
+    "name": "pycountry",
+    "version": "26.2.16",
+    "required": "==26.2.16",
+    "match": true
+  },
+  {
+    "name": "pycparser",
+    "version": "3.0",
+    "required": "==3.0",
+    "match": true
+  },
+  {
+    "name": "pydantic",
+    "version": "2.13.5",
+    "required": "==2.13.5",
+    "match": true
+  },
+  {
+    "name": "pydantic-extra-types",
+    "version": "2.11.1",
+    "required": "==2.11.1",
+    "match": true
+  },
+  {
+    "name": "pydantic-settings",
+    "version": "2.15.0",
+    "required": "==2.15.0",
+    "match": true
+  },
+  {
+    "name": "pydantic_core",
+    "version": "2.46.5",
+    "required": "==2.46.5",
+    "match": true
+  },
+  {
+    "name": "Pygments",
+    "version": "2.21.0",
+    "required": "==2.21.0",
+    "match": true
+  },
+  {
+    "name": "PyJWT",
+    "version": "2.15.0",
+    "required": "==2.15.0",
+    "match": true
+  },
+  {
+    "name": "pynvvideocodec",
+    "version": "2.0.4",
+    "required": "==2.0.4",
+    "match": true
+  },
+  {
+    "name": "pyOpenSSL",
+    "version": "26.4.0",
+    "required": "==26.4.0",
+    "match": true
+  },
+  {
+    "name": "pytest",
+    "version": "9.1.1",
+    "required": "==9.1.1",
+    "match": true
+  },
+  {
+    "name": "pytest-asyncio",
+    "version": "1.4.0",
+    "required": "==1.4.0",
+    "match": true
+  },
+  {
+    "name": "pytest-mock",
+    "version": "3.16.0",
+    "required": "==3.16.0",
+    "match": true
+  },
+  {
+    "name": "pytest-xdist",
+    "version": "3.8.0",
+    "required": "==3.8.0",
+    "match": true
+  },
+  {
+    "name": "python-discovery",
+    "version": "1.6.1",
+    "required": "==1.6.1",
+    "match": true
+  },
+  {
+    "name": "python-dotenv",
+    "version": "1.2.3",
+    "required": "==1.2.3",
+    "match": true
+  },
+  {
+    "name": "python-json-logger",
+    "version": "4.2.0",
+    "required": "==4.2.0",
+    "match": true
+  },
+  {
+    "name": "python-multipart",
+    "version": "0.0.32",
+    "required": "==0.0.32",
+    "match": true
+  },
+  {
+    "name": "PyYAML",
+    "version": "6.0.3",
+    "required": "==6.0.3",
+    "match": true
+  },
+  {
+    "name": "pyzmq",
+    "version": "27.2.0",
+    "required": "==27.2.0",
+    "match": true
+  },
+  {
+    "name": "quack-kernels",
+    "version": "0.6.5",
+    "required": "==0.6.5",
+    "match": true
+  },
+  {
+    "name": "referencing",
+    "version": "0.37.0",
+    "required": "==0.37.0",
+    "match": true
+  },
+  {
+    "name": "regex",
+    "version": "2026.9.10",
+    "required": "==2026.9.10",
+    "match": true
+  },
+  {
+    "name": "requests",
+    "version": "2.34.2",
+    "required": "==2.34.2",
+    "match": true
+  },
+  {
+    "name": "retinaface-py",
+    "version": "0.0.2",
+    "required": "==0.0.2",
+    "match": true
+  },
+  {
+    "name": "rfc3161-client",
+    "version": "1.0.9",
+    "required": "==1.0.9",
+    "match": true
+  },
+  {
+    "name": "rfc8785",
+    "version": "0.1.4",
+    "required": "==0.1.4",
+    "match": true
+  },
+  {
+    "name": "rich",
+    "version": "15.0.0",
+    "required": "==15.0.0",
+    "match": true
+  },
+  {
+    "name": "rich-toolkit",
+    "version": "0.20.5",
+    "required": "==0.20.5",
+    "match": true
+  },
+  {
+    "name": "rignore",
+    "version": "0.8.1",
+    "required": "==0.8.1",
+    "match": true
+  },
+  {
+    "name": "rpds-py",
+    "version": "2026.6.3",
+    "required": "==2026.6.3",
+    "match": true
+  },
+  {
+    "name": "ruff",
+    "version": "0.14.10",
+    "required": "==0.14.10",
+    "match": true
+  },
+  {
+    "name": "s3tokenizer",
+    "version": "0.3.0",
+    "required": "==0.3.0",
+    "match": true
+  },
+  {
+    "name": "safetensors",
+    "version": "0.8.0",
+    "required": "==0.8.0",
+    "match": true
+  },
+  {
+    "name": "scikit-image",
+    "version": "0.26.0",
+    "required": "==0.26.0",
+    "match": true
+  },
+  {
+    "name": "scipy",
+    "version": "1.18.1",
+    "required": "==1.18.1",
+    "match": true
+  },
+  {
+    "name": "securesystemslib",
+    "version": "1.5.1",
+    "required": "==1.5.1",
+    "match": true
+  },
+  {
+    "name": "sentencepiece",
+    "version": "0.2.2",
+    "required": "==0.2.2",
+    "match": true
+  },
+  {
+    "name": "sentry-sdk",
+    "version": "2.71.0",
+    "required": "==2.71.0",
+    "match": true
+  },
+  {
+    "name": "setproctitle",
+    "version": "1.3.7",
+    "required": "==1.3.7",
+    "match": true
+  },
+  {
+    "name": "setuptools",
+    "version": "80.10.2",
+    "required": "==80.10.2",
+    "match": true
+  },
+  {
+    "name": "setuptools-scm",
+    "version": "10.3.4",
+    "required": "==10.3.4",
+    "match": true
+  },
+  {
+    "name": "shellingham",
+    "version": "1.5.4",
+    "required": "==1.5.4",
+    "match": true
+  },
+  {
+    "name": "sigstore",
+    "version": "4.5.0",
+    "required": "==4.5.0",
+    "match": true
+  },
+  {
+    "name": "sigstore-models",
+    "version": "0.0.6",
+    "required": "==0.0.6",
+    "match": true
+  },
+  {
+    "name": "sigstore-rekor-types",
+    "version": "0.0.18",
+    "required": "==0.0.18",
+    "match": true
+  },
+  {
+    "name": "six",
+    "version": "1.17.0",
+    "required": "==1.17.0",
+    "match": true
+  },
+  {
+    "name": "sniffio",
+    "version": "1.3.1",
+    "required": "==1.3.1",
+    "match": true
+  },
+  {
+    "name": "soundfile",
+    "version": "0.14.0",
+    "required": "==0.14.0",
+    "match": true
+  },
+  {
+    "name": "soxr",
+    "version": "1.1.0",
+    "required": "==1.1.0",
+    "match": true
+  },
+  {
+    "name": "sse-starlette",
+    "version": "3.4.11",
+    "required": "==3.4.11",
+    "match": true
+  },
+  {
+    "name": "starlette",
+    "version": "1.7.0",
+    "required": "==1.7.0",
+    "match": true
+  },
+  {
+    "name": "supervisor",
+    "version": "4.3.0",
+    "required": "==4.3.0",
+    "match": true
+  },
+  {
+    "name": "sympy",
+    "version": "1.14.0",
+    "required": "==1.14.0",
+    "match": true
+  },
+  {
+    "name": "tabulate",
+    "version": "0.10.0",
+    "required": "==0.10.0",
+    "match": true
+  },
+  {
+    "name": "tifffile",
+    "version": "2026.9.20",
+    "required": "==2026.9.20",
+    "match": true
+  },
+  {
+    "name": "tiktoken",
+    "version": "0.14.0",
+    "required": "==0.14.0",
+    "match": true
+  },
+  {
+    "name": "tilelang",
+    "version": "0.1.12",
+    "required": "==0.1.12",
+    "match": true
+  },
+  {
+    "name": "tokenizers",
+    "version": "0.22.2",
+    "required": "==0.22.2",
+    "match": true
+  },
+  {
+    "name": "tokenspeed-mla",
+    "version": "0.1.8",
+    "required": "==0.1.8",
+    "match": true
+  },
+  {
+    "name": "tokenspeed-triton",
+    "version": "3.8.10.post20260906",
+    "required": "==3.8.10.post20260906",
+    "match": true
+  },
+  {
+    "name": "tomlkit",
+    "version": "0.15.1",
+    "required": "==0.15.1",
+    "match": true
+  },
+  {
+    "name": "torch",
+    "version": "2.13.0",
+    "required": "==2.13.0",
+    "match": true
+  },
+  {
+    "name": "torch-einops-utils",
+    "version": "0.1.34",
+    "required": "==0.1.34",
+    "match": true
+  },
+  {
+    "name": "torch_c_dlpack_ext",
+    "version": "0.1.5",
+    "required": "==0.1.5",
+    "match": true
+  },
+  {
+    "name": "torchaudio",
+    "version": "2.11.0",
+    "required": "==2.11.0",
+    "match": true
+  },
+  {
+    "name": "torchcodec",
+    "version": "0.16.0",
+    "required": "==0.16.0",
+    "match": true
+  },
+  {
+    "name": "torchsde",
+    "version": "0.2.6",
+    "required": "==0.2.6",
+    "match": true
+  },
+  {
+    "name": "torchvision",
+    "version": "0.28.0",
+    "required": "==0.28.0",
+    "match": true
+  },
+  {
+    "name": "tqdm",
+    "version": "4.70.1",
+    "required": "==4.70.1",
+    "match": true
+  },
+  {
+    "name": "trampoline",
+    "version": "0.1.2",
+    "required": "==0.1.2",
+    "match": true
+  },
+  {
+    "name": "transformers",
+    "version": "5.14.1",
+    "required": "==5.14.1",
+    "match": true
+  },
+  {
+    "name": "triton",
+    "version": "3.7.1",
+    "required": "==3.7.1",
+    "match": true
+  },
+  {
+    "name": "truststore",
+    "version": "0.10.4",
+    "required": "==0.10.4",
+    "match": true
+  },
+  {
+    "name": "tuf",
+    "version": "7.0.1",
+    "required": "==7.0.1",
+    "match": true
+  },
+  {
+    "name": "typer",
+    "version": "0.27.2",
+    "required": "==0.27.2",
+    "match": true
+  },
+  {
+    "name": "typing-inspection",
+    "version": "0.4.4",
+    "required": "==0.4.4",
+    "match": true
+  },
+  {
+    "name": "typing_extensions",
+    "version": "4.16.0",
+    "required": "==4.16.0",
+    "match": true
+  },
+  {
+    "name": "urllib3",
+    "version": "2.8.0",
+    "required": "==2.8.0",
+    "match": true
+  },
+  {
+    "name": "uvicorn",
+    "version": "0.53.0",
+    "required": "==0.53.0",
+    "match": true
+  },
+  {
+    "name": "uvloop",
+    "version": "0.22.1",
+    "required": "==0.22.1",
+    "match": true
+  },
+  {
+    "name": "vcs-versioning",
+    "version": "2.5.0",
+    "required": "==2.5.0",
+    "match": true
+  },
+  {
+    "name": "virtualenv",
+    "version": "21.10.0",
+    "required": "==21.10.0",
+    "match": true
+  },
+  {
+    "name": "vllm",
+    "version": "0.30.0",
+    "required": "==0.30.0",
+    "match": true
+  },
+  {
+    "name": "watchfiles",
+    "version": "1.2.0",
+    "required": "==1.2.0",
+    "match": true
+  },
+  {
+    "name": "wcwidth",
+    "version": "0.8.4",
+    "required": "==0.8.4",
+    "match": true
+  },
+  {
+    "name": "websockets",
+    "version": "17.1",
+    "required": "==17.1",
+    "match": true
+  },
+  {
+    "name": "wheel",
+    "version": "0.48.0",
+    "required": "==0.48.0",
+    "match": true
+  },
+  {
+    "name": "x-transformers",
+    "version": "2.28.8",
+    "required": "==2.28.8",
+    "match": true
+  },
+  {
+    "name": "xgrammar",
+    "version": "0.2.8",
+    "required": "==0.2.8",
+    "match": true
+  },
+  {
+    "name": "yarl",
+    "version": "1.25.1",
+    "required": "==1.25.1",
+    "match": true
+  },
+  {
+    "name": "z3-solver",
+    "version": "4.15.4.0",
+    "required": "==4.15.4.0",
+    "match": true
+  },
+  {
+    "name": "zipp",
+    "version": "4.1.0",
+    "required": "==4.1.0",
+    "match": true
+  }
+]
