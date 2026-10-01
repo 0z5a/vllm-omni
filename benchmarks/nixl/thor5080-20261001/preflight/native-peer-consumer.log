@@ -1,0 +1,4 @@
+W1002 00:26:59.052180  249608 ucx_utils.cpp:622] 1 NVIDIA GPU(s) were detected, but UCX CUDA support was not found! GPU memory is not supported.
+2026-10-02 00:26:59 NIXL INFO    _api.py:390 Backend UCX was instantiated
+2026-10-02 00:26:59 NIXL INFO    _api.py:268 Initialized NIXL agent: nixl-route-consumer
+{'role': 'consumer', 'bytes': 1048576, 'sha256': 'fbbab289f7f94b25736c58be46a994c441fd02552cc6022352e3d86d2fab7c83', 'cuda_initialized': False}

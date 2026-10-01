@@ -1,0 +1,166 @@
+WARNING 10-02 00:14:47 [import_utils.py:429] Module nixl_ep was found but failed to import
+WARNING 10-02 00:14:47 [import_utils.py:429] Traceback (most recent call last):
+WARNING 10-02 00:14:47 [import_utils.py:429]   File "/mnt/d/0z5a/flux-ovis-consolidation-20261001/dependencies/vllm/utils/import_utils.py", line 427, in _has_module
+WARNING 10-02 00:14:47 [import_utils.py:429]     importlib.import_module(module_name)
+WARNING 10-02 00:14:47 [import_utils.py:429]   File "/usr/lib/python3.12/importlib/__init__.py", line 90, in import_module
+WARNING 10-02 00:14:47 [import_utils.py:429]     return _bootstrap._gcd_import(name[level:], package, level)
+WARNING 10-02 00:14:47 [import_utils.py:429]            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+WARNING 10-02 00:14:47 [import_utils.py:429]   File "<frozen importlib._bootstrap>", line 1387, in _gcd_import
+WARNING 10-02 00:14:47 [import_utils.py:429]   File "<frozen importlib._bootstrap>", line 1360, in _find_and_load
+WARNING 10-02 00:14:47 [import_utils.py:429]   File "<frozen importlib._bootstrap>", line 1331, in _find_and_load_unlocked
+WARNING 10-02 00:14:47 [import_utils.py:429]   File "<frozen importlib._bootstrap>", line 935, in _load_unlocked
+WARNING 10-02 00:14:47 [import_utils.py:429]   File "<frozen importlib._bootstrap_external>", line 995, in exec_module
+WARNING 10-02 00:14:47 [import_utils.py:429]   File "<frozen importlib._bootstrap>", line 488, in _call_with_frames_removed
+WARNING 10-02 00:14:47 [import_utils.py:429]   File "/mnt/d/0z5a/nixl-thor5080-20261001/runtime/lib/python3.12/site-packages/nixl_ep/__init__.py", line 56, in <module>
+WARNING 10-02 00:14:47 [import_utils.py:429]     _pkg = sys.modules[_load_ep_module()]
+WARNING 10-02 00:14:47 [import_utils.py:429]                        ^^^^^^^^^^^^^^^^^
+WARNING 10-02 00:14:47 [import_utils.py:429]   File "/mnt/d/0z5a/nixl-thor5080-20261001/runtime/lib/python3.12/site-packages/nixl_ep/__init__.py", line 36, in _load_ep_module
+WARNING 10-02 00:14:47 [import_utils.py:429]     return importlib.import_module(mod_name).__name__
+WARNING 10-02 00:14:47 [import_utils.py:429]            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+WARNING 10-02 00:14:47 [import_utils.py:429]   File "/usr/lib/python3.12/importlib/__init__.py", line 90, in import_module
+WARNING 10-02 00:14:47 [import_utils.py:429]     return _bootstrap._gcd_import(name[level:], package, level)
+WARNING 10-02 00:14:47 [import_utils.py:429]            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+WARNING 10-02 00:14:47 [import_utils.py:429]   File "<frozen importlib._bootstrap>", line 1387, in _gcd_import
+WARNING 10-02 00:14:47 [import_utils.py:429]   File "<frozen importlib._bootstrap>", line 1360, in _find_and_load
+WARNING 10-02 00:14:47 [import_utils.py:429]   File "<frozen importlib._bootstrap>", line 1331, in _find_and_load_unlocked
+WARNING 10-02 00:14:47 [import_utils.py:429]   File "<frozen importlib._bootstrap>", line 935, in _load_unlocked
+WARNING 10-02 00:14:47 [import_utils.py:429]   File "<frozen importlib._bootstrap_external>", line 995, in exec_module
+WARNING 10-02 00:14:47 [import_utils.py:429]   File "<frozen importlib._bootstrap>", line 488, in _call_with_frames_removed
+WARNING 10-02 00:14:47 [import_utils.py:429]   File "/mnt/d/0z5a/nixl-thor5080-20261001/runtime/lib/python3.12/site-packages/nixl_ep_cu13/__init__.py", line 23, in <module>
+WARNING 10-02 00:14:47 [import_utils.py:429]     from . import nixl_ep_cpp as _nixl_ep_cpp
+WARNING 10-02 00:14:47 [import_utils.py:429] ImportError: /mnt/d/0z5a/nixl-thor5080-20261001/runtime/lib/python3.12/site-packages/nixl_ep_cu13/nixl_ep_cpp.cpython-312-x86_64-linux-gnu.so: undefined symbol: _ZN3c104impl3cow23materialize_cow_storageERNS_11StorageImplE
+INFO 10-02 00:14:55 [patch.py:253] NVFP4 W4A4 weight_scale NaN-clamp: skipped — upstream serves ModelOpt linears through the generic ModelOptLinearMethod and rejects any NaN weight_scale (unloaded-scale sentinel), so a load-time error replaces the `!!!!` decode-time collapse.
+INFO 10-02 00:14:57 [patch.py:565] inductor factorable-divisibility patch: installed.
+INFO 10-02 00:14:57 [patch.py:630] [cumem-cuda] CuMemAllocator._python_free_callback patched: asleep guard extended to all platforms.
+[transformers] `Siglip2ImageProcessorFast` is deprecated. The `Fast` suffix for image processors has been removed; use `Siglip2ImageProcessor` instead.
+..............................................................INFO 10-02 00:16:48 [nixl_connector.py:264] NixlConnector handshake listener bound on 127.0.0.1:41401
+INFO 10-02 00:16:48 [scheduler.py:288] Chunked prefill is enabled with max_num_batched_tokens=2048.
+INFO 10-02 00:16:48 [kernel.py:416] Final IR op priority after setting platform defaults: IrOpPriorityConfig(rms_norm=['native'], fused_add_rms_norm=['native'], gelu_and_mul_sparse=['triton', 'native'])
+WARNING 10-02 00:16:48 [base.py:217] Initializing KVConnectorBase_V1. This API is experimental and subject to change in the future as we iterate the design.
+INFO 10-02 00:16:48 [kernel.py:416] Final IR op priority after setting platform defaults: IrOpPriorityConfig(rms_norm=['native'], fused_add_rms_norm=['native'], gelu_and_mul_sparse=['triton', 'native'])
+WARNING 10-02 00:16:48 [base.py:217] Initializing KVConnectorBase_V1. This API is experimental and subject to change in the future as we iterate the design.
+INFO 10-02 00:16:48 [kernel.py:416] Final IR op priority after setting platform defaults: IrOpPriorityConfig(rms_norm=['native'], fused_add_rms_norm=['native'], gelu_and_mul_sparse=['triton', 'native'])
+WARNING 10-02 00:16:48 [base.py:217] Initializing KVConnectorBase_V1. This API is experimental and subject to change in the future as we iterate the design.
+INFO 10-02 00:16:48 [kernel.py:416] Final IR op priority after setting platform defaults: IrOpPriorityConfig(rms_norm=['native'], fused_add_rms_norm=['native'], gelu_and_mul_sparse=['triton', 'native'])
+WARNING 10-02 00:16:48 [base.py:217] Initializing KVConnectorBase_V1. This API is experimental and subject to change in the future as we iterate the design.
+.INFO 10-02 00:16:48 [nixl_connector.py:264] NixlConnector handshake listener bound on 127.0.0.1:34129
+INFO 10-02 00:16:48 [kernel.py:416] Final IR op priority after setting platform defaults: IrOpPriorityConfig(rms_norm=['native'], fused_add_rms_norm=['native'], gelu_and_mul_sparse=['triton', 'native'])
+WARNING 10-02 00:16:48 [base.py:217] Initializing KVConnectorBase_V1. This API is experimental and subject to change in the future as we iterate the design.
+INFO 10-02 00:16:48 [kernel.py:416] Final IR op priority after setting platform defaults: IrOpPriorityConfig(rms_norm=['native'], fused_add_rms_norm=['native'], gelu_and_mul_sparse=['triton', 'native'])
+WARNING 10-02 00:16:48 [base.py:217] Initializing KVConnectorBase_V1. This API is experimental and subject to change in the future as we iterate the design.
+INFO 10-02 00:16:48 [kernel.py:416] Final IR op priority after setting platform defaults: IrOpPriorityConfig(rms_norm=['native'], fused_add_rms_norm=['native'], gelu_and_mul_sparse=['triton', 'native'])
+WARNING 10-02 00:16:48 [base.py:217] Initializing KVConnectorBase_V1. This API is experimental and subject to change in the future as we iterate the design.
+INFO 10-02 00:16:48 [kernel.py:416] Final IR op priority after setting platform defaults: IrOpPriorityConfig(rms_norm=['native'], fused_add_rms_norm=['native'], gelu_and_mul_sparse=['triton', 'native'])
+WARNING 10-02 00:16:48 [base.py:217] Initializing KVConnectorBase_V1. This API is experimental and subject to change in the future as we iterate the design.
+.INFO 10-02 00:16:49 [nixl_connector.py:264] NixlConnector handshake listener bound on 127.0.0.1:41791
+INFO 10-02 00:16:49 [kernel.py:416] Final IR op priority after setting platform defaults: IrOpPriorityConfig(rms_norm=['native'], fused_add_rms_norm=['native'], gelu_and_mul_sparse=['triton', 'native'])
+WARNING 10-02 00:16:49 [base.py:217] Initializing KVConnectorBase_V1. This API is experimental and subject to change in the future as we iterate the design.
+INFO 10-02 00:16:49 [kernel.py:416] Final IR op priority after setting platform defaults: IrOpPriorityConfig(rms_norm=['native'], fused_add_rms_norm=['native'], gelu_and_mul_sparse=['triton', 'native'])
+WARNING 10-02 00:16:49 [base.py:217] Initializing KVConnectorBase_V1. This API is experimental and subject to change in the future as we iterate the design.
+INFO 10-02 00:16:49 [kernel.py:416] Final IR op priority after setting platform defaults: IrOpPriorityConfig(rms_norm=['native'], fused_add_rms_norm=['native'], gelu_and_mul_sparse=['triton', 'native'])
+WARNING 10-02 00:16:49 [base.py:217] Initializing KVConnectorBase_V1. This API is experimental and subject to change in the future as we iterate the design.
+INFO 10-02 00:16:49 [kernel.py:416] Final IR op priority after setting platform defaults: IrOpPriorityConfig(rms_norm=['native'], fused_add_rms_norm=['native'], gelu_and_mul_sparse=['triton', 'native'])
+WARNING 10-02 00:16:49 [base.py:217] Initializing KVConnectorBase_V1. This API is experimental and subject to change in the future as we iterate the design.
+.INFO 10-02 00:16:49 [nixl_connector.py:264] NixlConnector handshake listener bound on 127.0.0.1:41741
+INFO 10-02 00:16:49 [kernel.py:416] Final IR op priority after setting platform defaults: IrOpPriorityConfig(rms_norm=['native'], fused_add_rms_norm=['native'], gelu_and_mul_sparse=['triton', 'native'])
+WARNING 10-02 00:16:49 [base.py:217] Initializing KVConnectorBase_V1. This API is experimental and subject to change in the future as we iterate the design.
+INFO 10-02 00:16:49 [kernel.py:416] Final IR op priority after setting platform defaults: IrOpPriorityConfig(rms_norm=['native'], fused_add_rms_norm=['native'], gelu_and_mul_sparse=['triton', 'native'])
+WARNING 10-02 00:16:49 [base.py:217] Initializing KVConnectorBase_V1. This API is experimental and subject to change in the future as we iterate the design.
+INFO 10-02 00:16:49 [kernel.py:416] Final IR op priority after setting platform defaults: IrOpPriorityConfig(rms_norm=['native'], fused_add_rms_norm=['native'], gelu_and_mul_sparse=['triton', 'native'])
+WARNING 10-02 00:16:49 [base.py:217] Initializing KVConnectorBase_V1. This API is experimental and subject to change in the future as we iterate the design.
+INFO 10-02 00:16:49 [kernel.py:416] Final IR op priority after setting platform defaults: IrOpPriorityConfig(rms_norm=['native'], fused_add_rms_norm=['native'], gelu_and_mul_sparse=['triton', 'native'])
+WARNING 10-02 00:16:49 [base.py:217] Initializing KVConnectorBase_V1. This API is experimental and subject to change in the future as we iterate the design.
+.INFO 10-02 00:16:50 [nixl_connector.py:264] NixlConnector handshake listener bound on 127.0.0.1:46615
+INFO 10-02 00:16:50 [kernel.py:416] Final IR op priority after setting platform defaults: IrOpPriorityConfig(rms_norm=['native'], fused_add_rms_norm=['native'], gelu_and_mul_sparse=['triton', 'native'])
+WARNING 10-02 00:16:50 [base.py:217] Initializing KVConnectorBase_V1. This API is experimental and subject to change in the future as we iterate the design.
+INFO 10-02 00:16:50 [kernel.py:416] Final IR op priority after setting platform defaults: IrOpPriorityConfig(rms_norm=['native'], fused_add_rms_norm=['native'], gelu_and_mul_sparse=['triton', 'native'])
+WARNING 10-02 00:16:50 [base.py:217] Initializing KVConnectorBase_V1. This API is experimental and subject to change in the future as we iterate the design.
+INFO 10-02 00:16:50 [kernel.py:416] Final IR op priority after setting platform defaults: IrOpPriorityConfig(rms_norm=['native'], fused_add_rms_norm=['native'], gelu_and_mul_sparse=['triton', 'native'])
+WARNING 10-02 00:16:50 [base.py:217] Initializing KVConnectorBase_V1. This API is experimental and subject to change in the future as we iterate the design.
+INFO 10-02 00:16:50 [kernel.py:416] Final IR op priority after setting platform defaults: IrOpPriorityConfig(rms_norm=['native'], fused_add_rms_norm=['native'], gelu_and_mul_sparse=['triton', 'native'])
+WARNING 10-02 00:16:50 [base.py:217] Initializing KVConnectorBase_V1. This API is experimental and subject to change in the future as we iterate the design.
+.INFO 10-02 00:16:50 [nixl_connector.py:264] NixlConnector handshake listener bound on 127.0.0.1:46127
+INFO 10-02 00:16:50 [kernel.py:416] Final IR op priority after setting platform defaults: IrOpPriorityConfig(rms_norm=['native'], fused_add_rms_norm=['native'], gelu_and_mul_sparse=['triton', 'native'])
+WARNING 10-02 00:16:50 [base.py:217] Initializing KVConnectorBase_V1. This API is experimental and subject to change in the future as we iterate the design.
+INFO 10-02 00:16:50 [kernel.py:416] Final IR op priority after setting platform defaults: IrOpPriorityConfig(rms_norm=['native'], fused_add_rms_norm=['native'], gelu_and_mul_sparse=['triton', 'native'])
+WARNING 10-02 00:16:50 [base.py:217] Initializing KVConnectorBase_V1. This API is experimental and subject to change in the future as we iterate the design.
+INFO 10-02 00:16:50 [kernel.py:416] Final IR op priority after setting platform defaults: IrOpPriorityConfig(rms_norm=['native'], fused_add_rms_norm=['native'], gelu_and_mul_sparse=['triton', 'native'])
+WARNING 10-02 00:16:50 [base.py:217] Initializing KVConnectorBase_V1. This API is experimental and subject to change in the future as we iterate the design.
+INFO 10-02 00:16:50 [kernel.py:416] Final IR op priority after setting platform defaults: IrOpPriorityConfig(rms_norm=['native'], fused_add_rms_norm=['native'], gelu_and_mul_sparse=['triton', 'native'])
+WARNING 10-02 00:16:50 [base.py:217] Initializing KVConnectorBase_V1. This API is experimental and subject to change in the future as we iterate the design.
+.INFO 10-02 00:16:51 [nixl_connector.py:264] NixlConnector handshake listener bound on 127.0.0.1:44707
+INFO 10-02 00:16:51 [kernel.py:416] Final IR op priority after setting platform defaults: IrOpPriorityConfig(rms_norm=['native'], fused_add_rms_norm=['native'], gelu_and_mul_sparse=['triton', 'native'])
+WARNING 10-02 00:16:51 [base.py:217] Initializing KVConnectorBase_V1. This API is experimental and subject to change in the future as we iterate the design.
+INFO 10-02 00:16:51 [kernel.py:416] Final IR op priority after setting platform defaults: IrOpPriorityConfig(rms_norm=['native'], fused_add_rms_norm=['native'], gelu_and_mul_sparse=['triton', 'native'])
+WARNING 10-02 00:16:51 [base.py:217] Initializing KVConnectorBase_V1. This API is experimental and subject to change in the future as we iterate the design.
+INFO 10-02 00:16:51 [kernel.py:416] Final IR op priority after setting platform defaults: IrOpPriorityConfig(rms_norm=['native'], fused_add_rms_norm=['native'], gelu_and_mul_sparse=['triton', 'native'])
+WARNING 10-02 00:16:51 [base.py:217] Initializing KVConnectorBase_V1. This API is experimental and subject to change in the future as we iterate the design.
+INFO 10-02 00:16:51 [kernel.py:416] Final IR op priority after setting platform defaults: IrOpPriorityConfig(rms_norm=['native'], fused_add_rms_norm=['native'], gelu_and_mul_sparse=['triton', 'native'])
+WARNING 10-02 00:16:51 [base.py:217] Initializing KVConnectorBase_V1. This API is experimental and subject to change in the future as we iterate the design.
+.INFO 10-02 00:16:51 [nixl_connector.py:264] NixlConnector handshake listener bound on 127.0.0.1:33575
+INFO 10-02 00:16:51 [kernel.py:416] Final IR op priority after setting platform defaults: IrOpPriorityConfig(rms_norm=['native'], fused_add_rms_norm=['native'], gelu_and_mul_sparse=['triton', 'native'])
+WARNING 10-02 00:16:51 [base.py:217] Initializing KVConnectorBase_V1. This API is experimental and subject to change in the future as we iterate the design.
+INFO 10-02 00:16:51 [kernel.py:416] Final IR op priority after setting platform defaults: IrOpPriorityConfig(rms_norm=['native'], fused_add_rms_norm=['native'], gelu_and_mul_sparse=['triton', 'native'])
+WARNING 10-02 00:16:51 [base.py:217] Initializing KVConnectorBase_V1. This API is experimental and subject to change in the future as we iterate the design.
+INFO 10-02 00:16:51 [kernel.py:416] Final IR op priority after setting platform defaults: IrOpPriorityConfig(rms_norm=['native'], fused_add_rms_norm=['native'], gelu_and_mul_sparse=['triton', 'native'])
+WARNING 10-02 00:16:51 [base.py:217] Initializing KVConnectorBase_V1. This API is experimental and subject to change in the future as we iterate the design.
+INFO 10-02 00:16:51 [kernel.py:416] Final IR op priority after setting platform defaults: IrOpPriorityConfig(rms_norm=['native'], fused_add_rms_norm=['native'], gelu_and_mul_sparse=['triton', 'native'])
+WARNING 10-02 00:16:51 [base.py:217] Initializing KVConnectorBase_V1. This API is experimental and subject to change in the future as we iterate the design.
+.INFO 10-02 00:16:52 [nixl_connector.py:264] NixlConnector handshake listener bound on 127.0.0.1:41965
+INFO 10-02 00:16:52 [kernel.py:416] Final IR op priority after setting platform defaults: IrOpPriorityConfig(rms_norm=['native'], fused_add_rms_norm=['native'], gelu_and_mul_sparse=['triton', 'native'])
+WARNING 10-02 00:16:52 [base.py:217] Initializing KVConnectorBase_V1. This API is experimental and subject to change in the future as we iterate the design.
+INFO 10-02 00:16:52 [kernel.py:416] Final IR op priority after setting platform defaults: IrOpPriorityConfig(rms_norm=['native'], fused_add_rms_norm=['native'], gelu_and_mul_sparse=['triton', 'native'])
+WARNING 10-02 00:16:52 [base.py:217] Initializing KVConnectorBase_V1. This API is experimental and subject to change in the future as we iterate the design.
+INFO 10-02 00:16:52 [kernel.py:416] Final IR op priority after setting platform defaults: IrOpPriorityConfig(rms_norm=['native'], fused_add_rms_norm=['native'], gelu_and_mul_sparse=['triton', 'native'])
+WARNING 10-02 00:16:52 [base.py:217] Initializing KVConnectorBase_V1. This API is experimental and subject to change in the future as we iterate the design.
+INFO 10-02 00:16:52 [kernel.py:416] Final IR op priority after setting platform defaults: IrOpPriorityConfig(rms_norm=['native'], fused_add_rms_norm=['native'], gelu_and_mul_sparse=['triton', 'native'])
+WARNING 10-02 00:16:52 [base.py:217] Initializing KVConnectorBase_V1. This API is experimental and subject to change in the future as we iterate the design.
+.INFO 10-02 00:16:52 [nixl_connector.py:264] NixlConnector handshake listener bound on 127.0.0.1:35441
+INFO 10-02 00:16:52 [kernel.py:416] Final IR op priority after setting platform defaults: IrOpPriorityConfig(rms_norm=['native'], fused_add_rms_norm=['native'], gelu_and_mul_sparse=['triton', 'native'])
+WARNING 10-02 00:16:52 [base.py:217] Initializing KVConnectorBase_V1. This API is experimental and subject to change in the future as we iterate the design.
+INFO 10-02 00:16:52 [kernel.py:416] Final IR op priority after setting platform defaults: IrOpPriorityConfig(rms_norm=['native'], fused_add_rms_norm=['native'], gelu_and_mul_sparse=['triton', 'native'])
+WARNING 10-02 00:16:52 [base.py:217] Initializing KVConnectorBase_V1. This API is experimental and subject to change in the future as we iterate the design.
+INFO 10-02 00:16:52 [kernel.py:416] Final IR op priority after setting platform defaults: IrOpPriorityConfig(rms_norm=['native'], fused_add_rms_norm=['native'], gelu_and_mul_sparse=['triton', 'native'])
+WARNING 10-02 00:16:52 [base.py:217] Initializing KVConnectorBase_V1. This API is experimental and subject to change in the future as we iterate the design.
+INFO 10-02 00:16:52 [kernel.py:416] Final IR op priority after setting platform defaults: IrOpPriorityConfig(rms_norm=['native'], fused_add_rms_norm=['native'], gelu_and_mul_sparse=['triton', 'native'])
+WARNING 10-02 00:16:52 [base.py:217] Initializing KVConnectorBase_V1. This API is experimental and subject to change in the future as we iterate the design.
+.INFO 10-02 00:16:53 [nixl_connector.py:264] NixlConnector handshake listener bound on 127.0.0.1:34793
+INFO 10-02 00:16:53 [kernel.py:416] Final IR op priority after setting platform defaults: IrOpPriorityConfig(rms_norm=['native'], fused_add_rms_norm=['native'], gelu_and_mul_sparse=['triton', 'native'])
+WARNING 10-02 00:16:53 [base.py:217] Initializing KVConnectorBase_V1. This API is experimental and subject to change in the future as we iterate the design.
+INFO 10-02 00:16:53 [kernel.py:416] Final IR op priority after setting platform defaults: IrOpPriorityConfig(rms_norm=['native'], fused_add_rms_norm=['native'], gelu_and_mul_sparse=['triton', 'native'])
+WARNING 10-02 00:16:53 [base.py:217] Initializing KVConnectorBase_V1. This API is experimental and subject to change in the future as we iterate the design.
+INFO 10-02 00:16:53 [kernel.py:416] Final IR op priority after setting platform defaults: IrOpPriorityConfig(rms_norm=['native'], fused_add_rms_norm=['native'], gelu_and_mul_sparse=['triton', 'native'])
+WARNING 10-02 00:16:53 [base.py:217] Initializing KVConnectorBase_V1. This API is experimental and subject to change in the future as we iterate the design.
+INFO 10-02 00:16:53 [kernel.py:416] Final IR op priority after setting platform defaults: IrOpPriorityConfig(rms_norm=['native'], fused_add_rms_norm=['native'], gelu_and_mul_sparse=['triton', 'native'])
+WARNING 10-02 00:16:53 [base.py:217] Initializing KVConnectorBase_V1. This API is experimental and subject to change in the future as we iterate the design.
+.INFO 10-02 00:16:53 [nixl_connector.py:264] NixlConnector handshake listener bound on 127.0.0.1:41305
+INFO 10-02 00:16:53 [kernel.py:416] Final IR op priority after setting platform defaults: IrOpPriorityConfig(rms_norm=['native'], fused_add_rms_norm=['native'], gelu_and_mul_sparse=['triton', 'native'])
+WARNING 10-02 00:16:53 [base.py:217] Initializing KVConnectorBase_V1. This API is experimental and subject to change in the future as we iterate the design.
+INFO 10-02 00:16:53 [kernel.py:416] Final IR op priority after setting platform defaults: IrOpPriorityConfig(rms_norm=['native'], fused_add_rms_norm=['native'], gelu_and_mul_sparse=['triton', 'native'])
+WARNING 10-02 00:16:53 [base.py:217] Initializing KVConnectorBase_V1. This API is experimental and subject to change in the future as we iterate the design.
+INFO 10-02 00:16:53 [kernel.py:416] Final IR op priority after setting platform defaults: IrOpPriorityConfig(rms_norm=['native'], fused_add_rms_norm=['native'], gelu_and_mul_sparse=['triton', 'native'])
+WARNING 10-02 00:16:53 [base.py:217] Initializing KVConnectorBase_V1. This API is experimental and subject to change in the future as we iterate the design.
+INFO 10-02 00:16:53 [kernel.py:416] Final IR op priority after setting platform defaults: IrOpPriorityConfig(rms_norm=['native'], fused_add_rms_norm=['native'], gelu_and_mul_sparse=['triton', 'native'])
+WARNING 10-02 00:16:53 [base.py:217] Initializing KVConnectorBase_V1. This API is experimental and subject to change in the future as we iterate the design.
+.INFO 10-02 00:16:54 [kernel.py:416] Final IR op priority after setting platform defaults: IrOpPriorityConfig(rms_norm=['native'], fused_add_rms_norm=['native'], gelu_and_mul_sparse=['triton', 'native'])
+WARNING 10-02 00:16:54 [base.py:217] Initializing KVConnectorBase_V1. This API is experimental and subject to change in the future as we iterate the design.
+.INFO 10-02 00:16:54 [nixl_connector.py:264] NixlConnector handshake listener bound on 127.0.0.1:34635
+.
+=============================== warnings summary ===============================
+../flux-ovis-consolidation-20261001/dependencies/_pytest/config/__init__.py:1464
+  /mnt/d/0z5a/flux-ovis-consolidation-20261001/dependencies/_pytest/config/__init__.py:1464: PytestConfigWarning: Unknown config option: asyncio_mode
+  
+    self._warn_or_fail_if_strict(f"Unknown config option: {key}\n")
+
+../flux-ovis-consolidation-20261001/dependencies/torch/jit/_script.py:365: 14 warnings
+  /mnt/d/0z5a/flux-ovis-consolidation-20261001/dependencies/torch/jit/_script.py:365: DeprecationWarning: `torch.jit.script_method` is deprecated. Please switch to `torch.compile` or `torch.export`.
+    warnings.warn(
+
+source/vllm_omni/__init__.py:22
+  /mnt/d/0z5a/nixl-thor5080-20261001/source/vllm_omni/__init__.py:22: RuntimeWarning: Failed to import version from _version.py: No module named 'vllm_omni._version'
+  This typically happens in development mode before building.
+  Using fallback version 'dev'.
+    from .version import __version__, __version_tuple__  # isort:skip # noqa: F401
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+76 passed, 16 warnings in 281.89s (0:04:41)

@@ -169,6 +169,14 @@ Raw samples and counters use the `page-consolidation-*` filenames, with
 geometry/cancellation run (`page-integration-*`) measured 2.51×; shared-host
 latency varies, so these runs do not isolate a speed change from refactoring.
 
+The remaining full-model replay moves to an RTX 5080 AR producer and Jetson
+Thor DiT/VAE consumer. The new host passes 76 CPU regressions, six exact
+BF16 disk-backed native offload forwards, and a cross-architecture 1 MiB
+native UCX DRAM READ with exact bytes and normal process exits. Native VRAM
+READ and the full checkpoint replay remain pending; these preflight checks
+add no model speedup claim. Evidence and the status table are preserved in
+[`5080/Thor preflight`](../../../../benchmarks/nixl/thor5080-20261001/preflight/).
+
 The completed transfer benchmark and raw timings are recorded separately in
 [page transfer results](nixl_h20_page_results.md). The local request timings,
 checkpoint manifest, example images and JUnit evidence are committed under
