@@ -103,6 +103,9 @@ def run(model: str, config_path: Path, out: Path, mode: str, steps: int, repeats
                     "image": filename,
                     "image_sha256": hashlib.sha256((out / filename).read_bytes()).hexdigest(),
                     "stage_metrics": [output.metrics for output in outputs],
+                    "kv_transfer_params": [
+                        output.kv_transfer_params for output in outputs if output.kv_transfer_params is not None
+                    ],
                 }
             )
             (out / "requests.json").write_text(json.dumps(records, indent=2) + "\n")
