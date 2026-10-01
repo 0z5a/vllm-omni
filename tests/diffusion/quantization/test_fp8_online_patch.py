@@ -61,6 +61,17 @@ def _disabled() -> bool:
     )
 
 
+@pytest.fixture(autouse=True)
+def enable_fp8_online_patch(monkeypatch):
+    monkeypatch.setenv("VLLM_OMNI_FP8_ONLINE_ENABLE", "1")
+    monkeypatch.delenv("VLLM_OMNI_FP8_ONLINE_DISABLE", raising=False)
+    monkeypatch.delenv("VLLM_OMNI_FP8_FORCE_TORCH", raising=False)
+    monkeypatch.setattr(fp8_online, "_ENABLED", True)
+    monkeypatch.setattr(fp8_online, "_DISABLED", False)
+    monkeypatch.setattr(fp8_online, "_FORCE_TORCH", False)
+    fp8_online.install_fp8_online_quant_patch()
+
+
 @pytest.fixture
 def quant_fp8_enabled():
     """A config that dispatches QuantFP8 to forward_cuda.
@@ -109,9 +120,7 @@ def test_patch_is_installed():
     """The installer must have replaced QuantFP8.forward_cuda."""
     if _disabled():
         pytest.skip("fast path disabled via VLLM_OMNI_FP8_ONLINE_DISABLE")
-    assert getattr(
-        QuantFP8.forward_cuda, "_vllm_omni_fp8_online_patched", False
-    ), (
+    assert QuantFP8.forward_cuda._vllm_omni_fp8_online_patched, (
         "the FP8 online patch is not installed on QuantFP8.forward_cuda; "
         "vLLM may have moved activation quantization off QuantFP8"
     )
