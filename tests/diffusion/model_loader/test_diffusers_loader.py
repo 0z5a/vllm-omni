@@ -2089,3 +2089,63 @@ def test_hsdp_broadcast_weight_load_online_quant_multiprocess():
             )
         assert os.path.exists(os.path.join(temp_dir, "rank_0_success.flag"))
         assert os.path.exists(os.path.join(temp_dir, "rank_1_success.flag"))
+
+
+@pytest.mark.parametrize(
+    "scope",
+    [
+        "encoder",
+        "transformer",
+        "both",
+        "global",
+        "none",
+        "unet",
+        "language_model",
+        "default",
+        "native_encoder",
+        "klein_encoder",
+    ],
+)
+def test_offloaded_dit_load_device_follows_its_component_quantization(monkeypatch, scope):
+    from vllm.model_executor.layers.quantization.fp8 import Fp8Config
+
+    fp8 = Fp8Config()
+    configs = {
+        "encoder": ComponentQuantizationConfig({"text_encoder_2": fp8}),
+        "transformer": ComponentQuantizationConfig({"transformer": fp8}),
+        "both": ComponentQuantizationConfig({"transformer": fp8, "text_encoder_2": fp8}),
+        "global": fp8,
+        "none": None,
+        "unet": ComponentQuantizationConfig({"unet": fp8}),
+        "language_model": ComponentQuantizationConfig({"language_model": fp8}),
+        "default": ComponentQuantizationConfig({"text_encoder_2": fp8}, default_config=fp8),
+        "native_encoder": ComponentQuantizationConfig({"text_encoder": fp8}),
+        "klein_encoder": ComponentQuantizationConfig({"text_encoder": fp8}),
+    }
+    config = SimpleNamespace(
+        dtype=torch.float32,
+        model_class_name=(
+            "Flux2Pipeline"
+            if scope == "native_encoder"
+            else "Flux2KleinPipeline"
+            if scope == "klein_encoder"
+            else "FluxKontextPipeline"
+        ),
+        parallel_config=SimpleNamespace(use_hsdp=False, tensor_parallel_size=1),
+        quantization_config=configs[scope],
+        enable_layerwise_offload=True,
+        model="unused",
+    )
+    loader = DiffusersPipelineLoader(LoadConfig(), config)
+    model = nn.Module()
+    model.transformer = nn.Linear(2, 2, bias=False)
+    initialize = MagicMock(return_value=model)
+    monkeypatch.setattr(loader, "_init_from_load_format", initialize)
+    monkeypatch.setattr(loader, "load_weights", MagicMock())
+    monkeypatch.setattr(loader, "_process_weights_after_loading", MagicMock())
+    monkeypatch.setattr(loader, "_apply_skip_softmax_calibration", MagicMock())
+
+    assert loader.load_model(load_device="cpu", device=torch.device("cuda")) is model
+    expected = "cpu" if scope in ("encoder", "none", "klein_encoder") else "cuda"
+    assert initialize.call_args.args[1] == torch.device(expected)
+    assert loader.quant_config is configs[scope]

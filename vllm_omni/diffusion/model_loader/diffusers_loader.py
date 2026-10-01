@@ -53,6 +53,7 @@ from vllm_omni.diffusion.offloader.module_collector import ModuleDiscovery
 from vllm_omni.diffusion.offloader.offload_plan import get_offload_plan
 from vllm_omni.diffusion.registry import initialize_model
 from vllm_omni.model_executor.model_loader.weight_utils import download_weights_from_hf_specific
+from vllm_omni.quantization.component_config import ComponentQuantizationConfig
 from vllm_omni.transformers_utils.repo_utils import hf_api
 
 
@@ -660,8 +661,18 @@ class DiffusersPipelineLoader(HWRLoaderMixin):
         # For online quantization, load on device so quantization can run on accelerator,
         # then move back to CPU afterward.
         offload_after_quant = False
-        if load_device == "cpu" and self.quant_config is not None and device is not None:
-            quant_cfg = self.quant_config
+        quant_cfg = self.quant_config
+        has_weight_quantization = quant_cfg is not None
+        # These HF encoder helpers quantize locally and restore their load device.
+        if isinstance(quant_cfg, ComponentQuantizationConfig) and self.od_config.model_class_name in (
+            "FluxKontextPipeline",
+            "Flux2KleinPipeline",
+        ):
+            has_weight_quantization = quant_cfg.default_config is not None or any(
+                config is not None and not prefix.startswith("text_encoder")
+                for prefix, config in quant_cfg.component_configs.items()
+            )
+        if load_device == "cpu" and has_weight_quantization and device is not None:
             is_offline = getattr(quant_cfg, "data_type", None) == "mx_fp" or getattr(
                 quant_cfg, "is_checkpoint_quantized", False
             )
