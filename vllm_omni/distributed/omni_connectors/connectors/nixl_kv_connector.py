@@ -101,7 +101,7 @@ class OmniNixlKVConnector(KVConnectorBase_V1, SupportsHMA):
         self._targets: dict[str, TargetPages] = {}
         self._exports: dict[str, SourcePages] = {}
         self._waiting: dict[str, TargetPages] = {}
-        self._reads: dict[str, tuple[str, ReservedKVPages]] = {}
+        self._reads: dict[str, str] = {}
         self._reservations: dict[str, ReservedKVPages] = {}
         self._finished_sources: set[str] = set()
         self._published_sources: set[str] = set()
@@ -319,10 +319,10 @@ class OmniNixlKVConnector(KVConnectorBase_V1, SupportsHMA):
                 continue
             reservation = ReservedKVPages(request_id, target.allocation_generation, self._pool, target.block_ids)
             read_id = self._transport.read_into(ticket.transfer_id, offer, reservation)
-            self._reads[request_id] = (read_id, reservation)
+            self._reads[request_id] = read_id
             self._reservations[request_id] = reservation
             del self._waiting[request_id]
-        for request_id, (read_id, reservation) in list(self._reads.items()):
+        for request_id, read_id in list(self._reads.items()):
             if self._transport.poll_page_read(read_id):
                 received.add(request_id)
                 del self._reads[request_id]

@@ -20,7 +20,7 @@ import zmq
 
 from ..utils.logging import get_connector_logger
 from .base import OmniConnectorBase
-from .paged_transfer import KVPagePool, PageGeometry, PageOffer, PageReadyEvent, ReservedKVPages
+from .paged_transfer import KVPagePool, PageGeometry, PageOffer, PageReadyEvent, Region, ReservedKVPages
 
 if TYPE_CHECKING:
     from nixl._api import nixl_prepped_dlist_handle, nixl_xfer_handle
@@ -102,6 +102,7 @@ class NixlConnector(OmniConnectorBase):
     """
 
     supports_raw_data: bool = True
+    page_offer_type: type[PageOffer] = PageOffer
 
     def __init__(self, config: dict[str, Any]):
         self.config = dict(config or {})
@@ -467,7 +468,7 @@ class NixlConnector(OmniConnectorBase):
         )
         if metadata is None:
             return None
-        offer = msgspec.convert(metadata, type=PageOffer)
+        offer = msgspec.convert(metadata, type=self.page_offer_type)
         with self._state_lock:
             self._page_claims[(key, offer.generation, offer.pool_epoch, offer.claim_id)] = offer
         return offer
@@ -491,8 +492,8 @@ class NixlConnector(OmniConnectorBase):
             del self._page_claims[claim]
         return True
 
-    def read_into(self, key: str, offer: PageOffer, target: ReservedKVPages) -> str:
-        """READ directly into a Scheduler reservation; no full-size receive tensor."""
+    def _reserve_page_read(self, key: str, offer: PageOffer, target: ReservedKVPages) -> tuple[str, tuple[Region, ...]]:
+        """Consume a claim and pin its native destination before submitting DMA."""
         pool = target.pool
         regions = pool.validate_offer(offer, target.block_ids)
         if not offer.claim_id or target.allocation_generation < 0:
@@ -515,6 +516,14 @@ class NixlConnector(OmniConnectorBase):
             pool.reservations[target.request_id] = (target.allocation_generation, target.block_ids)
             pool.reads.add(read_id)
             self._page_reads[read_id] = read
+        return read_id, regions
+
+    def read_into(self, key: str, offer: PageOffer, target: ReservedKVPages) -> str:
+        """READ directly into a Scheduler reservation; no full-size receive tensor."""
+        with self._state_lock:
+            read_id, regions = self._reserve_page_read(key, offer, target)
+            read = self._page_reads[read_id]
+            pool = target.pool
             peer = (pool, offer.agent_metadata)
             if peer not in self._page_remote_agents:
                 self._page_remote_agents[peer] = self._acquire_remote_agent(offer.agent_metadata)

@@ -29,12 +29,13 @@ The first ordinary-path attempt stopped before DMA because the AR stage
 removed `model.` from canonical cache layer names while DiT retained it.
 The configuration now removes the same prefix on both stages, and the
 producer validates geometry before installing claims. The revised connector
-passed all 128 related cases, including all eight original native CUDA cases
-and the new two-GPU page scatter/paged-attention case. Nineteen subsequent
-page/bridge tests passed, including idempotent Worker cancellation before
-READ submission. The broader CPU run passed 478 cases before those last two
-cancellation cases were added. The two new core modules passed the focused
-type check with dependency imports skipped.
+passed 478 cases in the broader CPU run. After consolidating ordinary/page
+claim decoding and reservation ownership, all 122 related CPU cases and all
+nine native CUDA cases passed without skips. The added reference-path test
+checks scatter, cancellation, delayed ACK and computation ownership through
+the shared implementation. Three source modules passed focused typing with
+dependency imports skipped. Earlier geometry/cancellation evidence remains
+committed with its recorded source hashes.
 
 That failed attempt left the original AR Worker holding its already-claimed
 source lease after the receiver exited. It retains roughly 87 GB of VRAM;
@@ -43,20 +44,23 @@ The pending model runs require another available GPU pair. Consequently,
 ordinary/page pixel identity, local/page PSNR/SSIM and full-model speedup
 have not passed. The model files remain until that verification is complete.
 
-The final geometry/cancellation code was also measured with the same 8 MiB
+The consolidated code was also measured with the same 8 MiB
 payload, 20 warmups per repeat and 1,002 measured samples per path:
 
 | Transfer path | p50 ms | p95 ms | p99 ms | Speedup vs ordinary | Receive tensor allocation |
 | --- | ---: | ---: | ---: | ---: | ---: |
-| Ordinary NIXL | 4.370 | 5.558 | 6.339 | 1.00× | 8 MiB |
-| Local GPU copy | 0.509 | 0.765 | 0.846 | 8.58× | 0 |
-| NIXL page READ | 1.741 | 2.033 | 2.090 | 2.51× | 0 |
+| Ordinary NIXL | 5.435 | 25.464 | 25.511 | 1.00× | 8 MiB |
+| Local GPU copy | 0.507 | 0.757 | 0.804 | 10.72× | 0 |
+| NIXL page READ | 1.858 | 2.142 | 2.226 | 2.93× | 0 |
 
 Each pool registered once across 1,062 transfers including warmups, with
 zero transport errors and all ownership drained before natural exit.
 This rerun shared the host with the retained AR Worker, which held VRAM
 and polled its pending lease. It measures transfer behavior, not model speed.
-Raw samples and counters use the `page-integration-*` filenames.
+Raw samples and counters use the `page-consolidation-*` filenames, with
+`consolidation-source-hashes.json` recording the tested source. The previous
+geometry/cancellation run (`page-integration-*`) measured 2.51×; shared-host
+latency varies, so these runs do not isolate a speed change from refactoring.
 
 The completed transfer benchmark and raw timings are recorded separately in
 [page transfer results](nixl_h20_page_results.md). The local request timings,

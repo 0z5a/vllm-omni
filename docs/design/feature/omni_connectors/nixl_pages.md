@@ -42,7 +42,9 @@ The validation tools compare equal physical bytes across ordinary NIXL
 allocation/scatter, local GPU copy and direct pages, then separately compare
 matching full-checkpoint Hunyuan AR → paged DiT → VAE requests. The ordinary
 model reference lives only in `tools/nixl_page_reference.py` and uses the same
-native reservations and attention kernels. Full-model acceptance requires
+native reservations and attention kernels. It shares claim decoding, destination
+reservation checks and the active-read registry with the page path; only the
+ordinary allocation/scatter operation is different. Full-model acceptance requires
 completed page bytes, registration reuse, no ordinary `get` fallback, drained
 leases, matching ordinary-path pixels and the existing Hunyuan local recompute
 pixel accuracy thresholds. Two GPUs on one host establish no cross-node RDMA

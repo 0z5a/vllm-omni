@@ -17,7 +17,6 @@ from vllm_omni.distributed.omni_connectors.connectors.nixl_kv_connector import (
 )
 from vllm_omni.distributed.omni_connectors.connectors.paged_transfer import (
     KVPagePool,
-    PageGeometry,
     PageOffer,
     PageReadyEvent,
     ReservedKVPages,
@@ -29,9 +28,7 @@ class ReferenceOffer(PageOffer, frozen=True):
 
 
 class ReferenceNixlConnector(NixlConnector):
-    def __init__(self, config: dict[str, object]):
-        super().__init__(config)
-        self._reference_reads: dict[str, tuple[str, ReferenceOffer, ReservedKVPages]] = {}
+    page_offer_type = ReferenceOffer
 
     def export_pages(
         self,
@@ -77,48 +74,14 @@ class ReferenceNixlConnector(NixlConnector):
             self._published[key] = msgspec.structs.asdict(offer)
         return offer
 
-    def claim_pages(
-        self,
-        key: str,
-        host: str,
-        port: int,
-        *,
-        generation: str,
-        claim_id: str,
-        page_claim_ids: tuple[str, ...],
-        geometry: PageGeometry,
-    ) -> PageOffer | None:
-        self.update_sender_info(host, port)
-        metadata = self._query_metadata_at(
-            key,
-            host,
-            port,
-            generation=generation,
-            claim_id=claim_id,
-            page_claim_ids=page_claim_ids,
-            geometry=geometry,
-        )
-        if metadata is None:
-            return None
-        offer = msgspec.convert(metadata, type=ReferenceOffer)
-        with self._state_lock:
-            self._page_claims[(key, offer.generation, offer.pool_epoch, offer.claim_id)] = offer
-        return offer
-
     def read_into(self, key: str, offer: PageOffer, target: ReservedKVPages) -> str:
         assert isinstance(offer, ReferenceOffer)
-        target.pool.validate_offer(offer, target.block_ids)
-        claim = (key, offer.generation, offer.pool_epoch, offer.claim_id)
-        assert self._page_claims.pop(claim) == offer
+        read_id, _ = self._reserve_page_read(key, offer, target)
         metadata = msgspec.msgpack.decode(offer.ordinary_metadata)
         # The complete CFG lease was claimed above. Keep it until GPU scatter
         # finishes; the ordinary legacy get must not ACK the packed source early.
         for field in ("generation", "sender_host", "sender_zmq_port"):
             metadata.pop(field)
-        target.pool.reservations[target.request_id] = (target.allocation_generation, target.block_ids)
-        read_id = uuid.uuid4().hex
-        target.pool.reads.add(read_id)
-        self._reference_reads[read_id] = (key, offer, target)
         received = self.get("0", "1", key, metadata)
         assert received is not None
         tensors, _ = received
@@ -132,20 +95,19 @@ class ReferenceNixlConnector(NixlConnector):
         ready = torch.cuda.Event()
         ready.record()
         ready.synchronize()
+        self._page_reads[read_id].dma_done = True
         return read_id
 
     def poll_page_read(self, read_id: str) -> bool:
-        key, offer, target = self._reference_reads[read_id]
-        if not self._notify_transfer_done(key, msgspec.structs.asdict(offer)):
-            return False
-        target.pool.reads.remove(read_id)
-        del self._reference_reads[read_id]
+        with self._state_lock:
+            read = self._page_reads[read_id]
+            if not read.dma_done:
+                raise RuntimeError("Ordinary NIXL scatter did not finish; native pages remain pinned")
+            if not self._notify_transfer_done(read.key, msgspec.structs.asdict(read.offer)):
+                return False
+            read.target.pool.reads.remove(read_id)
+            del self._page_reads[read_id]
         return True
-
-    def cancel_page_claim(self, key: str, offer: PageOffer) -> bool:
-        if any(current == offer for _, current, _ in self._reference_reads.values()):
-            raise RuntimeError("Cannot cancel a submitted ordinary NIXL READ")
-        return super().cancel_page_claim(key, offer)
 
 
 class OmniNixlKVConnector(NativeKVConnector):
