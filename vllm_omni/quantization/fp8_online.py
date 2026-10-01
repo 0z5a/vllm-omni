@@ -16,7 +16,7 @@ fallback to the original implementation.
 Coverage (the fast path is selected only when *all* of these hold):
 
 * CUDA device with compute capability >= 8.0 (sm_80, sm_86, sm_89, sm_90,
-  sm_100, sm_120 all build and run; see ``ARCH_EXTENSION_NAME``);
+  sm_100, sm_120 compile targets; only sm_120 runtime was validated; see ``ARCH_EXTENSION_NAME``);
 * input dtype ``bfloat16`` / ``float16`` / ``float32``;
 * 2-D contiguous activation with a row length divisible by 4;
 * dynamic (``scale is None``) quantization, per-token or per-tensor;
@@ -31,7 +31,7 @@ Frozen against the reference kernel; see ``docs/fp8_online_contract.md``.  The
 short version:
 
     amax      = max_j |x[r, j]|
-    scale[r]  = min( (double)amax / 448.0, 1/(448*512) )   -> fp32
+    scale[r]  = max( (double)amax / 448.0, 1/(448*512) )   -> fp32
     out[r, j] = e4m3_rn_sat( x[r, j] / scale[r] )
 
 The scale divide happens in double precision on purpose: doing it in fp32
@@ -44,6 +44,10 @@ from __future__ import annotations
 import os
 import threading
 
+from vllm.logger import init_logger
+
+logger = init_logger(__name__)
+
 # torch.utils.cpp_extension resolves the CUDA toolkit directory once, when that
 # module is first imported, from CUDA_HOME/CUDA_PATH or by finding nvcc on PATH.
 # A serving process may inherit neither, so pin CUDA_HOME here -- before torch is
@@ -55,13 +59,16 @@ if not os.environ.get("CUDA_HOME") and not os.environ.get("CUDA_PATH"):
             os.environ["CUDA_HOME"] = _candidate
             break
 
-import torch
+import torch  # noqa: E402 - CUDA toolkit discovery must precede the import
 
 __all__ = [
     "ARCH_EXTENSION_NAME",
     "FASTPATH_ARCH_FLOOR",
     "FASTPATH_MAX_PER_TENSOR_ELEMS",
     "compiled_ok",
+    "hot_path_enabled",
+    "torch_fallback_enabled",
+    "install_fp8_online_quant_patch",
     "per_tensor",
     "per_token",
     "scaled_fp8_quant",
@@ -139,10 +146,7 @@ def _load_extension():
 
             csrc = _find_csrc()
             if csrc is None:
-                raise FileNotFoundError(
-                    "fp8_online: CUDA sources not found next to "
-                    f"{os.path.abspath(__file__)}"
-                )
+                raise FileNotFoundError(f"fp8_online: CUDA sources not found next to {os.path.abspath(__file__)}")
 
             from torch.utils.cpp_extension import load
 
@@ -165,9 +169,7 @@ def _load_extension():
             include_dirs = [d for d in include_dirs if os.path.isdir(d)]
             library_dirs = [d for d in library_dirs if os.path.isdir(d)]
             if not include_dirs:
-                raise FileNotFoundError(
-                    f"fp8_online: no CUDA include directory found under {cuda_home}"
-                )
+                raise FileNotFoundError(f"fp8_online: no CUDA include directory found under {cuda_home}")
 
             os.environ.setdefault("TORCH_CUDA_ARCH_LIST", _DEFAULT_ARCH_LIST)
             _ext = load(
@@ -211,6 +213,18 @@ _capability_cache: dict[int, tuple[int, int]] = {}
 #: path inside one process (identical weights, allocator, and graph state) and so
 #: an operator can disable the fast path without a code change.
 _DISABLED = os.environ.get("VLLM_OMNI_FP8_ONLINE_DISABLE") == "1"
+_ENABLED = os.environ.get("VLLM_OMNI_FP8_ONLINE_ENABLE") == "1"
+_FORCE_TORCH = os.environ.get("VLLM_OMNI_FP8_FORCE_TORCH") == "1"
+
+
+def hot_path_enabled() -> bool:
+    """Explicit process-start opt-in; never enable the experimental route globally by default."""
+    return _ENABLED and not _DISABLED and not _FORCE_TORCH
+
+
+def torch_fallback_enabled() -> bool:
+    """Whether the operator explicitly selected the preserved Torch implementation."""
+    return _FORCE_TORCH
 
 
 def _device_capability(index: int) -> tuple[int, int]:
@@ -228,7 +242,7 @@ def supported(x: torch.Tensor) -> bool:
     This is a pure predicate: it never builds the extension and never touches a
     device, so it is safe to call from dispatch code on any platform.
     """
-    if _DISABLED:
+    if _DISABLED or _FORCE_TORCH:
         return False
     if not isinstance(x, torch.Tensor) or not x.is_cuda:
         return False
@@ -247,20 +261,17 @@ def supported(x: torch.Tensor) -> bool:
     return True
 
 
-def _reference_per_token(x: torch.Tensor, out: torch.Tensor, scale: torch.Tensor,
-                         scale_ub: torch.Tensor | None) -> None:
-    getattr(torch.ops._C, "dynamic_per_token_scaled_fp8_quant")(
-        out, x, scale, scale_ub
-    )
+def _reference_per_token(
+    x: torch.Tensor, out: torch.Tensor, scale: torch.Tensor, scale_ub: torch.Tensor | None
+) -> None:
+    getattr(torch.ops._C, "dynamic_per_token_scaled_fp8_quant")(out, x, scale, scale_ub)
 
 
-def _reference_per_tensor(x: torch.Tensor, out: torch.Tensor,
-                          scale: torch.Tensor) -> None:
+def _reference_per_tensor(x: torch.Tensor, out: torch.Tensor, scale: torch.Tensor) -> None:
     getattr(torch.ops._C, "dynamic_scaled_fp8_quant")(out, x, scale)
 
 
-def per_token(out: torch.Tensor, x: torch.Tensor, scale: torch.Tensor,
-              scale_ub: torch.Tensor | None = None) -> None:
+def per_token(out: torch.Tensor, x: torch.Tensor, scale: torch.Tensor, scale_ub: torch.Tensor | None = None) -> None:
     """Per-token dynamic FP8 quantization into preallocated ``out``/``scale``.
 
     Falls back to the reference kernel whenever the fast path does not apply.
@@ -272,8 +283,7 @@ def per_token(out: torch.Tensor, x: torch.Tensor, scale: torch.Tensor,
     ext.fp8_online_per_token_quant(out, x, scale, scale_ub)
 
 
-def per_tensor(out: torch.Tensor, x: torch.Tensor, scale: torch.Tensor,
-               scale_ub: torch.Tensor | None = None) -> None:
+def per_tensor(out: torch.Tensor, x: torch.Tensor, scale: torch.Tensor, scale_ub: torch.Tensor | None = None) -> None:
     """Per-tensor dynamic FP8 quantization into preallocated ``out``/``scale``.
 
     Only the element range where the fast path was measured to beat the
@@ -282,8 +292,7 @@ def per_tensor(out: torch.Tensor, x: torch.Tensor, scale: torch.Tensor,
     # Cheapest predicate first: on the decline path this wrapper must cost
     # almost nothing, otherwise adding the dispatch layer would itself be the
     # regression for every tensor the fast path rejects.
-    if (x.numel() <= FASTPATH_MAX_PER_TENSOR_ELEMS and supported(x)
-            and (scale_ub is None or scale_ub.numel() == 1)):
+    if x.numel() <= FASTPATH_MAX_PER_TENSOR_ELEMS and supported(x) and (scale_ub is None or scale_ub.numel() == 1):
         ext = _load_extension()
         if ext is not None:
             ext.fp8_online_per_tensor_quant(out, x, scale, scale_ub)
@@ -335,3 +344,82 @@ def scaled_fp8_quant(
         s = torch.empty(1, device=x.device, dtype=torch.float32)
         per_tensor(out, x, s, scale_ub)
     return out, s
+
+
+def install_fp8_online_quant_patch() -> None:
+    """Route vLLM's dynamic per-token FP8 activation quant through this module.
+
+    Why this is needed
+    ------------------
+    vLLM-Omni has exactly one place that quantizes activations itself (the MoT
+    layers).  Every other online-FP8 path -- the per-model ``quantization.py``
+    modules that swap HF ``nn.Linear`` for ``vllm`` ``LinearBase`` carrying an
+    ``Fp8Config`` -- quantizes inside vLLM:
+
+        Fp8LinearMethod -> ScaledMMLinearKernel -> self.quant_fp8 (QuantFP8)
+          -> QuantFP8.forward_cuda -> ops.scaled_fp8_quant
+          -> torch.ops._C.dynamic_per_token_scaled_fp8_quant
+
+    That last call is the same kernel this module accelerates, so without this
+    patch the fast path only benefits the MoT layers and every per-model FP8
+    integration keeps paying the unaccelerated version.
+
+    Scope
+    -----
+    Only the CUDA dynamic per-token branch is redirected.  Static, group/block,
+    XPU/HIP/native, and any input this module declines keep their existing
+    implementation, because ``scaled_fp8_quant`` falls back to vLLM's op for
+    everything it does not handle.  The wrapper is therefore semantics
+    preserving even if the fast path is unavailable.
+
+    Opt in with ``VLLM_OMNI_FP8_ONLINE_ENABLE=1`` for validated eager workloads.
+    Disable with ``VLLM_OMNI_FP8_ONLINE_DISABLE=1``. Select the original Torch
+    implementation with ``VLLM_OMNI_FP8_FORCE_TORCH=1``. Native dispatch is
+    never intercepted, and compiled calls retain their original implementation.
+    """
+    if not hot_path_enabled() and not _FORCE_TORCH:
+        logger.debug("FP8 online quant patch skipped: opt-in is disabled")
+        return
+    try:
+        from vllm.model_executor.layers.quantization.input_quant_fp8 import (
+            QuantFP8,
+        )
+    except ImportError:  # pragma: no cover - vLLM layout change
+        logger.debug("FP8 online quant patch skipped: QuantFP8 not importable")
+        return
+
+    original = QuantFP8.forward_cuda
+    if getattr(original, "_vllm_omni_fp8_online_patched", False):
+        return
+
+    def forward_cuda(self, x, scale=None, scale_ub=None, use_triton=False):
+        if _FORCE_TORCH:
+            return self.forward_native(x, scale, scale_ub, use_triton)
+        if torch.compiler.is_compiling() or not hot_path_enabled() or use_triton:
+            return original(self, x, scale, scale_ub, use_triton)
+        # Exactly the conditions under which the reference implementation ends
+        # up in ops.scaled_fp8_quant(x, None, use_per_token_if_dynamic=True).
+        # Anything else keeps the original method, including its assertions.
+        if (
+            scale is None
+            and supported(x)
+            and not self.static
+            and not self.is_group_quant
+            and self.use_per_token_if_dynamic
+            and (scale_ub is None or scale_ub.numel() == 1)
+        ):
+            return scaled_fp8_quant(
+                x,
+                None,
+                num_token_padding=self.num_token_padding,
+                scale_ub=scale_ub,
+                use_per_token_if_dynamic=True,
+            )
+        return original(self, x, scale, scale_ub, use_triton)
+
+    forward_cuda._vllm_omni_fp8_online_patched = True
+    QuantFP8.forward_cuda = forward_cuda
+    logger.info(
+        "FP8 online quant patch installed: dynamic per-token activation "
+        "quantization is routed through vllm_omni.quantization.fp8_online."
+    )
