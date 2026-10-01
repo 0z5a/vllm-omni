@@ -28,6 +28,7 @@ def _make_scheduler(*, chunk_transfer_adapter=None) -> OmniARScheduler:
     """Minimal OmniARScheduler exercising _free_request()'s no-KV-transfer
     happy path."""
     sched = OmniARScheduler.__new__(OmniARScheduler)
+    sched.vllm_config = SimpleNamespace(kv_transfer_config=None)
     sched._omits_kv_transfer_cache = {}
     sched._connector_finished = lambda request: (False, None)
     sched.encoder_cache_manager = MagicMock()
@@ -47,6 +48,8 @@ class _FakeFinishedRequest:
 
     def __init__(self, request_id: str) -> None:
         self.request_id = request_id
+        self.status = RequestStatus.FINISHED_STOPPED
+        self.kv_transfer_params = None
 
     def is_finished(self) -> bool:
         return True
@@ -76,9 +79,10 @@ def test_free_request_is_safe_without_a_chunk_transfer_adapter():
     sched._free_input_coordinator_request.assert_called_once_with("req-1")
 
 
-def test_native_mooncake_finish_uses_confirmed_token_boundary() -> None:
+@pytest.mark.parametrize("connector", ["MooncakeConnector", "OmniNixlKVConnector"])
+def test_native_finish_uses_confirmed_token_boundary(connector: str) -> None:
     sched = _make_scheduler(chunk_transfer_adapter=None)
-    sched.vllm_config = SimpleNamespace(kv_transfer_config=SimpleNamespace(kv_connector="MooncakeConnector"))
+    sched.vllm_config = SimpleNamespace(kv_transfer_config=SimpleNamespace(kv_connector=connector))
     observed = {}
 
     def connector_finished(request):

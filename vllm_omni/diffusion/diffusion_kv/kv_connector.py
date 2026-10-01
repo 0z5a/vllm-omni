@@ -380,10 +380,12 @@ def commit_kv_load(
         from vllm.distributed.kv_transfer.kv_connector.v1.mooncake.mooncake_connector import MooncakeConnector
         from vllm.v1.request import RequestStatus
 
-        if not isinstance(connector, MooncakeConnector):
+        from vllm_omni.distributed.omni_connectors.connectors.nixl_kv_connector import OmniNixlKVConnector
+
+        if not isinstance(connector, (MooncakeConnector, OmniNixlKVConnector)):
             # Unknown connectors may have started I/O during registration.
             raise
-        # Mooncake only queues metadata here; no Worker has seen addresses yet.
+        # These connectors only queue metadata; no Worker has seen addresses yet.
         # Re-arm its pre-scheduling abort hook to replace even partially
         # registered CFG receives with empty-block notifications to the producer.
         for request in requests:
