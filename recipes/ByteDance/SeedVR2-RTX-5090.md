@@ -167,6 +167,7 @@ use the released model rather than mocking its forward pass.
 | Feature | Status |
 | --- | --- |
 | [Window SP](../../docs/models/seedvr2.md) | Model-local regular/shifted window attention |
+| RoPE table cache | Reuses window-local angle tables without a device-to-host cache-key read |
 | CPU offload, LoRA, compiled execution, CFG/TP/PP | Unsupported |
 | VFR or multichannel audio | Unsupported |
 | VAE temporal/spatial tiling | Available with `--vae-use-tiling` |
