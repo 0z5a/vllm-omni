@@ -25,7 +25,7 @@ correction from external applications is a separate execution semantic.
 | Audio | First mono/stereo track, aligned by PTS; re-encoded as AAC |
 | Sampling | One Euler step, CFG=1, per-request seed |
 | Precision | 3B DiT and VAE FP16 |
-| Parallelism | Whole-window SP via `ulysses_degree`; replicated model weights |
+| Parallelism | Model-owned Ulysses window attention; replicated model weights |
 | Frame padding | Internal 4n+1 padding, cropped back; five returns five, six returns six |
 
 ## References
@@ -197,3 +197,5 @@ chunk boundary as well as five/six-frame clips, and inspect frames adjacent to
 chunk boundaries. Reduced peak memory does not by itself establish lower latency.
 High-resolution clips can still exceed device capacity; validate the intended
 frame count and output size on the target GPUs.
+
+The native multi-GPU path selects specialized SeedVR2 Ulysses window attention when `ulysses_degree > 1`; each window retains its regular/shifted boundary while QKV is exchanged into head shards.

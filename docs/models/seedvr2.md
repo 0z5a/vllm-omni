@@ -256,8 +256,8 @@ parallel outputs are numerically close rather than bitwise identical.
 | Unsupported | VFR, multichannel audio, 7B, other sampling schedules, quantization, cache acceleration, VAE width sharding / batch slicing, CPU offload, CFG/TP/PP parallelism, compiled execution, LoRA |
 
 Unsupported engine modes are rejected before process hooks and worker creation.
-`ulysses_degree` selects the model-owned SP group. This branch assigns whole
-windows to ranks; the specialized head-sharded path is a dependent change.
+`ulysses_degree` selects the model-owned SP group. Native SP>1 uses specialized
+Ulysses attention with per-window head exchange; SP=1 retains the reference planner.
 Ring and AllGather-KV are unsupported.
 
 The practical P0 reference's five-frame batching, overlap, and CPU swapping are
@@ -278,3 +278,7 @@ See the [RTX 5090 recipe](https://github.com/vllm-project/vllm-omni/blob/main/re
 input/output contract, complete serving command, and media checks. The local
 tests in `tests/diffusion/models/seedvr2/test_seedvr2_e2e.py` exercise the full
 3B pipeline, all colour modes, and HTTP restoration with USP 1 and 8.
+
+## Specialized Ulysses window attention
+
+With `ulysses_degree > 1`, native serving uses SeedVR2-owned Ulysses attention. Sequence rows remain sharded through the MLP, while QKV is exchanged into uneven head shards for each regular or shifted window. Shared attention dispatch remains local to avoid applying a second parallel strategy. SP=1 retains the reference window planner.

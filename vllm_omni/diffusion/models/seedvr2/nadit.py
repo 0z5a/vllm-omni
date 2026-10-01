@@ -9,12 +9,10 @@ The module layout deliberately mirrors the reference implementation (including
 the ``MMModule`` vid/txt/shared parameter split) so the released checkpoint
 loads with its original parameter names.
 
-Sequence parallelism here is *window aligned*: whole windows belong to one rank,
-every rank keeps all attention heads, and activations are re-sharded only between
-layers whose window layouts differ (regular <-> shifted).  See
-:mod:`vllm_omni.diffusion.models.seedvr2.window_sp` for the planner and Plan A
-redistribution and :mod:`vllm_omni.diffusion.models.seedvr2.na_ops` for the
-per-rank runtime glue.
+At SP=1, the window planner preserves the reference regular/shifted layouts.
+At SP>1, sequence rows stay sharded through the MLP, while attention exchanges
+QKV into head shards so each rank can process every window. See
+:mod:`vllm_omni.diffusion.models.seedvr2.ulysses` for that exchange.
 
 Reference quirk reproduced on purpose: ``vid_out_ada`` is declared with
 ``layers=["out"]``, whose ``(d, l, g)`` re-grouping of the 6*dim timestep
@@ -48,6 +46,7 @@ from vllm_omni.diffusion.models.seedvr2.na_ops import (
 )
 from vllm_omni.diffusion.models.seedvr2.parallel import validate_seedvr2_parallel_config
 from vllm_omni.diffusion.models.seedvr2.rope import NaMMRotaryEmbedding3d
+from vllm_omni.diffusion.models.seedvr2.ulysses import SeedVR2UlyssesRuntime
 from vllm_omni.diffusion.models.seedvr2.window_geometry import (
     DEFAULT_WINDOW,
     DEFAULT_WINDOW_METHODS,
@@ -310,8 +309,8 @@ class NaSwinAttention(nn.Module):
             shared_weights=shared_weights,
         )
         self.rope = NaMMRotaryEmbedding3d(rotary_dim=rope_dim, num_axes=3)
-        # Window-local attention is communication free by construction, so the
-        # shared layer must never re-shard it through a parallel strategy.
+        # The model owns window/head exchange; shared attention dispatch must
+        # not apply another sequence-parallel strategy.
         self.attention = Attention(
             num_heads=heads,
             head_size=head_dim,
@@ -361,8 +360,14 @@ class NaSwinAttention(nn.Module):
         runtime: SeedVR2WindowRuntime | None,
     ) -> tuple[torch.Tensor, torch.Tensor]:
         vid_qkv, txt_qkv = self.proj_qkv(vid, txt)
-        vid_q, vid_k, vid_v = self._split_heads(vid_qkv)
-        txt_q, txt_k, txt_v = self._split_heads(txt_qkv)
+        if isinstance(runtime, SeedVR2UlyssesRuntime):
+            vid_q, vid_k, vid_v = runtime.to_heads(
+                vid_qkv.view(vid.shape[0], 3, self.heads, self.head_dim), ctx
+            ).unbind(1)
+            txt_q, txt_k, txt_v = runtime.text_heads(txt_qkv.view(txt.shape[0], 3, self.heads, self.head_dim)).unbind(1)
+        else:
+            vid_q, vid_k, vid_v = self._split_heads(vid_qkv)
+            txt_q, txt_k, txt_v = self._split_heads(txt_qkv)
 
         vid_q, txt_q = self.norm_q(vid_q, txt_q)
         vid_k, txt_k = self.norm_k(vid_k, txt_k)
@@ -395,9 +400,9 @@ class NaSwinAttention(nn.Module):
             joint_out = grouped_window_sdpa(joint_q, joint_k, joint_v, ctx, softmax_scale=self.softmax_scale)
 
         vid_out, txt_windows = unpack_joint_windows(joint_out, ctx)
-        vid_out = vid_out.reshape(-1, self.inner_dim)
+        attention_dim = vid_out.shape[-2] * vid_out.shape[-1]
         if ctx.local_windows:
-            local_text_sum = txt_windows.reshape(ctx.local_windows, ctx.text_len, self.inner_dim).sum(0)
+            local_text_sum = txt_windows.reshape(ctx.local_windows, ctx.text_len, attention_dim).sum(0)
         else:
             # Ranks without windows still join the text reduction; the dtype must
             # match the other ranks' contribution exactly (a mismatch changes the
@@ -409,7 +414,9 @@ class NaSwinAttention(nn.Module):
             # Same reduction as the runtime path, without a collective.
             txt_out = global_window_mean(local_text_sum, ctx.global_windows, group=None, dtype=vid.dtype)
 
-        return self.proj_out(vid_out, txt_out)
+        if isinstance(runtime, SeedVR2UlyssesRuntime):
+            vid_out = runtime.from_heads(vid_out, ctx)
+        return self.proj_out(vid_out.reshape(-1, self.inner_dim), txt_out)
 
 
 # =============================================================================
@@ -517,7 +524,7 @@ class NaDiTOutput:
 
 
 class SeedVR2NaDiT(nn.Module):
-    """SeedVR2 3B ``NaDiT`` transformer with window-aligned SP support."""
+    """SeedVR2 3B ``NaDiT`` transformer with model-owned window attention."""
 
     def __init__(
         self,
@@ -595,14 +602,27 @@ class SeedVR2NaDiT(nn.Module):
         world_size: int = 1,
         rank: int = 0,
         parallel_config: DiffusionParallelConfig | None = None,
+        ulysses: bool = False,
     ) -> SeedVR2WindowRuntime:
-        """Create the window-SP driver for one request (SP=1 included)."""
+        """Create the window-attention runtime for one request."""
         if parallel_config is not None:
             validate_seedvr2_parallel_config(parallel_config)
             sp = get_sp_group()
             if sp.world_size != parallel_config.sequence_parallel_size:
                 raise ValueError("SeedVR2 SP group size does not match its parallel configuration")
             group, world_size, rank = sp.device_group, sp.world_size, sp.rank_in_group
+        if ulysses:
+            return SeedVR2UlyssesRuntime(
+                token_grid,
+                text_len=text_len,
+                heads=self.blocks[0].attn.heads,
+                group=group,
+                world_size=world_size,
+                rank=rank,
+                window=self.window,
+                methods=self.window_method,
+                num_layers=self.num_layers,
+            )
         return SeedVR2WindowRuntime(
             token_grid,
             text_len=text_len,
@@ -635,9 +655,8 @@ class SeedVR2NaDiT(nn.Module):
 
         ``vid`` is the flattened pre-patchify latent ``[T*H*W, C]`` with
         ``vid_shape`` holding the raw latent ``(T, H, W)``; ``txt`` is
-        ``[L, txt_in_dim]``.  With ``runtime`` set, only this rank's windows are
-        ever materialised; without it the model runs the SP=1 path through the
-        same planner, so a regular -> shifted transition still permutes rows.
+        ``[L, txt_in_dim]``. The runtime selects local windows at SP=1 or
+        sequence rows with head-sharded attention at SP>1.
         """
         weight = next(self.vid_in.parameters())
         frames, height, width = (int(v) for v in vid_shape[0].tolist())

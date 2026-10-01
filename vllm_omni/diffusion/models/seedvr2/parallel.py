@@ -14,7 +14,7 @@ def validate_seedvr2_parallel_config(parallel: DiffusionParallelConfig) -> None:
         or parallel.ulysses_a2a_permute
     ):
         raise ValueError(
-            "SeedVR2 window SP requires pure ulysses_degree with ring_degree=allgather_degree=1, "
-            "ulysses_mode='strict', and ulysses_a2a_permute=False. "
-            "The degree selects the SP group; SeedVR2 keeps all attention heads on each rank."
+            "SeedVR2 sequence parallelism requires pure ulysses_degree with ring_degree=allgather_degree=1, "
+            "ulysses_mode='strict', and ulysses_a2a_permute=False; "
+            "SeedVR2 owns the window attention exchange."
         )
