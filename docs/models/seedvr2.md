@@ -278,3 +278,7 @@ See the [RTX 5090 recipe](https://github.com/vllm-project/vllm-omni/blob/main/re
 input/output contract, complete serving command, and media checks. The local
 tests in `tests/diffusion/models/seedvr2/test_seedvr2_e2e.py` exercise the full
 3B pipeline, all colour modes, and HTTP restoration with USP 1 and 8.
+
+## Replicated VAE frame normalization
+
+The replicated FP16 CUDA decoder fuses framewise GroupNorm and SiLU. Height-sharded decoding retains distributed normalization, and CPU decoding retains the PyTorch path. The fusion does not change the model admission or long-video contracts.
