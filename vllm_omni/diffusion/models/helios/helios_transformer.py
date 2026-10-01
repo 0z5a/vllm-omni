@@ -3,7 +3,6 @@
 # Adapted from Helios (https://github.com/BestWishYsh/Helios)
 
 import math
-from collections import OrderedDict
 from collections.abc import Iterable
 from functools import lru_cache
 from typing import TYPE_CHECKING, Any
@@ -36,6 +35,7 @@ from vllm_omni.diffusion.distributed.parallel_state import (
     get_sp_group,
 )
 from vllm_omni.diffusion.distributed.sp_plan import SequenceParallelOutput
+from vllm_omni.diffusion.models.helios.cross_attn_cache import SourceTensorLRUCache
 
 if TYPE_CHECKING:
     from vllm.model_executor.layers.quantization.base_config import (
@@ -798,13 +798,19 @@ class HeliosTransformer3DModel(nn.Module):
         # 5. Output norm & projection
         self.norm_out = HeliosOutputNorm(inner_dim, eps)
         self.proj_out = nn.Linear(inner_dim, out_channels * math.prod(patch_size))
-        self._projected_encoder_cache: OrderedDict[tuple, torch.Tensor] = OrderedDict()
-        self._cross_attn_kv_cache: OrderedDict[tuple, list[tuple[torch.Tensor, torch.Tensor]]] = OrderedDict()
         self._cross_attn_cache_size = 2
         self._tea_cache_config: TeaCacheConfig | None = None
         self._tea_cache_states = {"positive": TeaCacheState(), "negative": TeaCacheState()}
         self._tea_cache_forward_count = 0
         self.do_true_cfg = False
+
+        # Cross-attention projection reuse is intra-request: the source
+        # encoder hidden states are held alive across the denoise steps of a
+        # single request.  SourceTensorLRUCache guards each entry with a
+        # weakref to the source so an allocator address reused after the
+        # source is freed cannot produce a cross-prompt false hit.
+        self._projected_encoder_cache = SourceTensorLRUCache(self._cross_attn_cache_size)
+        self._cross_attn_kv_cache = SourceTensorLRUCache(self._cross_attn_cache_size)
 
     def enable_teacache(self, config: TeaCacheConfig) -> None:
         self._tea_cache_config = config
@@ -855,36 +861,6 @@ class HeliosTransformer3DModel(nn.Module):
     def dtype(self) -> torch.dtype:
         return next(self.parameters()).dtype
 
-    @staticmethod
-    def _tensor_cache_key(tensor: torch.Tensor) -> tuple:
-        try:
-            version = tensor._version
-        except RuntimeError:
-            version = None
-
-        return (
-            tensor.data_ptr(),
-            tuple(tensor.shape),
-            tuple(tensor.stride()),
-            tensor.dtype,
-            tensor.device.type,
-            tensor.device.index,
-            version,
-        )
-
-    @staticmethod
-    def _get_from_lru(cache: OrderedDict, key: tuple):
-        value = cache.get(key)
-        if value is not None:
-            cache.move_to_end(key)
-        return value
-
-    def _put_lru(self, cache: OrderedDict, key: tuple, value) -> None:
-        cache[key] = value
-        cache.move_to_end(key)
-        while len(cache) > self._cross_attn_cache_size:
-            cache.popitem(last=False)
-
     def clear_cross_attention_cache(self) -> None:
         self._projected_encoder_cache.clear()
         self._cross_attn_kv_cache.clear()
@@ -896,13 +872,12 @@ class HeliosTransformer3DModel(nn.Module):
         if not self._cache_enabled():
             return self.condition_embedder.text_embedder(encoder_hidden_states)
 
-        cache_key = self._tensor_cache_key(encoder_hidden_states)
-        cached = self._get_from_lru(self._projected_encoder_cache, cache_key)
+        cached = self._projected_encoder_cache.get(encoder_hidden_states)
         if cached is not None:
             return cached
 
         projected = self.condition_embedder.text_embedder(encoder_hidden_states)
-        self._put_lru(self._projected_encoder_cache, cache_key, projected)
+        self._projected_encoder_cache.put(encoder_hidden_states, projected)
         return projected
 
     def _get_cross_attn_key_values(
@@ -912,13 +887,12 @@ class HeliosTransformer3DModel(nn.Module):
         if not self._cache_enabled():
             return None
 
-        cache_key = self._tensor_cache_key(encoder_hidden_states)
-        cached = self._get_from_lru(self._cross_attn_kv_cache, cache_key)
+        cached = self._cross_attn_kv_cache.get(encoder_hidden_states)
         if cached is not None:
             return cached
 
         key_values = [block.attn2.project_kv(encoder_hidden_states) for block in self.blocks]
-        self._put_lru(self._cross_attn_kv_cache, cache_key, key_values)
+        self._cross_attn_kv_cache.put(encoder_hidden_states, key_values)
         return key_values
 
     def forward(
