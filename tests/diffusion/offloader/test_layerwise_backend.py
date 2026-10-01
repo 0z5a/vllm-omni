@@ -402,6 +402,35 @@ class TestLayerwiseComponentSelection:
         for block, expected in zip(pipeline.transformer.blocks, expected_weights, strict=True):
             torch.testing.assert_close(block.weight, expected)
 
+    def test_shutdown_drains_copies_without_restoring_all_weights(self, patched_offload_runtime, monkeypatch):
+        pipeline = nn.Module()
+        pipeline.transformer = _SingleBlockModel(num_blocks=3)
+        backend = _layer_backend()
+        backend.enable(pipeline)
+        drained = []
+        monkeypatch.setattr(backend.copy_stream, "synchronize", lambda: drained.append(True))
+        for hook in backend._dit_hooks:
+            monkeypatch.setattr(
+                hook,
+                "restore_next_block",
+                Mock(side_effect=AssertionError("Shutdown must not rehydrate the full model")),
+            )
+        remove = layerwise_backend_module.remove_block_hook
+
+        def remove_after_drain(block):
+            assert drained == [True]
+            remove(block)
+
+        monkeypatch.setattr(layerwise_backend_module, "remove_block_hook", remove_after_drain)
+        backend.shutdown()
+
+        assert not backend.enabled
+        assert not backend._dit_hooks
+        assert any(
+            not tensor_utils_module.is_materialized_tensor(block.weight) for block in pipeline.transformer.blocks
+        )
+        assert all(block._hook_registry.get_hook("layerwise_offload") is None for block in pipeline.transformer.blocks)
+
     def test_partial_dit_enable_failure_restores_weights_and_hooks(self, patched_offload_runtime, monkeypatch):
         pipeline = _ComponentPipeline()
         expected_weights = [block.weight.detach().clone() for block in pipeline.transformer.blocks]

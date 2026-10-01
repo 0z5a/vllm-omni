@@ -521,3 +521,7 @@ class LayerWiseOffloadBackend(OffloadBackend):
 
     def disable(self) -> None:
         self._disable(restore_weights=True)
+
+    def shutdown(self) -> None:
+        self.copy_stream.synchronize()
+        self._disable(restore_weights=False)

@@ -10,6 +10,9 @@ from torch import nn
 
 
 class DummyStream:
+    def synchronize(self) -> None:
+        return None
+
     def wait_stream(self, _stream) -> None:
         return None
 
