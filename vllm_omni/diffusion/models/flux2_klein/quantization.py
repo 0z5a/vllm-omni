@@ -72,10 +72,11 @@ class Flux2KleinTextEncoderGraph:
         self.encoder = encoder
         self.hidden_states_layers = hidden_states_layers
         self.graph: torch.cuda.CUDAGraph | None = None
+        self._replay_done: torch.cuda.Event | None = None
         self._lock = Lock()
 
     def __call__(self, input_ids: torch.Tensor, attention_mask: torch.Tensor) -> torch.Tensor:
-        if input_ids.shape != (1, 512) or not current_omni_platform.is_cuda():
+        if input_ids.shape != (1, 512) or not input_ids.is_cuda or not current_omni_platform.is_cuda():
             output = self.encoder.model(
                 input_ids=input_ids, attention_mask=attention_mask, output_hidden_states=True, use_cache=False
             )
@@ -85,6 +86,9 @@ class Flux2KleinTextEncoderGraph:
             return self._replay(input_ids, attention_mask)
 
     def _replay(self, input_ids: torch.Tensor, attention_mask: torch.Tensor) -> torch.Tensor:
+        stream = torch.cuda.current_stream(input_ids.device)
+        if self._replay_done is not None:
+            stream.wait_event(self._replay_done)
         if self.graph is None:
             self.input_ids = input_ids.clone()
             self.attention_mask = attention_mask.clone()
@@ -113,4 +117,9 @@ class Flux2KleinTextEncoderGraph:
         self.input_ids.copy_(input_ids)
         self.attention_mask.copy_(attention_mask)
         self.graph.replay()
-        return torch.stack(self.outputs, dim=1)
+        result = torch.stack(self.outputs, dim=1)
+        # The lock orders enqueueing; this event orders shared buffers across streams.
+        if self._replay_done is None:
+            self._replay_done = torch.cuda.Event()
+        self._replay_done.record(stream)
+        return result
