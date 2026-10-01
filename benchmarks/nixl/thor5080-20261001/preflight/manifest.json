@@ -10,6 +10,11 @@
     "sha256": "cb815e4e9bfe358a5780cd7250fc20d37bfe1df8f19ab4ab8811de7e31e746dd"
   },
   {
+    "file": "check_remote_shutdown.py",
+    "bytes": 1615,
+    "sha256": "e3525a19a589b1d9ce6c5b3f1606d6ee1bdaaeeae349047c415921995c387515"
+  },
+  {
     "file": "cpu-regression-5080.log.gz",
     "bytes": 2051,
     "sha256": "d15bc55da9f20e3787c4e2e93efbf1cda57565784a8c1862d1db288965d851f0",
@@ -62,8 +67,30 @@
     "sha256": "16b6912c77cce4df06d26b5497ed92dc980d7cf5533d58e951a9384a864e7fcb"
   },
   {
+    "file": "nixl_remote_shutdown.py",
+    "bytes": 783,
+    "sha256": "b25093aed39b0eb5eaa7130405477da40f78118df6656b7941f6413c9732938b"
+  },
+  {
     "file": "readonly-runtime-versions.json",
     "bytes": 144,
     "sha256": "3d3dd5d40375ca679809bbde28b08b5d9fc5f2299f22a51c313389bd9a22791f"
+  },
+  {
+    "file": "remote-shutdown-proof.json",
+    "bytes": 88,
+    "sha256": "b51b0fe4753234dc8c4f7fae6d466d3545b9f76a8ee312bf0ce64a2ecd6ba1c3"
+  },
+  {
+    "file": "remote-shutdown.exit",
+    "bytes": 2,
+    "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+  },
+  {
+    "file": "remote-shutdown.log.gz",
+    "bytes": 568,
+    "sha256": "3c1eba2e988d15363db69dc1e9c0852bbeb4b9a7fc4e88225a8fa60b25912860",
+    "uncompressed_bytes": 889,
+    "uncompressed_sha256": "9d686ed0f006e54e2ec5f672a9079795bab4551f74dd57ad888adf1b8500a259"
   }
 ]
