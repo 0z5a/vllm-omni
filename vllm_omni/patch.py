@@ -8,6 +8,7 @@ import sys
 from functools import cached_property
 
 import torch
+import vllm_omni.logger  # noqa: F401
 from aenum import extend_enum
 from vllm.config import ModelConfig as _OriginalModelConfig
 from vllm.inputs import TokensPrompt as _OriginalTokensPrompt
@@ -20,8 +21,6 @@ from vllm.v1.engine import EngineCoreRequest as _OriginalEngineCoreRequest
 from vllm.v1.request import Request as _OriginalRequest
 from vllm.v1.request import RequestStatus
 from vllm.v1.request import StreamingUpdate as _OriginalStreamingUpdate
-
-import vllm_omni.logger  # noqa: F401
 from vllm_omni.engine import OmniEngineCoreOutput, OmniEngineCoreOutputs, OmniEngineCoreRequest
 from vllm_omni.inputs.data import OmniTokensPrompt
 from vllm_omni.model_executor.layers.rotary_embedding import OmniMRotaryEmbedding
@@ -633,3 +632,90 @@ def _patch_cumem_free_callback_cuda() -> None:
 
 
 _patch_cumem_free_callback_cuda()
+
+
+# Experimental FP8 CUDA activation path is opt-in. Keep native/compiled dispatch
+# untouched; users can select the preserved Torch implementation explicitly.
+def _patch_opt_in_fp8_online_quant() -> None:
+    if not (os.environ.get("VLLM_OMNI_FP8_ONLINE_ENABLE") == "1" or os.environ.get("VLLM_OMNI_FP8_FORCE_TORCH") == "1"):
+        return
+    from vllm_omni.quantization.fp8_online import install_fp8_online_quant_patch
+
+    install_fp8_online_quant_patch()
+
+
+_patch_opt_in_fp8_online_quant()
+
+
+def _patch_batched_seeded_random_sample() -> None:
+    """Draw per-request seeded sampling noise in one launch.
+
+    vLLM's ``random_sample`` calls ``exponential_(generator=...)`` once per
+    seeded request and step. The replacement reproduces those draws bit for
+    bit (values and generator states) with one kernel; unsupported cases keep
+    the original loop.
+    """
+    try:
+        import inspect
+
+        from vllm.v1.sample.ops import topk_topp_sampler as sampler_ops
+    except ImportError:
+        return
+    original = getattr(sampler_ops, "random_sample", None)
+    if original is None or getattr(original, "_omni_batched_seeded", False):
+        return
+    if list(inspect.signature(original).parameters) != ["probs", "generators", "use_fp64_gumbel"] or not all(
+        hasattr(sampler_ops, name) for name in ("empty_exponential_noise_like", "sample_with_exponential_noise")
+    ):
+        _PATCH_LOGGER.debug("[seeded-sampling] random_sample signature changed; batching disabled")
+        return
+
+    def random_sample(
+        probs: torch.Tensor,
+        generators: dict[int, torch.Generator],
+        use_fp64_gumbel: bool = False,
+    ) -> torch.Tensor:
+        q = sampler_ops.empty_exponential_noise_like(probs, use_fp64_gumbel)
+        if len(generators) != probs.shape[0]:
+            q.exponential_()
+        if generators:
+            from vllm_omni.utils.seeded_exponential import (
+                batched_seeded_exponential_supported,
+                fill_exponential_rows,
+            )
+
+            if batched_seeded_exponential_supported(q, generators):
+                fill_exponential_rows(q, list(generators.values()), list(generators))
+            else:
+                for i, generator in generators.items():
+                    q[i].exponential_(generator=generator)
+        return sampler_ops.sample_with_exponential_noise(probs, q)
+
+    random_sample._omni_batched_seeded = True  # type: ignore[attr-defined]
+    random_sample.__wrapped__ = original  # type: ignore[attr-defined]
+    sampler_ops.random_sample = random_sample
+
+
+_patch_batched_seeded_random_sample()
+
+
+def _patch_mrv2_stop_token_capacity() -> None:
+    """Let Model Runner V2 enforce ``min_tokens`` over large stop sets.
+
+    MRV2 keeps each request's stop token ids for ``min_tokens`` masking in a
+    fixed-width GPU table capped at 128 ids and rejects larger sets. Speech
+    LMs stop on every special id past the codebook (CosyVoice3: 200). The
+    masking kernel sizes its block from the table widths, which other tables
+    already raise to 1024, so widening this one only grows a small buffer.
+    """
+    try:
+        from vllm.v1.worker.gpu.sample import logit_bias
+    except ImportError:
+        return
+    logit_bias.MAX_NUM_STOP_TOKEN_IDS = max(
+        logit_bias.MAX_NUM_STOP_TOKEN_IDS,
+        logit_bias.MAX_NUM_ALLOWED_TOKEN_IDS,
+    )
+
+
+_patch_mrv2_stop_token_capacity()

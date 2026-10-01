@@ -21,6 +21,7 @@
 #include <c10/cuda/CUDAStream.h>
 #include <cuda_runtime.h>
 
+#include <algorithm>
 #include <cstdlib>
 #include <optional>
 #include <string>
@@ -29,6 +30,8 @@
 
 namespace {
 
+using vllm_omni_fp8::per_tensor_amax_kernel;
+using vllm_omni_fp8::per_tensor_quant_from_amax_kernel;
 using vllm_omni_fp8::per_tensor_quant_kernel;
 using vllm_omni_fp8::per_token_quant_kernel;
 using vllm_omni_fp8::per_token_quant_kernel_warp;
@@ -44,6 +47,12 @@ constexpr int kMaxHeldVecs = 4;
 // (FASTPATH_MAX_ROWS) is the authority on which inputs are accepted at all; this
 // constant only chooses between the two mappings inside that envelope.
 constexpr int64_t kDefaultBlockPerRowMaxRows = 512;
+
+// Per-tensor crossover between the single-CTA and multi-block forms, and the
+// cap on blocks for the multi-block form.  Measured; see
+// docs/fp8_online_results.md.
+constexpr int64_t kPerTensorSingleCtaMaxElems = 32768;
+constexpr int64_t kPerTensorMaxBlocks = 1024;
 
 // Read once, from the environment, so the mapping crossover can be re-measured
 // without editing and rebuilding.  VLLM_OMNI_FP8_ROW_MAPPING selects the
@@ -177,6 +186,28 @@ void launch_per_tensor(const torch::Tensor& inp, torch::Tensor& out,
   C10_CUDA_KERNEL_LAUNCH_CHECK();
 }
 
+// Multi-block per-tensor: partial amax (atomicMax) then a grid-strided quantize.
+// `scratch` holds one uint32 and must be zeroed before the amax pass.
+template <int VEC>
+void launch_per_tensor_multiblock(const torch::Tensor& inp, torch::Tensor& out,
+                                  torch::Tensor& scale, torch::Tensor& scratch,
+                                  const float* scale_ub, bool has_scale_ub,
+                                  int64_t numel, int blocks, cudaStream_t stream) {
+  const size_t smem = reduce_smem_bytes();
+  unsigned* amax_bits = reinterpret_cast<unsigned*>(scratch.data_ptr<int32_t>());
+
+  dispatch_input_type(inp, [&]<typename input_t>() {
+    per_tensor_amax_kernel<input_t, VEC><<<blocks, kBlockThreads, smem, stream>>>(
+        reinterpret_cast<const input_t*>(inp.const_data_ptr()), numel, amax_bits);
+    per_tensor_quant_from_amax_kernel<input_t, VEC>
+        <<<blocks, kBlockThreads, 0, stream>>>(
+            reinterpret_cast<const input_t*>(inp.const_data_ptr()), numel,
+            amax_bits, scale.data_ptr<float>(),
+            reinterpret_cast<uint8_t*>(out.data_ptr()), scale_ub, has_scale_ub);
+  });
+  C10_CUDA_KERNEL_LAUNCH_CHECK();
+}
+
 // ---------------------------------------------------------------------------
 // Shared argument validation.
 // ---------------------------------------------------------------------------
@@ -304,10 +335,33 @@ void fp8_online_per_tensor_quant(torch::Tensor out, torch::Tensor inp,
   bool has_scale_ub = false;
   const float* ub = resolve_scale_ub(scale_ub, has_scale_ub);
 
-  if (numel % 4 == 0) {
-    launch_per_tensor<4>(inp, out, scale, ub, has_scale_ub, numel, stream);
+  const int vec = (numel % 4 == 0) ? 4 : 1;
+
+  // One CTA is only viable while it can cover the tensor; the crossover was
+  // measured, not guessed.  Below it the single launch wins; above it the
+  // multi-block two-pass wins by a wide margin.
+  if (numel <= kPerTensorSingleCtaMaxElems) {
+    if (vec == 4) {
+      launch_per_tensor<4>(inp, out, scale, ub, has_scale_ub, numel, stream);
+    } else {
+      launch_per_tensor<1>(inp, out, scale, ub, has_scale_ub, numel, stream);
+    }
+    return;
+  }
+
+  // Zeroing the amax accumulator is part of the algorithm, not an extra copy
+  // the caller owns: one uint32, on the caller's stream.
+  torch::Tensor scratch = at::zeros(
+      {1}, inp.options().dtype(at::kInt).device(inp.device()));
+  const int blocks = static_cast<int>(
+      std::min<int64_t>(kPerTensorMaxBlocks,
+                        ceil_div(numel, static_cast<int64_t>(kBlockThreads) * 8)));
+  if (vec == 4) {
+    launch_per_tensor_multiblock<4>(inp, out, scale, scratch, ub, has_scale_ub,
+                                    numel, blocks, stream);
   } else {
-    launch_per_tensor<1>(inp, out, scale, ub, has_scale_ub, numel, stream);
+    launch_per_tensor_multiblock<1>(inp, out, scale, scratch, ub, has_scale_ub,
+                                    numel, blocks, stream);
   }
 }
 

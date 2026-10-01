@@ -478,17 +478,122 @@ __global__ void per_tensor_quant_kernel(const T* __restrict__ input,
     scale[0] = s;
   }
 
+  // The per-tensor reference multiplies by the reciprocal; it does NOT divide.
+  // Measured over 9,437,184 payload bytes: x/s differs from the reference on 3
+  // of 6 random tensors (1 byte each), x*(1/s) on none.  This is the opposite
+  // choice from the per-token path, which really does divide.
+  const float inv_s = 1.0f / s;
+
   for (int64_t idx = tid; idx < n_vec; idx += blockDim.x) {
     float y[VEC];
     vec_load<T, VEC>(input + idx * VEC, y);
 #pragma unroll
     for (int i = 0; i < VEC; ++i) {
-      y[i] = y[i] / s;
+      y[i] = y[i] * inv_s;
     }
     vec_store_fp8<VEC>(output + idx * VEC, y);
   }
   for (int64_t i = vec_elems + tid; i < numel; i += blockDim.x) {
-    output[i] = quant_e4m3(to_float<T>(input[i]) / s);
+    output[i] = quant_e4m3(to_float<T>(input[i]) * inv_s);
+  }
+#endif
+}
+
+// ---------------------------------------------------------------------------
+// Per-tensor, multi-block form.
+//
+// The single-CTA kernel above is only viable while one block can cover the
+// tensor; at [128, 4096] it measured 0.164x and at [512, 3072] 0.046x against
+// the reference, because 256 threads serialise over the whole tensor.  For
+// anything larger the work is split in two passes:
+//
+//   pass 1  grid-strided partial amax -> atomicMax into a global uint32
+//   pass 2  read that amax, form the scale, and quantize grid-strided
+//
+// The amax is non-negative, so its IEEE bit pattern is monotonic and an
+// unsigned atomicMax is a float max.  Pass 2 recomputes the scale in every
+// block (one double divide per block, negligible) so no third launch or grid
+// barrier is needed; block 0 thread 0 is the single writer of `scale`.
+// ---------------------------------------------------------------------------
+__device__ __forceinline__ float block_amax_only(float local, float* shared) {
+  const int lane = threadIdx.x & 31;
+  const int warp = threadIdx.x >> 5;
+  const int num_warps = (blockDim.x + 31) >> 5;
+
+  const float amax = warp_max_nonneg(local);
+  if (lane == 0) {
+    shared[warp] = amax;
+  }
+  __syncthreads();
+
+  float block_amax = 0.0f;
+  if (warp == 0) {
+    block_amax = (lane < num_warps) ? shared[lane] : 0.0f;
+    block_amax = warp_max_nonneg(block_amax);
+  }
+  return block_amax;
+}
+
+template <typename T, int VEC>
+__global__ void per_tensor_amax_kernel(const T* __restrict__ input,
+                                       int64_t numel,
+                                       unsigned* __restrict__ amax_bits) {
+#if defined(__CUDA_ARCH__) && (__CUDA_ARCH__ >= 800)
+  extern __shared__ float smem[];
+  const int64_t tid = static_cast<int64_t>(blockIdx.x) * blockDim.x + threadIdx.x;
+  const int64_t stride = static_cast<int64_t>(gridDim.x) * blockDim.x;
+  const int64_t n_vec = numel / VEC;
+  const int64_t vec_elems = n_vec * VEC;
+
+  float local = 0.0f;
+  for (int64_t idx = tid; idx < n_vec; idx += stride) {
+    local = fmaxf(local, vec_absmax<T, VEC>(input + idx * VEC));
+  }
+  for (int64_t i = vec_elems + tid; i < numel; i += stride) {
+    local = fmaxf(local, fabsf(to_float<T>(input[i])));
+  }
+
+  const float block_amax = block_amax_only(local, smem);
+  if (threadIdx.x == 0) {
+    atomicMax(amax_bits, __float_as_uint(block_amax));
+  }
+#endif
+}
+
+template <typename T, int VEC>
+__global__ void per_tensor_quant_from_amax_kernel(
+    const T* __restrict__ input, int64_t numel,
+    const unsigned* __restrict__ amax_bits, float* __restrict__ scale,
+    uint8_t* __restrict__ output, const float* scale_ub, bool has_scale_ub) {
+#if defined(__CUDA_ARCH__) && (__CUDA_ARCH__ >= 800)
+  float amax = __uint_as_float(*amax_bits);
+  if (has_scale_ub) {
+    amax = fminf(amax, *scale_ub);
+  }
+  // No floor: the per-tensor path does not clamp to min_scale.
+  const float s = static_cast<float>(static_cast<double>(amax) / fp8_e4m3_max_d());
+  if (blockIdx.x == 0 && threadIdx.x == 0) {
+    scale[0] = s;
+  }
+  // Reciprocal multiply, matching the reference; see the single-CTA kernel.
+  const float inv_s = 1.0f / s;
+
+  const int64_t tid = static_cast<int64_t>(blockIdx.x) * blockDim.x + threadIdx.x;
+  const int64_t stride = static_cast<int64_t>(gridDim.x) * blockDim.x;
+  const int64_t n_vec = numel / VEC;
+  const int64_t vec_elems = n_vec * VEC;
+
+  for (int64_t idx = tid; idx < n_vec; idx += stride) {
+    float y[VEC];
+    vec_load<T, VEC>(input + idx * VEC, y);
+#pragma unroll
+    for (int i = 0; i < VEC; ++i) {
+      y[i] = y[i] * inv_s;
+    }
+    vec_store_fp8<VEC>(output + idx * VEC, y);
+  }
+  for (int64_t i = vec_elems + tid; i < numel; i += stride) {
+    output[i] = quant_e4m3(to_float<T>(input[i]) * inv_s);
   }
 #endif
 }
