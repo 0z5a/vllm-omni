@@ -1,0 +1,130 @@
+[
+  {
+    "name": "__init__.py",
+    "size": 0
+  },
+  {
+    "name": "autoencoder_kl_3d.py",
+    "size": 32209
+  },
+  {
+    "name": "config.json",
+    "size": 6286
+  },
+  {
+    "name": "configuration_hunyuan.py",
+    "size": 13427
+  },
+  {
+    "name": "generation_config.json",
+    "size": 417
+  },
+  {
+    "name": "hunyuan.py",
+    "size": 117048
+  },
+  {
+    "name": "hunyuan_image_3_pipeline.py",
+    "size": 37496
+  },
+  {
+    "name": "image_processor.py",
+    "size": 6050
+  },
+  {
+    "name": "model.safetensors.index.json",
+    "size": 1317648
+  },
+  {
+    "name": "siglip2.py",
+    "size": 23902
+  },
+  {
+    "name": "system_prompt.py",
+    "size": 10288
+  },
+  {
+    "name": "tokenizer.json",
+    "size": 25022931
+  },
+  {
+    "name": "tokenizer_config.json",
+    "size": 223
+  },
+  {
+    "name": "tokenizer_wrapper.py",
+    "size": 66830
+  },
+  {
+    "name": "model-00001-of-00018.safetensors",
+    "size": 4101030614
+  },
+  {
+    "name": "model-00002-of-00018.safetensors",
+    "size": 4989218048
+  },
+  {
+    "name": "model-00003-of-00018.safetensors",
+    "size": 4993449824
+  },
+  {
+    "name": "model-00004-of-00018.safetensors",
+    "size": 4993449824
+  },
+  {
+    "name": "model-00005-of-00018.safetensors",
+    "size": 4993449824
+  },
+  {
+    "name": "model-00006-of-00018.safetensors",
+    "size": 4993449824
+  },
+  {
+    "name": "model-00007-of-00018.safetensors",
+    "size": 4993451144
+  },
+  {
+    "name": "model-00008-of-00018.safetensors",
+    "size": 4993450624
+  },
+  {
+    "name": "model-00009-of-00018.safetensors",
+    "size": 4993450624
+  },
+  {
+    "name": "model-00010-of-00018.safetensors",
+    "size": 4993450624
+  },
+  {
+    "name": "model-00011-of-00018.safetensors",
+    "size": 4993450624
+  },
+  {
+    "name": "model-00012-of-00018.safetensors",
+    "size": 4993450624
+  },
+  {
+    "name": "model-00013-of-00018.safetensors",
+    "size": 4993450624
+  },
+  {
+    "name": "model-00014-of-00018.safetensors",
+    "size": 4993450624
+  },
+  {
+    "name": "model-00015-of-00018.safetensors",
+    "size": 4993450624
+  },
+  {
+    "name": "model-00016-of-00018.safetensors",
+    "size": 4993450624
+  },
+  {
+    "name": "model-00017-of-00018.safetensors",
+    "size": 4993450624
+  },
+  {
+    "name": "model-00018-of-00018.safetensors",
+    "size": 2185278384
+  }
+]

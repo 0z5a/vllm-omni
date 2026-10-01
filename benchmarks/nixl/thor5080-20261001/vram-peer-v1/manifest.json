@@ -1,0 +1,62 @@
+[
+  {
+    "file": "consumer.stderr.log.gz",
+    "bytes": 299,
+    "sha256": "adb1d832bbf4754d152a0d575eed653d710c349d8ab8d965770945b2bee4be2c",
+    "uncompressed_bytes": 624,
+    "uncompressed_sha256": "ec262223306990d03f807d2c81559d4d29bb91299167ce5b2e3cbc37cc45ae94"
+  },
+  {
+    "file": "consumer.stdout.log.gz",
+    "bytes": 151,
+    "sha256": "91bc9c339708e0b97a2eabc87d08c922004e67c7fab929c45814df13cdd542e2",
+    "uncompressed_bytes": 184,
+    "uncompressed_sha256": "ad6e354be7aae70f1589f1fcc8fed56e183b0c0d0de04b05ab6deace9e81290a"
+  },
+  {
+    "file": "exit-codes.json",
+    "bytes": 31,
+    "sha256": "2529fa66a73b3d41fc5adb796dc239ae636c768912742020617ed11cbce6b50d"
+  },
+  {
+    "file": "native-vram-v1-consumer-proof.json.lease.json",
+    "bytes": 170,
+    "sha256": "437e9cf57a25abd0e1c27608676221c4da2695fcfdcee124d9cf16d7f8b3ec1f"
+  },
+  {
+    "file": "native-vram-v1-consumer-release.json",
+    "bytes": 128,
+    "sha256": "ff1713b24a34b54310c768901088c163c8d544170d074563475ad1d1ec96022a"
+  },
+  {
+    "file": "native-vram-v1-producer-proof.json.lease.json",
+    "bytes": 168,
+    "sha256": "7bb768da89ec6e3d7d5192b1efcf963de8ad0634d8f791e6fe2aed97c0a9cc2d"
+  },
+  {
+    "file": "native-vram-v1-producer-release.json",
+    "bytes": 126,
+    "sha256": "f17921d8a97ae98c2989e25b2a831df74ccc51181c9354f11de656060fd6a835"
+  },
+  {
+    "file": "producer.stderr.log.gz",
+    "bytes": 337,
+    "sha256": "0856bf8eb71fe2445e5882abbd095477bb7e183f25647c82aaa203b201b34af1",
+    "uncompressed_bytes": 789,
+    "uncompressed_sha256": "561fad484a8abe74abe36cf6827ef6f4eade9713b46ee0652bdbd98da501445e"
+  },
+  {
+    "file": "producer.stdout.log.gz",
+    "bytes": 162,
+    "sha256": "1757eb977ae5aa942099dfb20077b00a4f6573a6a8cb7d1befb33ddf9c6fed5f",
+    "uncompressed_bytes": 206,
+    "uncompressed_sha256": "3bd62bc6fb07980e91a171707abfa90aabd4c05cd18eb80042305430418f6a87"
+  },
+  {
+    "file": "relay.log.gz",
+    "bytes": 344,
+    "sha256": "f884d9a3ec95cc76c9d32cc1f2d4577af753938e2ea8c60391113438f684fd54",
+    "uncompressed_bytes": 3236,
+    "uncompressed_sha256": "f278f3b0ff1d4773091a999aea4c8bcd57267717f8f3b89c9e52068acf9f3dba"
+  }
+]

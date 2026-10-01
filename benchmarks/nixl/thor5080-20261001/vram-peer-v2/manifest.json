@@ -1,0 +1,117 @@
+[
+  {
+    "file": "check_native_peer_read.py",
+    "bytes": 4291,
+    "sha256": "f6a020169d9cc0b3a10e42d18d56cab81caa8e9ce6cb0ff6b2a539b27029b27d"
+  },
+  {
+    "file": "consumer.stderr.log.gz",
+    "bytes": 20,
+    "sha256": "f1b651238a58fe290baec6c5e32f3bdb1943dd2bd582f02569231f7a757c7837",
+    "uncompressed_bytes": 0,
+    "uncompressed_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  {
+    "file": "consumer.stdout.log.gz",
+    "bytes": 377,
+    "sha256": "5846e9192998ef3b1b7740e204a40951c7d24afdacbfc0e4e42421016ab72853",
+    "uncompressed_bytes": 583,
+    "uncompressed_sha256": "650a31ce848424922beb0de565aee1fac706fba2b7437f9d5ba155532afc109a"
+  },
+  {
+    "file": "exit-codes.json",
+    "bytes": 31,
+    "sha256": "f2b16e85b94c30f5f2955aa5e958309091c01ffada27caa9b89d28b8d4fbb6cb"
+  },
+  {
+    "file": "native-vram-v2-consumer-proof.json",
+    "bytes": 240,
+    "sha256": "08e267af3103b2d04dcb808f53c8091a3aa37bd65979ae469978982b36debc53"
+  },
+  {
+    "file": "native-vram-v2-consumer-proof.json.lease.json",
+    "bytes": 170,
+    "sha256": "9756a39c8d6bd246057f688acb8b8fc6504dafafa286eb021c2301bc29a4964f"
+  },
+  {
+    "file": "native-vram-v2-consumer-proof.json.scope-end.json",
+    "bytes": 89,
+    "sha256": "fde63086c7286852d2fb10a0d4195b1cb5b21356bf2a2aff2d99bcda269f03e7"
+  },
+  {
+    "file": "native-vram-v2-consumer-release.json",
+    "bytes": 164,
+    "sha256": "cd001f04aafff34e90d9f833938f962c2569d712d65d07f51a655df34de65708"
+  },
+  {
+    "file": "native-vram-v2-producer-proof.json",
+    "bytes": 237,
+    "sha256": "b953b1cb662719bfa186f873fedb383be35b2921da59de359ec6716eb3b9d9a7"
+  },
+  {
+    "file": "native-vram-v2-producer-proof.json.lease.json",
+    "bytes": 168,
+    "sha256": "231d5cbabe70499daa0bf5080db23f47aa776d4fa3a478fe963d1117eb635801"
+  },
+  {
+    "file": "native-vram-v2-producer-proof.json.scope-end.json",
+    "bytes": 85,
+    "sha256": "df2e3793049d87716b9ebf823e6b94d3e88141f085102945e93a24e7ca138f7a"
+  },
+  {
+    "file": "native-vram-v2-producer-release.json",
+    "bytes": 126,
+    "sha256": "c20983f8bd25586dcd4659a158df389059c43360cc95f143fcde8cc70ddbdcbf"
+  },
+  {
+    "file": "peer_socks_connect.c",
+    "bytes": 2612,
+    "sha256": "3caf27bcdf6687d8a971326de1e5a1b179696e1972bf2213c1f96b75c87de404"
+  },
+  {
+    "file": "producer.stderr.log.gz",
+    "bytes": 20,
+    "sha256": "f1b651238a58fe290baec6c5e32f3bdb1943dd2bd582f02569231f7a757c7837",
+    "uncompressed_bytes": 0,
+    "uncompressed_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  {
+    "file": "producer.stdout.log.gz",
+    "bytes": 347,
+    "sha256": "93fae67946bc97892dca459ec830bd6dc9a2de5502fb1d87fbc9310771a652e0",
+    "uncompressed_bytes": 500,
+    "uncompressed_sha256": "74926f8190a7023bbbb9fd91ece04a222daaf3c8a6bbf8f456a1ed93f729cca9"
+  },
+  {
+    "file": "relay.log.gz",
+    "bytes": 80,
+    "sha256": "c903cde4da9bea31060618e85cf5501f185ebf2b9fc704efcad1e44e76465216",
+    "uncompressed_bytes": 100,
+    "uncompressed_sha256": "86dd1aa80f28825e22393bfb485a07a6f2e0ff4ee2a37c46ae444b19de24aaec"
+  },
+  {
+    "file": "run_native_peer_gate.py",
+    "bytes": 2141,
+    "sha256": "6945e0762d068152f04f7ccec48915913ed1ec2813a831761347325cde52450b"
+  },
+  {
+    "file": "run_peer_pair.py",
+    "bytes": 4084,
+    "sha256": "6e26090892d1a2c98e3af4a93546fb5bef3285d84f2315ffd9193055fd7a1680"
+  },
+  {
+    "file": "socket_stdio.py",
+    "bytes": 846,
+    "sha256": "37728c6d3170671a849d7d9eb671f9d2abd5e54f65afb12b46d753735b966977"
+  },
+  {
+    "file": "source-manifest.json",
+    "bytes": 755,
+    "sha256": "c344805f2ee383496e3b033389f9dc363f32154929d2776199def85aeeb9f3b5"
+  },
+  {
+    "file": "ssh_peer_relay.py",
+    "bytes": 3150,
+    "sha256": "2e331ed2be5f0cf237aa644f7d6b6b292e4ca643d3cf8a386810a8d506a7354c"
+  }
+]
