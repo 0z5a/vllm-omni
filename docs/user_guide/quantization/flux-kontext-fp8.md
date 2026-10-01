@@ -17,6 +17,9 @@ keep their original precision. A global FP8 setting does not enable T5 FP8.
 This path accepts an unquantized checkpoint and dynamic activation scaling only.
 
 The initial checkpoint load still precedes conversion, so this does not promise
-a reduction in peak loading memory. Tiny-encoder tests cover the conversion;
-official Kontext image-editing quality, encoder TP and offload combinations
-remain unvalidated.
+a reduction in peak loading memory. Full-checkpoint image-editing tests on
+Jetson AGX Thor covered TP1 with DiT-only layerwise offload. T5 FP8 reduced
+encoder memory by about 3.38 GiB but increased standalone encoder latency by
+16.7%; full-request latency varied by scene. Quantization can also remove small
+edited details, such as a flower on a helmet. Validate quality on your workload.
+Encoder TP and other offload combinations remain unvalidated.
