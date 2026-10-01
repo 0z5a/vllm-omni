@@ -9,14 +9,31 @@ Requests use 512 × 512 output, 50 diffusion steps, guidance 2 and seeds
 1234/1235 for two fixed prompts. Each prompt has one warmup and three
 measured requests.
 
+The current replay aligns AR and DiT with the checkpoint's `pretrain`
+template and uses the ordinary reference without diagnostic snapshots.
+Full-model acceptance remains pending:
+
+| Current path | Completed / measured | Median seconds | Speedup vs ordinary | Status |
+| --- | ---: | ---: | ---: | --- |
+| Local prefix recomputation | 8 / 6 | 14.654 | Pending | Complete |
+| Ordinary NIXL | Unconfirmed | Pending | Pending | Final logs unavailable after SSH interruption |
+| Native-page READ | 0 / 0 | Pending | Pending | Awaiting ordinary completion and GPU window |
+
+The saved local PNG hashes and shapes were rechecked offline, and each
+prompt's four images have identical pixels. The ordinary run's SSH session
+ended on a network error; its remote completion and Worker state have not
+been established. No new GPU run or model cleanup follows that uncertainty.
+Current records are in
+[`template-aligned`](../../../../benchmarks/nixl/h20x2-20261001/template-aligned/).
+
 The matched deployment uses native UVA offload with a 96 GiB AR budget,
 768 MiB AR KV, 2 GiB DiT KV and an AR batch limit of 512 tokens. This allows
 both new stages to run while the original AR Worker retains its claimed lease.
 The original Worker is not signalled or terminated. Both new Workers exit
 through their normal shutdown protocol after each path.
 
-**Accuracy has not passed; the following times are diagnostic observations,
-not an accepted model speedup.** All three paths generated eight images,
+**Historical diagnostic: accuracy failed for the earlier source and input
+template; these times are not an accepted model speedup.** All three paths generated eight images,
 including two warmups. Timing ratios compare the same CPU-offload deployment.
 The ordinary diagnostic additionally records source KV snapshots, so these
 timing ratios do not isolate transport performance.
@@ -31,8 +48,8 @@ The first dog image reaches PSNR 36.036 dB and SSIM 0.98635 against local
 recomputation. Coffee and repeated requests fail the PSNR ≥30 dB / SSIM ≥0.97
 gate, and ordinary/pages pixels are not identical. Repeated source KV snapshots
 are identical over every valid token in all 32 layers for all six measured
-requests; the remaining investigation concerns token semantics and destination
-consumption. The new token-ID comparison is CPU-tested and awaits model replay.
+requests. Token semantics and destination consumption were subsequently
+corrected and checked by the diagnostic below; matched replay remains pending.
 The weights remain until those gates pass.
 
 A subsequent CPU regression exposed router downcasting under an outer BF16
