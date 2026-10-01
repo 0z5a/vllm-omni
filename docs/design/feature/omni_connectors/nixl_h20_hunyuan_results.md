@@ -36,10 +36,32 @@ paths' Workers confirmed to exit naturally. Ordinary still fails: dog warmup
 PSNR/SSIM 39.206/0.99161, dog repeat 12.463/0.05892, coffee 10.621/0.06055.
 All 32 valid source KV layers repeat exactly, and received positive prefixes
 and negative BOS match their source bytes. Captured first-step writes and
-first denoise projections repeat exactly; later-step diagnosis is pending.
+first denoise projections repeat exactly.
 These synchronized diagnostic timings do not establish a speedup. Images,
 logs, byte comparisons, source hashes and environment audit are preserved in
 [`replacement-machine diagnosis`](../../../../benchmarks/nixl/h20x2-20261001/recovery-prefix-diagnostic/).
+
+A subsequent ordinary-only diagnosis saved full tensors at all 50 steps,
+introducing CPU copies and CUDA synchronization. All four images completed;
+both Workers exited naturally and both GPUs were released. For each prompt,
+all 50 predictions, scheduler inputs/outputs/sigmas, selected layers' Q/K/V
+hashes and VAE input/output repeat exactly. The saved pipeline tensors also
+reproduce the actual PNG pixels exactly through the installed postprocessor.
+
+| Replacement-machine diagnosis | Completed / measured | Median seconds | Speedup vs ordinary | Image quality vs matched local |
+| --- | ---: | ---: | --- | --- |
+| Local, prefix trace | 4 / 2 | 14.907 | Not isolated | Reference |
+| Ordinary, prefix trace | 4 / 2 | 14.743 | Not isolated | Failed |
+| Ordinary, full step trace | 4 / 2 | 19.404 | Not isolated | Dog 43.329 dB / 0.99576; coffee 47.659 dB / 0.99706 |
+
+The full-step synchronization changes the observed failure and satisfies the
+image thresholds for these four diagnostic images. It does not establish a
+production fix or accepted model speedup. Raw 817-file traces are backed up;
+compact images, comparison results, timings and SHA256 manifest are in
+[`step synchronization diagnosis`](../../../../benchmarks/nixl/h20x2-20261001/step-synchronization-diagnostic/).
+Matched local/ordinary/page-READ runs without diagnostic synchronization remain
+required. Further validation moves to RTX 5080 and Jetson Thor; their timings
+will be reported separately from H20.
 
 The matched deployment uses native UVA offload with a 96 GiB AR budget,
 768 MiB AR KV, 2 GiB DiT KV and an AR batch limit of 512 tokens. This allows
