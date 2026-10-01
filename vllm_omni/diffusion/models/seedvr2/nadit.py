@@ -254,15 +254,9 @@ def grouped_window_sdpa(
     """
     if ctx.local_windows == 0:
         return torch.empty_like(q)
-    lengths = ctx.joint_lengths
-    offsets = ctx.joint_cu_seqlens.to(torch.int64)
     out = torch.empty_like(q)
-    for length in torch.unique(lengths).tolist():
-        window_ids = torch.nonzero(lengths == length, as_tuple=False).flatten().tolist()
-        rows = torch.cat(
-            [torch.arange(int(offsets[i]), int(offsets[i]) + int(length), device=q.device) for i in window_ids]
-        )
-        num = len(window_ids)
+    for length, rows in ctx.sdpa_groups:
+        num = rows.numel() // length
         qq = q.index_select(0, rows).view(num, int(length), q.shape[1], q.shape[2]).transpose(1, 2)
         kk = k.index_select(0, rows).view(num, int(length), k.shape[1], k.shape[2]).transpose(1, 2)
         vv = v.index_select(0, rows).view(num, int(length), v.shape[1], v.shape[2]).transpose(1, 2)
