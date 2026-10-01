@@ -85,6 +85,55 @@ config = build_quant_config({
 })
 ```
 
+### SD3 and SD3.5 T5 encoder
+
+Opt in explicitly with a BF16/FP16 checkpoint:
+
+```python
+from vllm_omni import Omni
+
+omni = Omni(
+    model="stabilityai/stable-diffusion-3.5-medium",
+    quantization_config={"text_encoder_3": {"method": "fp8"}},
+)
+```
+
+The shared SD3 pipeline uses this option for SD3 and SD3.5. Both CLIP encoders remain unchanged.
+A global `quantization="fp8"` does not enable this encoder path.
+Only dynamic online FP8 is accepted; serialized FP8 and static activation
+scales are not supported here.
+
+Attention projections and FFN input projections use vLLM FP8 linear layers.
+Embeddings, relative position bias, normalization and FFN `wo` retain their
+original precision. Hugging Face casts activations to `wo.weight.dtype`, so
+quantizing `wo` would introduce an unscaled FP8 activation cast. `ignored_layers`
+uses full prefixes such as `text_encoder_3.encoder.block.0.layer.0.SelfAttention.q`.
+
+The encoder stays replicated, and its original checkpoint is loaded before
+conversion. This does not reduce checkpoint size or guarantee lower peak load
+memory. Validate generated output against the unquantized baseline for your
+model and workload before deployment.
+
+#### SD3.5-medium CUDA path E2E
+
+The official SD3.5-medium checkpoint was SHA-verified and run on one RTX 5090
+with FP8 for both `text_encoder_3` (144 linear modules) and `transformer`
+(217 linear modules). Each arm loaded the model separately, then generated
+1024×1024 images at 28 steps with eager execution, three warmups, and six
+measured requests. The same three prompts, seed 42, and guidance scale 4.0
+were used for A1, P1, P2, A2. A uses the reference quantizer with
+`VLLM_OMNI_FP8_ONLINE_DISABLE=1`; P uses the CUDA path with `0`. Times include
+text encoding, denoising, and VAE decoding, with GPU synchronization; model
+loading and PNG writing are excluded.
+
+| Arm | Reference A1 (s) | CUDA P1 (s) | CUDA P2 (s) | Reference A2 (s) | Pooled A/P speedup |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Full generation, mean ± SD | 3.715 ± 0.003 | 3.734 ± 0.009 | 3.735 ± 0.007 | 3.733 ± 0.015 | **0.997×** |
+
+All 12 paired images matched exactly by PNG SHA-256. Peak allocated GPU memory
+was 13.29 GiB in each arm. The measured latency difference was 0.3% in favor
+of the reference path.
+
 ## Parameters
 
 | Parameter | Methods | Description |
