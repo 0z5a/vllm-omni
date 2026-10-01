@@ -1,8 +1,13 @@
 [
   {
     "file": "README.md",
-    "bytes": 2314,
-    "sha256": "b8e1f56c789904886c0ca95e8305fc9cc29483812b8484d4a99df2d161bbacc0"
+    "bytes": 3047,
+    "sha256": "caa44f5ac785590e54541ddc4f6c406b9307f1c4edee126f5415931bd624a7e6"
+  },
+  {
+    "file": "arm-private-runtime-pins.json",
+    "bytes": 10825,
+    "sha256": "060cd5d95cfb4d1048ef3abd611b2388d290da84262012965c77b3514c318d37"
   },
   {
     "file": "check_disk_offload.py",
@@ -25,6 +30,23 @@
     "file": "cpu-regression-5080.xml",
     "bytes": 14110,
     "sha256": "f6045007f807ef66909a41ff3fdd1d1d165e29e54e2479334d6d0e8023d3f0fe"
+  },
+  {
+    "file": "cpu-regression-thor-v2.exit",
+    "bytes": 2,
+    "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+  },
+  {
+    "file": "cpu-regression-thor-v2.log.gz",
+    "bytes": 1859,
+    "sha256": "558c4b231081c27b880938c3b2ec9577059d6f066b356b35c3ff517a8ca4132d",
+    "uncompressed_bytes": 21795,
+    "uncompressed_sha256": "7bc5bbf61c31e9c839293f2a26a9b207e7a0bb49ef04914102604cad87c817ce"
+  },
+  {
+    "file": "cpu-regression-thor-v2.xml",
+    "bytes": 14107,
+    "sha256": "501c33d4d59be0d8dada4bd74e817ed7d14f354df28b35ec0f2ab8154d304b79"
   },
   {
     "file": "disk-offload-gpu-proof-v2.json",
@@ -72,12 +94,29 @@
     "sha256": "b25093aed39b0eb5eaa7130405477da40f78118df6656b7941f6413c9732938b"
   },
   {
+    "file": "overlay-offline-install-proof.json",
+    "bytes": 19555,
+    "sha256": "fdf6498bf52d5e66772883af63b181b678634dfa51c933c9f560834a22930d53"
+  },
+  {
+    "file": "overlay-offline-install.log.gz",
+    "bytes": 2352,
+    "sha256": "e648cc85a375136de57dddc9494011a0a7443fac5549973e2cbe24a39edb22b9",
+    "uncompressed_bytes": 11371,
+    "uncompressed_sha256": "066e0855d57c9b397b0c26e50c76cf431166595bb8ae105efa58414188ca96a3"
+  },
+  {
     "file": "readonly-runtime-versions.json",
     "bytes": 144,
     "sha256": "3d3dd5d40375ca679809bbde28b08b5d9fc5f2299f22a51c313389bd9a22791f"
   },
   {
     "file": "remote-shutdown-proof.json",
+    "bytes": 88,
+    "sha256": "b51b0fe4753234dc8c4f7fae6d466d3545b9f76a8ee312bf0ce64a2ecd6ba1c3"
+  },
+  {
+    "file": "remote-shutdown-thor-proof.json",
     "bytes": 88,
     "sha256": "b51b0fe4753234dc8c4f7fae6d466d3545b9f76a8ee312bf0ce64a2ecd6ba1c3"
   },

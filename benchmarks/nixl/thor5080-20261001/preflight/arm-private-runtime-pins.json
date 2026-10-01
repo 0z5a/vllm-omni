@@ -1,0 +1,556 @@
+{
+  "fixed_overlay": [
+    {
+      "package": "accelerate",
+      "expected": "1.12.0",
+      "actual": "1.12.0"
+    },
+    {
+      "package": "anthropic",
+      "expected": "1.8.0",
+      "actual": "1.8.0"
+    },
+    {
+      "package": "av",
+      "expected": "18.1.0",
+      "actual": "18.1.0"
+    },
+    {
+      "package": "better_profanity",
+      "expected": "0.7.0",
+      "actual": "0.7.0"
+    },
+    {
+      "package": "cache_dit",
+      "expected": "1.5.0",
+      "actual": "1.5.0"
+    },
+    {
+      "package": "cachetools",
+      "expected": "7.2.0",
+      "actual": "7.2.0"
+    },
+    {
+      "package": "cfgv",
+      "expected": "3.5.0",
+      "actual": "3.5.0"
+    },
+    {
+      "package": "cosmos_guardrail",
+      "expected": "0.3.1",
+      "actual": "0.3.1"
+    },
+    {
+      "package": "defusedxml",
+      "expected": "0.7.1",
+      "actual": "0.7.1"
+    },
+    {
+      "package": "diffusers",
+      "expected": "0.40.0",
+      "actual": "0.40.0"
+    },
+    {
+      "package": "distlib",
+      "expected": "0.4.3",
+      "actual": "0.4.3"
+    },
+    {
+      "package": "einx",
+      "expected": "0.4.3",
+      "actual": "0.4.3"
+    },
+    {
+      "package": "execnet",
+      "expected": "2.1.2",
+      "actual": "2.1.2"
+    },
+    {
+      "package": "fa3_fwd",
+      "expected": "0.0.3",
+      "actual": "0.0.3"
+    },
+    {
+      "package": "filelock",
+      "expected": "4.0.6",
+      "actual": "4.0.6"
+    },
+    {
+      "package": "flatbuffers",
+      "expected": "25.12.19",
+      "actual": "25.12.19"
+    },
+    {
+      "package": "frozendict",
+      "expected": "2.4.7",
+      "actual": "2.4.7"
+    },
+    {
+      "package": "fsspec",
+      "expected": "2026.9.0",
+      "actual": "2026.9.0"
+    },
+    {
+      "package": "gguf",
+      "expected": "0.19.0",
+      "actual": "0.19.0"
+    },
+    {
+      "package": "googleapis_common_protos",
+      "expected": "1.75.4",
+      "actual": "1.75.4"
+    },
+    {
+      "package": "grpcio",
+      "expected": "1.84.0",
+      "actual": "1.84.0"
+    },
+    {
+      "package": "httpcore2",
+      "expected": "2.13.1",
+      "actual": "2.13.1"
+    },
+    {
+      "package": "httpx2",
+      "expected": "2.13.1",
+      "actual": "2.13.1"
+    },
+    {
+      "package": "huggingface_hub",
+      "expected": "1.33.0",
+      "actual": "1.33.0"
+    },
+    {
+      "package": "id",
+      "expected": "1.6.1",
+      "actual": "1.6.1"
+    },
+    {
+      "package": "identify",
+      "expected": "2.6.20",
+      "actual": "2.6.20"
+    },
+    {
+      "package": "idna",
+      "expected": "3.20",
+      "actual": "3.20"
+    },
+    {
+      "package": "imageio",
+      "expected": "2.38.0",
+      "actual": "2.38.0"
+    },
+    {
+      "package": "imageio_ffmpeg",
+      "expected": "0.6.0",
+      "actual": "0.6.0"
+    },
+    {
+      "package": "importlib_metadata",
+      "expected": "9.0.1",
+      "actual": "9.0.1"
+    },
+    {
+      "package": "iniconfig",
+      "expected": "2.3.0",
+      "actual": "2.3.0"
+    },
+    {
+      "package": "instanttensor",
+      "expected": "0.2.0",
+      "actual": "0.2.0"
+    },
+    {
+      "package": "janus",
+      "expected": "2.0.0",
+      "actual": "2.0.0"
+    },
+    {
+      "package": "joblib",
+      "expected": "1.6.0",
+      "actual": "1.6.0"
+    },
+    {
+      "package": "kernels",
+      "expected": "0.16.1",
+      "actual": "0.16.1"
+    },
+    {
+      "package": "kernels_data",
+      "expected": "0.16.2",
+      "actual": "0.16.2"
+    },
+    {
+      "package": "lazy_loader",
+      "expected": "0.6",
+      "actual": "0.6"
+    },
+    {
+      "package": "mistral_common",
+      "expected": "1.12.0",
+      "actual": "1.12.0"
+    },
+    {
+      "package": "more_itertools",
+      "expected": "11.1.0",
+      "actual": "11.1.0"
+    },
+    {
+      "package": "msgpack",
+      "expected": "1.2.2",
+      "actual": "1.2.2"
+    },
+    {
+      "package": "multidict",
+      "expected": "6.9.1",
+      "actual": "6.9.1"
+    },
+    {
+      "package": "mypy",
+      "expected": "1.11.1",
+      "actual": "1.11.1"
+    },
+    {
+      "package": "mypy_extensions",
+      "expected": "1.1.0",
+      "actual": "1.1.0"
+    },
+    {
+      "package": "networkx",
+      "expected": "3.7",
+      "actual": "3.7"
+    },
+    {
+      "package": "nltk",
+      "expected": "3.10.3",
+      "actual": "3.10.3"
+    },
+    {
+      "package": "nodeenv",
+      "expected": "1.11.0",
+      "actual": "1.11.0"
+    },
+    {
+      "package": "omegaconf",
+      "expected": "2.3.1",
+      "actual": "2.3.1"
+    },
+    {
+      "package": "onnx",
+      "expected": "1.23.0",
+      "actual": "1.23.0"
+    },
+    {
+      "package": "onnxruntime",
+      "expected": "1.30.0",
+      "actual": "1.30.0"
+    },
+    {
+      "package": "openai",
+      "expected": "3.22.0",
+      "actual": "3.22.0"
+    },
+    {
+      "package": "opencv_python",
+      "expected": "5.0.0.93",
+      "actual": "5.0.0.93"
+    },
+    {
+      "package": "opentelemetry_api",
+      "expected": "1.45.0",
+      "actual": "1.45.0"
+    },
+    {
+      "package": "opentelemetry_exporter_http_transport",
+      "expected": "0.66b0",
+      "actual": "0.66b0"
+    },
+    {
+      "package": "opentelemetry_exporter_otlp",
+      "expected": "1.45.0",
+      "actual": "1.45.0"
+    },
+    {
+      "package": "opentelemetry_exporter_otlp_common",
+      "expected": "0.66b0",
+      "actual": "0.66b0"
+    },
+    {
+      "package": "opentelemetry_exporter_otlp_proto_common",
+      "expected": "1.45.0",
+      "actual": "1.45.0"
+    },
+    {
+      "package": "opentelemetry_exporter_otlp_proto_grpc",
+      "expected": "1.45.0",
+      "actual": "1.45.0"
+    },
+    {
+      "package": "opentelemetry_exporter_otlp_proto_http",
+      "expected": "1.45.0",
+      "actual": "1.45.0"
+    },
+    {
+      "package": "opentelemetry_proto",
+      "expected": "1.45.0",
+      "actual": "1.45.0"
+    },
+    {
+      "package": "opentelemetry_sdk",
+      "expected": "1.45.0",
+      "actual": "1.45.0"
+    },
+    {
+      "package": "opentelemetry_semantic_conventions",
+      "expected": "0.66b0",
+      "actual": "0.66b0"
+    },
+    {
+      "package": "peft",
+      "expected": "0.21.0",
+      "actual": "0.21.0"
+    },
+    {
+      "package": "platformdirs",
+      "expected": "4.12.2",
+      "actual": "4.12.2"
+    },
+    {
+      "package": "pluggy",
+      "expected": "1.6.0",
+      "actual": "1.6.0"
+    },
+    {
+      "package": "pre_commit",
+      "expected": "4.6.2",
+      "actual": "4.6.2"
+    },
+    {
+      "package": "prettytable",
+      "expected": "3.18.0",
+      "actual": "3.18.0"
+    },
+    {
+      "package": "propcache",
+      "expected": "0.5.4",
+      "actual": "0.5.4"
+    },
+    {
+      "package": "protobuf",
+      "expected": "7.36.2",
+      "actual": "7.36.2"
+    },
+    {
+      "package": "pyasn1",
+      "expected": "0.6.4",
+      "actual": "0.6.4"
+    },
+    {
+      "package": "pyjwt",
+      "expected": "2.15.0",
+      "actual": "2.15.0"
+    },
+    {
+      "package": "pyopenssl",
+      "expected": "26.4.0",
+      "actual": "26.4.0"
+    },
+    {
+      "package": "pytest",
+      "expected": "9.1.1",
+      "actual": "9.1.1"
+    },
+    {
+      "package": "pytest_asyncio",
+      "expected": "1.4.0",
+      "actual": "1.4.0"
+    },
+    {
+      "package": "pytest_mock",
+      "expected": "3.16.0",
+      "actual": "3.16.0"
+    },
+    {
+      "package": "pytest_xdist",
+      "expected": "3.8.0",
+      "actual": "3.8.0"
+    },
+    {
+      "package": "python_discovery",
+      "expected": "1.6.1",
+      "actual": "1.6.1"
+    },
+    {
+      "package": "rfc3161_client",
+      "expected": "1.0.9",
+      "actual": "1.0.9"
+    },
+    {
+      "package": "rfc8785",
+      "expected": "0.1.4",
+      "actual": "0.1.4"
+    },
+    {
+      "package": "ruff",
+      "expected": "0.14.10",
+      "actual": "0.14.10"
+    },
+    {
+      "package": "s3tokenizer",
+      "expected": "0.3.0",
+      "actual": "0.3.0"
+    },
+    {
+      "package": "scikit_image",
+      "expected": "0.26.0",
+      "actual": "0.26.0"
+    },
+    {
+      "package": "scipy",
+      "expected": "1.18.1",
+      "actual": "1.18.1"
+    },
+    {
+      "package": "securesystemslib",
+      "expected": "1.5.1",
+      "actual": "1.5.1"
+    },
+    {
+      "package": "sentry_sdk",
+      "expected": "2.71.0",
+      "actual": "2.71.0"
+    },
+    {
+      "package": "setuptools_scm",
+      "expected": "10.3.4",
+      "actual": "10.3.4"
+    },
+    {
+      "package": "sigstore",
+      "expected": "4.5.0",
+      "actual": "4.5.0"
+    },
+    {
+      "package": "sigstore_models",
+      "expected": "0.0.6",
+      "actual": "0.0.6"
+    },
+    {
+      "package": "sigstore_rekor_types",
+      "expected": "0.0.18",
+      "actual": "0.0.18"
+    },
+    {
+      "package": "soundfile",
+      "expected": "0.14.0",
+      "actual": "0.14.0"
+    },
+    {
+      "package": "soxr",
+      "expected": "1.1.0",
+      "actual": "1.1.0"
+    },
+    {
+      "package": "starlette",
+      "expected": "1.7.0",
+      "actual": "1.7.0"
+    },
+    {
+      "package": "tifffile",
+      "expected": "2026.9.20",
+      "actual": "2026.9.20"
+    },
+    {
+      "package": "tokenizers",
+      "expected": "0.22.2",
+      "actual": "0.22.2"
+    },
+    {
+      "package": "tomlkit",
+      "expected": "0.15.1",
+      "actual": "0.15.1"
+    },
+    {
+      "package": "torch_einops_utils",
+      "expected": "0.1.34",
+      "actual": "0.1.34"
+    },
+    {
+      "package": "torchsde",
+      "expected": "0.2.6",
+      "actual": "0.2.6"
+    },
+    {
+      "package": "trampoline",
+      "expected": "0.1.2",
+      "actual": "0.1.2"
+    },
+    {
+      "package": "transformers",
+      "expected": "5.14.1",
+      "actual": "5.14.1"
+    },
+    {
+      "package": "tuf",
+      "expected": "7.0.1",
+      "actual": "7.0.1"
+    },
+    {
+      "package": "urllib3",
+      "expected": "2.8.0",
+      "actual": "2.8.0"
+    },
+    {
+      "package": "uvicorn",
+      "expected": "0.53.0",
+      "actual": "0.53.0"
+    },
+    {
+      "package": "vcs_versioning",
+      "expected": "2.5.0",
+      "actual": "2.5.0"
+    },
+    {
+      "package": "virtualenv",
+      "expected": "21.10.0",
+      "actual": "21.10.0"
+    },
+    {
+      "package": "wcwidth",
+      "expected": "0.8.4",
+      "actual": "0.8.4"
+    },
+    {
+      "package": "x_transformers",
+      "expected": "2.28.8",
+      "actual": "2.28.8"
+    },
+    {
+      "package": "xgrammar",
+      "expected": "0.2.8",
+      "actual": "0.2.8"
+    },
+    {
+      "package": "yarl",
+      "expected": "1.25.1",
+      "actual": "1.25.1"
+    },
+    {
+      "package": "zipp",
+      "expected": "4.1.0",
+      "actual": "4.1.0"
+    }
+  ],
+  "core": {
+    "torch": "2.13.0+cu130",
+    "vllm": "0.30.0",
+    "nixl": "1.3.0",
+    "nixl-cu13": "1.3.0",
+    "transformers": "5.14.1",
+    "tokenizers": "0.22.2",
+    "diffusers": "0.40.0",
+    "antlr4-python3-runtime": "4.9.3",
+    "omegaconf": "2.3.1"
+  },
+  "matched": 108
+}

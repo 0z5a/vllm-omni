@@ -8,9 +8,10 @@ completed model E2E or a model speedup measurement.
 | Check | Execution | Result | Model speedup |
 | --- | --- | --- | --- |
 | Hunyuan request, routing and native NIXL ownership regressions | 5080 host CPU, 76 cases | 76 passed, zero skips, 281.883 s including setup | Not measured |
+| Same Hunyuan/native NIXL regressions | Thor CPU, 76 cases | 76 passed, zero skips, 15.447 s including setup | Not measured |
 | Disk-backed native weight offload | RTX 5080, six BF16 linear forwards | Exact outputs; modified weights restored to the same backing file | Not measured |
 | Native UCX READ across architectures | 5080 host DRAM → Thor DRAM, 1 MiB | Exact bytes; both processes exited normally without a CUDA context | Not measured |
-| Remote DiT normal shutdown delivery | 5080 host CPU, peer connects after 1 s | Shutdown received; contexts closed; test exited normally without a CUDA context | Not measured |
+| Remote DiT normal shutdown delivery | Both hosts' CPUs, peer connects after 1 s | Shutdown received; contexts closed; tests exited normally without a CUDA context | Not measured |
 | Full AR → 50-step DiT → VAE | RTX 5080 + Thor | Pending checkpoint completion and GPU availability | Pending |
 
 The offload check also verifies FP32, BF16 and FP8 CPU values and strides.
@@ -27,6 +28,15 @@ encoder with a task-private flush helper. It verifies delayed-peer delivery
 on one host; cross-host model shutdown remains pending. Its CPU entry disables
 discovery of the unused optional EP binary, which cannot load against the
 readonly Torch build. The deployment uses TP1 without expert parallelism.
+
+Thor's private overlay matches all 108 selected dependency pins, including
+Transformers 5.14.1, tokenizers 0.22.2 and Diffusers 0.40.0. Both hosts use
+vLLM 0.30.0 and NIXL 1.3.0. Readonly Torch is 2.13.0+cu130 on Thor and
+2.13.0+cu132 on the 5080; this is not the complete earlier H20 environment.
+The CPU suite durations include imports and different host filesystems and
+caches, so their ratio is excluded from performance comparisons. The initial
+Thor collection failed because the private source copy omitted test helpers;
+copying the existing helpers resolved collection before this passing run.
 
 The production source is unchanged from `18f49695af1d542a0c4becea44da5a6af02afd47`.
 Raw JUnit, transport logs, offload helpers and SHA-256 manifests are included

@@ -170,7 +170,8 @@ geometry/cancellation run (`page-integration-*`) measured 2.51×; shared-host
 latency varies, so these runs do not isolate a speed change from refactoring.
 
 The remaining full-model replay moves to an RTX 5080 AR producer and Jetson
-Thor DiT/VAE consumer. The new host passes 76 CPU regressions, six exact
+Thor DiT/VAE consumer. Both hosts pass the same 76 CPU regressions and normal
+shutdown delivery checks; the 5080 also passes six exact
 BF16 disk-backed native offload forwards, and a cross-architecture 1 MiB
 native UCX DRAM READ with exact bytes and normal process exits. Native VRAM
 READ and the full checkpoint replay remain pending; these preflight checks
