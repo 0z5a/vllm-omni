@@ -35,6 +35,13 @@ requests; the remaining investigation concerns token semantics and destination
 consumption. The new token-ID comparison is CPU-tested and awaits model replay.
 The weights remain until those gates pass.
 
+A subsequent CPU regression exposed router downcasting under an outer BF16
+autocast: both AR and DiT selected the wrong expert for close FP32 scores.
+The gate matmul now explicitly disables autocast. All five routing tests pass,
+including the two cases that failed before this change. Because the DiT
+computation changed, the local baseline and both transfer paths require replay;
+the table above remains evidence for the earlier source manifests.
+
 All 24 images, timings, metrics, accuracy scores and per-path source hashes are
 preserved in
 [`routing-diagnostic`](../../../../benchmarks/nixl/h20x2-20261001/routing-diagnostic/).

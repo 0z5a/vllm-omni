@@ -1741,7 +1741,8 @@ class HunYuanSparseMoeBlock(nn.Module):
         hidden_states = hidden_states.view(-1, hidden_dim)
 
         # router_logits: (num_tokens, n_experts)
-        router_logits, _ = self.gate(hidden_states.float())
+        with torch.autocast(device_type=hidden_states.device.type, enabled=False):
+            router_logits, _ = self.gate(hidden_states.float())
         routing = pack_hunyuan_topk(router_logits, self.top_k, hidden_states.dtype)
         final_hidden_states = self.experts(hidden_states=hidden_states, router_logits=routing)
 

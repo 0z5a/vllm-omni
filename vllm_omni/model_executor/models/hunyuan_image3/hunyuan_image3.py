@@ -1310,11 +1310,9 @@ class HunyuanImage3SparseMoeBlock(HunYuanSparseMoeBlock):
         hidden_dim = hidden_states.shape[-1]
         hidden_states = hidden_states.view(-1, hidden_dim)
 
-        # FP32 router (HF: `with torch.autocast('cuda', enabled=False): ...`
-        # plus `if self.wg.weight.dtype == torch.float32: hidden_states.float()`).
-        # ``self.gate.weight`` is fp32 (params_dtype=torch.float32), so the
-        # ReplicatedLinear matmul runs in fp32 once we cast the input.
-        router_logits, _ = self.gate(hidden_states.float())
+        # Match HF's FP32 router even inside an outer BF16 autocast.
+        with torch.autocast(device_type=hidden_states.device.type, enabled=False):
+            router_logits, _ = self.gate(hidden_states.float())
 
         packed_routing = pack_hunyuan_topk(router_logits, self.top_k, hidden_states.dtype)
 

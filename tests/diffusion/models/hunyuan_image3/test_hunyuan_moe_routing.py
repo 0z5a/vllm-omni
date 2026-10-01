@@ -16,7 +16,8 @@ pytestmark = [pytest.mark.core_model, pytest.mark.cpu]
 
 
 @pytest.mark.parametrize("stage", [ar, dit], ids=["ar", "dit"])
-def test_close_router_scores_select_the_same_fp32_expert(monkeypatch, stage):
+@pytest.mark.parametrize("autocast", [False, True], ids=["fp32", "bf16-autocast"])
+def test_close_router_scores_select_the_same_fp32_expert(monkeypatch, stage, autocast):
     weights = torch.tensor([[1.0, 0.0], [1.001, 0.0], [0.0, 0.0]])
     assert weights.bfloat16()[:, 0].argmax().item() == 0
     config = SimpleNamespace(
@@ -66,7 +67,8 @@ def test_close_router_scores_select_the_same_fp32_expert(monkeypatch, stage):
     cls = ar.HunyuanImage3SparseMoeBlock if stage is ar else dit.HunYuanSparseMoeBlock
     block = cls(config, layer_id=0)
     hidden = torch.tensor([[1.0, 0.0]], dtype=torch.bfloat16)
-    torch.testing.assert_close(block(hidden), torch.ones_like(hidden), rtol=0, atol=0)
+    with torch.autocast("cpu", dtype=torch.bfloat16, enabled=autocast):
+        torch.testing.assert_close(block(hidden), torch.ones_like(hidden), rtol=0, atol=0)
 
 
 def test_routing_weights_keep_hf_model_dtype_rounding():
