@@ -435,6 +435,7 @@ class DiffusersPipelineLoader(HWRLoaderMixin):
         """
         from vllm.model_executor.model_loader.reload.layerwise import (
             get_layerwise_info,
+            initialize_online_processing,
         )
 
         pending = {
@@ -443,6 +444,10 @@ class DiffusersPipelineLoader(HWRLoaderMixin):
             if getattr(getattr(module, "quant_method", None), "uses_meta_device", False)
             and get_layerwise_info(module).can_load()
         }
+        # Linear layers register bias after create_weights initializes online
+        # loading. Wrap it before bias-first checkpoints start being consumed.
+        for module in pending:
+            initialize_online_processing(module)
         offloaded = 0
 
         def offload_completed() -> None:

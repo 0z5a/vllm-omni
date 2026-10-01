@@ -675,6 +675,48 @@ def test_stream_online_quant_weights_offloads_layers_after_processing():
     assert events == ["first", "second"]
 
 
+def test_stream_online_quant_weights_includes_late_bias():
+    from vllm.model_executor.model_loader.reload.layerwise import initialize_online_processing
+    from vllm.model_executor.model_loader.weight_utils import default_weight_loader
+
+    events: list[str] = []
+
+    class _OnlineQuantMethod:
+        uses_meta_device = True
+
+    class _LateBiasLayer(nn.Module):
+        def __init__(self, name: str):
+            super().__init__()
+            self.name = name
+            self.quant_method = _OnlineQuantMethod()
+            self.weight = nn.Parameter(torch.empty(2, 2, device="meta"), requires_grad=False)
+            self.weight.weight_loader = default_weight_loader
+            initialize_online_processing(self)
+            self.bias = nn.Parameter(torch.zeros(2), requires_grad=False)
+            self.bias.weight_loader = default_weight_loader
+
+        def to(self, *args, **kwargs):
+            events.append(self.name)
+            return super().to(*args, **kwargs)
+
+    model = nn.ModuleDict({"first": _LateBiasLayer("first"), "second": _LateBiasLayer("second")})
+    weights = [
+        ("first.bias", torch.ones(2)),
+        ("first.weight", torch.ones(2, 2)),
+        ("second.bias", torch.full((2,), 2.0)),
+        ("second.weight", torch.full((2, 2), 2.0)),
+    ]
+    for name, value in DiffusersPipelineLoader._stream_online_quant_weights_to_cpu(model, weights):
+        module_name, parameter_name = name.split(".")
+        parameter = dict(model[module_name].named_parameters())[parameter_name]
+        parameter.weight_loader(parameter, value)
+        if name == "second.bias":
+            assert events == ["first"]
+    assert events == ["first", "second"]
+    for name, value in weights:
+        torch.testing.assert_close(dict(model.named_parameters())[name], value)
+
+
 def test_process_weights_skips_completed_online_quant_layer(monkeypatch):
     from unittest.mock import Mock
 
