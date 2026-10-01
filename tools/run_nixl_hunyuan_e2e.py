@@ -14,14 +14,14 @@ import numpy as np
 import yaml
 from nixl_no_kill import install
 from PIL import Image
-from transformers import AutoTokenizer
 from vllm import SamplingParams
 
 install()  # Also runs when multiprocessing imports this module in a child.
 
+from nixl_hunyuan_prompt import build_ar_tokens, load_prompt_builder  # noqa: E402
+
 from vllm_omni import Omni  # noqa: E402
 from vllm_omni.diffusion.models.hunyuan_image3.prompt_utils import (  # noqa: E402
-    build_prompt_tokens,
     resolve_stop_token_ids,
 )
 from vllm_omni.diffusion.utils.image_output import extract_images_from_outputs  # noqa: E402
@@ -45,7 +45,7 @@ def run(model: str, config_path: Path, out: Path, mode: str, steps: int, repeats
                 stage["kv_transfer_config"]["kv_connector_module_path"] = "nixl_page_reference"
     run_config = out / "deploy.yaml"
     run_config.write_text(yaml.safe_dump(config, sort_keys=False))
-    tokenizer = AutoTokenizer.from_pretrained(model, trust_remote_code=True)
+    tokenizer, sequence_template = load_prompt_builder(model)
     started = time.perf_counter()
     omni = Omni(
         model=model, deploy_config=str(run_config), trust_remote_code=True, init_timeout=1800, stage_init_timeout=1800
@@ -54,7 +54,7 @@ def run(model: str, config_path: Path, out: Path, mode: str, steps: int, repeats
     records = []
     for iteration in range(-1, repeats):
         for prompt_index, text in enumerate(PROMPTS):
-            prompt = build_prompt_tokens(text, tokenizer, task="t2i", bot_task="think", sys_type="None")
+            prompt_tokens = build_ar_tokens(tokenizer, text, sequence_template)
             sampling = [clone_sampling_params(params) for params in omni.default_sampling_params_list]
             for params in sampling:
                 if isinstance(params, OmniDiffusionSamplingParams):
@@ -68,7 +68,7 @@ def run(model: str, config_path: Path, out: Path, mode: str, steps: int, repeats
                     params.stop_token_ids = resolve_stop_token_ids(
                         task="t2i",
                         bot_task="think",
-                        tokenizer=tokenizer,
+                        tokenizer=tokenizer.tokenizer,
                         image_size="512x512",
                     )
             start = time.perf_counter()
@@ -76,8 +76,8 @@ def run(model: str, config_path: Path, out: Path, mode: str, steps: int, repeats
                 omni.generate(
                     {
                         "prompt": text,
-                        "prompt_token_ids": prompt.token_ids,
-                        "use_system_prompt": prompt.system_prompt_type,
+                        "prompt_token_ids": prompt_tokens,
+                        "use_system_prompt": "None",
                         "modalities": ["image"],
                         "height": 512,
                         "width": 512,
@@ -135,6 +135,7 @@ def run(model: str, config_path: Path, out: Path, mode: str, steps: int, repeats
             {
                 "mode": mode,
                 "model": model,
+                "sequence_template": sequence_template,
                 "initialization_s": initialization_s,
                 "request_count": len(records),
                 "metrics": metrics,

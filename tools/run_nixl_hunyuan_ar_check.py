@@ -9,13 +9,13 @@ from pathlib import Path
 
 import yaml
 from nixl_no_kill import install
-from transformers import AutoTokenizer
 from vllm import SamplingParams
 
 install()
 
+from nixl_hunyuan_prompt import build_ar_tokens, load_prompt_builder  # noqa: E402
+
 from vllm_omni import Omni  # noqa: E402
-from vllm_omni.diffusion.models.hunyuan_image3.prompt_utils import build_prompt_tokens  # noqa: E402
 
 
 def main() -> None:
@@ -30,15 +30,13 @@ def main() -> None:
     config = {"pipeline": "hunyuan_image3_ar", "async_chunk": False, "stages": [stage]}
     path = args.out / "deploy.yaml"
     path.write_text(yaml.safe_dump(config, sort_keys=False))
-    tokenizer = AutoTokenizer.from_pretrained(args.model, trust_remote_code=True)
-    prompt = build_prompt_tokens(
-        "A brown and white dog is running on the grass", tokenizer, task="t2i", bot_task="think", sys_type="None"
-    )
+    tokenizer, sequence_template = load_prompt_builder(args.model)
+    prompt_tokens = build_ar_tokens(tokenizer, "A brown and white dog is running on the grass", sequence_template)
     started = time.perf_counter()
     omni = Omni(model=args.model, deploy_config=str(path), trust_remote_code=True, init_timeout=1800)
     outputs = list(
         omni.generate(
-            {"prompt_token_ids": prompt.token_ids, "modalities": ["text"]},
+            {"prompt_token_ids": prompt_tokens, "modalities": ["text"]},
             sampling_params_list=[SamplingParams(temperature=0, max_tokens=8, seed=1234)],
         )
     )

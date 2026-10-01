@@ -42,6 +42,24 @@ including the two cases that failed before this change. Because the DiT
 computation changed, the local baseline and both transfer paths require replay;
 the table above remains evidence for the earlier source manifests.
 
+The token-ID/autocast diagnostic subsequently completed four 50-step images.
+Each prompt's repeated image is pixel-identical to its warmup. Against the
+earlier local images, dog/coffee PSNR is 42.55/36.18 dB and SSIM is
+0.99498/0.98332. All eight CFG receives are byte-identical to their source;
+all sixteen captured first-layer rows have exact KV writes and slot mappings,
+with CPU-reference attention RMSE at most 0.00001023. This diagnostic does
+not replace the matched three-path gate.
+
+Its token trace also exposes an input-template mismatch: the AR validation
+builder used Instruct role labels while this checkpoint configures `pretrain`.
+Validation now builds AR inputs with the same checkpoint-configured tokenizer
+template as DiT. The AR preflight and E2E driver share that builder. Real
+tokenizer prefix checks pass for both prompts under both supported templates.
+The next matched local/ordinary/pages replay uses these corrected inputs and
+the normal reference connector without CPU snapshots. Diagnostic images,
+byte-proof summaries, CPU reference results and source hashes are preserved in
+[`token-autocast-diagnostic`](../../../../benchmarks/nixl/h20x2-20261001/token-autocast-diagnostic/).
+
 All 24 images, timings, metrics, accuracy scores and per-path source hashes are
 preserved in
 [`routing-diagnostic`](../../../../benchmarks/nixl/h20x2-20261001/routing-diagnostic/).
