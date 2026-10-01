@@ -4,6 +4,21 @@ The native `SeedVR2Pipeline` restores an input video using the released 3B FP16
 NaDiT and s8/c16/t4 causal VAE. It uses fixed checkpoint conditioning, CFG=1,
 and one Euler step. Text prompts do not change conditioning.
 
+## Code ownership
+
+The model package groups each computation stage in one file: `nadit.py` owns
+window geometry, routing, RoPE and the DiT; `vae.py` owns the causal VAE and its
+temporal/spatial tiling; `pipeline_seedvr2.py` owns input validation, decoding,
+conditioning, the Euler step and colour transfer. `config.py` owns model limits,
+and `long_video.py` owns the optional HTTP job/window lifecycle. Framework code
+only registers the model, its pre/postprocessors, metadata and HTTP routes.
+
+`color_correction_method` is model-specific: online requests use the existing
+`extra_params` JSON object, and offline sampling uses
+`extra_args={"color_correction_method": "wavelet"}`. The default remains `lab`;
+invalid values are rejected by model-side validation before inference. It is
+not a top-level field in the common video API.
+
 ## Model directory
 
 Place these files together, retaining their names:
@@ -78,16 +93,45 @@ frame is repeated internally to reach 4n+1, and the decoded output is cropped ba
 to the original frame count. Five frames remain five; six frames are internally
 padded to nine and return six.
 
+## Colour correction
+
+Restoration reproduces detail faithfully but shifts global colour, so the
+resized input is used to transfer colour back onto the restored frames. This is
+on by default; pass `extra_params={"color_correction_method":"wavelet"}` to choose how:
+
+| Value | Behavior |
+| --- | --- |
+| `lab` (default) | Swaps the lowest frequency band, then histogram-matches CIELAB chroma. Most faithful colour. |
+| `wavelet` | Swaps only the lowest frequency band, keeping every higher band from the restoration. |
+| `adain` | Matches per-channel mean and standard deviation. Cheapest, and corrects only a global tint. |
+| `none` | Skips the transfer and returns raw restored colour. |
+
+```bash
+curl --fail-with-body http://127.0.0.1:8098/v1/videos/sync \
+  -F 'prompt= ' -F 'input_references=@input.mp4;type=video/mp4' \
+  -F 'size=224x128' -F 'num_inference_steps=1' -F 'guidance_scale=1' \
+  -F 'seed=7723' -F 'extra_params={"color_correction_method":"wavelet"}' \
+  --output restored.mp4
+```
+
+`lab` and `wavelet` retain the restored high-frequency detail; `adain` measurably
+softens it because it rescales every frequency. The transfer runs in FP32 after
+the VAE decode and costs a fraction of a second per frame. Unrecognized values
+are rejected with 400 before the clip is admitted. Correction cannot recover
+colour lost to 4:2:0 chroma subsampling in the returned MP4, which dominates the
+remaining deviation once the transfer is applied.
+
 ## Request admission
 
 The default 3B limit is 848×480 pixels per input or output frame and 2,035,200
-pixels across the requested output clip. With four-rank window SP,
-`vae_patch_parallel_size=4`, and VAE tiling, the per-frame limit rises to
-2560×1472 and the clip budget to 18,841,600 pixels. Both budgets count temporal
+pixels across the requested output clip. With VAE tiling and window SP of at
+least four ranks whose `vae_patch_parallel_size` matches `ulysses_degree`, the
+per-frame limit rises to 2560×1472 and the clip budget to 18,841,600 pixels.
+Raising the degree never lowers the budget. Both budgets count temporal
 padding to 4n+1 frames: the default admits up to five 848×480 frames or 93
-192×112 frames; the SP4 profile admits up to 45 848×480 frames or five
+192×112 frames; the sharded profile admits up to 45 848×480 frames or five
 2560×1472 frames. A 16-frame 1280×720 or 720×1280 clip pads to 17 frames and
-uses 15,667,200 of the SP4 clip's 18,841,600 pixels. Both orientations passed
+uses 15,667,200 of the sharded clip's 18,841,600 pixels. Both orientations passed
 original-size HTTP restoration on four RTX 5090 GPUs with VAE tiling and height
 sharding. An independent 257-frame cap bounds per-frame decoder work for tiny
 inputs. The other longer combinations above are admission bounds, not completed
@@ -96,10 +140,83 @@ declared duration, frame count, and input dimensions when available, then
 enforces the limits as frames arrive. Requests outside these budgets return 400
 before building the resized whole-clip tensor.
 
-## Temporal and spatial VAE tiling
+The per-frame cap is calibrated for the smallest qualified device. The clip cap
+scales with the smallest visible device's memory: it stays at the calibrated
+five 2560×1472 frames on a 32 GB device and grows on larger ones from a
+per-rank memory model measured at SP4 (see `sharded_budget` in
+`vllm_omni/diffusion/models/seedvr2/pipeline_seedvr2.py`), which keeps 15% of the device
+free and leaves room for allocator fragmentation. It stops at 2,118,057,984
+padded pixels (513 frames at 1536×2688), the largest clip validated on four
+B300 ranks; 80 GB devices get about 1.08 billion and 141 GB or larger devices
+reach the cap. Clips at the cap in both memory regimes (561 frames at 2560×1472
+and 2,049 frames at 768×1344) peaked at 54 GiB of activations per rank. Set
+these before starting the server to override the caps; each must be a positive
+integer, and validating an override on the target hardware is the operator's
+responsibility:
 
-The replicated FP16 CUDA VAE fuses framewise GroupNorm and SiLU. Height-sharded
-execution retains distributed normalization; CPU execution uses PyTorch.
+| Variable | Default | Bounds |
+| --- | --- | --- |
+| `VLLM_OMNI_SEEDVR2_SHARDED_FRAME_PIXELS` | 3,768,320 | Pixels per frame on the sharded profile |
+| `VLLM_OMNI_SEEDVR2_SHARDED_CLIP_PIXELS` | 18,841,600, scaled up with device memory | Padded pixels per clip on the sharded profile |
+| `VLLM_OMNI_SEEDVR2_MAX_FRAMES` | 257 | Decoder-work frame cap, all profiles |
+
+The sharded profile applies to any `ulysses_degree` of four or more, so eight
+ranks inherit a budget calibrated on four. Raising these caps trades a 400 for a
+CUDA OOM: the admission check passes and the request fails later inside the DiT
+forward or the VAE decode, which can abort every in-flight request on the engine
+rather than only the oversized one. Before serving with raised caps, restore the
+largest clip they admit once and confirm it completes.
+
+A 362-frame 1536×2688 2x upscale was restored on eight ranks with
+`ulysses_degree=8`, VAE tiling and height sharding, using 4,300,000 for the
+per-frame cap, the memory-scaled clip cap and 2,000 for the frame cap. The long-video
+route sizes its windows from these caps, so the clip cap sets how many frames
+each window covers.
+
+## Long-video restoration
+
+`POST /v1/seedvr2/restore-long` accepts one uploaded 24 FPS video, a blank
+prompt, `size`, `num_frames` (up to 7,200), and optional `loop_input=true` and
+`extra_params={"color_correction_method":"wavelet"}`, which it applies to every window.
+An output frame must fit the sharded per-frame pixel cap. It returns a job ID; poll
+`GET /v1/seedvr2/restore-long/{id}` and download the completed MP4 from
+`GET /v1/seedvr2/restore-long/{id}/content`. `DELETE
+/v1/seedvr2/restore-long/{id}` asks a running job to stop; it settles as
+`cancelled` at the next window boundary. A job whose owning process is gone,
+such as after a server restart, reports `failed` on the next poll.
+
+Jobs live on the API server's local disk, so the route requires
+`--api-server-count 1` and runs one job at a time. Storage is bounded by an
+upload cap and by deleting settled jobs once they age out:
+
+| Variable | Default | Bounds |
+| --- | --- | --- |
+| `VLLM_OMNI_SEEDVR2_LONG_OUTPUT_DIR` | system temp dir | Parent of the job directories |
+| `VLLM_OMNI_SEEDVR2_LONG_MAX_UPLOAD_BYTES` | 8 GiB | Largest accepted upload |
+| `VLLM_OMNI_SEEDVR2_LONG_JOB_TTL_SECONDS` | 3,600 | Age at which a settled job is deleted |
+| `VLLM_OMNI_SEEDVR2_LONG_MAX_WINDOW` | 121 | Longest model window, in frames |
+
+Download a completed job before its TTL expires; the sweep runs on each new
+submission and removes the output with the job directory.
+
+The service sends windows through the existing SeedVR2 endpoint, blends four
+frames at each boundary, and writes one continuous MP4 encoder. Each window is
+the longest 4n+1-frame clip that the sharded clip-pixel cap, the frame cap and
+`VLLM_OMNI_SEEDVR2_LONG_MAX_WINDOW` admit at the output size. Every window pays
+a fixed round trip through the serving stack and recomputes its overlap, and a
+window of four latent frames gets no temporal attention in the DiT, so raise
+the clip cap as far as the device allows. Windows carry source pixels, which
+the model resizes on the device, and cross the endpoint losslessly; only the
+final MP4 is compressed. The next window is restored while the previous one is
+blended and encoded. It repeats source frames and audio only when
+`loop_input=true`. The sharded serving profile above (VAE tiling, VAE height
+sharding, Ulysses degree of at least four) is required. This route keeps a
+window within the whole-clip pixel budget; it does not raise the
+`/v1/videos/sync` 257-frame or pixel limits. The long route
+uses fixed one-step, CFG=1 conditioning and requires `imageio[ffmpeg]` for
+audio muxing. The 7,200-frame 768×1344 case is still undergoing full GPU E2E.
+
+## Temporal and spatial VAE tiling
 
 Add `--vae-use-tiling` to bound VAE intermediate activations along time. The
 encoder processes nine frames first, then eight per chunk; the decoder processes
@@ -129,7 +246,7 @@ parallel outputs are numerically close rather than bitwise identical.
 | Property | Contract |
 | --- | --- |
 | Weights / dtype | Released 3B DiT and VAE, FP16 |
-| Reference semantics | C0 whole clip, no color correction |
+| Reference semantics | C0 whole clip, colour correction on by default |
 | Video input | One uploaded file, or offline TCHW RGB floats / PIL frames |
 | Timing | Constant frame rate, increasing PTS; normalize the video origin to zero |
 | Audio | First mono/stereo track, aligned by source PTS, cropped to the video interval, re-encoded as AAC |
@@ -143,8 +260,8 @@ Unsupported engine modes are rejected before process hooks and worker creation.
 windows to ranks; the specialized head-sharded path is a dependent change.
 Ring and AllGather-KV are unsupported.
 
-The practical P0 reference's five-frame batching, overlap, LAB correction, and
-CPU swapping are separate execution semantics. Temporal tiling and VAE patch
+The practical P0 reference's five-frame batching, overlap, and CPU swapping are
+separate execution semantics. Temporal tiling and VAE patch
 parallelism reduce activation peaks but do not bound the whole-clip DiT memory.
 Large output frames may still exceed device capacity.
 
@@ -159,5 +276,9 @@ service to restore availability; automatic rank recovery is not provided.
 
 See the [RTX 5090 recipe](https://github.com/vllm-project/vllm-omni/blob/main/recipes/ByteDance/SeedVR2-RTX-5090.md) for the
 input/output contract, complete serving command, and media checks. The local
-checkpoint test in `tests/diffusion/models/seedvr2/test_seedvr2_e2e.py` checks
-3B transformer SP parity. The PR test result covers complete HTTP restoration.
+tests in `tests/diffusion/models/seedvr2/test_seedvr2_e2e.py` exercise the full
+3B pipeline, all colour modes, and HTTP restoration with USP 1 and 8.
+
+## Replicated VAE frame normalization
+
+The replicated FP16 CUDA decoder fuses framewise GroupNorm and SiLU. Height-sharded decoding retains distributed normalization, and CPU decoding retains the PyTorch path. The fusion does not change the model admission or long-video contracts.
