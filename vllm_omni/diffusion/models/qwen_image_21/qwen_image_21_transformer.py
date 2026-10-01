@@ -34,6 +34,7 @@ from vllm_omni.diffusion.distributed.sp_plan import (
 )
 from vllm_omni.diffusion.forward_context import get_forward_context, is_forward_context_available
 from vllm_omni.diffusion.models.qwen_image_21.decode_graph import QwenImage21DecodeGraphManager
+from vllm_omni.diffusion.models.qwen_image_21.ops.gated_norm import apply_gated_norm_modulation
 from vllm_omni.diffusion.models.qwen_image_21.ops.modulation import (
     apply_gated_residual,
     apply_modulation,
@@ -668,12 +669,14 @@ class QwenImage21TransformerBlock(nn.Module):
             cache_branch=cache_branch,
             cache_write_len=cache_write_len,
         )
-        hidden_states = apply_gated_residual(
-            hidden_states, attn_output, mod1_gate, target_token_mask, modulation_prepared
-        )
-
-        img_modulated2 = apply_modulation(
-            self.img_norm2(hidden_states), mod2_scale, target_token_mask, modulation_prepared
+        hidden_states, img_modulated2 = apply_gated_norm_modulation(
+            hidden_states,
+            attn_output,
+            mod1_gate,
+            mod2_scale,
+            target_token_mask,
+            self.img_norm2,
+            modulation_prepared,
         )
         hidden_states = apply_gated_residual(
             hidden_states, self.img_mlp(img_modulated2), mod2_gate, target_token_mask, modulation_prepared
