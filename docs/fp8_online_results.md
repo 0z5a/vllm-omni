@@ -1,3 +1,7 @@
+> Historical kernel/operator evidence from fork #19/#21. Model-level scope and
+> opt-in/fallback controls are in [the follow-up](fp8_online_e2e_followup.md).
+> Reproduction scripts referenced below are retained on [the original stack](https://github.com/0z5a/vllm-omni/tree/7b0e47b1f2baaf31ade256dd45190eedd7630161).
+
 # FP8 online quantization: CUDA fast path (sm_80+) — results
 
 Status of each claim. Nothing here is inferred from a microbenchmark unless the
@@ -78,8 +82,8 @@ more blocks than this implementation does, is faster.
 
 A gate has to hold for every row count it admits, so `FASTPATH_MAX_ROWS = 512`
 is the largest bound that was verified uniformly (1.12x-1.25x across both K
-values). Above it the call is delegated, so **no caller is made slower than
-today**: the worst case is the current baseline.
+values). Above it the reference kernel is used. Dispatch overhead and compiler
+interactions can still regress complete models; see `fp8_online_e2e_followup.md`.
 
 `M <= 512` with `K in {3072, 4096}` covers the diffusion activation shapes this
 path exists for. It is not a claim about other K or other models.
@@ -232,7 +236,7 @@ third launch and no grid barrier).  Worst case went from **0.046x to 0.965x**.
 ### Gate
 
 `FASTPATH_MAX_PER_TENSOR_ELEMS = 32768`: inside it the fast path wins
-1.53x-1.82x; above it the reference is used, so no caller is made slower.  The
+1.53x-1.82x; above it the reference kernel is used. Dispatch overhead can still affect complete models. The
 gate checks `numel` first so that the decline path costs almost nothing — with
 the cheap check last, declining shapes measured 0.90x purely from the wrapper's
 own Python overhead, which would have made the dispatch layer itself the
