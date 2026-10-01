@@ -62,6 +62,7 @@ from vllm_omni.diffusion.models.minimax_h3.ops.attention.layout import (
 )
 from vllm_omni.platforms import current_omni_platform
 
+from .adaln_cache import MiniMaxH3RuntimeAdalnCache
 from .fasth3 import _resolve_native_target
 
 if TYPE_CHECKING:
@@ -72,33 +73,6 @@ if TYPE_CHECKING:
     from vllm_omni.diffusion.data import OmniDiffusionConfig
 
 logger = init_logger(__name__)
-
-
-def _validate_adaln_cache_quant_config(
-    quant_config: QuantizationConfig | None,
-) -> None:
-    """Allow only the validated BF16-to-FP8 online quantization path.
-
-    Cached AdaLN projections are absent from the module tree.  Online
-    ``Fp8Config`` quantizes the remaining BF16 linears after their (possibly
-    FastH3-fused) weights are loaded, so it does not require serialized AdaLN
-    weights or scales.  Every other quantization format remains fail-closed.
-    """
-    if quant_config is None:
-        return
-
-    # Keep this import local: constructing an H3 model without an AdaLN cache
-    # should not eagerly import vLLM's full FP8 implementation.
-    from vllm.model_executor.layers.quantization.fp8 import Fp8Config
-
-    if type(quant_config) is Fp8Config and quant_config.is_checkpoint_fp8_serialized is False:
-        return
-
-    raise ValueError(
-        "MiniMax H3 AdaLN cache supports only unquantized weights or upstream "
-        "online FP8 from BF16 via "
-        "Fp8Config(is_checkpoint_fp8_serialized=False)"
-    )
 
 
 # Packed multi-request forwards require the attention backend to actually
@@ -921,12 +895,15 @@ class MiniMaxH3AdalnProj(nn.Module):
         expand_ratio: int,
         modality_num: int,
         prefix: str,
+        adaln_cache: MiniMaxH3RuntimeAdalnCache | None = None,
     ) -> None:
         super().__init__()
         if out_features != expand_ratio * arch.hidden_size * modality_num:
             raise ValueError(
                 f"adaln out_features mismatch: {out_features} != {expand_ratio}*{arch.hidden_size}*{modality_num}"
             )
+        self._adaln_cache = adaln_cache
+        self._cache_name = prefix + ".linear"
         self.expand_ratio = expand_ratio
         self.modality_num = modality_num
         self.hidden_size = arch.hidden_size
@@ -942,8 +919,16 @@ class MiniMaxH3AdalnProj(nn.Module):
 
     def forward(self, t_emb: torch.Tensor) -> tuple[torch.Tensor, ...]:
         """t_emb: [M, t_dim] -> expand_ratio tensors of [M*modality_num, H]."""
-        x = nn.functional.silu(t_emb)
-        x, _ = self.linear(x.to(_BF16_DTYPE))
+
+        def project() -> torch.Tensor:
+            x = nn.functional.silu(t_emb)
+            return self.linear(x.to(_BF16_DTYPE))[0]
+
+        x = (
+            project()
+            if self._adaln_cache is None
+            else self._adaln_cache.project(self._cache_name, self.linear, t_emb, project)
+        )
         m = x.shape[0]
         x = x.view(m * self.modality_num, self.expand_ratio * self.hidden_size)
         return tuple(x.chunk(self.expand_ratio, dim=-1))
@@ -1039,7 +1024,7 @@ class MiniMaxH3DiTBlock(nn.Module):
         quant_config: QuantizationConfig | None,
         *,
         prefix: str,
-        use_adaln_cache: bool = False,
+        adaln_cache: MiniMaxH3RuntimeAdalnCache | None = None,
     ) -> None:
         super().__init__()
         self.norm1 = _norm(arch.hidden_size, eps=arch.norm_eps)
@@ -1056,17 +1041,14 @@ class MiniMaxH3DiTBlock(nn.Module):
             quant_config,
             prefix=f"{prefix}.mlp",
         )
-        self.adaln_proj = (
-            None
-            if use_adaln_cache
-            else MiniMaxH3AdalnProj(
-                arch,
-                arch.adaln_out_features,
-                quant_config,
-                expand_ratio=6,
-                modality_num=MINIMAX_H3_ADALN_MODALITY_NUM,
-                prefix=f"{prefix}.adaln_proj",
-            )
+        self.adaln_proj = MiniMaxH3AdalnProj(
+            arch,
+            arch.adaln_out_features,
+            quant_config,
+            expand_ratio=6,
+            modality_num=MINIMAX_H3_ADALN_MODALITY_NUM,
+            prefix=f"{prefix}.adaln_proj",
+            adaln_cache=adaln_cache,
         )
 
     def forward(
@@ -1083,7 +1065,6 @@ class MiniMaxH3DiTBlock(nn.Module):
         sp_seq_lens: list[int] | None = None,
         video_layout: VideoTokenLayout | None = None,
         vsa_prefix_segments: tuple[int, ...] = (),
-        adaln_params: tuple[torch.Tensor, ...] | None = None,
     ) -> torch.Tensor:
         """x: [T, H]; t_emb: [M, t_dim]; combined_indices: [T]
         (= inverse_indices * modality_num + token_tags.clamp(min=0)).
@@ -1092,10 +1073,6 @@ class MiniMaxH3DiTBlock(nn.Module):
         norm1 -> scale/shift -> attention -> gated residual, followed by
         norm2 -> scale/shift -> MLP -> gated residual.
         """
-        if adaln_params is None:
-            if self.adaln_proj is None:
-                raise RuntimeError("MiniMax H3 AdaLN cache parameters are required")
-            adaln_params = self.adaln_proj(t_emb)
         (
             shift_msa,
             scale_msa,
@@ -1103,7 +1080,7 @@ class MiniMaxH3DiTBlock(nn.Module):
             shift_mlp,
             scale_mlp,
             gate_mlp,
-        ) = adaln_params
+        ) = self.adaln_proj(t_emb)
 
         residual = x
         h = rms_norm_indexed_scale_shift(
@@ -1147,22 +1124,19 @@ class MiniMaxH3FinalLayer(nn.Module):
         quant_config: QuantizationConfig | None,
         *,
         prefix: str,
-        use_adaln_cache: bool = False,
+        adaln_cache: MiniMaxH3RuntimeAdalnCache | None = None,
     ) -> None:
         super().__init__()
         video_patch_dim = arch.latents_dim * arch.patch_size[0] * arch.patch_size[1] * arch.patch_size[2]
         self.norm = _norm(arch.hidden_size, eps=arch.final_norm_eps)
-        self.adaln_proj = (
-            None
-            if use_adaln_cache
-            else MiniMaxH3AdalnProj(
-                arch,
-                arch.final_adaln_out_features,
-                quant_config,
-                expand_ratio=2,
-                modality_num=1,
-                prefix=f"{prefix}.adaln_proj",
-            )
+        self.adaln_proj = MiniMaxH3AdalnProj(
+            arch,
+            arch.final_adaln_out_features,
+            quant_config,
+            expand_ratio=2,
+            modality_num=1,
+            prefix=f"{prefix}.adaln_proj",
+            adaln_cache=adaln_cache,
         )
         self.video_out = ColumnParallelLinear(
             arch.hidden_size,
@@ -1189,18 +1163,13 @@ class MiniMaxH3FinalLayer(nn.Module):
         *,
         t_emb: torch.Tensor,
         inverse_indices: torch.Tensor,
-        adaln_params: tuple[torch.Tensor, ...] | None = None,
     ) -> tuple[torch.Tensor, torch.Tensor]:
         """x: [T, H] -> (video_logits [T, 96] fp32, audio_logits [T, 32] fp32).
 
         Apply single-modality shift/scale AdaLN to the final normalized
         activations, cast to fp32, then apply both output heads to all rows.
         """
-        if adaln_params is None:
-            if self.adaln_proj is None:
-                raise RuntimeError("MiniMax H3 AdaLN cache parameters are required")
-            adaln_params = self.adaln_proj(t_emb)
-        shift, scale = adaln_params
+        shift, scale = self.adaln_proj(t_emb)
         h = self.norm(x)
         h = indexed_scale_shift_(h, shift, scale, inverse_indices)
         # Preserve full precision through both final output projections.
@@ -1328,8 +1297,6 @@ class MiniMaxH3DiTModel(nn.Module):
         od_config: OmniDiffusionConfig,
         quant_config: QuantizationConfig | None = None,
         *,
-        adaln_cache_path: str | None = None,
-        adaln_cache_model_variant: str | None = None,
         diffusers_weights: bool | None = None,
     ) -> None:
         super().__init__()
@@ -1348,15 +1315,21 @@ class MiniMaxH3DiTModel(nn.Module):
         self._rope_theta = float(config_mapping.get("rope_theta", 10000.0))
         arch = MiniMaxH3DiTArchConfig.from_mapping(config_mapping)
         self.arch = arch
+        cache_config = getattr(od_config, "cache_config", {})
+        enabled = (
+            cache_config.get("minimax_h3_adaln_cache", True)
+            if isinstance(cache_config, Mapping)
+            else getattr(cache_config, "minimax_h3_adaln_cache", True)
+        )
+        if type(enabled) is not bool:
+            raise ValueError("minimax_h3_adaln_cache must be a boolean")
+        self.adaln_cache = MiniMaxH3RuntimeAdalnCache(max_bytes=256 * 1024**2 if enabled else 0)
         self.od_config = od_config
         self.quant_config = quant_config
         self.parallel_config = od_config.parallel_config
         self.hidden_size = arch.hidden_size
         self.num_attention_heads = arch.num_attention_heads
         self.num_channels_latents = arch.latents_dim
-        if adaln_cache_path is not None:
-            _validate_adaln_cache_quant_config(quant_config)
-        self._adaln_precomputed = adaln_cache_path is not None
         self._validate_tp_config(
             arch=arch,
             tp_size=get_tensor_model_parallel_world_size(),
@@ -1415,7 +1388,7 @@ class MiniMaxH3DiTModel(nn.Module):
                     arch,
                     quant_config,
                     prefix=f"blocks.{i}",
-                    use_adaln_cache=self._adaln_precomputed,
+                    adaln_cache=self.adaln_cache,
                 )
                 for i in range(arch.num_layers)
             ]
@@ -1428,22 +1401,8 @@ class MiniMaxH3DiTModel(nn.Module):
             arch,
             quant_config,
             prefix="final_layer",
-            use_adaln_cache=self._adaln_precomputed,
+            adaln_cache=self.adaln_cache,
         )
-        if adaln_cache_path is None:
-            self.adaln_cache = None
-        else:
-            # Local import avoids a module import cycle: the cache shares this
-            # file's architecture dataclass and modality constant.
-            from vllm_omni.diffusion.models.minimax_h3.adaln_cache import (
-                MiniMaxH3AdalnCache,
-            )
-
-            self.adaln_cache = MiniMaxH3AdalnCache(
-                arch,
-                path=adaln_cache_path,
-                model_variant=adaln_cache_model_variant,
-            )
         self._mark_missing_params_required()
 
     def enable_vsa_gates(self, *, sparsity: float | None = None) -> None:
@@ -1509,6 +1468,12 @@ class MiniMaxH3DiTModel(nn.Module):
         if rope_table.dtype != _BF16_DTYPE:
             raise ValueError(f"rope_table must be {_BF16_DTYPE}, got {rope_table.dtype}.")
 
+    def _apply(self, fn, recurse=True):
+        # Derived outputs must not keep the old device alive after offload/move.
+        if getattr(self, "adaln_cache", None) is not None:
+            self.adaln_cache.clear()
+        return super()._apply(fn, recurse=recurse)
+
     def post_load_weights(self) -> None:
         for name, param in self.named_parameters():
             if name in MINIMAX_H3_FP32_PARAM_NAMES and param.dtype != _FP32_DTYPE:
@@ -1516,8 +1481,6 @@ class MiniMaxH3DiTModel(nn.Module):
         for name, buffer in self.named_buffers():
             if name in MINIMAX_H3_FP32_BUFFER_NAMES and buffer.dtype != _FP32_DTYPE:
                 raise ValueError(f"{name} must stay fp32 after load, got {buffer.dtype}.")
-        if self.adaln_cache is not None:
-            self.adaln_cache.load(self.video_patch_proj.weight.device)
 
         if os.getenv("VLLM_OMNI_H3_DIT_MXFP8", "0") == "1":
             from .quantization import install_dit_mxfp8
@@ -1533,10 +1496,11 @@ class MiniMaxH3DiTModel(nn.Module):
         weights: Iterable[tuple[str, torch.Tensor]],
     ) -> set[str]:
         """Load native or Diffusers H3 weights with the existing TP-aware loaders."""
+        if getattr(self, "adaln_cache", None) is not None:
+            self.adaln_cache.clear()
         params = dict(self.named_parameters())
         params.update(dict(self.named_buffers()))
         loaded: set[str] = set()
-        adaln_cache = self.adaln_cache
         diffusers_weights = self._diffusers_weights
         qkv_parts: dict[str, set[str]] = {}
         source_names: set[str] = set()
@@ -1553,11 +1517,6 @@ class MiniMaxH3DiTModel(nn.Module):
                 name, layout = f"{target[0]}.{kind}", target[1]
             param = params.get(name)
             if param is None:
-                if adaln_cache is not None and (
-                    name.startswith("final_layer.adaln_proj.")
-                    or (name.startswith("blocks.") and ".adaln_proj." in name)
-                ):
-                    continue
                 if diffusers_weights:
                     raise ValueError(f"Diffusers H3 weight has no model parameter: {name}")
                 logger.warning("Skipping MiniMax H3 weight not present in model: %s", name)
@@ -1817,6 +1776,9 @@ class MiniMaxH3DiTModel(nn.Module):
             local_span=local_span,
         )
 
+        if getattr(self, "adaln_cache", None) is not None:
+            self.adaln_cache.prepare(t_emb)
+
         combined_indices = (inverse_indices * MINIMAX_H3_ADALN_MODALITY_NUM + token_tags.clamp(min=0)).to(device)
         inverse_indices = inverse_indices.to(device)
 
@@ -1824,16 +1786,6 @@ class MiniMaxH3DiTModel(nn.Module):
         cu_seqlens = cu_seqlens.to(device)
         block_rope = rope_table
         block_combined = combined_indices
-
-        adaln_cache = getattr(self, "adaln_cache", None)
-        adaln_cache_plan_index = None
-        block_adaln_params = None
-        if adaln_cache is not None:
-            adaln_cache_plan_index = adaln_cache.lookup(unique_timesteps.view(-1).to(device))
-            block_adaln_params = adaln_cache.block_all(
-                cache_plan_index=adaln_cache_plan_index,
-                num_timesteps=t_emb.shape[0],
-            )
 
         if local_len == seq_len:
             hidden, block_rope, block_combined = self.sp_prepare(
@@ -1847,49 +1799,37 @@ class MiniMaxH3DiTModel(nn.Module):
                 block_rope,
                 block_combined,
             )
-        for block_index, block in enumerate(self.blocks):
-            block_kwargs: dict[str, Any] = {
-                "t_emb": t_emb,
-                "combined_indices": block_combined,
-                "rope_table": block_rope,
-                "cu_seqlens": cu_seqlens,
-                "max_seqlen": max_seqlen,
-                "packed_total": seq_len,
-                "num_requests": num_requests,
-                "video_layout": video_layout,
-                "vsa_prefix_segments": vsa_prefix_segments,
-            }
-            if block_adaln_params is not None:
-                block_kwargs["adaln_params"] = block_adaln_params[block_index]
-            hidden = block(hidden, **block_kwargs)
+        for block in self.blocks:
+            hidden = block(
+                hidden,
+                t_emb=t_emb,
+                combined_indices=block_combined,
+                rope_table=block_rope,
+                cu_seqlens=cu_seqlens,
+                max_seqlen=max_seqlen,
+                packed_total=seq_len,
+                num_requests=num_requests,
+                video_layout=video_layout,
+                vsa_prefix_segments=vsa_prefix_segments,
+            )
         if local_len == seq_len:
             hidden = self.sp_gather(hidden)
-            final_kwargs: dict[str, Any] = {
-                "t_emb": t_emb,
-                "inverse_indices": inverse_indices,
-            }
-            if adaln_cache_plan_index is not None:
-                final_kwargs["adaln_params"] = adaln_cache.final(
-                    adaln_cache_plan_index,
-                    t_emb.shape[0],
-                )
-            video_logits, audio_logits = self.final_layer(hidden, **final_kwargs)
+            video_logits, audio_logits = self.final_layer(
+                hidden,
+                t_emb=t_emb,
+                inverse_indices=inverse_indices,
+            )
         else:
             local_inverse_indices = inverse_indices.narrow(
                 0,
                 local_start,
                 local_len,
             )
-            final_kwargs = {
-                "t_emb": t_emb,
-                "inverse_indices": local_inverse_indices,
-            }
-            if adaln_cache_plan_index is not None:
-                final_kwargs["adaln_params"] = adaln_cache.final(
-                    adaln_cache_plan_index,
-                    t_emb.shape[0],
-                )
-            video_logits, audio_logits = self.final_layer(hidden, **final_kwargs)
+            video_logits, audio_logits = self.final_layer(
+                hidden,
+                t_emb=t_emb,
+                inverse_indices=local_inverse_indices,
+            )
             compact_logits = torch.cat((video_logits, audio_logits), dim=-1)
             compact_logits = self.sp_gather(compact_logits)
             video_width = self.arch.latents_dim * math.prod(self.arch.patch_size)
