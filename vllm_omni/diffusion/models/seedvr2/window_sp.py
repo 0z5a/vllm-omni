@@ -49,6 +49,7 @@ from .window_geometry import (
     DEFAULT_WINDOW_METHODS,
     GEOMETRY_VERSION,
     geometry_fingerprint,
+    window_layout_geometry,
 )
 
 #: Bumped whenever assignment or routing semantics change.
@@ -210,7 +211,6 @@ def build_window_layout(
     geometry_version: int = GEOMETRY_VERSION,
 ) -> WindowLayout:
     """Build the CPU layout of one layer's window partition."""
-    from .window_geometry import window_layout_geometry
 
     window_offsets, window_token_ids, window_shapes = window_layout_geometry(token_grid, window_method, window)
     key = WindowLayoutKey(
@@ -696,12 +696,22 @@ def schedule_methods(num_layers: int, methods: Iterable[str] = DEFAULT_WINDOW_ME
     return tuple(methods[i % len(methods)] for i in range(num_layers))
 
 
+_SHARED_PLAN_CACHE = WindowPlanCache(capacity=64)
+
+
+def shared_plan_cache() -> WindowPlanCache:
+    """The process-wide plan cache that requests reuse across identical geometry."""
+    return _SHARED_PLAN_CACHE
+
+
 class WindowLayoutManager:
     """Drives ``ensure_layout`` across a model's per-layer window schedule.
 
-    One manager per request / per model instance.  It owns the CPU plan cache
-    and the device plans of the current layout pair, and it is the only place
-    that decides whether a transition is needed and in which direction.
+    One manager per request / per model instance.  It owns the device plans of
+    the current layout pair and is the only place that decides whether a
+    transition is needed and in which direction.  The CPU plan cache is shared
+    process-wide, so a second request with the same geometry does not rebuild
+    layouts and routing plans that cost seconds on a large token grid.
     """
 
     def __init__(
@@ -714,7 +724,7 @@ class WindowLayoutManager:
         window: tuple[int, int, int] = DEFAULT_WINDOW,
         methods: Sequence[str] = DEFAULT_WINDOW_METHODS,
         num_layers: int = 32,
-        cache_capacity: int = 32,
+        cache: WindowPlanCache | None = None,
         planner_version: int = PLANNER_VERSION,
     ) -> None:
         if group is not None and world_size != dist.get_world_size(group):
@@ -733,7 +743,7 @@ class WindowLayoutManager:
         self.methods = tuple(methods)
         self.num_layers = int(num_layers)
         self.planner_version = int(planner_version)
-        self.cache = WindowPlanCache(capacity=cache_capacity)
+        self.cache = shared_plan_cache() if cache is None else cache
         self.transitions = 0
         self._device: torch.device | None = None
         self._device_plans: dict[tuple[WindowLayoutKey, WindowLayoutKey], DeviceWindowRedistributionPlan] = {}

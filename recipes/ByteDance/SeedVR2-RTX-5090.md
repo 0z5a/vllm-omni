@@ -12,8 +12,8 @@
 ## When to use this recipe
 
 Run short, constant-frame-rate videos with the native SeedVR2 pipeline. This
-recipe covers the whole-clip path. Long-video batching, overlap, and color
-correction from external applications are separate execution semantics.
+recipe covers the whole-clip path and the separate long-video route. Color
+correction from external applications is a separate execution semantic.
 
 ## Supported model contract
 
@@ -25,7 +25,7 @@ correction from external applications are separate execution semantics.
 | Audio | First mono/stereo track, aligned by PTS; re-encoded as AAC |
 | Sampling | One Euler step, CFG=1, per-request seed |
 | Precision | 3B DiT and VAE FP16 |
-| Parallelism | Head-sharded Ulysses window attention at SP>1 via `ulysses_degree`; replicated weights |
+| Parallelism | Model-owned Ulysses window attention; replicated model weights |
 | Frame padding | Internal 4n+1 padding, cropped back; five returns five, six returns six |
 
 ## References
@@ -42,8 +42,12 @@ must accommodate checkpoint staging per rank. Admission uses a padded
 five-frame 848×480 output pixel budget by default, allowing longer clips at
 smaller resolutions, plus a 257-frame decoder-work cap. The validated SP4
 configuration with VAE tiling and `vae_patch_parallel_size=4` uses a padded
-five-frame 2560×1472 budget. The model guide lists exact bounds and which
-profiles have completed GPU validation.
+five-frame 2560×1472 budget, as does any higher matched degree. On devices
+with more memory the clip budget grows automatically; the other caps are raised
+through `VLLM_OMNI_SEEDVR2_SHARDED_FRAME_PIXELS` and
+`VLLM_OMNI_SEEDVR2_MAX_FRAMES`, and `VLLM_OMNI_SEEDVR2_SHARDED_CLIP_PIXELS`
+overrides the clip budget. The model guide lists
+exact bounds and which profiles have completed GPU validation.
 
 ## Software environment
 
@@ -84,9 +88,6 @@ Use `size=1280x720` for a landscape 1280×720 input or `size=720x1280` for a
 portrait 720×1280 input. Both require 16 decoded source frames and retain the
 source frame rate; no upscaling is requested.
 
-SP>1 automatically selects the specialized window attention runtime; no separate
-attention flag is needed.
-
 ## Verification
 
 ```bash
@@ -121,16 +122,45 @@ workers and the server exited normally after each run.
 
 These are single requests on a shared host, not performance comparisons.
 
-For transformer-only SP=1/2/4 parity, set `VLLM_TEST_SEEDVR2_MODEL` to the 3B
-safetensors file and run:
+### One long-video request
+
+For a 24 FPS source, the long route can restore up to 7,200 frames at
+768×1344. Use the SP4/VAE height-sharding command above, serve with
+`--api-server-count 1`, and set a persistent
+`VLLM_OMNI_SEEDVR2_LONG_OUTPUT_DIR` before starting. If the source is shorter
+than 300 seconds, `loop_input=true` repeats its frames and audio. The service
+runs the longest model windows the clip budget admits, with four-frame overlap,
+and writes one MP4;
+it does not concatenate separate video files. Download the result within
+`VLLM_OMNI_SEEDVR2_LONG_JOB_TTL_SECONDS`, after which the job directory is
+swept; `DELETE` on the job URL stops a run at the next window boundary.
+
+```bash
+curl --fail-with-body http://127.0.0.1:8098/v1/seedvr2/restore-long \
+  -F 'input_references=@input.mp4;type=video/mp4' \
+  -F 'prompt= ' -F 'size=768x1344' -F 'num_frames=7200' \
+  -F 'loop_input=true' -F 'seed=7723' -F 'extra_params={"color_correction_method":"lab"}'
+# Use the returned id to poll /v1/seedvr2/restore-long/{id};
+# download /v1/seedvr2/restore-long/{id}/content when completed.
+```
+
+The input must have constant 24 FPS timestamps starting at zero. Only one job
+can run per API server, and `--api-server-count` must be one. The existing
+whole-clip `/v1/videos/sync` limits remain in force. Full 7,200-frame GPU
+validation is in progress; use this route only with a memory-checked SP4
+deployment.
+
+Set `VLLM_TEST_SEEDVR2_MODEL_DIR` to the directory containing all model files:
 
 ```bash
 python -m pytest -o addopts='' -v tests/diffusion/models/seedvr2/test_seedvr2_e2e.py
 ```
 
-This checkpoint-gated test does not validate the HTTP server or an optional
-optimization. Feature validation must use its enabled configuration, full model
-outputs, and the actual backend selected by the worker.
+The tests run the complete native pipeline for every colour mode and the HTTP
+long-video route at USP 1 and 8 (eight GPUs required for the latter). The HTTP
+cases force a 13-frame window, restore 20 frames across a seam, preserve audio
+and timestamps, reject invalid `extra_params`, and cancel a longer job. They
+use the released model rather than mocking its forward pass.
 
 ## Supported features
 
@@ -140,6 +170,7 @@ outputs, and the actual backend selected by the worker.
 | CPU offload, LoRA, compiled execution, CFG/TP/PP | Unsupported |
 | VFR or multichannel audio | Unsupported |
 | VAE temporal/spatial tiling | Available with `--vae-use-tiling` |
+| [Colour correction](../../docs/models/seedvr2.md) | On by default; `color_correction_method=lab\|wavelet\|adain\|none` |
 | Quantization | Separate opt-in feature |
 
 ## Measurement scope
@@ -166,3 +197,5 @@ chunk boundary as well as five/six-frame clips, and inspect frames adjacent to
 chunk boundaries. Reduced peak memory does not by itself establish lower latency.
 High-resolution clips can still exceed device capacity; validate the intended
 frame count and output size on the target GPUs.
+
+The native multi-GPU path selects specialized SeedVR2 Ulysses window attention when `ulysses_degree > 1`; each window retains its regular/shifted boundary while QKV is exchanged into head shards.
