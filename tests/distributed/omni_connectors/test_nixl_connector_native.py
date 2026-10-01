@@ -274,12 +274,8 @@ def test_native_two_process_structured_mixed_device_transfer(direct, payload_kin
     consumer.start()
     producer.join(timeout=60)
     consumer.join(timeout=60)
-    if producer.is_alive():
-        producer.terminate()
-        producer.join(timeout=10)
-    if consumer.is_alive():
-        consumer.terminate()
-        consumer.join(timeout=10)
+    assert not producer.is_alive(), f"NIXL producer PID {producer.pid} did not exit; left running for inspection"
+    assert not consumer.is_alive(), f"NIXL consumer PID {consumer.pid} did not exit; left running for inspection"
 
     records = [result.get(timeout=5) for _ in range(5)]
     print("Native ownership records:", records)
