@@ -428,3 +428,42 @@ bundled offline CLI do not currently expose `sigmas`.
 - [Diffusion execution modes](../../docs/user_guide/diffusion/execution_modes.md)
 - [T2V offline example](../../examples/offline_inference/text_to_video/text_to_video.md)
 - [I2V offline example](../../examples/offline_inference/image_to_video/README.md)
+
+
+### RTX 5090 CUDA activation quantization E2E (2026-09-28)
+
+Full-model A/P/P/A on gj5090 GPU 3, pinned Lightricks/LTX-2 revision
+`dfcc2108383fe1aaa0584bdf55d368a4bdadd90c` (42 required files fully SHA/Git-blob verified).
+Same online FP8 model in all arms: A disables CUDA activation quantization;
+P enables an experimental sm120 BF16 gate for exactly `(2048,3840)`,
+`(2048,4096)`, `(2048,15360)`, with the existing block kernel unchanged.
+The default 512-row gate falls back for all these real inputs.
+
+Workload: 384×640, 33 frames, 40 steps, 24 fps, guidance 3, seed 42;
+eager execution, layerwise offload and VAE tiling. Each fresh process uses
+three warmups and six measured full requests. Loading and export are excluded.
+
+| Arm | CUDA quantization | E2E mean ± sample SD (s) | Peak allocated (GiB) |
+| --- | --- | ---: | ---: |
+| A1 | Disabled | 37.225 ± 0.023 | 12.21 |
+| P1 | Temporary narrow gate | 37.313 ± 0.030 | 12.21 |
+| P2 | Temporary narrow gate | 37.199 ± 0.033 | 12.21 |
+| A2 | Disabled | 37.360 ± 0.044 | 12.21 |
+
+Pooled A/P **1.001×**, A2/A1 drift 1.004× and P2/P1 drift 0.997×:
+no reliable E2E benefit. The temporary gate was reverted to its original
+SHA-verified Python source; no LTX-specific CUDA candidate is included.
+The model-support change and shared #22 routing remain.
+
+All **12/12 raw videos and 12/12 raw audio outputs are bit-exact**;
+audio maximum absolute error is zero, shape `[1,2,31920]`, 24000 Hz.
+Census: 336 FP8 modules, 10,758,389,760 weights. P warmups confirm 336 CUDA
+calls/request (240/48/48 at the shapes above); A has zero. Instrumentation
+is removed for timed requests. Three seeds including zero rows independently
+match reference quantized payload and scale bit-for-bit.
+
+Evidence: `results/ltx2/abba_gpu3`, `ltx2_e2e_hotpath.py`,
+`run_ltx2_abba.sh`, `summarize_ltx2_abba.py`, `ltx2-2048-correctness.json`.
+A test-source-only platform field-compatibility overlay is identical in all
+arms; the installed environment is unchanged. Earlier shape audits are
+excluded from performance evidence. All four processes exited naturally.
