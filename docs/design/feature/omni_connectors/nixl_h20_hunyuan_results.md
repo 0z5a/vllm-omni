@@ -29,6 +29,18 @@ unconfirmed. These observed timings do not establish model speedup.
 Current records are in
 [`template-aligned`](../../../../benchmarks/nixl/h20x2-20261001/template-aligned/).
 
+On the replacement machine, a fixed-version private environment matches all
+278 locked package versions and passes pip check and 76 CPU cases. Full-model
+prefix tracing completed four images each for local and ordinary, with both
+paths' Workers confirmed to exit naturally. Ordinary still fails: dog warmup
+PSNR/SSIM 39.206/0.99161, dog repeat 12.463/0.05892, coffee 10.621/0.06055.
+All 32 valid source KV layers repeat exactly, and received positive prefixes
+and negative BOS match their source bytes. Captured first-step writes and
+first denoise projections repeat exactly; later-step diagnosis is pending.
+These synchronized diagnostic timings do not establish a speedup. Images,
+logs, byte comparisons, source hashes and environment audit are preserved in
+[`replacement-machine diagnosis`](../../../../benchmarks/nixl/h20x2-20261001/recovery-prefix-diagnostic/).
+
 The matched deployment uses native UVA offload with a 96 GiB AR budget,
 768 MiB AR KV, 2 GiB DiT KV and an AR batch limit of 512 tokens. This allows
 both new stages to run while the original AR Worker retains its claimed lease.
