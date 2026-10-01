@@ -453,12 +453,10 @@ class CudaOmniPlatform(OmniPlatform, CudaPlatformBase):
         if envs.VLLM_USE_OINK_OPS:
             rms_norm = ["oink"] + default
 
-        # Mirrors upstream CudaPlatformBase defaults: `gelu_and_mul_sparse` is
-        # implemented by `triton` and `native` only, so it must not fall back to
-        # `default` (which contains `vllm_c`) via IrOpPriorityConfig.with_default.
-        return IrOpPriorityConfig.with_default(
-            default,
-            rms_norm=rms_norm,
-            fused_add_rms_norm=rms_norm,
-            gelu_and_mul_sparse=["triton", "native"],
-        )
+        priorities: dict[str, list[str]] = {
+            "rms_norm": rms_norm,
+            "fused_add_rms_norm": rms_norm,
+        }
+        if "gelu_and_mul_sparse" in IrOpPriorityConfig.__dataclass_fields__:
+            priorities["gelu_and_mul_sparse"] = ["triton", "native"]
+        return IrOpPriorityConfig.with_default(default, **priorities)
