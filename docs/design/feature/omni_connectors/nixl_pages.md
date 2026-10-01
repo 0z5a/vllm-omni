@@ -20,6 +20,13 @@ claims are installed. Both CFG claims enter the source lease before
 the first descriptor reply. One batched NIXL READ writes each row directly
 into those reserved blocks, including the final physical page. The model only
 marks the reusable logical prefix computed and overwrites its suffix normally.
+The model adapter's `prompt_token_ids` bounds that logical prefix; the complete
+static prefix can include image headers that differ from the AR sequence.
+The source ticket carries its computed token IDs, and the receiver only marks
+the common token prefix computed. Equal prefix lengths alone do not establish
+that the AR and DiT templates agree.
+This also applies to a CFG row with zero reusable tokens: it reserves the
+physical source pages, receives them, and recomputes the entire logical row.
 
 Pools register their underlying allocations once. Native four-dimensional
 views use their actual data pointer, storage offset and strides; separate K/V
@@ -50,10 +57,21 @@ leases, matching ordinary-path pixels and the existing Hunyuan local recompute
 pixel accuracy thresholds. Two GPUs on one host establish no cross-node RDMA
 or heterogeneous TP/SP result.
 
+LLM stages accept native vLLM `offload_config`, including nested `uva` or
+`prefetch` settings; the structured config projects their fields into native
+EngineArgs. Hunyuan constructs its FP32-routing MoE blocks inside `make_layers`,
+so the native offloader sees the final parameters. It no longer replaces those
+blocks after offloading or briefly allocates a second set of expert weights.
+AR and DiT use the same FP32 router, top-k selection and model-dtype routing
+weights; transferring a prefix requires those model computations to agree.
+The matched three-path CPU-offload deployment is recorded in
+[`offload-deploy.yaml`](../../../../benchmarks/nixl/h20x2-20261001/offload-deploy.yaml).
+
 The current integration does not provide cancellation before Worker metadata
 dispatch, reconnect recovery after losing the Worker control channel, or
-validated model concurrency above one. Full-model ordinary/page comparisons
-remain pending in the [execution results](nixl_h20_hunyuan_results.md).
+validated model concurrency above one. All three full-model paths complete,
+but their pixel accuracy gates remain unresolved in the
+[execution results](nixl_h20_hunyuan_results.md).
 
 Related upstream work: [generic NIXL](https://github.com/vllm-project/vllm-omni/pull/6093),
 [structured payloads](https://github.com/vllm-project/vllm-omni/pull/6264),

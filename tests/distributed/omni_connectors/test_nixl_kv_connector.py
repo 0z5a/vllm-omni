@@ -4,10 +4,11 @@
 import msgspec
 import pytest
 import torch
+from vllm import SamplingParams
 from vllm.config import KVTransferConfig, VllmConfig
 from vllm.distributed.kv_transfer.kv_connector.v1.base import KVConnectorRole
 from vllm.v1.outputs import KVConnectorOutput
-from vllm.v1.request import RequestStatus
+from vllm.v1.request import Request, RequestStatus
 
 from tests.diffusion.diffusion_kv.test_manager import _manager, _request
 from tests.distributed.omni_connectors.test_nixl_connector import nixl_connector_cls  # noqa: F401
@@ -40,7 +41,18 @@ def pool(fill: int) -> KVPagePool:
 
 
 @pytest.mark.parametrize("abort_before_read", [False, True])
-def test_native_manager_generations_cfg_claims_and_delayed_source_free(peers, abort_before_read):  # noqa: F811
+@pytest.mark.parametrize("token_mismatch", [False, True])
+@pytest.mark.parametrize(
+    "prefix_lengths,reusable_lengths",
+    [((7, 6), (7, 6)), ((7, 0), (7, 0)), ((7, 6), (4, 0))],
+)
+def test_native_manager_generations_cfg_claims_and_delayed_source_free(
+    peers,  # noqa: F811
+    abort_before_read,
+    token_mismatch,
+    prefix_lengths,
+    reusable_lengths,
+):
     producer, consumer = peers
     source_manager, target_manager = _manager(12), _manager(12)
     source_scheduler, target_scheduler = scheduler(source_manager, producer=True), scheduler(target_manager)
@@ -53,8 +65,9 @@ def test_native_manager_generations_cfg_claims_and_delayed_source_free(peers, ab
     source_worker._events = {"layer0": Ready()}
     for iteration in range(2):
         source_request = _request("ar", 0, prefix_len=7, target_len=1, seq_len=8)
-        source_request.kv_transfer_params = {"transfer_id": "cfg", "do_remote_decode": True}
         source_manager.reserve_request("ar", (source_request,))
+        source_request = Request(source_request.request_id, list(range(7)), SamplingParams(max_tokens=1), None)
+        source_request.kv_transfer_params = {"transfer_id": "cfg", "do_remote_decode": True}
         source_request.num_computed_tokens = 7
         source_request.status = RequestStatus.FINISHED_STOPPED
         blocks = source_manager.native_manager.get_block_ids(source_request.request_id)[0]
@@ -63,17 +76,19 @@ def test_native_manager_generations_cfg_claims_and_delayed_source_free(peers, ab
         assert source_scheduler.has_pending_push_work() and source_scheduler.has_pending_block_frees()
         ticket = msgspec.convert(params, type=PageTicket)
         requests = tuple(
-            _request("dit", row, prefix_len=7 - row, target_len=2 + row, seq_len=9, cache_token_ids=range(7 - row))
-            for row in range(2)
+            _request("dit", row, prefix_len=length, target_len=9 - length, seq_len=9, cache_token_ids=range(length))
+            for row, length in enumerate(prefix_lengths)
         )
-        for request in requests:
-            request.prompt_token_ids = list(request.cache_token_ids)
+        for request, reusable in zip(requests, reusable_lengths, strict=True):
+            request.prompt_token_ids = list(request.cache_token_ids[:reusable])
+            if token_mismatch and reusable > 3:
+                request.prompt_token_ids[3] = 99
         prepare_kv_requests(requests, params)
         metadata = target_manager.reserve_request("dit", requests)
         assert metadata is not None and metadata.allocation_generation == iteration + 1
         assert all(request.allocation_generation == metadata.allocation_generation for request in requests)
         matched = [target_scheduler.get_num_new_matched_tokens(request, 0)[0] for request in requests]
-        assert matched == [7, 6]
+        assert matched == [min(length, 3) if token_mismatch else length for length in reusable_lengths]
         assert commit_kv_load(target_scheduler, target_manager.native_manager, requests, matched) == {
             request.request_id for request in requests
         }
@@ -120,7 +135,7 @@ def test_incomplete_cfg_metadata_retains_native_reservations_until_rollback():
     requests = (_request("cfg", 0, cache_token_ids=range(4)), _request("cfg", 1, cache_token_ids=range(4)))
     for request in requests:
         request.prompt_token_ids = list(request.cache_token_ids)
-    params = msgspec.structs.asdict(PageTicket("cfg", "generation", "127.0.0.1", 8998, 4, 2))
+    params = msgspec.structs.asdict(PageTicket("cfg", "generation", "127.0.0.1", 8998, 4, 2, tuple(range(4))))
     prepare_kv_requests(requests, {**params, "do_remote_prefill": True})
     manager.reserve_request("cfg", requests)
     first = requests[0]

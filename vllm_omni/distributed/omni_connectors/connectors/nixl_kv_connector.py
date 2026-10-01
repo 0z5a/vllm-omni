@@ -43,6 +43,7 @@ class PageTicket(msgspec.Struct, frozen=True):
     source_zmq_port: int
     num_transfer_tokens: int
     expected_readers: int
+    token_ids: tuple[int, ...]
 
 
 @dataclass(frozen=True)
@@ -151,7 +152,19 @@ class OmniNixlKVConnector(KVConnectorBase_V1, SupportsHMA):
         if not params or not params.get("do_remote_prefill"):
             return 0, False
         ticket = msgspec.convert(params, type=PageTicket)
-        tokens = min(ticket.num_transfer_tokens, request.num_prompt_tokens) - num_computed_tokens
+        if request.prompt_token_ids is None:
+            raise ValueError("Native page receive requires the model adapter's reusable prompt_token_ids")
+        reusable = min(ticket.num_transfer_tokens, len(request.prompt_token_ids))
+        # Equal lengths do not prove that the AR and DiT templates agree.
+        reusable = next(
+            (
+                i
+                for i, (source, target) in enumerate(zip(ticket.token_ids, request.prompt_token_ids))
+                if source != target
+            ),
+            reusable,
+        )
+        tokens = reusable - num_computed_tokens
         return max(0, tokens), tokens > 0
 
     def update_state_after_alloc(
@@ -191,6 +204,8 @@ class OmniNixlKVConnector(KVConnectorBase_V1, SupportsHMA):
             return False, None
         if request.status == RequestStatus.FINISHED_ABORTED or request.num_computed_tokens <= 0:
             return False, None
+        if not isinstance(request, Request):
+            raise ValueError("Native page producers require an AR Request with token IDs")
         ticket = PageTicket(
             params["transfer_id"],
             uuid.uuid4().hex,
@@ -198,6 +213,7 @@ class OmniNixlKVConnector(KVConnectorBase_V1, SupportsHMA):
             int(self.extra["page_port"]),
             request.num_computed_tokens,
             int(self.extra.get("expected_readers", 1)),
+            tuple(request.all_token_ids[: request.num_computed_tokens]),
         )
         blocks = tuple(block_ids[: math.ceil(ticket.num_transfer_tokens / self.block_size)])
         self._sources[request.request_id] = SourcePages(request.request_id, ticket, blocks)

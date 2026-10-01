@@ -9,40 +9,54 @@ Requests use 512 × 512 output, 50 diffusion steps, guidance 2 and seeds
 1234/1235 for two fixed prompts. Each prompt has one warmup and three
 measured requests.
 
-| Full-model path | Completed requests | Measured requests | Median seconds | Speedup vs ordinary |
+The matched deployment uses native UVA offload with a 96 GiB AR budget,
+768 MiB AR KV, 2 GiB DiT KV and an AR batch limit of 512 tokens. This allows
+both new stages to run while the original AR Worker retains its claimed lease.
+The original Worker is not signalled or terminated. Both new Workers exit
+through their normal shutdown protocol after each path.
+
+**Accuracy has not passed; the following times are diagnostic observations,
+not an accepted model speedup.** All three paths generated eight images,
+including two warmups. Timing ratios compare the same CPU-offload deployment.
+The ordinary diagnostic additionally records source KV snapshots, so these
+timing ratios do not isolate transport performance.
+
+| Full-model path | Completed / measured requests | Median seconds | Observed ratio vs ordinary | Acceptance |
 | --- | ---: | ---: | ---: | --- |
-| Local prefix recomputation | 8 | 6 | 18.587 | Pending ordinary reference |
-| Ordinary NIXL into native pages | 0 | 0 | Pending | Pending |
-| NIXL READ into native pages | 0 | 0 | Pending | Pending |
+| Local prefix recomputation | 8 / 6 | 38.958 | 0.995× | Reference |
+| Ordinary NIXL into native pages | 8 / 6 | 38.773 | 1.000× | Pixel comparison failed |
+| NIXL READ into native pages | 8 / 6 | 38.749 | 1.001× | Pixel comparison failed |
 
-| Local path prompt | Measured requests | Median seconds |
-| --- | ---: | ---: |
-| Brown and white dog running on grass | 3 | 23.686 |
-| Coffee on a wooden table beside a window | 3 | 13.279 |
+The first dog image reaches PSNR 36.036 dB and SSIM 0.98635 against local
+recomputation. Coffee and repeated requests fail the PSNR ≥30 dB / SSIM ≥0.97
+gate, and ordinary/pages pixels are not identical. Repeated source KV snapshots
+are identical over every valid token in all 32 layers for all six measured
+requests; the remaining investigation concerns token semantics and destination
+consumption. The new token-ID comparison is CPU-tested and awaits model replay.
+The weights remain until those gates pass.
 
-All eight local requests completed AR generation, DiT denoising and VAE
-decoding into nonblank 512 × 512 RGB images. Both Workers exited through
-the normal shutdown protocol. The FP8 loader fix separately passed 21 CPU
-regressions and a real checkpoint AR load/forward check.
+All 24 images, timings, metrics, accuracy scores and per-path source hashes are
+preserved in
+[`routing-diagnostic`](../../../../benchmarks/nixl/h20x2-20261001/routing-diagnostic/).
 
-The first ordinary-path attempt stopped before DMA because the AR stage
-removed `model.` from canonical cache layer names while DiT retained it.
-The configuration now removes the same prefix on both stages, and the
-producer validates geometry before installing claims. The revised connector
-passed 478 cases in the broader CPU run. After consolidating ordinary/page
-claim decoding and reservation ownership, all 122 related CPU cases and all
-nine native CUDA cases passed without skips. The added reference-path test
-checks scatter, cancellation, delayed ACK and computation ownership through
-the shared implementation. Three source modules passed focused typing with
-dependency imports skipped. Earlier geometry/cancellation evidence remains
-committed with its recorded source hashes.
+Native transport counters report eight exports, sixteen page READs, one pool
+registration per Worker, no ordinary get fallback, no transport errors and
+zero active reads, leases or destination reservations at completion. These
+ownership checks do not establish pixel correctness.
 
-That failed attempt left the original AR Worker holding its already-claimed
-source lease after the receiver exited. It retains roughly 87 GB of VRAM;
-its frontend control channel is closed. No process was killed or signalled.
-The pending model runs require another available GPU pair. Consequently,
-ordinary/page pixel identity, local/page PSNR/SSIM and full-model speedup
-have not passed. The model files remain until that verification is complete.
+Hunyuan now constructs its final MoE modules before the native offloader wraps
+layers, and both AR and DiT share FP32 routing with model-dtype top-k weights.
+The full-checkpoint offload AR load/forward preflight passed. Related routing,
+FP8 and physical-prefix regressions passed 355 CPU cases. The latest token-ID
+boundary coverage passed 336 CPU cases with three GPU cases deselected; config
+and engine projection suites passed 280 and 98 cases respectively, each with
+one existing Qwen skip. Focused typing for the changed bridge and shared router
+passed. The broader config type check retains 27 diagnostics on unchanged lines;
+no environment or dependency changes were made to suppress them.
+
+The earlier resident local run completed eight requests with an 18.587-second
+median. It used different memory placement and predates the routing correction,
+so it is retained as historical evidence and excluded from these timing ratios.
 
 The consolidated code was also measured with the same 8 MiB
 payload, 20 warmups per repeat and 1,002 measured samples per path:
