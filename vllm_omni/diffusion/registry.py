@@ -34,6 +34,7 @@ def resolve_native_single_file(model_class_name: str | None) -> str | None:
 
 _DIFFUSION_MODELS = {
     # arch:(mod_folder, mod_relname, cls_name)
+    "SeedVR2Pipeline": ("seedvr2", "pipeline_seedvr2", "SeedVR2Pipeline"),
     "QwenImagePipeline": (
         "qwen_image",
         "pipeline_qwen_image",
@@ -693,6 +694,7 @@ _DIFFUSION_POST_PROCESS_FUNCS = {
     "SanaVideoPipeline": "get_sana_video_post_process_func",
     "SanaImageToVideoPipeline": "get_sana_video_i2v_post_process_func",
     "Magi2Pipeline": "get_magi2_post_process_func",
+    "SeedVR2Pipeline": "get_seedvr2_post_process_func",
     "OmniVoicePipeline": "get_omnivoice_post_process_func",
     "SenseNovaU1Pipeline": "get_sensenova_u1_post_process_func",
     "Cosmos3OmniDiffusersPipeline": "get_cosmos3_post_process_func",
@@ -716,6 +718,7 @@ _DIFFUSION_IR_OP_PRIORITY_FUNCS = {
 }
 
 _DIFFUSION_PRE_PROCESS_FUNCS = {
+    "SeedVR2Pipeline": "get_seedvr2_pre_process_func",
     # arch: pre_process_func
     # `pre_process_func` function must be placed in {mod_folder}/{mod_relname}.py,
     # where mod_folder and mod_relname are  defined and mapped using `_DIFFUSION_MODELS` via the `arch` key
@@ -746,6 +749,12 @@ _DIFFUSION_PRE_PROCESS_FUNCS = {
     "SanaWmPipeline": "get_sana_wm_pre_process_func",
     "Cosmos3OmniDiffusersPipeline": "get_cosmos3_pre_process_func",
     "Cosmos3OmniPipeline": "get_cosmos3_pre_process_func",
+    "MammothModa2DiTPipeline": "get_mammoth_moda2_pre_process_func",
+}
+
+
+_DIFFUSION_PREFIX_CACHE_FUNCS = {
+    "HunyuanImage3ForCausalMM": "get_hunyuan_image_3_prefix_cache_func",
 }
 
 
@@ -757,6 +766,7 @@ def register_diffusion_model(
     post_process_func_name: str | None = None,
     ir_op_priority_func_name: str | None = None,
     action_post_process_func_name: str | None = None,
+    prefix_cache_func_name: str | None = None,
 ) -> None:
     """Register a diffusion model pipeline from an out-of-tree plugin.
 
@@ -782,6 +792,9 @@ def register_diffusion_model(
             for out-of-tree plugins. Action postprocess hooks are no longer
             registered separately; move action handling into
             ``post_process_func_name`` and return a payload/metadata envelope.
+        prefix_cache_func_name: Optional factory for a CPU cache-input hook,
+            called after preprocessing only when paged prefix caching is
+            enabled. It fills existing DiffusionKVRequest cache inputs in place.
     """
     if action_post_process_func_name is not None:
         logger.warning(
@@ -810,6 +823,8 @@ def register_diffusion_model(
         _DIFFUSION_POST_PROCESS_FUNCS[model_arch] = post_process_func_name
     if ir_op_priority_func_name is not None:
         _DIFFUSION_IR_OP_PRIORITY_FUNCS[model_arch] = ir_op_priority_func_name
+    if prefix_cache_func_name is not None:
+        _DIFFUSION_PREFIX_CACHE_FUNCS[model_arch] = prefix_cache_func_name
 
     logger.info(
         "Registered diffusion model %s -> %s.%s",
@@ -860,3 +875,11 @@ def get_diffusion_pre_process_func(od_config: OmniDiffusionConfig):
         return None  # Return None if no pre-processing function is registered (for backward compatibility)
     func_name = _DIFFUSION_PRE_PROCESS_FUNCS[od_config.model_class_name]
     return _load_process_func(od_config, func_name)
+
+
+def get_diffusion_prefix_cache_func(od_config: OmniDiffusionConfig):
+    """Load optional model preparation for native multimodal KV identities."""
+    if uses_diffusers_adapter(od_config) or od_config.model_class_name is None:
+        return None
+    func_name = _DIFFUSION_PREFIX_CACHE_FUNCS.get(od_config.model_class_name)
+    return None if func_name is None else _load_process_func(od_config, func_name)
