@@ -16,13 +16,16 @@ Full-model acceptance remains pending:
 | Current path | Completed / measured | Median seconds | Speedup vs ordinary | Status |
 | --- | ---: | ---: | ---: | --- |
 | Local prefix recomputation | 8 / 6 | 14.654 | Pending | Complete |
-| Ordinary NIXL | Unconfirmed | Pending | Pending | Final logs unavailable after SSH interruption |
-| Native-page READ | 0 / 0 | Pending | Pending | Awaiting ordinary completion and GPU window |
+| Ordinary NIXL | 8 / 6 | 14.645 | 1.000× observed | Pixel comparison failed; Worker exit unconfirmed |
+| Native-page READ | 0 / 0 | Pending | Pending | Awaiting prefix diagnosis and GPU window |
 
 The saved local PNG hashes and shapes were rechecked offline, and each
-prompt's four images have identical pixels. The ordinary run's SSH session
-ended on a network error; its remote completion and Worker state have not
-been established. No new GPU run or model cleanup follows that uncertainty.
+prompt's four images have identical pixels. Recovered ordinary records contain eight images and zero transport errors,
+with eight puts, sixteen gets, one registration per Worker and drained
+ownership. The image gate fails: dog warmup PSNR/SSIM is 35.99/0.98366,
+dog repeats 12.47/0.05883 and coffee 10.63/0.06073. Ordinary shutdown
+retained the DiT Worker after an Orchestrator timeout; its old exit is
+unconfirmed. These observed timings do not establish model speedup.
 Current records are in
 [`template-aligned`](../../../../benchmarks/nixl/h20x2-20261001/template-aligned/).
 
