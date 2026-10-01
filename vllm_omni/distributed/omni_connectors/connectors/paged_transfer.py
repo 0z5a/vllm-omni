@@ -125,7 +125,9 @@ class KVPagePool:
 
     def validate_offer(self, offer: PageOffer, block_ids: Sequence[int]) -> tuple[Region, ...]:
         if offer.schema_version != 1 or offer.kind != "pages" or offer.geometry != self.geometry:
-            raise ValueError("Incompatible NIXL KV page geometry or cache namespace")
+            raise ValueError(
+                f"Incompatible NIXL KV page geometry: source={offer.geometry}, destination={self.geometry}"
+            )
         if offer.num_blocks != len(block_ids) or not 0 < offer.num_tokens <= len(block_ids) * self.block_size:
             raise ValueError("NIXL KV transfer must fit whole reserved destination blocks")
         regions = self.regions(block_ids)
@@ -168,7 +170,10 @@ class PageTransferCapability(Protocol):
         generation: str,
         claim_id: str,
         page_claim_ids: tuple[str, ...],
+        geometry: PageGeometry,
     ) -> PageOffer | None: ...
+
+    def cancel_page_claim(self, key: str, offer: PageOffer) -> bool: ...
 
     def read_into(self, key: str, offer: PageOffer, target: ReservedKVPages) -> str: ...
 

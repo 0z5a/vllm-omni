@@ -134,6 +134,7 @@ def claim(consumer: NixlConnector, key: str, offer: PageOffer, claim_id: str, pe
         generation=offer.generation,
         claim_id=claim_id,
         page_claim_ids=peers,
+        geometry=offer.geometry,
     )
     assert claimed is not None
     return claimed
@@ -226,6 +227,26 @@ def test_unknown_dma_late_ack_and_stale_target_generation(peers, monkeypatch):
     assert consumer._closed and not destination.registrations
 
 
+def test_cfg_cancel_before_read_is_idempotent_and_preserves_other_reader(peers):
+    producer, consumer = peers
+    source, destination = make_pool(), make_pool()
+    producer.register_page_pool(source)
+    consumer.register_page_pool(destination)
+    offer = producer.export_pages("cancel", source, (1,), 1, expected_readers=2, ready=Ready())
+    readers = ("positive", "negative")
+    positive = claim(consumer, "cancel", offer, readers[0], readers)
+    negative = claim(consumer, "cancel", offer, readers[1], readers)
+    assert consumer.cancel_page_claim("cancel", positive)
+    assert consumer.cancel_page_claim("cancel", positive)
+    assert producer._pending["cancel"].claims == {"negative"} and source.exports
+    read_id = consumer.read_into("cancel", negative, ReservedKVPages("negative", 1, destination, (2,)))
+    with pytest.raises(RuntimeError, match="submitted"):
+        consumer.cancel_page_claim("cancel", negative)
+    consumer._agent.states[consumer._page_reads[read_id].handle] = "DONE"
+    assert consumer.poll_page_read(read_id)
+    assert not source.exports
+
+
 @pytest.mark.parametrize("field", ["namespace", "layout", "dtype", "device_type", "page_strides", "layers"])
 def test_geometry_mismatch_rejected_before_dma(peers, field):
     producer, consumer = peers
@@ -242,6 +263,18 @@ def test_geometry_mismatch_rejected_before_dma(peers, field):
         "layers": ("other",),
     }
     geometry = msgspec.structs.replace(offer.geometry, **{field: changes[field]})
+    with pytest.raises(ValueError, match="geometry"):
+        consumer.claim_pages(
+            "geometry",
+            offer.sender_host,
+            offer.sender_zmq_port,
+            generation=offer.generation,
+            claim_id="reader",
+            page_claim_ids=("reader",),
+            geometry=geometry,
+        )
+    assert not producer._pending["geometry"].claims
+    assert producer._pending["geometry"].page_claim_ids is None
     invalid = msgspec.structs.replace(offer, geometry=geometry, claim_id="reader")
     with pytest.raises(ValueError, match="geometry"):
         consumer.read_into("geometry", invalid, ReservedKVPages("target", 1, destination, (3,)))

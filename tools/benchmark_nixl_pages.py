@@ -147,6 +147,7 @@ def target_worker(
                             generation=offer.generation,
                             claim_id=key,
                             page_claim_ids=(key,),
+                            geometry=destination.geometry,
                         )
                     reservation = ReservedKVPages(key, repeat * samples + sample + warmup, destination, target_ids)
                     read_id = connector.read_into(key, claimed, reservation)

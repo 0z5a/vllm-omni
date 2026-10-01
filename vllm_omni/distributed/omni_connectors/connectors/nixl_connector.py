@@ -20,7 +20,7 @@ import zmq
 
 from ..utils.logging import get_connector_logger
 from .base import OmniConnectorBase
-from .paged_transfer import KVPagePool, PageOffer, PageReadyEvent, ReservedKVPages
+from .paged_transfer import KVPagePool, PageGeometry, PageOffer, PageReadyEvent, ReservedKVPages
 
 if TYPE_CHECKING:
     from nixl._api import nixl_prepped_dlist_handle, nixl_xfer_handle
@@ -39,6 +39,7 @@ _TUPLE_MARKER = "__nixl_tuple__"
 # before READ, even with out-of-band metadata, and acknowledge completion here.
 _GET_META_MSG = b"nixl_get_meta"
 _XFER_DONE_MSG = b"nixl_xfer_done"
+_PAGE_GEOMETRY_MISMATCH = b"nixl_page_geometry_mismatch"
 _META_NOT_FOUND = b"nixl_meta_not_found"
 _ACK = b"nixl_ack"
 
@@ -448,6 +449,7 @@ class NixlConnector(OmniConnectorBase):
         generation: str,
         claim_id: str,
         page_claim_ids: tuple[str, ...],
+        geometry: PageGeometry,
     ) -> PageOffer | None:
         """Claim every CFG reader atomically before the first page READ."""
         if self._zmq_ctx is None:
@@ -461,6 +463,7 @@ class NixlConnector(OmniConnectorBase):
             generation=generation,
             claim_id=claim_id,
             page_claim_ids=page_claim_ids,
+            geometry=geometry,
         )
         if metadata is None:
             return None
@@ -468,6 +471,25 @@ class NixlConnector(OmniConnectorBase):
         with self._state_lock:
             self._page_claims[(key, offer.generation, offer.pool_epoch, offer.claim_id)] = offer
         return offer
+
+    def cancel_page_claim(self, key: str, offer: PageOffer) -> bool:
+        """ACK an unsubmitted claim; active or ambiguous DMA cannot be cancelled."""
+        claim = (key, offer.generation, offer.pool_epoch, offer.claim_id)
+        with self._state_lock:
+            if any(
+                (read.key, read.offer.generation, read.offer.pool_epoch, read.offer.claim_id) == claim
+                for read in self._page_reads.values()
+            ):
+                raise RuntimeError("Cannot cancel a submitted NIXL page READ")
+            cached = self._page_claims.get(claim)
+            if cached is None:
+                return True
+            if cached != offer:
+                raise ValueError("Cannot cancel a different NIXL page claim")
+            if not self._notify_transfer_done(key, msgspec.structs.asdict(offer)):
+                return False
+            del self._page_claims[claim]
+        return True
 
     def read_into(self, key: str, offer: PageOffer, target: ReservedKVPages) -> str:
         """READ directly into a Scheduler reservation; no full-size receive tensor."""
@@ -912,6 +934,7 @@ class NixlConnector(OmniConnectorBase):
         generation: str | None = None,
         claim_id: str | None = None,
         page_claim_ids: tuple[str, ...] | None = None,
+        geometry: PageGeometry | None = None,
     ) -> dict[str, Any] | None:
         """Fetch transfer metadata for ``get_key`` from a producer's ROUTER socket.
 
@@ -928,7 +951,13 @@ class NixlConnector(OmniConnectorBase):
         if page_claim_ids is None:
             claim_id = claims.setdefault(query_key, claim_id or uuid.uuid4().hex)
         request = _GET_META_MSG + msgspec.msgpack.encode(
-            {"key": get_key, "generation": generation, "claim_id": claim_id, "page_claim_ids": page_claim_ids}
+            {
+                "key": get_key,
+                "generation": generation,
+                "claim_id": claim_id,
+                "page_claim_ids": page_claim_ids,
+                "page_geometry": geometry,
+            }
         )
         try:
             sock = self._get_req_socket(zmq_addr, self._metadata_query_timeout_ms)
@@ -941,6 +970,9 @@ class NixlConnector(OmniConnectorBase):
         if reply == _META_NOT_FOUND:
             claims.pop(query_key, None)
             return None
+        if reply.startswith(_PAGE_GEOMETRY_MISMATCH):
+            source = msgspec.msgpack.decode(reply[len(_PAGE_GEOMETRY_MISMATCH) :], type=PageGeometry)
+            raise ValueError(f"Incompatible NIXL KV page geometry: source={source}, destination={geometry}")
         metadata = msgspec.msgpack.decode(reply)
         claims.pop(query_key, None)
         return metadata
@@ -1031,6 +1063,9 @@ class NixlConnector(OmniConnectorBase):
                         or (pending.page_claim_ids is not None and frozenset(readers) != pending.page_claim_ids)
                     ):
                         return _META_NOT_FOUND
+                    geometry = msgspec.convert(request["page_geometry"], type=PageGeometry)
+                    if geometry != pending.page_pool.geometry:
+                        return _PAGE_GEOMETRY_MISMATCH + msgspec.msgpack.encode(pending.page_pool.geometry)
                     if pending.page_claim_ids is None:
                         pending.page_claim_ids = frozenset(readers)
                         pending.claims.update(readers)

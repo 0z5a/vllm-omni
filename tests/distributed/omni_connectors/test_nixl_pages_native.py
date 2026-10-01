@@ -90,6 +90,7 @@ def target_worker(wire: Connection) -> None:
             generation=offer.generation,
             claim_id=peers[row],
             page_claim_ids=peers,
+            geometry=pool.geometry,
         )
         assert claimed is not None
         reservation = ReservedKVPages(peers[row], 7, pool, blocks)
