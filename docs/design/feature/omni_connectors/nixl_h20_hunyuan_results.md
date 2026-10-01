@@ -60,6 +60,20 @@ the normal reference connector without CPU snapshots. Diagnostic images,
 byte-proof summaries, CPU reference results and source hashes are preserved in
 [`token-autocast-diagnostic`](../../../../benchmarks/nixl/h20x2-20261001/token-autocast-diagnostic/).
 
+The checkpoint-template local replay completed eight 50-step images, with a
+14.654-second median across six measured requests. Each prompt's four images
+are pixel-identical. The AR stage emits four tokens per request with the
+checkpoint's pretrain template, so these timings are a new input baseline;
+the change from the earlier Instruct-input times is not a transfer speedup.
+Both Workers exited naturally. Matched ordinary/pages runs remain pending.
+
+For token-checked NIXL text-to-image requests, the adapter now exposes the
+entire stable text prefix before the generated-image timestep. The bridge
+still stops reuse at the first token mismatch and at the source's computed
+length. This permits raw prompts without a CoT terminator; conditioned-image
+and legacy connector boundaries retain their previous behavior. The related
+layout, routing and native-bridge/reference suites pass 76 CPU cases.
+
 All 24 images, timings, metrics, accuracy scores and per-path source hashes are
 preserved in
 [`routing-diagnostic`](../../../../benchmarks/nixl/h20x2-20261001/routing-diagnostic/).
