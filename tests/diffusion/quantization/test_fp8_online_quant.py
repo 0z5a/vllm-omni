@@ -24,17 +24,27 @@ pytest.importorskip("vllm._custom_ops")
 FP8_MAX = 448.0
 
 pytestmark = pytest.mark.skipif(
-    not torch.cuda.is_available()
-    or torch.cuda.get_device_capability()[0] < 8,
+    not torch.cuda.is_available() or torch.cuda.get_device_capability()[0] < 8,
     reason="the FP8 online fast path requires a CUDA device with sm_80+",
 )
 
 DTYPES = [torch.bfloat16, torch.float16, torch.float32]
 # Shapes that exercise both mappings and their crossover.
 SHAPES = [
-    (1, 4096), (2, 3072), (7, 128), (8, 512), (33, 2048), (64, 512),
-    (128, 4096), (256, 2048), (512, 1024), (1024, 4096), (2048, 3072),
-    (5, 8), (377, 1024), (4096, 128),
+    (1, 4096),
+    (2, 3072),
+    (7, 128),
+    (8, 512),
+    (33, 2048),
+    (64, 512),
+    (128, 4096),
+    (256, 2048),
+    (512, 1024),
+    (1024, 4096),
+    (2048, 3072),
+    (5, 8),
+    (377, 1024),
+    (4096, 128),
 ]
 
 
@@ -69,16 +79,13 @@ def _fixture(dtype, m, n, kind, seed=0):
     if kind == "spread":
         e = torch.randint(-12, 9, (m, n), device="cuda", generator=g)
         sign = torch.where(torch.rand(m, n, device="cuda", generator=g) < 0.5, -1.0, 1.0)
-        return (torch.rand(m, n, device="cuda", generator=g) * 1.5 + 0.5) * torch.pow(
-            2.0, e.float()
-        ) * sign
+        return (torch.rand(m, n, device="cuda", generator=g) * 1.5 + 0.5) * torch.pow(2.0, e.float()) * sign
     raise ValueError(kind)
 
 
 def test_compiled_extension_available():
     assert fp8_online.compiled_ok(), (
-        "the CUDA extension failed to build; set "
-        "VLLM_OMNI_FP8_ONLINE_VERBOSE=1 for the build log"
+        "the CUDA extension failed to build; set VLLM_OMNI_FP8_ONLINE_VERBOSE=1 for the build log"
     )
 
 
@@ -145,9 +152,7 @@ def test_unsupported_inputs_are_declined(tensor_kwargs):
 
 def test_large_row_count_is_declined():
     """Above the measured crossover the reference kernel is faster."""
-    x = torch.randn(
-        fp8_online.FASTPATH_MAX_ROWS + 1, 4096, device="cuda", dtype=torch.bfloat16
-    )
+    x = torch.randn(fp8_online.FASTPATH_MAX_ROWS + 1, 4096, device="cuda", dtype=torch.bfloat16)
     assert not fp8_online.supported(x)
 
 
@@ -188,9 +193,7 @@ def test_per_tensor_matches_reference_bitwise(dtype, m, n):
     got_out = torch.empty_like(x, dtype=torch.float8_e4m3fn)
     got_scale = torch.empty(1, device="cuda", dtype=torch.float32)
     fp8_online.per_tensor(got_out, x, got_scale)
-    assert torch.equal(ref_out.view(torch.uint8), got_out.view(torch.uint8)), (
-        f"payload mismatch for {dtype} [{m}, {n}]"
-    )
+    assert torch.equal(ref_out.view(torch.uint8), got_out.view(torch.uint8)), f"payload mismatch for {dtype} [{m}, {n}]"
     assert torch.equal(ref_scale, got_scale), f"scale mismatch for {dtype} [{m}, {n}]"
 
 
