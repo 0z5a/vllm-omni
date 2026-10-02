@@ -970,8 +970,8 @@ def test_vllm_omni_stage_config_public_fields_use_typed_stage_realizations():
     }
     assert "diffusion_config" not in public_fields
     assert {f.name for f in fields(VllmOmniDiffusionStageConfig)} == public_fields | {"diffusion_config"}
-    assert {f.name for f in fields(VllmOmniARStageConfig)} == public_fields | {"offload_config"}
-    assert {f.name for f in fields(VllmOmniGenerationStageConfig)} == public_fields | {"offload_config"}
+    assert {f.name for f in fields(VllmOmniARStageConfig)} == public_fields
+    assert {f.name for f in fields(VllmOmniGenerationStageConfig)} == public_fields
 
 
 def test_runtime_config_fields_match_structured_runtime_scope():
@@ -2347,33 +2347,3 @@ def test_async_chunk_auto_disabled_without_processor():
     # since doing so will just raise a ValueError in validation.
     merge_pipeline_deploy(pipeline, deploy)
     assert not deploy.async_chunk
-
-
-@pytest.mark.parametrize(
-    "offload,expected",
-    [
-        ({"offload_backend": "uva", "uva": {"cpu_offload_gb": 96}}, {"offload_backend": "uva", "cpu_offload_gb": 96}),
-        (
-            {"offload_backend": "prefetch", "prefetch": {"offload_group_size": 4, "offload_num_in_group": 2}},
-            {"offload_backend": "prefetch", "offload_group_size": 4, "offload_num_in_group": 2},
-        ),
-    ],
-)
-def test_llm_offload_deploy_projects_native_engine_args(tmp_path, offload, expected):
-    import yaml
-    from vllm.config import OffloadConfig
-
-    from vllm_omni.engine.stage_init_utils import _project_omni_stage_engine_args
-
-    path = tmp_path / "offload.yaml"
-    path.write_text(
-        yaml.safe_dump({"pipeline": "hunyuan_image_3_moe", "stages": [{"stage_id": 0, "offload_config": offload}]})
-    )
-    config = _from_pipeline_key("hunyuan_image_3_moe", deploy_config_path=str(path))
-    stage = config.stage_by_id(0)
-    assert isinstance(stage, VllmOmniARStageConfig) and isinstance(stage.offload_config, OffloadConfig)
-    projected = _project_omni_stage_engine_args(stage)
-    assert {name: projected[name] for name in expected} == expected
-    assert "offload_config" not in projected
-    diffusion = _project_omni_stage_engine_args(config.stage_by_id(1))
-    assert "cpu_offload_gb" not in diffusion and "offload_backend" not in diffusion

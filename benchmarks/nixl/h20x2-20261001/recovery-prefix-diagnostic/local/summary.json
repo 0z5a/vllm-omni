@@ -1,8 +1,0 @@
-{
-  "mode": "local",
-  "model": "/root/autodl-tmp/nixl-h20x2/models/hunyuan-image3-fp8",
-  "sequence_template": "pretrain",
-  "initialization_s": 222.15976466983557,
-  "request_count": 4,
-  "metrics": null
-}

@@ -103,7 +103,6 @@ _OMNI_ONLY_LLM_STAGE_ENGINE_FIELDS = frozenset(
         "model_subdir",
         "num_gpus",
         "num_replicas",
-        "offload_config",
         "num_weight_load_threads",
         "omni_kv_config",
         "parallel_config",

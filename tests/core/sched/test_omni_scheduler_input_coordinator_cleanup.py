@@ -25,8 +25,6 @@ class DummyRequest:
     request_id = "req-free"
     client_index = 0
     additional_information = None
-    status = RequestStatus.FINISHED_STOPPED
-    kv_transfer_params = None
 
     def is_finished(self) -> bool:
         return True
@@ -76,7 +74,6 @@ def test_finish_requests_cleans_input_coordinator_for_finished_ids(
 def test_ar_free_request_cleans_input_coordinator_on_normal_free() -> None:
     coordinator = FakeInputCoordinator()
     scheduler = OmniARScheduler.__new__(OmniARScheduler)
-    scheduler.vllm_config = SimpleNamespace(kv_transfer_config=None)
     scheduler.input_coordinator = coordinator
     scheduler.chunk_transfer_adapter = None
     scheduler._omits_kv_transfer_cache = {"req-free": True}

@@ -889,32 +889,3 @@ def test_native_image_reuse_requires_coverage_in_every_cfg_row(computed, expecte
 
     output = TokenizerEncodeOutput(joint_image_slices=[[slice(2, 8)], [slice(2, 6)]])
     assert native_kv_covers_cond_images(output, computed) is expected
-
-
-@pytest.mark.parametrize(
-    "token_checked, conditioned_image, cot, expected",
-    [
-        (True, False, False, [12, 14]),
-        (False, False, False, [0, 0]),
-        (True, True, False, [0, 0]),
-        (True, False, True, [12, 14]),
-        (False, False, True, [7, 5]),
-        (True, True, True, [7, 5]),
-    ],
-)
-def test_token_checked_text_prefix_does_not_require_cot(token_checked, conditioned_image, cot, expected):
-    tokenizer, image_processor = _components([12, 14])
-    request = _request(guidance_scale=5.0)
-    request.kv_transfer_params = {"num_transfer_tokens": 12}
-    if token_checked:
-        request.kv_transfer_params["token_ids"] = list(range(12))
-    layout = _prepare(request, tokenizer, image_processor)
-    if conditioned_image:
-        layout.tokenizer_output.joint_image_slices = [[slice(5, 10)], [slice(5, 10)]]
-    if cot:
-        layout.tokenizer_output.think_recaption_end_pos = [[7], [5]]
-        layout.tokenizer_output.uncond_cfg_start_pos = [[None], [5]]
-    rows = build_hunyuan_diffusion_kv_requests(request, layout)
-    assert [row.prompt_token_ids for row in rows] == [
-        layout.tokenizer_output.tokens[i, :length].tolist() for i, length in enumerate(expected)
-    ]

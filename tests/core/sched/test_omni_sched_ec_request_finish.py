@@ -14,7 +14,6 @@ item, so a remote encoder-cache handle could never reach the frontend.
 
 from __future__ import annotations
 
-from types import SimpleNamespace
 from unittest.mock import MagicMock
 
 import pytest
@@ -42,7 +41,6 @@ def _make_free_request_sched(*, ec_connector) -> tuple[OmniARScheduler, MagicMoc
     firing relative to the encoder-cache free."""
     order = MagicMock()
     sched = OmniARScheduler.__new__(OmniARScheduler)
-    sched.vllm_config = SimpleNamespace(kv_transfer_config=None)
     sched._omits_kv_transfer_cache = {}
     sched._connector_finished = lambda request: (False, None)
     sched.ec_connector = ec_connector
@@ -63,8 +61,6 @@ def _make_free_request_sched(*, ec_connector) -> tuple[OmniARScheduler, MagicMoc
 class _FakeFinishedRequest:
     def __init__(self, request_id: str) -> None:
         self.request_id = request_id
-        self.status = RequestStatus.FINISHED_STOPPED
-        self.kv_transfer_params = None
 
     def is_finished(self) -> bool:
         return True

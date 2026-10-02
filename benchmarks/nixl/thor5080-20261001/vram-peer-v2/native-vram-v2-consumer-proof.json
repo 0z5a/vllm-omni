@@ -1,9 +1,0 @@
-{
-  "role": "consumer",
-  "bytes": 1048576,
-  "memory_type": "VRAM",
-  "sha256": "fbbab289f7f94b25736c58be46a994c441fd02552cc6022352e3d86d2fab7c83",
-  "cuda_initialized": true,
-  "pid": 435653,
-  "gpu_lease_elapsed_s": 57.670996519002074
-}

@@ -759,8 +759,6 @@ def test_deferred_transfer_is_retained_while_active(nixl_connector_cls):
     connector._agent.release_xfer_handle = lambda handle: released.append(("handle", handle))
     connector._agent.release_dlist_handle = lambda handle: released.append(("dlist", handle))
     connector._agent.remove_remote_agent = lambda agent: released.append(("agent", agent))
-    connector._agent.add_remote_agent = lambda metadata: "producer"
-    connector._acquire_remote_agent(b"producer")
     transfer = _DeferredTransfer(
         tensors=[torch.zeros(1)],
         registrations=["registration"],
@@ -789,8 +787,6 @@ def test_deferred_transfer_releases_exactly_once_after_done(nixl_connector_cls):
     connector._agent.release_xfer_handle = lambda handle: released.append(("handle", handle))
     connector._agent.release_dlist_handle = lambda handle: released.append(("dlist", handle))
     connector._agent.remove_remote_agent = lambda agent: released.append(("agent", agent))
-    connector._agent.add_remote_agent = lambda metadata: "producer"
-    connector._acquire_remote_agent(b"producer")
     connector._agent.deregister_memory = lambda descs: released.append(("registration", descs))
     transfer = _DeferredTransfer(
         tensors=[torch.zeros(1)],
@@ -838,8 +834,6 @@ def test_close_returns_without_releasing_active_dma(nixl_connector_cls, poll_rai
     connector._agent.release_xfer_handle = lambda handle: released.append(("handle", handle))
     connector._agent.release_dlist_handle = lambda handle: released.append(("dlist", handle))
     connector._agent.remove_remote_agent = lambda agent: released.append(("agent", agent))
-    connector._agent.add_remote_agent = lambda metadata: "producer"
-    connector._acquire_remote_agent(b"producer")
     connector._agent.deregister_memory = lambda descs: released.append(("registration", descs))
     transfer = _DeferredTransfer(
         tensors=[torch.zeros(1)],
