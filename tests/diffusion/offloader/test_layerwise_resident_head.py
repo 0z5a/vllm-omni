@@ -21,12 +21,11 @@ class ResidentPipeline(nn.Module):
     _encoder_modules = []
     _vae_modules = []
     _resident_modules = []
-    _offload_plan = OffloadPlan(layerwise_resident_layers={"transformer": 2})
+    _offload_plan = OffloadPlan(block_attrs={"transformer": ("blocks",)}, layerwise_resident_layers={"transformer": 2})
 
     def __init__(self):
         super().__init__()
         self.transformer = nn.Module()
-        self.transformer._layerwise_offload_blocks_attrs = ["blocks"]
         self.transformer.blocks = nn.ModuleList([nn.Linear(4, 4) for _ in range(6)])
         self.transformer.head_alias = self.transformer.blocks[0].weight
 
