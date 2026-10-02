@@ -457,11 +457,11 @@ class LayerWiseOffloadBackend(OffloadBackend):
         # Note that there might exist multiple DiT models in specific pipelines
         for component, stack in iter_streamable_dits(resolved, self.device):
             dit_module = component.module
-            blocks = list(stack.blocks)
+            blocks = list(stack.streaming)
 
             # Place the remainder by resolved block tensor identity, just as
             # for encoders. Attribute aliases must not move streamed weights.
-            move_non_block_state_to_device(dit_module, (stack.blocks,), self.device)
+            move_non_block_state_to_device(dit_module, (stack.streaming,), self.device)
 
             block_hooks = _install_layerwise_hook_group(
                 blocks,
@@ -476,7 +476,11 @@ class LayerWiseOffloadBackend(OffloadBackend):
             # zero once; later denoising iterations prefetch it from the ring.
             block_hooks[0].prefetch_layer(non_blocking=False)
 
-            logger.info(f"Layer-wise offloading enabled on {len(blocks)} layers (blocks)")
+            logger.info(
+                "Layer-wise offloading enabled on %d layers (blocks), with %d resident layers",
+                len(blocks),
+                stack.resident_head,
+            )
 
             # Track hooked blocks for cleanup
             self._blocks.append(blocks)
