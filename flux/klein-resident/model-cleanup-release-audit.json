@@ -1,0 +1,18 @@
+{
+  "time": 1790888733.0617733,
+  "model": "/mnt/d/0z5a/flux-ovis-consolidation-20261001/models/FLUX.2-klein-4B",
+  "revision": "e7b7dc27f91deacad38e78976d1f2b499d76a294",
+  "files": 19,
+  "bytes": 15980134916,
+  "fs": "9p",
+  "open_or_mapped_readers": [],
+  "unreadable_other_proc_pids": [],
+  "Mac_backup_archive_sha256": "4b3f0e599f98466decee572b807ed7d8c0cbe7497e32f9e7f188c335f7b88a5b",
+  "free_before": 261654335488,
+  "removed": true,
+  "free_after": 277634514944,
+  "whole_queue_released": true,
+  "GPU_compute": "",
+  "boot_id": "8152cf95-168f-4e1e-8c12-ba6a61f1e0ab",
+  "gpu_uuid": "GPU-99386c0c-e54e-e92e-9cf1-3cd91b6397f7"
+}

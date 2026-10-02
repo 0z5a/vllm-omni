@@ -1,0 +1,89 @@
+{
+  "backed_up_artifacts_verified": 234,
+  "timing": [
+    {
+      "variant": "bf16",
+      "timed_requests": 12,
+      "mean_ms": 3039.9786872499703,
+      "median_ms": 3022.1697644998926,
+      "stdev_ms": 86.04333426171576,
+      "process_means_ms": [
+        2963.1010239999873,
+        3116.8563504999534
+      ],
+      "peak_MiB": 13704.0,
+      "encoder_fp8_projections": 0,
+      "dit_fp8_projections": 0,
+      "distinct_images_per_prompt": {
+        "0": 1,
+        "1": 1,
+        "2": 1
+      },
+      "latency_reduction_percent": 0.0
+    },
+    {
+      "variant": "encoder",
+      "timed_requests": 12,
+      "mean_ms": 3074.072682166635,
+      "median_ms": 3062.8747014998794,
+      "stdev_ms": 108.87482059169565,
+      "process_means_ms": [
+        2970.9512340000024,
+        3177.1941303332674
+      ],
+      "peak_MiB": 10222.0,
+      "encoder_fp8_projections": 252,
+      "dit_fp8_projections": 0,
+      "distinct_images_per_prompt": {
+        "0": 1,
+        "1": 1,
+        "2": 1
+      },
+      "latency_reduction_percent": -1.121520853407909
+    },
+    {
+      "variant": "dit",
+      "timed_requests": 12,
+      "mean_ms": 1906.3220605833635,
+      "median_ms": 1921.0830650001753,
+      "stdev_ms": 47.30932138038604,
+      "process_means_ms": [
+        1866.2198569999948,
+        1946.4242641667322
+      ],
+      "peak_MiB": 13234.0,
+      "encoder_fp8_projections": 0,
+      "dit_fp8_projections": 80,
+      "distinct_images_per_prompt": {
+        "0": 1,
+        "1": 1,
+        "2": 1
+      },
+      "latency_reduction_percent": 37.29159784643545
+    },
+    {
+      "variant": "both",
+      "timed_requests": 12,
+      "mean_ms": 1889.4574875000103,
+      "median_ms": 1865.3888359999655,
+      "stdev_ms": 56.69628044240651,
+      "process_means_ms": [
+        1896.557315999985,
+        1882.3576590000357
+      ],
+      "peak_MiB": 9758.0,
+      "encoder_fp8_projections": 252,
+      "dit_fp8_projections": 80,
+      "distinct_images_per_prompt": {
+        "0": 1,
+        "1": 1,
+        "2": 1
+      },
+      "latency_reduction_percent": 37.84635742926034
+    }
+  ],
+  "cuda_kernels": 6005,
+  "cutlass_kernels": 660,
+  "cutlass_sm120_gemm_kernels": 572,
+  "activation_quantization_kernels": 572
+}

@@ -1,0 +1,139 @@
+{
+  "profiles": {
+    "fixed": {
+      "native_fp8_GEMM_calls": 3336,
+      "kernel_names": {
+        "_ZN7cutlass13device_kernelI21enable_sm100_to_sm120INS_4gemm6kernel13GemmUniversalIN4cute5tupleIJiiiiEEENS2_10collective13CollectiveMmaINS2_35MainloopSm100TmaUmmaWarpSpecializedILi8ELi2ELi4ENS6_IJNS5_1CILi2EEESC_NSB_ILi1EEEEEENS_4arch5Sm100EEENS6_IJNSB_ILi256EEENSB_ILi128EEESJ_EEENS_12float_e4m3_tENS6_IJlSD_lEEESL_SM_NS5_8TiledMMAINS5_8MMA_AtomIJNS5_25SM100_MMA_F8F6F4_2x1SM_SSISL_SL_fLi256ELi128ELNS5_4UMMA5MajorE0ELSR_0ELNSQ_7ScaleInE0ELSS_0EEEEEENS5_6LayoutINS6_IJSD_SD_SD_EEENS6_IJNSB_ILi0EEESX_SX_EEEEENS6_IJNS5_10UnderscoreES10_S10_EEEEENS5_28SM100_TMA_2SM_LOAD_MULTICASTENS5_14ComposedLayoutINS5_7SwizzleILi3ELi4ELi3EEENS5_18smem_ptr_flag_bitsILi8EEENSV_INS6_IJNSB_ILi8EEESJ_EEENS6_IJSJ_SD_EEEEEEEvNS5_8identityENS5_18SM100_TMA_2SM_LOADES1D_vS1E_EENS_8epilogue10collective18CollectiveEpilogueINS1H_23Sm100TmaWarpSpecializedILi4ELi2ELi32ELb1ELb0EEEJNS6_IJSJ_SJ_SJ_EEENS6_IJNSV_ISJ_SD_EENSV_INSB_ILi32EEESD_EEEEENS_10bfloat16_tESM_S1R_SM_NS1H_6fusion15Sm90TreeVisitorINS1S_11Sm90ComputeINS_24homogeneous_multiply_addES1R_fLNS_15FloatRoundStyleE2EvEEJNS1S_24Sm90ColOrScalarBroadcastILi0ESK_fNS6_IJSD_SX_SX_EEELi4EEENS1T_INS1U_INS_10multipliesEffLS1W_2EvEEJNS1S_24Sm90RowOrScalarBroadcastILi0ESK_fNS6_IJSX_SD_SX_EEELi4EEENS1S_12Sm90AccFetchEEEENS1S_16Sm90RowBroadcastILi0ESK_S1R_S1R_S24_Li8ELb0EEEEEENS5_5SM1004TMEM4LOAD26SM100_TMEM_LOAD_32dp32b32xENS5_13SM90_TMA_LOADENS14_INS15_ILi2ELi4ELi3EEENS17_ILi16EEENSV_INS6_IJS19_S1O_EEENS6_IJS1O_SD_EEEEEEENS5_39AutoVectorizingCopyWithAssumedAlignmentILi128EEENS5_14SM90_TMA_STOREES2L_S2N_S2N_EEEvvEEEEEvNT_6ParamsE": 3192,
+        "_ZN7cutlass13device_kernelI21enable_sm100_to_sm120INS_4gemm6kernel13GemmUniversalIN4cute5tupleIJiiiiEEENS2_10collective13CollectiveMmaINS2_35MainloopSm100TmaUmmaWarpSpecializedILi8ELi2ELi4ENS6_IJNS5_1CILi2EEESC_NSB_ILi1EEEEEENS_4arch5Sm100EEENS6_IJNSB_ILi256EEENSB_ILi128EEESJ_EEENS_12float_e4m3_tENS6_IJlSD_lEEESL_SM_NS5_8TiledMMAINS5_8MMA_AtomIJNS5_25SM100_MMA_F8F6F4_2x1SM_SSISL_SL_fLi256ELi128ELNS5_4UMMA5MajorE0ELSR_0ELNSQ_7ScaleInE0ELSS_0EEEEEENS5_6LayoutINS6_IJSD_SD_SD_EEENS6_IJNSB_ILi0EEESX_SX_EEEEENS6_IJNS5_10UnderscoreES10_S10_EEEEENS5_28SM100_TMA_2SM_LOAD_MULTICASTENS5_14ComposedLayoutINS5_7SwizzleILi3ELi4ELi3EEENS5_18smem_ptr_flag_bitsILi8EEENSV_INS6_IJNSB_ILi8EEESJ_EEENS6_IJSJ_SD_EEEEEEEvNS5_8identityENS5_18SM100_TMA_2SM_LOADES1D_vS1E_EENS_8epilogue10collective18CollectiveEpilogueINS1H_23Sm100TmaWarpSpecializedILi4ELi2ELi32ELb1ELb0EEEJNS6_IJSJ_SJ_SJ_EEENS6_IJNSV_ISJ_SD_EENSV_INSB_ILi32EEESD_EEEEENS_10bfloat16_tESM_S1R_SM_NS1H_6fusion15Sm90TreeVisitorINS1S_11Sm90ComputeINS_10multipliesES1R_fLNS_15FloatRoundStyleE2EvEEJNS1S_24Sm90ColOrScalarBroadcastILi0ESK_fNS6_IJSD_SX_SX_EEELi4EEENS1T_INS1U_IS1V_ffLS1W_2EvEEJNS1S_24Sm90RowOrScalarBroadcastILi0ESK_fNS6_IJSX_SD_SX_EEELi4EEENS1S_12Sm90AccFetchEEEEEEENS5_5SM1004TMEM4LOAD26SM100_TMEM_LOAD_32dp32b32xENS5_13SM90_TMA_LOADENS14_INS15_ILi2ELi4ELi3EEENS17_ILi16EEENSV_INS6_IJS19_S1O_EEENS6_IJS1O_SD_EEEEEEENS5_39AutoVectorizingCopyWithAssumedAlignmentILi128EEENS5_14SM90_TMA_STOREES2I_S2K_S2K_EEEvvEEEEEvNT_6ParamsE": 144
+      },
+      "cudaGraph_runtime_calls": 0
+    },
+    "T5": {
+      "native_fp8_GEMM_calls": 144,
+      "cudaGraph_runtime_calls": 0
+    }
+  },
+  "background": {
+    "samples": 538,
+    "all_GPU_queries_successful": true,
+    "observed_GPU_pids": [
+      337681,
+      341838,
+      345874,
+      350392,
+      355103,
+      359359,
+      364022,
+      367829,
+      371623,
+      373874,
+      376180,
+      378700,
+      381086,
+      383466,
+      385946,
+      388193,
+      390429
+    ],
+    "foreign_GPU_pids": [],
+    "copy_pid": 302171,
+    "valid_copy_IO_samples": 538,
+    "copy_wchar_delta_bytes": 3072871071,
+    "duration_seconds": 5384.992896556854,
+    "copy_mean_wchar_MiB_per_second": 0.5442009440558835
+  },
+  "quality": {
+    "fixed_encoder": {
+      "SSIM_range": [
+        0.8729988094520054,
+        0.9930614647280706
+      ],
+      "MAE_0_255_range": [
+        0.7093582153320312,
+        6.660841623942058
+      ]
+    },
+    "fixed_dit": {
+      "SSIM_range": [
+        0.8676416155130395,
+        0.9347463776012286
+      ],
+      "MAE_0_255_range": [
+        3.683497111002604,
+        5.832337697347005
+      ]
+    },
+    "fixed_both": {
+      "SSIM_range": [
+        0.8355590377403969,
+        0.9406744269791991
+      ],
+      "MAE_0_255_range": [
+        3.364027659098307,
+        8.34213383992513
+      ]
+    },
+    "real_encoder": {
+      "SSIM_range": [
+        0.964354238550423,
+        0.9892988551516604
+      ],
+      "MAE_0_255_range": [
+        1.5545921325683594,
+        3.442122141520182
+      ]
+    },
+    "real_dit": {
+      "SSIM_range": [
+        0.980915608436872,
+        0.9859012333131149
+      ],
+      "MAE_0_255_range": [
+        1.6714922587076824,
+        1.8509661356608074
+      ]
+    },
+    "real_both": {
+      "SSIM_range": [
+        0.9570752165144242,
+        0.9825789405172541
+      ],
+      "MAE_0_255_range": [
+        1.9128977457682292,
+        3.215184529622396
+      ]
+    }
+  },
+  "semantic_review": {
+    "fixed": "Green and flower edits are present in all variants; green crops the cup and warm lighting omits the cup in BF16 as well as FP8. Extra petal, contour and highlight differences are visible.",
+    "real": "All variants preserve the astronaut/suit/helmet and perform navy-background and warm-light edits. The requested small red flower/mark on the helmet is visible in BF16 and DiT-only outputs, but absent or much less discernible in encoder-FP8 and both-FP8 outputs; this is an additional quantization fidelity limitation.",
+    "lossless": false
+  },
+  "all128outputs_size": [
+    512,
+    512
+  ],
+  "input_sizes": {
+    "fixed": [
+      1024,
+      1024
+    ],
+    "real": [
+      512,
+      512
+    ]
+  },
+  "T5_hidden_NRMSE": [
+    0.18173207342624664,
+    0.2244713455438614,
+    0.2070859670639038
+  ],
+  "T5_standalone_mean_wall_ms": {
+    "bf16": 144.76720946695423,
+    "fp8": 168.96103550025146
+  },
+  "T5_standalone_peak_allocated_MiB": {
+    "bf16": 9308.5234375,
+    "fp8": 5852.59375
+  }
+}

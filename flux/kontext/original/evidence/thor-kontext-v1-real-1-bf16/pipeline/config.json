@@ -1,0 +1,57 @@
+{
+  "arguments": {
+    "model": "/home/jwipc/0z5a/work/flux-ovis-consolidation-20261001/models/FLUX.1-Kontext-dev",
+    "kind": "kontext",
+    "variant": "bf16",
+    "offload": "layerwise",
+    "eager": true,
+    "weight_load_threads": 1,
+    "lazy_weight_load": true,
+    "encoder_graph": "native",
+    "no_pin": true,
+    "warmups": 2,
+    "requests": 6,
+    "height": 512,
+    "width": 512,
+    "input_image": "/home/jwipc/0z5a/work/flux-ovis-consolidation-20261001/inputs/kontext-real-astronaut.png",
+    "prompts_file": "/home/jwipc/0z5a/work/flux-ovis-consolidation-20261001/inputs/kontext-real-prompts.json",
+    "output": "/home/jwipc/0z5a/work/flux-ovis-consolidation-20261001/evidence/thor-kontext-v1-real-1-bf16/pipeline",
+    "profile": false
+  },
+  "omni_config": {
+    "model": "/home/jwipc/0z5a/work/flux-ovis-consolidation-20261001/models/FLUX.1-Kontext-dev",
+    "dtype": "bfloat16",
+    "num_gpus": 1,
+    "num_weight_load_threads": 1,
+    "enable_multithread_weight_load": false,
+    "distributed_executor_backend": "uni",
+    "enforce_eager": true,
+    "enable_cpu_offload": false,
+    "enable_layerwise_offload": false,
+    "quantization_config": null,
+    "worker_extension_cls": "harness.audit_worker.PipelineAudit",
+    "enable_diffusion_pipeline_profiler": true,
+    "log_stats": false,
+    "init_timeout": 600,
+    "stage_init_timeout": 600,
+    "diffusion_offload_config": {
+      "mode": "layer",
+      "components": [
+        "dit"
+      ],
+      "pin_memory": false
+    }
+  },
+  "pid": 371623,
+  "prompts": [
+    "Change the background to dark blue while preserving the astronaut, face and spacesuit.",
+    "Add a small red star sticker on the helmet while preserving the astronaut and background.",
+    "Make the lighting warmer while preserving the astronaut, spacesuit and background."
+  ],
+  "input_image_sha256": "48d3711f1f40fbbd45b2e3720cf1c084b3b873e02bf292da08a312ca67cf2939",
+  "steps": 28,
+  "guidance_scale": 2.5,
+  "seed": 42,
+  "forced_signals": false,
+  "shutdown_policy": "Production offloader shutdown; normal stage message and natural worker join"
+}

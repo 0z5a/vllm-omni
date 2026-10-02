@@ -1,0 +1,94 @@
+{
+  "workload": {
+    "prompts": [
+      "A product photograph of a red teapot beside two blue cups on a wooden table.",
+      "A watercolor storefront with a clearly readable OPEN sign and a bicycle outside.",
+      "Three yellow rubber ducks floating in a turquoise pool, overhead photograph."
+    ],
+    "steps": 4,
+    "guidance_scale": 0.0,
+    "seed": 42,
+    "model": "/mnt/d/0z5a/flux-ovis-consolidation-20261001/models/FLUX.2-klein-4B",
+    "dtype": "bfloat16",
+    "num_gpus": 1,
+    "enforce_eager": false,
+    "height": 1024,
+    "width": 1024
+  },
+  "timing": [
+    {
+      "variant": "both",
+      "encoder_graph": "native",
+      "timed_requests": 12,
+      "mean_ms": 1043.6780819166718,
+      "median_ms": 1042.4188280012459,
+      "stdev_ms": 3.8012556711005514,
+      "process_means_ms": [
+        1044.1623066665973,
+        1043.1938571667463
+      ],
+      "peak_reserved_MiB": 13128.0,
+      "mean_vae_decode_ms": 194.21119024961322
+    },
+    {
+      "variant": "both",
+      "encoder_graph": "eager",
+      "timed_requests": 12,
+      "mean_ms": 1068.3570416663315,
+      "median_ms": 1069.4204025003273,
+      "stdev_ms": 2.8906302478859742,
+      "process_means_ms": [
+        1068.370146332806,
+        1068.343936999857
+      ],
+      "peak_reserved_MiB": 12966.0,
+      "mean_vae_decode_ms": 194.1231656671031
+    },
+    {
+      "variant": "encoder",
+      "encoder_graph": "native",
+      "timed_requests": 12,
+      "mean_ms": 4295.153277166112,
+      "median_ms": 4295.216196000183,
+      "stdev_ms": 51.56495619072647,
+      "process_means_ms": [
+        4332.475182665803,
+        4257.8313716664225
+      ],
+      "peak_reserved_MiB": 16690.0,
+      "mean_vae_decode_ms": 2968.2521204998316
+    },
+    {
+      "variant": "encoder",
+      "encoder_graph": "eager",
+      "timed_requests": 12,
+      "mean_ms": 4390.742477583141,
+      "median_ms": 4392.849787998784,
+      "stdev_ms": 29.649564361893198,
+      "process_means_ms": [
+        4408.814830499978,
+        4372.670124666304
+      ],
+      "peak_reserved_MiB": 16832.0,
+      "mean_vae_decode_ms": 3024.8613836671816
+    }
+  ],
+  "graph_request_latency_reduction_percent": {
+    "both": 2.3099917712123275,
+    "encoder": 2.1770623284116053
+  },
+  "profiles": {
+    "both": {
+      "cudaGraphLaunch": 1,
+      "kernels": 4839,
+      "cutlass_sm120_gemm": 572
+    },
+    "encoder": {
+      "cudaGraphLaunch": 1,
+      "kernels": 4799,
+      "cutlass_sm120_gemm": 252
+    }
+  },
+  "image_graph_eager_exact": true,
+  "verified_backup_files": 182
+}

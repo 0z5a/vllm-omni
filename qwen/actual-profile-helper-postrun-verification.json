@@ -1,0 +1,10 @@
+{
+  "all_match": true,
+  "actual_sha256": {
+    "qwen/harness/run_t2i_trace_only.py": "38d767ca569478cf8ce8d607eed33b6b79954300ea82c8a0ccec9ca38c581fd1",
+    "qwen/harness/run_t2i_torch_profile.py": "bc64fdf60148b51683992fe26faf5ac423213713ef5888a8a8a7270954d5d707",
+    "qwen/harness/run_t2i.py": "b57c66d30162d3991e144e447c9c348748aa720d9d95002009f7c32e867f7a18",
+    "qwen/harness/a100-natural-v2/sitecustomize.py": "8a4e1b0736b0ba13644f603d9652b8326e89472226e5b455f263be546d29e529"
+  },
+  "full_source_snapshot": "/Users/0z5a/Documents/infra/qwen21-followup-20260930/evidence/a100-trace-only-helper-snapshot-v1.json"
+}

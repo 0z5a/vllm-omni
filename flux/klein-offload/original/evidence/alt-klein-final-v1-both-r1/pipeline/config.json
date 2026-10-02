@@ -1,0 +1,64 @@
+{
+  "arguments": {
+    "model": "/mnt/d/0z5a/flux-ovis-consolidation-20261001/models/FLUX.2-klein-4B",
+    "kind": "klein",
+    "variant": "both",
+    "offload": "layerwise",
+    "eager": true,
+    "weight_load_threads": 1,
+    "lazy_weight_load": true,
+    "encoder_graph": "native",
+    "no_pin": true,
+    "warmups": 2,
+    "requests": 6,
+    "height": null,
+    "width": null,
+    "input_image": null,
+    "prompts_file": null,
+    "output": "/mnt/d/0z5a/flux-ovis-consolidation-20261001/evidence/alt-klein-final-v1-both-r1/pipeline",
+    "profile": false
+  },
+  "omni_config": {
+    "model": "/mnt/d/0z5a/flux-ovis-consolidation-20261001/models/FLUX.2-klein-4B",
+    "dtype": "bfloat16",
+    "num_gpus": 1,
+    "num_weight_load_threads": 1,
+    "enable_multithread_weight_load": false,
+    "distributed_executor_backend": "uni",
+    "enforce_eager": true,
+    "enable_cpu_offload": false,
+    "enable_layerwise_offload": false,
+    "quantization_config": {
+      "text_encoder": {
+        "method": "fp8"
+      },
+      "transformer": {
+        "method": "fp8"
+      }
+    },
+    "worker_extension_cls": "harness.audit_worker.PipelineAudit",
+    "enable_diffusion_pipeline_profiler": true,
+    "log_stats": false,
+    "init_timeout": 600,
+    "stage_init_timeout": 600,
+    "diffusion_offload_config": {
+      "mode": "layer",
+      "components": [
+        "dit"
+      ],
+      "pin_memory": false
+    }
+  },
+  "pid": 1208,
+  "prompts": [
+    "A product photograph of a red teapot beside two blue cups on a wooden table.",
+    "A watercolor storefront with a clearly readable OPEN sign and a bicycle outside.",
+    "Three yellow rubber ducks floating in a turquoise pool, overhead photograph."
+  ],
+  "input_image_sha256": null,
+  "steps": 4,
+  "guidance_scale": 0.0,
+  "seed": 42,
+  "forced_signals": false,
+  "shutdown_policy": "Production offloader shutdown; normal stage message and natural worker join"
+}

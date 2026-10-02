@@ -1,0 +1,32 @@
+{
+  "time": 1790888154.972197,
+  "own_pids": [
+    337681,
+    341838,
+    345874,
+    350392,
+    355103,
+    359359,
+    364022,
+    367829,
+    371623,
+    373874,
+    376180,
+    378700,
+    381086,
+    383466,
+    385946,
+    388193,
+    390429,
+    337376,
+    390355,
+    337532
+  ],
+  "all_own_pids_absent": true,
+  "own_queue_natural_exit": 0,
+  "compute": "",
+  "flock_available": true,
+  "Kontext_removed": true,
+  "Mac_archive_sha256": "7664c31aad62eb48edb5a1541e184e843acbd65665e405d41999df20811f3bf0",
+  "other_queues_not_declared_complete": true
+}

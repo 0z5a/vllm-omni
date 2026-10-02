@@ -1,0 +1,20 @@
+{
+  "source": "cd40ef02f8799d0248333c0ae21231a7d4bcfc23",
+  "reviewed_images": 8,
+  "all_subject_count_checks_passed": true,
+  "lossless": false,
+  "method": "Manual visual inspection of the eight labeled 1024x1024 timing images in a 4x2 contact sheet.",
+  "observations": "Every image has one red teapot with lid, left spout and closed right handle on a wooden table. Minor glaze, highlight and wood details change between baseline and candidate.",
+  "image_sha256": {
+    "pair1-base.png": "39355413b2832e11100e82aea104a9f12e9f09b4f0695e7f110d156a7ea58b02",
+    "pair1-resident.png": "7c798a2f2554dcb855358a26bdd8348ca4b0a891ddfda5d7ac68451bfe865c4a",
+    "pair2-resident.png": "7c798a2f2554dcb855358a26bdd8348ca4b0a891ddfda5d7ac68451bfe865c4a",
+    "pair2-base.png": "39355413b2832e11100e82aea104a9f12e9f09b4f0695e7f110d156a7ea58b02",
+    "pair3-base.png": "39355413b2832e11100e82aea104a9f12e9f09b4f0695e7f110d156a7ea58b02",
+    "pair3-resident.png": "7c798a2f2554dcb855358a26bdd8348ca4b0a891ddfda5d7ac68451bfe865c4a",
+    "pair4-resident.png": "7c798a2f2554dcb855358a26bdd8348ca4b0a891ddfda5d7ac68451bfe865c4a",
+    "pair4-base.png": "39355413b2832e11100e82aea104a9f12e9f09b4f0695e7f110d156a7ea58b02"
+  },
+  "contact_sheet_sha256": "e98431bc20a96b7b606a45431fb72815bf24cf7c5ba8e5107d5ff4e43cedc0aa",
+  "quality_scope": "Single fixed prompt and seed; no general quality guarantee."
+}

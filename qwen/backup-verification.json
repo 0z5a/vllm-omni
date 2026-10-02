@@ -1,0 +1,10 @@
+{
+  "files": 94,
+  "all_sha256_verified": true,
+  "tar_sha256": "9c88e3516fba0f2fe9d242661237176d79649a8472982a5efe80e2d8c7e11cec",
+  "supervisor_receipt": {
+    "phase": "queue_completed",
+    "exit": 0,
+    "final_acceptance": false
+  }
+}

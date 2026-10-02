@@ -1,0 +1,410 @@
+[
+  {
+    "scene": "fixed",
+    "variant": "bf16",
+    "timed_requests": 12,
+    "mean_ms": 42706.72984108327,
+    "median_ms": 42700.625379000485,
+    "stdev_ms": 989.3667704589371,
+    "process_means_ms": [
+      43602.87711850045,
+      41810.58256366608
+    ],
+    "peak_reserved_MiB": 13416.0,
+    "distinct_images_per_prompt": {
+      "0": 1,
+      "1": 1,
+      "2": 1
+    },
+    "fp8_projections": [
+      0,
+      0
+    ],
+    "internal_compile": [
+      {
+        "enforce_eager": true,
+        "granularity": "regional",
+        "compiled_forwards": [],
+        "stats": {},
+        "inductor": {}
+      },
+      {
+        "enforce_eager": true,
+        "granularity": "regional",
+        "compiled_forwards": [],
+        "stats": {},
+        "inductor": {}
+      }
+    ],
+    "reduction_percent": 0.0
+  },
+  {
+    "scene": "fixed",
+    "variant": "encoder",
+    "timed_requests": 12,
+    "mean_ms": 42060.61994583221,
+    "median_ms": 41955.46385449961,
+    "stdev_ms": 427.5858043749679,
+    "process_means_ms": [
+      42095.37139366633,
+      42025.86849799809
+    ],
+    "peak_reserved_MiB": 9968.0,
+    "distinct_images_per_prompt": {
+      "0": 1,
+      "1": 1,
+      "2": 1
+    },
+    "fp8_projections": [
+      144,
+      0
+    ],
+    "internal_compile": [
+      {
+        "enforce_eager": true,
+        "granularity": "regional",
+        "compiled_forwards": [],
+        "stats": {
+          "calls_captured": 32,
+          "unique_graphs": 1
+        },
+        "inductor": {
+          "triton_bundler_load_static_autotuner": 1,
+          "async_compile_cache_miss": 2,
+          "async_compile_cache_hit": 1,
+          "fxgraph_cache_hit": 1
+        }
+      },
+      {
+        "enforce_eager": true,
+        "granularity": "regional",
+        "compiled_forwards": [],
+        "stats": {
+          "calls_captured": 32,
+          "unique_graphs": 1
+        },
+        "inductor": {
+          "triton_bundler_load_static_autotuner": 1,
+          "async_compile_cache_miss": 2,
+          "async_compile_cache_hit": 1,
+          "fxgraph_cache_hit": 1
+        }
+      }
+    ],
+    "reduction_percent": 1.5128994836535292
+  },
+  {
+    "scene": "fixed",
+    "variant": "dit",
+    "timed_requests": 12,
+    "mean_ms": 45723.83604366678,
+    "median_ms": 45659.141833499234,
+    "stdev_ms": 567.3507449462326,
+    "process_means_ms": [
+      45949.16990583321,
+      45498.50218150035
+    ],
+    "peak_reserved_MiB": 13418.0,
+    "distinct_images_per_prompt": {
+      "0": 1,
+      "1": 1,
+      "2": 1
+    },
+    "fp8_projections": [
+      0,
+      114
+    ],
+    "internal_compile": [
+      {
+        "enforce_eager": true,
+        "granularity": "regional",
+        "compiled_forwards": [],
+        "stats": {
+          "calls_captured": 32,
+          "unique_graphs": 1
+        },
+        "inductor": {
+          "triton_bundler_load_static_autotuner": 1,
+          "async_compile_cache_miss": 2,
+          "async_compile_cache_hit": 1,
+          "fxgraph_cache_hit": 1
+        }
+      },
+      {
+        "enforce_eager": true,
+        "granularity": "regional",
+        "compiled_forwards": [],
+        "stats": {
+          "calls_captured": 32,
+          "unique_graphs": 1
+        },
+        "inductor": {
+          "triton_bundler_load_static_autotuner": 1,
+          "async_compile_cache_miss": 2,
+          "async_compile_cache_hit": 1,
+          "fxgraph_cache_hit": 1
+        }
+      }
+    ],
+    "reduction_percent": -7.064709037218542
+  },
+  {
+    "scene": "fixed",
+    "variant": "both",
+    "timed_requests": 12,
+    "mean_ms": 44081.699602916466,
+    "median_ms": 44158.19257000112,
+    "stdev_ms": 358.15293178122334,
+    "process_means_ms": [
+      43851.908296500675,
+      44311.49090933226
+    ],
+    "peak_reserved_MiB": 9962.0,
+    "distinct_images_per_prompt": {
+      "0": 1,
+      "1": 1,
+      "2": 1
+    },
+    "fp8_projections": [
+      144,
+      114
+    ],
+    "internal_compile": [
+      {
+        "enforce_eager": true,
+        "granularity": "regional",
+        "compiled_forwards": [],
+        "stats": {
+          "calls_captured": 32,
+          "unique_graphs": 1
+        },
+        "inductor": {
+          "triton_bundler_load_static_autotuner": 1,
+          "async_compile_cache_miss": 2,
+          "async_compile_cache_hit": 1,
+          "fxgraph_cache_hit": 1
+        }
+      },
+      {
+        "enforce_eager": true,
+        "granularity": "regional",
+        "compiled_forwards": [],
+        "stats": {
+          "calls_captured": 32,
+          "unique_graphs": 1
+        },
+        "inductor": {
+          "triton_bundler_load_static_autotuner": 1,
+          "async_compile_cache_miss": 2,
+          "async_compile_cache_hit": 1,
+          "fxgraph_cache_hit": 1
+        }
+      }
+    ],
+    "reduction_percent": -3.219562272619858
+  },
+  {
+    "scene": "real",
+    "variant": "bf16",
+    "timed_requests": 12,
+    "mean_ms": 22329.796389417123,
+    "median_ms": 22314.114030501514,
+    "stdev_ms": 539.7286876034447,
+    "process_means_ms": [
+      22080.656112334207,
+      22578.936666500038
+    ],
+    "peak_reserved_MiB": 11874.0,
+    "distinct_images_per_prompt": {
+      "0": 1,
+      "1": 1,
+      "2": 1
+    },
+    "fp8_projections": [
+      0,
+      0
+    ],
+    "internal_compile": [
+      {
+        "enforce_eager": true,
+        "granularity": "regional",
+        "compiled_forwards": [],
+        "stats": {},
+        "inductor": {}
+      },
+      {
+        "enforce_eager": true,
+        "granularity": "regional",
+        "compiled_forwards": [],
+        "stats": {},
+        "inductor": {}
+      }
+    ],
+    "reduction_percent": 0.0
+  },
+  {
+    "scene": "real",
+    "variant": "encoder",
+    "timed_requests": 12,
+    "mean_ms": 22554.99248758315,
+    "median_ms": 22117.0896395015,
+    "stdev_ms": 1013.8580052122607,
+    "process_means_ms": [
+      23100.612035498973,
+      22009.372939667326
+    ],
+    "peak_reserved_MiB": 8426.0,
+    "distinct_images_per_prompt": {
+      "0": 1,
+      "1": 1,
+      "2": 1
+    },
+    "fp8_projections": [
+      144,
+      0
+    ],
+    "internal_compile": [
+      {
+        "enforce_eager": true,
+        "granularity": "regional",
+        "compiled_forwards": [],
+        "stats": {
+          "calls_captured": 32,
+          "unique_graphs": 1
+        },
+        "inductor": {
+          "triton_bundler_load_static_autotuner": 1,
+          "async_compile_cache_miss": 2,
+          "async_compile_cache_hit": 1,
+          "fxgraph_cache_hit": 1
+        }
+      },
+      {
+        "enforce_eager": true,
+        "granularity": "regional",
+        "compiled_forwards": [],
+        "stats": {
+          "calls_captured": 32,
+          "unique_graphs": 1
+        },
+        "inductor": {
+          "triton_bundler_load_static_autotuner": 1,
+          "async_compile_cache_miss": 2,
+          "async_compile_cache_hit": 1,
+          "fxgraph_cache_hit": 1
+        }
+      }
+    ],
+    "reduction_percent": -1.0085004549022836
+  },
+  {
+    "scene": "real",
+    "variant": "dit",
+    "timed_requests": 12,
+    "mean_ms": 20105.401153665905,
+    "median_ms": 20106.506141497448,
+    "stdev_ms": 143.89928245327738,
+    "process_means_ms": [
+      20123.977266498816,
+      20086.82504083299
+    ],
+    "peak_reserved_MiB": 11876.0,
+    "distinct_images_per_prompt": {
+      "0": 1,
+      "1": 1,
+      "2": 1
+    },
+    "fp8_projections": [
+      0,
+      114
+    ],
+    "internal_compile": [
+      {
+        "enforce_eager": true,
+        "granularity": "regional",
+        "compiled_forwards": [],
+        "stats": {
+          "calls_captured": 32,
+          "unique_graphs": 1
+        },
+        "inductor": {
+          "triton_bundler_load_static_autotuner": 1,
+          "async_compile_cache_miss": 2,
+          "async_compile_cache_hit": 1,
+          "fxgraph_cache_hit": 1
+        }
+      },
+      {
+        "enforce_eager": true,
+        "granularity": "regional",
+        "compiled_forwards": [],
+        "stats": {
+          "calls_captured": 32,
+          "unique_graphs": 1
+        },
+        "inductor": {
+          "triton_bundler_load_static_autotuner": 1,
+          "async_compile_cache_miss": 2,
+          "async_compile_cache_hit": 1,
+          "fxgraph_cache_hit": 1
+        }
+      }
+    ],
+    "reduction_percent": 9.96155628541887
+  },
+  {
+    "scene": "real",
+    "variant": "both",
+    "timed_requests": 12,
+    "mean_ms": 20393.27424233367,
+    "median_ms": 20383.390967001105,
+    "stdev_ms": 275.8889866323133,
+    "process_means_ms": [
+      20277.205125833763,
+      20509.343358833576
+    ],
+    "peak_reserved_MiB": 8420.0,
+    "distinct_images_per_prompt": {
+      "0": 1,
+      "1": 1,
+      "2": 1
+    },
+    "fp8_projections": [
+      144,
+      114
+    ],
+    "internal_compile": [
+      {
+        "enforce_eager": true,
+        "granularity": "regional",
+        "compiled_forwards": [],
+        "stats": {
+          "calls_captured": 32,
+          "unique_graphs": 1
+        },
+        "inductor": {
+          "triton_bundler_load_static_autotuner": 1,
+          "async_compile_cache_miss": 2,
+          "async_compile_cache_hit": 1,
+          "fxgraph_cache_hit": 1
+        }
+      },
+      {
+        "enforce_eager": true,
+        "granularity": "regional",
+        "compiled_forwards": [],
+        "stats": {
+          "calls_captured": 32,
+          "unique_graphs": 1
+        },
+        "inductor": {
+          "triton_bundler_load_static_autotuner": 1,
+          "async_compile_cache_miss": 2,
+          "async_compile_cache_hit": 1,
+          "fxgraph_cache_hit": 1
+        }
+      }
+    ],
+    "reduction_percent": 8.672368136779063
+  }
+]

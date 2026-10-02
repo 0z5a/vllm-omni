@@ -1,0 +1,26 @@
+{
+  "source": "cd40ef02f8799d0248333c0ae21231a7d4bcfc23",
+  "a100_full_request_acceptance": true,
+  "whole_request_reduction_percent": 13.246147845920087,
+  "timed_requests": 24,
+  "candidate_resident_blocks": 6,
+  "baseline_streamed_blocks": 32,
+  "candidate_streamed_blocks": 26,
+  "peak_reserved_extra_gib": 2.439453125,
+  "runtime": "Regional compile; whole-DiT graph fallback, no native cudaGraphLaunch.",
+  "manual_semantic_review": true,
+  "all_repeat_images_within_arm_pixel_exact": true,
+  "cross_arm_lossless": false,
+  "public_pr_draft": true,
+  "github_ci_complete": false,
+  "evidence": {
+    "evidence/a100-resident-formal-v3-complete/backup-verification.json": "3c8af8d0f3760f81732ce90686e0321cc8392232e39289f2285684affd5cec70",
+    "evidence/a100-resident-formal-v3-complete/resident-final-summary.json": "389406afeaf293c0da89e76c2fd89c07b48bb844f6fd91a8669ea044245b171c",
+    "evidence/a100-resident-formal-v3-complete/semantic-review.json": "6446ca797dfb4dfddfbb0d2a1e2fc2b451b9c57bb8b0384d201a159f792a6f91",
+    "evidence/a100-resident-formal-v3-complete/actual-profile-helper-postrun-verification.json": "48e1f766096e74bd270299bd88c9dd48b5da605a34ceb0fbbc51981e30e60ff1",
+    "evidence/final-resident-hooks-tree-equivalence.json": "3fa7c9262c88eeb09d312a332067051d03d842339c22ff559a8fbd6717281815",
+    "evidence/a100-final-resident-cpu-complete-v5/backup-verification.json": "5854fbfc4844a8e99511a2d55d65d66d157e2b8df681efa68cd17fbeaf1daf3a",
+    "evidence/a100-qwen-completed-model-cleanup-v1.json": "91c00bd24778394a67d1f92f19ba67fc261402f52f9c058230ac3a5b8713f1fb",
+    "evidence/pr7945-final-a100-published-verification-v2.json": "b325ae55d4376cc818b2d969c5fe0ec378b9acc50b6a7118ab575d6fad0a5a5e"
+  }
+}

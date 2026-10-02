@@ -1,0 +1,326 @@
+{
+  "hardware": "A100-PCIE-40GB SM80",
+  "source": {
+    "reference": "d9bb1c9158a6e5769f7c742e305d1796e07b9272",
+    "experiment": "cd40ef02f8799d0248333c0ae21231a7d4bcfc23"
+  },
+  "rows": [
+    {
+      "name": "pair1-base",
+      "arm": "base",
+      "mean_ms": 45955.618,
+      "timed_wall_ms": [
+        45964.783,
+        45911.081,
+        45990.99
+      ],
+      "worker_peak_reserved_mib": 26670.0,
+      "device_peak_used_mib": 27251.0,
+      "streamed_layers": 32
+    },
+    {
+      "name": "pair1-resident",
+      "arm": "resident",
+      "mean_ms": 39751.34766666667,
+      "timed_wall_ms": [
+        39767.597,
+        39742.434,
+        39744.012
+      ],
+      "worker_peak_reserved_mib": 29168.0,
+      "device_peak_used_mib": 29743.0,
+      "streamed_layers": 26
+    },
+    {
+      "name": "pair2-resident",
+      "arm": "resident",
+      "mean_ms": 39746.04833333333,
+      "timed_wall_ms": [
+        39741.567,
+        39763.711,
+        39732.867
+      ],
+      "worker_peak_reserved_mib": 29168.0,
+      "device_peak_used_mib": 29743.0,
+      "streamed_layers": 26
+    },
+    {
+      "name": "pair2-base",
+      "arm": "base",
+      "mean_ms": 45938.954,
+      "timed_wall_ms": [
+        45993.078,
+        45904.683,
+        45919.101
+      ],
+      "worker_peak_reserved_mib": 26670.0,
+      "device_peak_used_mib": 27251.0,
+      "streamed_layers": 32
+    },
+    {
+      "name": "pair3-base",
+      "arm": "base",
+      "mean_ms": 45912.77933333333,
+      "timed_wall_ms": [
+        45910.799,
+        45920.221,
+        45907.318
+      ],
+      "worker_peak_reserved_mib": 26670.0,
+      "device_peak_used_mib": 27251.0,
+      "streamed_layers": 32
+    },
+    {
+      "name": "pair3-resident",
+      "arm": "resident",
+      "mean_ms": 39956.49633333333,
+      "timed_wall_ms": [
+        40306.395,
+        39783.693,
+        39779.401
+      ],
+      "worker_peak_reserved_mib": 29168.0,
+      "device_peak_used_mib": 29743.0,
+      "streamed_layers": 26
+    },
+    {
+      "name": "pair4-resident",
+      "arm": "resident",
+      "mean_ms": 39940.83266666667,
+      "timed_wall_ms": [
+        39738.649,
+        40190.972,
+        39892.877
+      ],
+      "worker_peak_reserved_mib": 29168.0,
+      "device_peak_used_mib": 29743.0,
+      "streamed_layers": 26
+    },
+    {
+      "name": "pair4-base",
+      "arm": "base",
+      "mean_ms": 45924.807,
+      "timed_wall_ms": [
+        45925.845,
+        45929.735,
+        45918.841
+      ],
+      "worker_peak_reserved_mib": 26670.0,
+      "device_peak_used_mib": 27251.0,
+      "streamed_layers": 32
+    }
+  ],
+  "mean_ms": {
+    "base": 45933.03958333333,
+    "resident": 39848.68125
+  },
+  "whole_request_reduction_percent": 13.246147845920087,
+  "strict_timing_threshold_met": true,
+  "pair_reduction_percent": [
+    13.500569904931615,
+    13.480728504760176,
+    12.973039503351647,
+    13.029938989908729
+  ],
+  "native_profiles": [
+    {
+      "sha256": "a77dff959ed2797b872d3015a9a56a1bee582f8d9f5b99ce02437e9f5fe91927",
+      "compiled_region_events": {
+        "Torch-Compiled Region: 0/0": 32,
+        "Torch-Compiled Region: 1/1": 32,
+        "Torch-Compiled Region: 2/0": 32,
+        "Torch-Compiled Region: 3/0": 32,
+        "Torch-Compiled Region: 4/0": 32,
+        "Torch-Compiled Region: 5/0": 32,
+        "Torch-Compiled Region: 6/0": 32,
+        "Torch-Compiled Region: 7/0": 32,
+        "Torch-Compiled Region: 9/0": 32,
+        "Torch-Compiled Region: 10/0": 64,
+        "Torch-Compiled Region: 12/0": 64,
+        "Torch-Compiled Region: 9/1": 32,
+        "Torch-Compiled Region: 15/1": 32,
+        "Torch-Compiled Region: 16/1": 1280,
+        "Torch-Compiled Region: 0/1": 1248,
+        "Torch-Compiled Region: 1/2": 1248,
+        "Torch-Compiled Region: 2/1": 1248,
+        "Torch-Compiled Region: 3/1": 1248,
+        "Torch-Compiled Region: 4/1": 1248,
+        "Torch-Compiled Region: 5/1": 1248,
+        "Torch-Compiled Region: 6/1": 1248,
+        "Torch-Compiled Region: 17/0": 1248,
+        "Torch-Compiled Region: 10/1": 1248,
+        "Torch-Compiled Region: 18/0": 1248,
+        "Torch-Compiled Region: 19/0": 1248
+      },
+      "cuda_graph_launches": 0
+    },
+    {
+      "sha256": "d3d8558a84543b1214eea13790368f61abf336e9e938621a4ce7fae063a99fa3",
+      "compiled_region_events": {
+        "Torch-Compiled Region: 0/0": 32,
+        "Torch-Compiled Region: 1/0": 6,
+        "Torch-Compiled Region: 2/0": 32,
+        "Torch-Compiled Region: 3/0": 32,
+        "Torch-Compiled Region: 4/0": 32,
+        "Torch-Compiled Region: 5/0": 32,
+        "Torch-Compiled Region: 6/0": 32,
+        "Torch-Compiled Region: 7/0": 32,
+        "Torch-Compiled Region: 9/0": 32,
+        "Torch-Compiled Region: 10/0": 64,
+        "Torch-Compiled Region: 12/0": 64,
+        "Torch-Compiled Region: 9/1": 32,
+        "Torch-Compiled Region: 15/0": 6,
+        "Torch-Compiled Region: 16/0": 240,
+        "Torch-Compiled Region: 1/1": 26,
+        "Torch-Compiled Region: 15/1": 26,
+        "Torch-Compiled Region: 16/1": 1040,
+        "Torch-Compiled Region: 0/1": 1248,
+        "Torch-Compiled Region: 1/2": 234,
+        "Torch-Compiled Region: 2/1": 1248,
+        "Torch-Compiled Region: 3/1": 1248,
+        "Torch-Compiled Region: 4/1": 1248,
+        "Torch-Compiled Region: 5/1": 1248,
+        "Torch-Compiled Region: 6/1": 1248,
+        "Torch-Compiled Region: 17/0": 1248,
+        "Torch-Compiled Region: 10/1": 1248,
+        "Torch-Compiled Region: 18/0": 1248,
+        "Torch-Compiled Region: 19/0": 234,
+        "Torch-Compiled Region: 1/3": 1014,
+        "Torch-Compiled Region: 19/1": 1014
+      },
+      "cuda_graph_launches": 0
+    }
+  ],
+  "image_comparisons": [
+    {
+      "left": "pair1-base",
+      "right": "pair1-resident",
+      "kind": "matched_pair",
+      "pixel_exact": false,
+      "mae_per_255": 1.5294984579086304,
+      "ssim": 0.9874228191013849
+    },
+    {
+      "left": "pair2-base",
+      "right": "pair2-resident",
+      "kind": "matched_pair",
+      "pixel_exact": false,
+      "mae_per_255": 1.5294984579086304,
+      "ssim": 0.9874228191013849
+    },
+    {
+      "left": "pair3-base",
+      "right": "pair3-resident",
+      "kind": "matched_pair",
+      "pixel_exact": false,
+      "mae_per_255": 1.5294984579086304,
+      "ssim": 0.9874228191013849
+    },
+    {
+      "left": "pair4-base",
+      "right": "pair4-resident",
+      "kind": "matched_pair",
+      "pixel_exact": false,
+      "mae_per_255": 1.5294984579086304,
+      "ssim": 0.9874228191013849
+    },
+    {
+      "left": "pair1-base",
+      "right": "pair2-base",
+      "kind": "repeat_base",
+      "pixel_exact": true,
+      "mae_per_255": 0.0,
+      "ssim": 1.0
+    },
+    {
+      "left": "pair1-base",
+      "right": "pair3-base",
+      "kind": "repeat_base",
+      "pixel_exact": true,
+      "mae_per_255": 0.0,
+      "ssim": 1.0
+    },
+    {
+      "left": "pair1-base",
+      "right": "pair4-base",
+      "kind": "repeat_base",
+      "pixel_exact": true,
+      "mae_per_255": 0.0,
+      "ssim": 1.0
+    },
+    {
+      "left": "pair2-base",
+      "right": "pair3-base",
+      "kind": "repeat_base",
+      "pixel_exact": true,
+      "mae_per_255": 0.0,
+      "ssim": 1.0
+    },
+    {
+      "left": "pair2-base",
+      "right": "pair4-base",
+      "kind": "repeat_base",
+      "pixel_exact": true,
+      "mae_per_255": 0.0,
+      "ssim": 1.0
+    },
+    {
+      "left": "pair3-base",
+      "right": "pair4-base",
+      "kind": "repeat_base",
+      "pixel_exact": true,
+      "mae_per_255": 0.0,
+      "ssim": 1.0
+    },
+    {
+      "left": "pair1-resident",
+      "right": "pair2-resident",
+      "kind": "repeat_resident",
+      "pixel_exact": true,
+      "mae_per_255": 0.0,
+      "ssim": 1.0
+    },
+    {
+      "left": "pair1-resident",
+      "right": "pair3-resident",
+      "kind": "repeat_resident",
+      "pixel_exact": true,
+      "mae_per_255": 0.0,
+      "ssim": 1.0
+    },
+    {
+      "left": "pair1-resident",
+      "right": "pair4-resident",
+      "kind": "repeat_resident",
+      "pixel_exact": true,
+      "mae_per_255": 0.0,
+      "ssim": 1.0
+    },
+    {
+      "left": "pair2-resident",
+      "right": "pair3-resident",
+      "kind": "repeat_resident",
+      "pixel_exact": true,
+      "mae_per_255": 0.0,
+      "ssim": 1.0
+    },
+    {
+      "left": "pair2-resident",
+      "right": "pair4-resident",
+      "kind": "repeat_resident",
+      "pixel_exact": true,
+      "mae_per_255": 0.0,
+      "ssim": 1.0
+    },
+    {
+      "left": "pair3-resident",
+      "right": "pair4-resident",
+      "kind": "repeat_resident",
+      "pixel_exact": true,
+      "mae_per_255": 0.0,
+      "ssim": 1.0
+    }
+  ],
+  "acceptance": "Timing and runtime audited; manual semantic image review and source/CPU/CUDA/PR checks still required",
+  "limits": "Six BF16 blocks resident increases VRAM; this is not equal-residency fusion-only speedup. Only final images saved. Native profile requests are excluded."
+}

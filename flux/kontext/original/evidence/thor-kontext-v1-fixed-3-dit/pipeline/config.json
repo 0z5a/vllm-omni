@@ -1,0 +1,61 @@
+{
+  "arguments": {
+    "model": "/home/jwipc/0z5a/work/flux-ovis-consolidation-20261001/models/FLUX.1-Kontext-dev",
+    "kind": "kontext",
+    "variant": "dit",
+    "offload": "layerwise",
+    "eager": true,
+    "weight_load_threads": 1,
+    "lazy_weight_load": true,
+    "encoder_graph": "native",
+    "no_pin": true,
+    "warmups": 2,
+    "requests": 6,
+    "height": 512,
+    "width": 512,
+    "input_image": "/home/jwipc/0z5a/work/flux-ovis-consolidation-20261001/inputs/kontext-fixed-teapot.png",
+    "prompts_file": null,
+    "output": "/home/jwipc/0z5a/work/flux-ovis-consolidation-20261001/evidence/thor-kontext-v1-fixed-3-dit/pipeline",
+    "profile": false
+  },
+  "omni_config": {
+    "model": "/home/jwipc/0z5a/work/flux-ovis-consolidation-20261001/models/FLUX.1-Kontext-dev",
+    "dtype": "bfloat16",
+    "num_gpus": 1,
+    "num_weight_load_threads": 1,
+    "enable_multithread_weight_load": false,
+    "distributed_executor_backend": "uni",
+    "enforce_eager": true,
+    "enable_cpu_offload": false,
+    "enable_layerwise_offload": false,
+    "quantization_config": {
+      "transformer": {
+        "method": "fp8"
+      }
+    },
+    "worker_extension_cls": "harness.audit_worker.PipelineAudit",
+    "enable_diffusion_pipeline_profiler": true,
+    "log_stats": false,
+    "init_timeout": 600,
+    "stage_init_timeout": 600,
+    "diffusion_offload_config": {
+      "mode": "layer",
+      "components": [
+        "dit"
+      ],
+      "pin_memory": false
+    }
+  },
+  "pid": 345874,
+  "prompts": [
+    "Change the teapot to green while keeping the cups and background unchanged.",
+    "Add a small flower beside the cups while preserving the scene.",
+    "Make the lighting warmer while preserving every object."
+  ],
+  "input_image_sha256": "5739d8eaa919539547a9255cda321827fbbefe9c6fcff556ba055c9d2297a255",
+  "steps": 28,
+  "guidance_scale": 2.5,
+  "seed": 42,
+  "forced_signals": false,
+  "shutdown_policy": "Production offloader shutdown; normal stage message and natural worker join"
+}
