@@ -2,7 +2,8 @@
 # SPDX-FileCopyrightText: Copyright contributors to the vLLM-Omni project
 from __future__ import annotations
 
-from collections.abc import Sequence
+from collections.abc import Callable, Sequence
+from functools import partial
 from itertools import chain
 from typing import Any
 
@@ -59,7 +60,7 @@ class LayerwiseOffloadHook(ModelHook):
         self,
         next_block: nn.Module,
         device: torch.device,
-        stream: current_omni_platform.Stream | None = None,
+        stream: torch.Stream | None = None,
         pin_memory: bool = True,
         materialization_probe_tensor: torch.Tensor | None = None,
     ):
@@ -71,7 +72,7 @@ class LayerwiseOffloadHook(ModelHook):
         self.pin_memory = pin_memory
 
         # Per-block synchronization primitive: set after H2D copy completes.
-        self._prefetch_done: current_omni_platform.Event | None = None
+        self._prefetch_done: torch.Event | None = None
 
         # Backward link to the hook that is responsible for prefetching *this* block's weights
         self._prev_hook: LayerwiseOffloadHook | None = None
@@ -92,8 +93,8 @@ class LayerwiseOffloadHook(ModelHook):
         if self._materialization_probe is None:
             self._materialization_probe = materialization_probe(self.block_parameters, self.block_buffers)
 
-        self.next_block_parameters: dict[str, nn.Parameter] = dict(self.next_block.named_parameters())
-        self.next_block_buffers: dict[str, torch.Tensor] = dict(self.next_block.named_buffers())
+        self.next_block_parameters = dict(self.next_block.named_parameters())
+        self.next_block_buffers = dict(self.next_block.named_buffers())
 
         # Pre-allocate gpu tensors in a flattened way
         self.dtype_cpu_flattened_weights, self.dtype_metadata = LayerwiseOffloadHook._to_cpu(
@@ -246,7 +247,7 @@ def apply_block_hook(
     module: nn.Module,
     next_block: nn.Module,
     device: torch.device,
-    stream: current_omni_platform.Stream | None = None,
+    stream: torch.Stream | None = None,
     pin_memory: bool = True,
     *,
     materialization_probe_tensor: torch.Tensor | None = None,
@@ -307,7 +308,7 @@ def _install_layerwise_hook_group(
             [
                 *(("restoring a partially installed layerwise block", hook.restore_next_block) for hook in hooks),
                 *(
-                    ("removing a partially installed layerwise hook", lambda block=block: remove_block_hook(block))
+                    ("removing a partially installed layerwise hook", partial(remove_block_hook, block))
                     for block in hooked_blocks
                 ),
             ]
@@ -323,7 +324,7 @@ def enable_plan_encoder_layerwise_offload(
     component: ResolvedComponent,
     *,
     device: torch.device,
-    stream: current_omni_platform.Stream,
+    stream: torch.Stream,
     pin_memory: bool,
 ) -> bool:
     """Apply rank-local layerwise hooks to the encoder's resolved stacks."""
@@ -349,7 +350,7 @@ def enable_plan_encoder_layerwise_offload(
             [
                 *(("restoring a partially installed encoder block", hook.restore_next_block) for hook in hooks),
                 *(
-                    ("removing a partially installed encoder hook", lambda block=block: remove_block_hook(block))
+                    ("removing a partially installed encoder hook", partial(remove_block_hook, block))
                     for block in hooked_blocks
                 ),
             ]
@@ -379,13 +380,11 @@ def disable_plan_encoder_layerwise_offload(
         return
     hooks = getattr(module, "_omni_layerwise_hooks", [])
     block_groups = getattr(module, "_omni_layerwise_block_groups", [])
-    steps = []
+    steps: list[tuple[str, Callable[[], None]]] = []
     if restore_weights:
         steps.extend(("restoring an encoder block", hook.restore_next_block) for hook in hooks)
     steps.extend(
-        ("removing an encoder hook", lambda block=block: remove_block_hook(block))
-        for blocks in block_groups
-        for block in blocks
+        ("removing an encoder hook", partial(remove_block_hook, block)) for blocks in block_groups for block in blocks
     )
     cleanup_error = run_cleanup_steps(steps)
     if cleanup_error is not None:
@@ -493,20 +492,16 @@ class LayerWiseOffloadBackend(OffloadBackend):
         ):
             return
 
-        steps = []
+        steps: list[tuple[str, Callable[[], None]]] = []
         if restore_weights:
             steps.extend(("restoring a DiT block", hook.restore_next_block) for hook in self._dit_hooks)
         steps.extend(
-            ("removing a DiT block hook", lambda block=block: remove_block_hook(block))
-            for block in self._hooked_dit_blocks
+            ("removing a DiT block hook", partial(remove_block_hook, block)) for block in self._hooked_dit_blocks
         )
         steps.extend(
             (
                 "disabling encoder layerwise offload",
-                lambda module=module: disable_plan_encoder_layerwise_offload(
-                    module,
-                    restore_weights=restore_weights,
-                ),
+                partial(disable_plan_encoder_layerwise_offload, module, restore_weights=restore_weights),
             )
             for module in self._encoder_modules
         )

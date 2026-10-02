@@ -18,9 +18,9 @@ pytestmark = [pytest.mark.diffusion, pytest.mark.core_model]
 
 class ResidentPipeline(nn.Module):
     _dit_modules = ["transformer"]
-    _encoder_modules = []
-    _vae_modules = []
-    _resident_modules = []
+    _encoder_modules: list[str] = []
+    _vae_modules: list[str] = []
+    _resident_modules: list[str] = []
     _offload_plan = OffloadPlan(block_attrs={"transformer": ("blocks",)}, layerwise_resident_layers={"transformer": 2})
 
     def __init__(self):

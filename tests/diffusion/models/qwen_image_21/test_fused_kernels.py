@@ -141,9 +141,7 @@ class _RecordingAttention(torch.nn.Module):
 
 
 def _iterative_qk_norm_rope(qk, q_weight, k_weight, freqs, eps, num_q_heads):
-    return tuple(
-        apply_qk_norm_rope(qk, q_weight, k_weight, freqs, eps, num_q_heads)
-    )
+    return tuple(apply_qk_norm_rope(qk, q_weight, k_weight, freqs, eps, num_q_heads))
 
 
 @pytest.mark.cuda
