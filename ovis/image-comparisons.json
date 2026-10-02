@@ -1,0 +1,1349 @@
+{
+  "comparisons": [
+    {
+      "left": "ovis/evidence/a100-ovis-v9-512x512-1-A/request-05-prompt-0.png",
+      "right": "ovis/evidence/a100-ovis-v9-512x512-2-A/request-05-prompt-0.png",
+      "kind": "process_repeat",
+      "pixel_exact": true,
+      "mae_per_255": 0.0,
+      "ssim": 1.0
+    },
+    {
+      "left": "ovis/evidence/a100-ovis-v9-512x512-1-A/request-02-prompt-0.png",
+      "right": "ovis/evidence/a100-ovis-v9-512x512-1-A/request-05-prompt-0.png",
+      "kind": "request_repeat",
+      "pixel_exact": true,
+      "mae_per_255": 0.0,
+      "ssim": 1.0
+    },
+    {
+      "left": "ovis/evidence/a100-ovis-v9-512x512-2-A/request-02-prompt-0.png",
+      "right": "ovis/evidence/a100-ovis-v9-512x512-2-A/request-05-prompt-0.png",
+      "kind": "request_repeat",
+      "pixel_exact": true,
+      "mae_per_255": 0.0,
+      "ssim": 1.0
+    },
+    {
+      "left": "ovis/evidence/a100-ovis-v9-512x512-1-A/request-06-prompt-1.png",
+      "right": "ovis/evidence/a100-ovis-v9-512x512-2-A/request-06-prompt-1.png",
+      "kind": "process_repeat",
+      "pixel_exact": true,
+      "mae_per_255": 0.0,
+      "ssim": 1.0
+    },
+    {
+      "left": "ovis/evidence/a100-ovis-v9-512x512-1-A/request-03-prompt-1.png",
+      "right": "ovis/evidence/a100-ovis-v9-512x512-1-A/request-06-prompt-1.png",
+      "kind": "request_repeat",
+      "pixel_exact": true,
+      "mae_per_255": 0.0,
+      "ssim": 1.0
+    },
+    {
+      "left": "ovis/evidence/a100-ovis-v9-512x512-2-A/request-03-prompt-1.png",
+      "right": "ovis/evidence/a100-ovis-v9-512x512-2-A/request-06-prompt-1.png",
+      "kind": "request_repeat",
+      "pixel_exact": true,
+      "mae_per_255": 0.0,
+      "ssim": 1.0
+    },
+    {
+      "left": "ovis/evidence/a100-ovis-v9-512x512-1-A/request-07-prompt-2.png",
+      "right": "ovis/evidence/a100-ovis-v9-512x512-2-A/request-07-prompt-2.png",
+      "kind": "process_repeat",
+      "pixel_exact": true,
+      "mae_per_255": 0.0,
+      "ssim": 1.0
+    },
+    {
+      "left": "ovis/evidence/a100-ovis-v9-512x512-1-A/request-04-prompt-2.png",
+      "right": "ovis/evidence/a100-ovis-v9-512x512-1-A/request-07-prompt-2.png",
+      "kind": "request_repeat",
+      "pixel_exact": true,
+      "mae_per_255": 0.0,
+      "ssim": 1.0
+    },
+    {
+      "left": "ovis/evidence/a100-ovis-v9-512x512-2-A/request-04-prompt-2.png",
+      "right": "ovis/evidence/a100-ovis-v9-512x512-2-A/request-07-prompt-2.png",
+      "kind": "request_repeat",
+      "pixel_exact": true,
+      "mae_per_255": 0.0,
+      "ssim": 1.0
+    },
+    {
+      "left": "ovis/evidence/a100-ovis-v9-512x512-1-C/request-05-prompt-0.png",
+      "right": "ovis/evidence/a100-ovis-v9-512x512-2-C/request-05-prompt-0.png",
+      "kind": "process_repeat",
+      "pixel_exact": true,
+      "mae_per_255": 0.0,
+      "ssim": 1.0
+    },
+    {
+      "left": "ovis/evidence/a100-ovis-v9-512x512-1-C/request-02-prompt-0.png",
+      "right": "ovis/evidence/a100-ovis-v9-512x512-1-C/request-05-prompt-0.png",
+      "kind": "request_repeat",
+      "pixel_exact": true,
+      "mae_per_255": 0.0,
+      "ssim": 1.0
+    },
+    {
+      "left": "ovis/evidence/a100-ovis-v9-512x512-2-C/request-02-prompt-0.png",
+      "right": "ovis/evidence/a100-ovis-v9-512x512-2-C/request-05-prompt-0.png",
+      "kind": "request_repeat",
+      "pixel_exact": true,
+      "mae_per_255": 0.0,
+      "ssim": 1.0
+    },
+    {
+      "left": "ovis/evidence/a100-ovis-v9-512x512-1-C/request-06-prompt-1.png",
+      "right": "ovis/evidence/a100-ovis-v9-512x512-2-C/request-06-prompt-1.png",
+      "kind": "process_repeat",
+      "pixel_exact": true,
+      "mae_per_255": 0.0,
+      "ssim": 1.0
+    },
+    {
+      "left": "ovis/evidence/a100-ovis-v9-512x512-1-C/request-03-prompt-1.png",
+      "right": "ovis/evidence/a100-ovis-v9-512x512-1-C/request-06-prompt-1.png",
+      "kind": "request_repeat",
+      "pixel_exact": true,
+      "mae_per_255": 0.0,
+      "ssim": 1.0
+    },
+    {
+      "left": "ovis/evidence/a100-ovis-v9-512x512-2-C/request-03-prompt-1.png",
+      "right": "ovis/evidence/a100-ovis-v9-512x512-2-C/request-06-prompt-1.png",
+      "kind": "request_repeat",
+      "pixel_exact": true,
+      "mae_per_255": 0.0,
+      "ssim": 1.0
+    },
+    {
+      "left": "ovis/evidence/a100-ovis-v9-512x512-1-C/request-07-prompt-2.png",
+      "right": "ovis/evidence/a100-ovis-v9-512x512-2-C/request-07-prompt-2.png",
+      "kind": "process_repeat",
+      "pixel_exact": true,
+      "mae_per_255": 0.0,
+      "ssim": 1.0
+    },
+    {
+      "left": "ovis/evidence/a100-ovis-v9-512x512-1-C/request-04-prompt-2.png",
+      "right": "ovis/evidence/a100-ovis-v9-512x512-1-C/request-07-prompt-2.png",
+      "kind": "request_repeat",
+      "pixel_exact": true,
+      "mae_per_255": 0.0,
+      "ssim": 1.0
+    },
+    {
+      "left": "ovis/evidence/a100-ovis-v9-512x512-2-C/request-04-prompt-2.png",
+      "right": "ovis/evidence/a100-ovis-v9-512x512-2-C/request-07-prompt-2.png",
+      "kind": "request_repeat",
+      "pixel_exact": true,
+      "mae_per_255": 0.0,
+      "ssim": 1.0
+    },
+    {
+      "left": "ovis/evidence/a100-ovis-v9-512x512-1-E/request-05-prompt-0.png",
+      "right": "ovis/evidence/a100-ovis-v9-512x512-2-E/request-05-prompt-0.png",
+      "kind": "process_repeat",
+      "pixel_exact": true,
+      "mae_per_255": 0.0,
+      "ssim": 1.0
+    },
+    {
+      "left": "ovis/evidence/a100-ovis-v9-512x512-1-E/request-02-prompt-0.png",
+      "right": "ovis/evidence/a100-ovis-v9-512x512-1-E/request-05-prompt-0.png",
+      "kind": "request_repeat",
+      "pixel_exact": true,
+      "mae_per_255": 0.0,
+      "ssim": 1.0
+    },
+    {
+      "left": "ovis/evidence/a100-ovis-v9-512x512-1-C/request-05-prompt-0.png",
+      "right": "ovis/evidence/a100-ovis-v9-512x512-1-E/request-05-prompt-0.png",
+      "kind": "resident_vs_block",
+      "pixel_exact": true,
+      "mae_per_255": 0.0,
+      "ssim": 1.0
+    },
+    {
+      "left": "ovis/evidence/a100-ovis-v9-512x512-2-E/request-02-prompt-0.png",
+      "right": "ovis/evidence/a100-ovis-v9-512x512-2-E/request-05-prompt-0.png",
+      "kind": "request_repeat",
+      "pixel_exact": true,
+      "mae_per_255": 0.0,
+      "ssim": 1.0
+    },
+    {
+      "left": "ovis/evidence/a100-ovis-v9-512x512-2-C/request-05-prompt-0.png",
+      "right": "ovis/evidence/a100-ovis-v9-512x512-2-E/request-05-prompt-0.png",
+      "kind": "resident_vs_block",
+      "pixel_exact": true,
+      "mae_per_255": 0.0,
+      "ssim": 1.0
+    },
+    {
+      "left": "ovis/evidence/a100-ovis-v9-512x512-1-E/request-06-prompt-1.png",
+      "right": "ovis/evidence/a100-ovis-v9-512x512-2-E/request-06-prompt-1.png",
+      "kind": "process_repeat",
+      "pixel_exact": true,
+      "mae_per_255": 0.0,
+      "ssim": 1.0
+    },
+    {
+      "left": "ovis/evidence/a100-ovis-v9-512x512-1-E/request-03-prompt-1.png",
+      "right": "ovis/evidence/a100-ovis-v9-512x512-1-E/request-06-prompt-1.png",
+      "kind": "request_repeat",
+      "pixel_exact": true,
+      "mae_per_255": 0.0,
+      "ssim": 1.0
+    },
+    {
+      "left": "ovis/evidence/a100-ovis-v9-512x512-1-C/request-06-prompt-1.png",
+      "right": "ovis/evidence/a100-ovis-v9-512x512-1-E/request-06-prompt-1.png",
+      "kind": "resident_vs_block",
+      "pixel_exact": true,
+      "mae_per_255": 0.0,
+      "ssim": 1.0
+    },
+    {
+      "left": "ovis/evidence/a100-ovis-v9-512x512-2-E/request-03-prompt-1.png",
+      "right": "ovis/evidence/a100-ovis-v9-512x512-2-E/request-06-prompt-1.png",
+      "kind": "request_repeat",
+      "pixel_exact": true,
+      "mae_per_255": 0.0,
+      "ssim": 1.0
+    },
+    {
+      "left": "ovis/evidence/a100-ovis-v9-512x512-2-C/request-06-prompt-1.png",
+      "right": "ovis/evidence/a100-ovis-v9-512x512-2-E/request-06-prompt-1.png",
+      "kind": "resident_vs_block",
+      "pixel_exact": true,
+      "mae_per_255": 0.0,
+      "ssim": 1.0
+    },
+    {
+      "left": "ovis/evidence/a100-ovis-v9-512x512-1-E/request-07-prompt-2.png",
+      "right": "ovis/evidence/a100-ovis-v9-512x512-2-E/request-07-prompt-2.png",
+      "kind": "process_repeat",
+      "pixel_exact": true,
+      "mae_per_255": 0.0,
+      "ssim": 1.0
+    },
+    {
+      "left": "ovis/evidence/a100-ovis-v9-512x512-1-E/request-04-prompt-2.png",
+      "right": "ovis/evidence/a100-ovis-v9-512x512-1-E/request-07-prompt-2.png",
+      "kind": "request_repeat",
+      "pixel_exact": true,
+      "mae_per_255": 0.0,
+      "ssim": 1.0
+    },
+    {
+      "left": "ovis/evidence/a100-ovis-v9-512x512-1-C/request-07-prompt-2.png",
+      "right": "ovis/evidence/a100-ovis-v9-512x512-1-E/request-07-prompt-2.png",
+      "kind": "resident_vs_block",
+      "pixel_exact": true,
+      "mae_per_255": 0.0,
+      "ssim": 1.0
+    },
+    {
+      "left": "ovis/evidence/a100-ovis-v9-512x512-2-E/request-04-prompt-2.png",
+      "right": "ovis/evidence/a100-ovis-v9-512x512-2-E/request-07-prompt-2.png",
+      "kind": "request_repeat",
+      "pixel_exact": true,
+      "mae_per_255": 0.0,
+      "ssim": 1.0
+    },
+    {
+      "left": "ovis/evidence/a100-ovis-v9-512x512-2-C/request-07-prompt-2.png",
+      "right": "ovis/evidence/a100-ovis-v9-512x512-2-E/request-07-prompt-2.png",
+      "kind": "resident_vs_block",
+      "pixel_exact": true,
+      "mae_per_255": 0.0,
+      "ssim": 1.0
+    },
+    {
+      "left": "ovis/evidence/a100-ovis-v9-512x512-1-B/request-05-prompt-0.png",
+      "right": "ovis/evidence/a100-ovis-v9-512x512-2-B/request-05-prompt-0.png",
+      "kind": "process_repeat",
+      "pixel_exact": true,
+      "mae_per_255": 0.0,
+      "ssim": 1.0
+    },
+    {
+      "left": "ovis/evidence/a100-ovis-v9-512x512-1-B/request-02-prompt-0.png",
+      "right": "ovis/evidence/a100-ovis-v9-512x512-1-B/request-05-prompt-0.png",
+      "kind": "request_repeat",
+      "pixel_exact": true,
+      "mae_per_255": 0.0,
+      "ssim": 1.0
+    },
+    {
+      "left": "ovis/evidence/a100-ovis-v9-512x512-1-A/request-05-prompt-0.png",
+      "right": "ovis/evidence/a100-ovis-v9-512x512-1-B/request-05-prompt-0.png",
+      "kind": "encoder_quantization",
+      "pixel_exact": false,
+      "mae_per_255": 9.539908409118652,
+      "ssim": 0.8456709920631283
+    },
+    {
+      "left": "ovis/evidence/a100-ovis-v9-512x512-2-B/request-02-prompt-0.png",
+      "right": "ovis/evidence/a100-ovis-v9-512x512-2-B/request-05-prompt-0.png",
+      "kind": "request_repeat",
+      "pixel_exact": true,
+      "mae_per_255": 0.0,
+      "ssim": 1.0
+    },
+    {
+      "left": "ovis/evidence/a100-ovis-v9-512x512-2-A/request-05-prompt-0.png",
+      "right": "ovis/evidence/a100-ovis-v9-512x512-2-B/request-05-prompt-0.png",
+      "kind": "encoder_quantization",
+      "pixel_exact": false,
+      "mae_per_255": 9.539908409118652,
+      "ssim": 0.8456709920631283
+    },
+    {
+      "left": "ovis/evidence/a100-ovis-v9-512x512-1-B/request-06-prompt-1.png",
+      "right": "ovis/evidence/a100-ovis-v9-512x512-2-B/request-06-prompt-1.png",
+      "kind": "process_repeat",
+      "pixel_exact": true,
+      "mae_per_255": 0.0,
+      "ssim": 1.0
+    },
+    {
+      "left": "ovis/evidence/a100-ovis-v9-512x512-1-B/request-03-prompt-1.png",
+      "right": "ovis/evidence/a100-ovis-v9-512x512-1-B/request-06-prompt-1.png",
+      "kind": "request_repeat",
+      "pixel_exact": true,
+      "mae_per_255": 0.0,
+      "ssim": 1.0
+    },
+    {
+      "left": "ovis/evidence/a100-ovis-v9-512x512-1-A/request-06-prompt-1.png",
+      "right": "ovis/evidence/a100-ovis-v9-512x512-1-B/request-06-prompt-1.png",
+      "kind": "encoder_quantization",
+      "pixel_exact": false,
+      "mae_per_255": 6.617893218994141,
+      "ssim": 0.8951113355566558
+    },
+    {
+      "left": "ovis/evidence/a100-ovis-v9-512x512-2-B/request-03-prompt-1.png",
+      "right": "ovis/evidence/a100-ovis-v9-512x512-2-B/request-06-prompt-1.png",
+      "kind": "request_repeat",
+      "pixel_exact": true,
+      "mae_per_255": 0.0,
+      "ssim": 1.0
+    },
+    {
+      "left": "ovis/evidence/a100-ovis-v9-512x512-2-A/request-06-prompt-1.png",
+      "right": "ovis/evidence/a100-ovis-v9-512x512-2-B/request-06-prompt-1.png",
+      "kind": "encoder_quantization",
+      "pixel_exact": false,
+      "mae_per_255": 6.617893218994141,
+      "ssim": 0.8951113355566558
+    },
+    {
+      "left": "ovis/evidence/a100-ovis-v9-512x512-1-B/request-07-prompt-2.png",
+      "right": "ovis/evidence/a100-ovis-v9-512x512-2-B/request-07-prompt-2.png",
+      "kind": "process_repeat",
+      "pixel_exact": true,
+      "mae_per_255": 0.0,
+      "ssim": 1.0
+    },
+    {
+      "left": "ovis/evidence/a100-ovis-v9-512x512-1-B/request-04-prompt-2.png",
+      "right": "ovis/evidence/a100-ovis-v9-512x512-1-B/request-07-prompt-2.png",
+      "kind": "request_repeat",
+      "pixel_exact": true,
+      "mae_per_255": 0.0,
+      "ssim": 1.0
+    },
+    {
+      "left": "ovis/evidence/a100-ovis-v9-512x512-1-A/request-07-prompt-2.png",
+      "right": "ovis/evidence/a100-ovis-v9-512x512-1-B/request-07-prompt-2.png",
+      "kind": "encoder_quantization",
+      "pixel_exact": false,
+      "mae_per_255": 1.6359710693359375,
+      "ssim": 0.9822429829228767
+    },
+    {
+      "left": "ovis/evidence/a100-ovis-v9-512x512-2-B/request-04-prompt-2.png",
+      "right": "ovis/evidence/a100-ovis-v9-512x512-2-B/request-07-prompt-2.png",
+      "kind": "request_repeat",
+      "pixel_exact": true,
+      "mae_per_255": 0.0,
+      "ssim": 1.0
+    },
+    {
+      "left": "ovis/evidence/a100-ovis-v9-512x512-2-A/request-07-prompt-2.png",
+      "right": "ovis/evidence/a100-ovis-v9-512x512-2-B/request-07-prompt-2.png",
+      "kind": "encoder_quantization",
+      "pixel_exact": false,
+      "mae_per_255": 1.6359710693359375,
+      "ssim": 0.9822429829228767
+    },
+    {
+      "left": "ovis/evidence/a100-ovis-v9-512x512-1-D/request-05-prompt-0.png",
+      "right": "ovis/evidence/a100-ovis-v9-512x512-2-D/request-05-prompt-0.png",
+      "kind": "process_repeat",
+      "pixel_exact": true,
+      "mae_per_255": 0.0,
+      "ssim": 1.0
+    },
+    {
+      "left": "ovis/evidence/a100-ovis-v9-512x512-1-D/request-02-prompt-0.png",
+      "right": "ovis/evidence/a100-ovis-v9-512x512-1-D/request-05-prompt-0.png",
+      "kind": "request_repeat",
+      "pixel_exact": true,
+      "mae_per_255": 0.0,
+      "ssim": 1.0
+    },
+    {
+      "left": "ovis/evidence/a100-ovis-v9-512x512-1-C/request-05-prompt-0.png",
+      "right": "ovis/evidence/a100-ovis-v9-512x512-1-D/request-05-prompt-0.png",
+      "kind": "encoder_quantization",
+      "pixel_exact": false,
+      "mae_per_255": 9.539908409118652,
+      "ssim": 0.8456709920631283
+    },
+    {
+      "left": "ovis/evidence/a100-ovis-v9-512x512-2-D/request-02-prompt-0.png",
+      "right": "ovis/evidence/a100-ovis-v9-512x512-2-D/request-05-prompt-0.png",
+      "kind": "request_repeat",
+      "pixel_exact": true,
+      "mae_per_255": 0.0,
+      "ssim": 1.0
+    },
+    {
+      "left": "ovis/evidence/a100-ovis-v9-512x512-2-C/request-05-prompt-0.png",
+      "right": "ovis/evidence/a100-ovis-v9-512x512-2-D/request-05-prompt-0.png",
+      "kind": "encoder_quantization",
+      "pixel_exact": false,
+      "mae_per_255": 9.539908409118652,
+      "ssim": 0.8456709920631283
+    },
+    {
+      "left": "ovis/evidence/a100-ovis-v9-512x512-1-D/request-06-prompt-1.png",
+      "right": "ovis/evidence/a100-ovis-v9-512x512-2-D/request-06-prompt-1.png",
+      "kind": "process_repeat",
+      "pixel_exact": true,
+      "mae_per_255": 0.0,
+      "ssim": 1.0
+    },
+    {
+      "left": "ovis/evidence/a100-ovis-v9-512x512-1-D/request-03-prompt-1.png",
+      "right": "ovis/evidence/a100-ovis-v9-512x512-1-D/request-06-prompt-1.png",
+      "kind": "request_repeat",
+      "pixel_exact": true,
+      "mae_per_255": 0.0,
+      "ssim": 1.0
+    },
+    {
+      "left": "ovis/evidence/a100-ovis-v9-512x512-1-C/request-06-prompt-1.png",
+      "right": "ovis/evidence/a100-ovis-v9-512x512-1-D/request-06-prompt-1.png",
+      "kind": "encoder_quantization",
+      "pixel_exact": false,
+      "mae_per_255": 6.617893218994141,
+      "ssim": 0.8951113355566558
+    },
+    {
+      "left": "ovis/evidence/a100-ovis-v9-512x512-2-D/request-03-prompt-1.png",
+      "right": "ovis/evidence/a100-ovis-v9-512x512-2-D/request-06-prompt-1.png",
+      "kind": "request_repeat",
+      "pixel_exact": true,
+      "mae_per_255": 0.0,
+      "ssim": 1.0
+    },
+    {
+      "left": "ovis/evidence/a100-ovis-v9-512x512-2-C/request-06-prompt-1.png",
+      "right": "ovis/evidence/a100-ovis-v9-512x512-2-D/request-06-prompt-1.png",
+      "kind": "encoder_quantization",
+      "pixel_exact": false,
+      "mae_per_255": 6.617893218994141,
+      "ssim": 0.8951113355566558
+    },
+    {
+      "left": "ovis/evidence/a100-ovis-v9-512x512-1-D/request-07-prompt-2.png",
+      "right": "ovis/evidence/a100-ovis-v9-512x512-2-D/request-07-prompt-2.png",
+      "kind": "process_repeat",
+      "pixel_exact": true,
+      "mae_per_255": 0.0,
+      "ssim": 1.0
+    },
+    {
+      "left": "ovis/evidence/a100-ovis-v9-512x512-1-D/request-04-prompt-2.png",
+      "right": "ovis/evidence/a100-ovis-v9-512x512-1-D/request-07-prompt-2.png",
+      "kind": "request_repeat",
+      "pixel_exact": true,
+      "mae_per_255": 0.0,
+      "ssim": 1.0
+    },
+    {
+      "left": "ovis/evidence/a100-ovis-v9-512x512-1-C/request-07-prompt-2.png",
+      "right": "ovis/evidence/a100-ovis-v9-512x512-1-D/request-07-prompt-2.png",
+      "kind": "encoder_quantization",
+      "pixel_exact": false,
+      "mae_per_255": 1.6359710693359375,
+      "ssim": 0.9822429829228767
+    },
+    {
+      "left": "ovis/evidence/a100-ovis-v9-512x512-2-D/request-04-prompt-2.png",
+      "right": "ovis/evidence/a100-ovis-v9-512x512-2-D/request-07-prompt-2.png",
+      "kind": "request_repeat",
+      "pixel_exact": true,
+      "mae_per_255": 0.0,
+      "ssim": 1.0
+    },
+    {
+      "left": "ovis/evidence/a100-ovis-v9-512x512-2-C/request-07-prompt-2.png",
+      "right": "ovis/evidence/a100-ovis-v9-512x512-2-D/request-07-prompt-2.png",
+      "kind": "encoder_quantization",
+      "pixel_exact": false,
+      "mae_per_255": 1.6359710693359375,
+      "ssim": 0.9822429829228767
+    },
+    {
+      "left": "ovis/evidence/a100-ovis-v9-512x512-1-F/request-05-prompt-0.png",
+      "right": "ovis/evidence/a100-ovis-v9-512x512-2-F/request-05-prompt-0.png",
+      "kind": "process_repeat",
+      "pixel_exact": true,
+      "mae_per_255": 0.0,
+      "ssim": 1.0
+    },
+    {
+      "left": "ovis/evidence/a100-ovis-v9-512x512-1-F/request-02-prompt-0.png",
+      "right": "ovis/evidence/a100-ovis-v9-512x512-1-F/request-05-prompt-0.png",
+      "kind": "request_repeat",
+      "pixel_exact": true,
+      "mae_per_255": 0.0,
+      "ssim": 1.0
+    },
+    {
+      "left": "ovis/evidence/a100-ovis-v9-512x512-1-E/request-05-prompt-0.png",
+      "right": "ovis/evidence/a100-ovis-v9-512x512-1-F/request-05-prompt-0.png",
+      "kind": "encoder_quantization",
+      "pixel_exact": false,
+      "mae_per_255": 9.539908409118652,
+      "ssim": 0.8456709920631283
+    },
+    {
+      "left": "ovis/evidence/a100-ovis-v9-512x512-1-D/request-05-prompt-0.png",
+      "right": "ovis/evidence/a100-ovis-v9-512x512-1-F/request-05-prompt-0.png",
+      "kind": "resident_vs_block",
+      "pixel_exact": true,
+      "mae_per_255": 0.0,
+      "ssim": 1.0
+    },
+    {
+      "left": "ovis/evidence/a100-ovis-v9-512x512-2-F/request-02-prompt-0.png",
+      "right": "ovis/evidence/a100-ovis-v9-512x512-2-F/request-05-prompt-0.png",
+      "kind": "request_repeat",
+      "pixel_exact": true,
+      "mae_per_255": 0.0,
+      "ssim": 1.0
+    },
+    {
+      "left": "ovis/evidence/a100-ovis-v9-512x512-2-E/request-05-prompt-0.png",
+      "right": "ovis/evidence/a100-ovis-v9-512x512-2-F/request-05-prompt-0.png",
+      "kind": "encoder_quantization",
+      "pixel_exact": false,
+      "mae_per_255": 9.539908409118652,
+      "ssim": 0.8456709920631283
+    },
+    {
+      "left": "ovis/evidence/a100-ovis-v9-512x512-2-D/request-05-prompt-0.png",
+      "right": "ovis/evidence/a100-ovis-v9-512x512-2-F/request-05-prompt-0.png",
+      "kind": "resident_vs_block",
+      "pixel_exact": true,
+      "mae_per_255": 0.0,
+      "ssim": 1.0
+    },
+    {
+      "left": "ovis/evidence/a100-ovis-v9-512x512-1-F/request-06-prompt-1.png",
+      "right": "ovis/evidence/a100-ovis-v9-512x512-2-F/request-06-prompt-1.png",
+      "kind": "process_repeat",
+      "pixel_exact": true,
+      "mae_per_255": 0.0,
+      "ssim": 1.0
+    },
+    {
+      "left": "ovis/evidence/a100-ovis-v9-512x512-1-F/request-03-prompt-1.png",
+      "right": "ovis/evidence/a100-ovis-v9-512x512-1-F/request-06-prompt-1.png",
+      "kind": "request_repeat",
+      "pixel_exact": true,
+      "mae_per_255": 0.0,
+      "ssim": 1.0
+    },
+    {
+      "left": "ovis/evidence/a100-ovis-v9-512x512-1-E/request-06-prompt-1.png",
+      "right": "ovis/evidence/a100-ovis-v9-512x512-1-F/request-06-prompt-1.png",
+      "kind": "encoder_quantization",
+      "pixel_exact": false,
+      "mae_per_255": 6.617893218994141,
+      "ssim": 0.8951113355566558
+    },
+    {
+      "left": "ovis/evidence/a100-ovis-v9-512x512-1-D/request-06-prompt-1.png",
+      "right": "ovis/evidence/a100-ovis-v9-512x512-1-F/request-06-prompt-1.png",
+      "kind": "resident_vs_block",
+      "pixel_exact": true,
+      "mae_per_255": 0.0,
+      "ssim": 1.0
+    },
+    {
+      "left": "ovis/evidence/a100-ovis-v9-512x512-2-F/request-03-prompt-1.png",
+      "right": "ovis/evidence/a100-ovis-v9-512x512-2-F/request-06-prompt-1.png",
+      "kind": "request_repeat",
+      "pixel_exact": true,
+      "mae_per_255": 0.0,
+      "ssim": 1.0
+    },
+    {
+      "left": "ovis/evidence/a100-ovis-v9-512x512-2-E/request-06-prompt-1.png",
+      "right": "ovis/evidence/a100-ovis-v9-512x512-2-F/request-06-prompt-1.png",
+      "kind": "encoder_quantization",
+      "pixel_exact": false,
+      "mae_per_255": 6.617893218994141,
+      "ssim": 0.8951113355566558
+    },
+    {
+      "left": "ovis/evidence/a100-ovis-v9-512x512-2-D/request-06-prompt-1.png",
+      "right": "ovis/evidence/a100-ovis-v9-512x512-2-F/request-06-prompt-1.png",
+      "kind": "resident_vs_block",
+      "pixel_exact": true,
+      "mae_per_255": 0.0,
+      "ssim": 1.0
+    },
+    {
+      "left": "ovis/evidence/a100-ovis-v9-512x512-1-F/request-07-prompt-2.png",
+      "right": "ovis/evidence/a100-ovis-v9-512x512-2-F/request-07-prompt-2.png",
+      "kind": "process_repeat",
+      "pixel_exact": true,
+      "mae_per_255": 0.0,
+      "ssim": 1.0
+    },
+    {
+      "left": "ovis/evidence/a100-ovis-v9-512x512-1-F/request-04-prompt-2.png",
+      "right": "ovis/evidence/a100-ovis-v9-512x512-1-F/request-07-prompt-2.png",
+      "kind": "request_repeat",
+      "pixel_exact": true,
+      "mae_per_255": 0.0,
+      "ssim": 1.0
+    },
+    {
+      "left": "ovis/evidence/a100-ovis-v9-512x512-1-E/request-07-prompt-2.png",
+      "right": "ovis/evidence/a100-ovis-v9-512x512-1-F/request-07-prompt-2.png",
+      "kind": "encoder_quantization",
+      "pixel_exact": false,
+      "mae_per_255": 1.6359710693359375,
+      "ssim": 0.9822429829228767
+    },
+    {
+      "left": "ovis/evidence/a100-ovis-v9-512x512-1-D/request-07-prompt-2.png",
+      "right": "ovis/evidence/a100-ovis-v9-512x512-1-F/request-07-prompt-2.png",
+      "kind": "resident_vs_block",
+      "pixel_exact": true,
+      "mae_per_255": 0.0,
+      "ssim": 1.0
+    },
+    {
+      "left": "ovis/evidence/a100-ovis-v9-512x512-2-F/request-04-prompt-2.png",
+      "right": "ovis/evidence/a100-ovis-v9-512x512-2-F/request-07-prompt-2.png",
+      "kind": "request_repeat",
+      "pixel_exact": true,
+      "mae_per_255": 0.0,
+      "ssim": 1.0
+    },
+    {
+      "left": "ovis/evidence/a100-ovis-v9-512x512-2-E/request-07-prompt-2.png",
+      "right": "ovis/evidence/a100-ovis-v9-512x512-2-F/request-07-prompt-2.png",
+      "kind": "encoder_quantization",
+      "pixel_exact": false,
+      "mae_per_255": 1.6359710693359375,
+      "ssim": 0.9822429829228767
+    },
+    {
+      "left": "ovis/evidence/a100-ovis-v9-512x512-2-D/request-07-prompt-2.png",
+      "right": "ovis/evidence/a100-ovis-v9-512x512-2-F/request-07-prompt-2.png",
+      "kind": "resident_vs_block",
+      "pixel_exact": true,
+      "mae_per_255": 0.0,
+      "ssim": 1.0
+    },
+    {
+      "left": "ovis/evidence/a100-ovis-v9-768x1024-1-A/request-05-prompt-0.png",
+      "right": "ovis/evidence/a100-ovis-v9-768x1024-2-A/request-05-prompt-0.png",
+      "kind": "process_repeat",
+      "pixel_exact": true,
+      "mae_per_255": 0.0,
+      "ssim": 1.0
+    },
+    {
+      "left": "ovis/evidence/a100-ovis-v9-768x1024-1-A/request-02-prompt-0.png",
+      "right": "ovis/evidence/a100-ovis-v9-768x1024-1-A/request-05-prompt-0.png",
+      "kind": "request_repeat",
+      "pixel_exact": true,
+      "mae_per_255": 0.0,
+      "ssim": 1.0
+    },
+    {
+      "left": "ovis/evidence/a100-ovis-v9-768x1024-2-A/request-02-prompt-0.png",
+      "right": "ovis/evidence/a100-ovis-v9-768x1024-2-A/request-05-prompt-0.png",
+      "kind": "request_repeat",
+      "pixel_exact": true,
+      "mae_per_255": 0.0,
+      "ssim": 1.0
+    },
+    {
+      "left": "ovis/evidence/a100-ovis-v9-768x1024-1-A/request-06-prompt-1.png",
+      "right": "ovis/evidence/a100-ovis-v9-768x1024-2-A/request-06-prompt-1.png",
+      "kind": "process_repeat",
+      "pixel_exact": true,
+      "mae_per_255": 0.0,
+      "ssim": 1.0
+    },
+    {
+      "left": "ovis/evidence/a100-ovis-v9-768x1024-1-A/request-03-prompt-1.png",
+      "right": "ovis/evidence/a100-ovis-v9-768x1024-1-A/request-06-prompt-1.png",
+      "kind": "request_repeat",
+      "pixel_exact": true,
+      "mae_per_255": 0.0,
+      "ssim": 1.0
+    },
+    {
+      "left": "ovis/evidence/a100-ovis-v9-768x1024-2-A/request-03-prompt-1.png",
+      "right": "ovis/evidence/a100-ovis-v9-768x1024-2-A/request-06-prompt-1.png",
+      "kind": "request_repeat",
+      "pixel_exact": true,
+      "mae_per_255": 0.0,
+      "ssim": 1.0
+    },
+    {
+      "left": "ovis/evidence/a100-ovis-v9-768x1024-1-A/request-07-prompt-2.png",
+      "right": "ovis/evidence/a100-ovis-v9-768x1024-2-A/request-07-prompt-2.png",
+      "kind": "process_repeat",
+      "pixel_exact": true,
+      "mae_per_255": 0.0,
+      "ssim": 1.0
+    },
+    {
+      "left": "ovis/evidence/a100-ovis-v9-768x1024-1-A/request-04-prompt-2.png",
+      "right": "ovis/evidence/a100-ovis-v9-768x1024-1-A/request-07-prompt-2.png",
+      "kind": "request_repeat",
+      "pixel_exact": true,
+      "mae_per_255": 0.0,
+      "ssim": 1.0
+    },
+    {
+      "left": "ovis/evidence/a100-ovis-v9-768x1024-2-A/request-04-prompt-2.png",
+      "right": "ovis/evidence/a100-ovis-v9-768x1024-2-A/request-07-prompt-2.png",
+      "kind": "request_repeat",
+      "pixel_exact": true,
+      "mae_per_255": 0.0,
+      "ssim": 1.0
+    },
+    {
+      "left": "ovis/evidence/a100-ovis-v9-768x1024-1-C/request-05-prompt-0.png",
+      "right": "ovis/evidence/a100-ovis-v9-768x1024-2-C/request-05-prompt-0.png",
+      "kind": "process_repeat",
+      "pixel_exact": true,
+      "mae_per_255": 0.0,
+      "ssim": 1.0
+    },
+    {
+      "left": "ovis/evidence/a100-ovis-v9-768x1024-1-C/request-02-prompt-0.png",
+      "right": "ovis/evidence/a100-ovis-v9-768x1024-1-C/request-05-prompt-0.png",
+      "kind": "request_repeat",
+      "pixel_exact": true,
+      "mae_per_255": 0.0,
+      "ssim": 1.0
+    },
+    {
+      "left": "ovis/evidence/a100-ovis-v9-768x1024-2-C/request-02-prompt-0.png",
+      "right": "ovis/evidence/a100-ovis-v9-768x1024-2-C/request-05-prompt-0.png",
+      "kind": "request_repeat",
+      "pixel_exact": true,
+      "mae_per_255": 0.0,
+      "ssim": 1.0
+    },
+    {
+      "left": "ovis/evidence/a100-ovis-v9-768x1024-1-C/request-06-prompt-1.png",
+      "right": "ovis/evidence/a100-ovis-v9-768x1024-2-C/request-06-prompt-1.png",
+      "kind": "process_repeat",
+      "pixel_exact": true,
+      "mae_per_255": 0.0,
+      "ssim": 1.0
+    },
+    {
+      "left": "ovis/evidence/a100-ovis-v9-768x1024-1-C/request-03-prompt-1.png",
+      "right": "ovis/evidence/a100-ovis-v9-768x1024-1-C/request-06-prompt-1.png",
+      "kind": "request_repeat",
+      "pixel_exact": true,
+      "mae_per_255": 0.0,
+      "ssim": 1.0
+    },
+    {
+      "left": "ovis/evidence/a100-ovis-v9-768x1024-2-C/request-03-prompt-1.png",
+      "right": "ovis/evidence/a100-ovis-v9-768x1024-2-C/request-06-prompt-1.png",
+      "kind": "request_repeat",
+      "pixel_exact": true,
+      "mae_per_255": 0.0,
+      "ssim": 1.0
+    },
+    {
+      "left": "ovis/evidence/a100-ovis-v9-768x1024-1-C/request-07-prompt-2.png",
+      "right": "ovis/evidence/a100-ovis-v9-768x1024-2-C/request-07-prompt-2.png",
+      "kind": "process_repeat",
+      "pixel_exact": true,
+      "mae_per_255": 0.0,
+      "ssim": 1.0
+    },
+    {
+      "left": "ovis/evidence/a100-ovis-v9-768x1024-1-C/request-04-prompt-2.png",
+      "right": "ovis/evidence/a100-ovis-v9-768x1024-1-C/request-07-prompt-2.png",
+      "kind": "request_repeat",
+      "pixel_exact": true,
+      "mae_per_255": 0.0,
+      "ssim": 1.0
+    },
+    {
+      "left": "ovis/evidence/a100-ovis-v9-768x1024-2-C/request-04-prompt-2.png",
+      "right": "ovis/evidence/a100-ovis-v9-768x1024-2-C/request-07-prompt-2.png",
+      "kind": "request_repeat",
+      "pixel_exact": true,
+      "mae_per_255": 0.0,
+      "ssim": 1.0
+    },
+    {
+      "left": "ovis/evidence/a100-ovis-v9-768x1024-1-E/request-05-prompt-0.png",
+      "right": "ovis/evidence/a100-ovis-v9-768x1024-2-E/request-05-prompt-0.png",
+      "kind": "process_repeat",
+      "pixel_exact": true,
+      "mae_per_255": 0.0,
+      "ssim": 1.0
+    },
+    {
+      "left": "ovis/evidence/a100-ovis-v9-768x1024-1-E/request-02-prompt-0.png",
+      "right": "ovis/evidence/a100-ovis-v9-768x1024-1-E/request-05-prompt-0.png",
+      "kind": "request_repeat",
+      "pixel_exact": true,
+      "mae_per_255": 0.0,
+      "ssim": 1.0
+    },
+    {
+      "left": "ovis/evidence/a100-ovis-v9-768x1024-1-C/request-05-prompt-0.png",
+      "right": "ovis/evidence/a100-ovis-v9-768x1024-1-E/request-05-prompt-0.png",
+      "kind": "resident_vs_block",
+      "pixel_exact": true,
+      "mae_per_255": 0.0,
+      "ssim": 1.0
+    },
+    {
+      "left": "ovis/evidence/a100-ovis-v9-768x1024-2-E/request-02-prompt-0.png",
+      "right": "ovis/evidence/a100-ovis-v9-768x1024-2-E/request-05-prompt-0.png",
+      "kind": "request_repeat",
+      "pixel_exact": true,
+      "mae_per_255": 0.0,
+      "ssim": 1.0
+    },
+    {
+      "left": "ovis/evidence/a100-ovis-v9-768x1024-2-C/request-05-prompt-0.png",
+      "right": "ovis/evidence/a100-ovis-v9-768x1024-2-E/request-05-prompt-0.png",
+      "kind": "resident_vs_block",
+      "pixel_exact": true,
+      "mae_per_255": 0.0,
+      "ssim": 1.0
+    },
+    {
+      "left": "ovis/evidence/a100-ovis-v9-768x1024-1-E/request-06-prompt-1.png",
+      "right": "ovis/evidence/a100-ovis-v9-768x1024-2-E/request-06-prompt-1.png",
+      "kind": "process_repeat",
+      "pixel_exact": true,
+      "mae_per_255": 0.0,
+      "ssim": 1.0
+    },
+    {
+      "left": "ovis/evidence/a100-ovis-v9-768x1024-1-E/request-03-prompt-1.png",
+      "right": "ovis/evidence/a100-ovis-v9-768x1024-1-E/request-06-prompt-1.png",
+      "kind": "request_repeat",
+      "pixel_exact": true,
+      "mae_per_255": 0.0,
+      "ssim": 1.0
+    },
+    {
+      "left": "ovis/evidence/a100-ovis-v9-768x1024-1-C/request-06-prompt-1.png",
+      "right": "ovis/evidence/a100-ovis-v9-768x1024-1-E/request-06-prompt-1.png",
+      "kind": "resident_vs_block",
+      "pixel_exact": true,
+      "mae_per_255": 0.0,
+      "ssim": 1.0
+    },
+    {
+      "left": "ovis/evidence/a100-ovis-v9-768x1024-2-E/request-03-prompt-1.png",
+      "right": "ovis/evidence/a100-ovis-v9-768x1024-2-E/request-06-prompt-1.png",
+      "kind": "request_repeat",
+      "pixel_exact": true,
+      "mae_per_255": 0.0,
+      "ssim": 1.0
+    },
+    {
+      "left": "ovis/evidence/a100-ovis-v9-768x1024-2-C/request-06-prompt-1.png",
+      "right": "ovis/evidence/a100-ovis-v9-768x1024-2-E/request-06-prompt-1.png",
+      "kind": "resident_vs_block",
+      "pixel_exact": true,
+      "mae_per_255": 0.0,
+      "ssim": 1.0
+    },
+    {
+      "left": "ovis/evidence/a100-ovis-v9-768x1024-1-E/request-07-prompt-2.png",
+      "right": "ovis/evidence/a100-ovis-v9-768x1024-2-E/request-07-prompt-2.png",
+      "kind": "process_repeat",
+      "pixel_exact": true,
+      "mae_per_255": 0.0,
+      "ssim": 1.0
+    },
+    {
+      "left": "ovis/evidence/a100-ovis-v9-768x1024-1-E/request-04-prompt-2.png",
+      "right": "ovis/evidence/a100-ovis-v9-768x1024-1-E/request-07-prompt-2.png",
+      "kind": "request_repeat",
+      "pixel_exact": true,
+      "mae_per_255": 0.0,
+      "ssim": 1.0
+    },
+    {
+      "left": "ovis/evidence/a100-ovis-v9-768x1024-1-C/request-07-prompt-2.png",
+      "right": "ovis/evidence/a100-ovis-v9-768x1024-1-E/request-07-prompt-2.png",
+      "kind": "resident_vs_block",
+      "pixel_exact": true,
+      "mae_per_255": 0.0,
+      "ssim": 1.0
+    },
+    {
+      "left": "ovis/evidence/a100-ovis-v9-768x1024-2-E/request-04-prompt-2.png",
+      "right": "ovis/evidence/a100-ovis-v9-768x1024-2-E/request-07-prompt-2.png",
+      "kind": "request_repeat",
+      "pixel_exact": true,
+      "mae_per_255": 0.0,
+      "ssim": 1.0
+    },
+    {
+      "left": "ovis/evidence/a100-ovis-v9-768x1024-2-C/request-07-prompt-2.png",
+      "right": "ovis/evidence/a100-ovis-v9-768x1024-2-E/request-07-prompt-2.png",
+      "kind": "resident_vs_block",
+      "pixel_exact": true,
+      "mae_per_255": 0.0,
+      "ssim": 1.0
+    },
+    {
+      "left": "ovis/evidence/a100-ovis-v9-768x1024-1-B/request-05-prompt-0.png",
+      "right": "ovis/evidence/a100-ovis-v9-768x1024-2-B/request-05-prompt-0.png",
+      "kind": "process_repeat",
+      "pixel_exact": true,
+      "mae_per_255": 0.0,
+      "ssim": 1.0
+    },
+    {
+      "left": "ovis/evidence/a100-ovis-v9-768x1024-1-B/request-02-prompt-0.png",
+      "right": "ovis/evidence/a100-ovis-v9-768x1024-1-B/request-05-prompt-0.png",
+      "kind": "request_repeat",
+      "pixel_exact": true,
+      "mae_per_255": 0.0,
+      "ssim": 1.0
+    },
+    {
+      "left": "ovis/evidence/a100-ovis-v9-768x1024-1-A/request-05-prompt-0.png",
+      "right": "ovis/evidence/a100-ovis-v9-768x1024-1-B/request-05-prompt-0.png",
+      "kind": "encoder_quantization",
+      "pixel_exact": false,
+      "mae_per_255": 1.3346269130706787,
+      "ssim": 0.9891281613366063
+    },
+    {
+      "left": "ovis/evidence/a100-ovis-v9-768x1024-2-B/request-02-prompt-0.png",
+      "right": "ovis/evidence/a100-ovis-v9-768x1024-2-B/request-05-prompt-0.png",
+      "kind": "request_repeat",
+      "pixel_exact": true,
+      "mae_per_255": 0.0,
+      "ssim": 1.0
+    },
+    {
+      "left": "ovis/evidence/a100-ovis-v9-768x1024-2-A/request-05-prompt-0.png",
+      "right": "ovis/evidence/a100-ovis-v9-768x1024-2-B/request-05-prompt-0.png",
+      "kind": "encoder_quantization",
+      "pixel_exact": false,
+      "mae_per_255": 1.3346269130706787,
+      "ssim": 0.9891281613366063
+    },
+    {
+      "left": "ovis/evidence/a100-ovis-v9-768x1024-1-B/request-06-prompt-1.png",
+      "right": "ovis/evidence/a100-ovis-v9-768x1024-2-B/request-06-prompt-1.png",
+      "kind": "process_repeat",
+      "pixel_exact": true,
+      "mae_per_255": 0.0,
+      "ssim": 1.0
+    },
+    {
+      "left": "ovis/evidence/a100-ovis-v9-768x1024-1-B/request-03-prompt-1.png",
+      "right": "ovis/evidence/a100-ovis-v9-768x1024-1-B/request-06-prompt-1.png",
+      "kind": "request_repeat",
+      "pixel_exact": true,
+      "mae_per_255": 0.0,
+      "ssim": 1.0
+    },
+    {
+      "left": "ovis/evidence/a100-ovis-v9-768x1024-1-A/request-06-prompt-1.png",
+      "right": "ovis/evidence/a100-ovis-v9-768x1024-1-B/request-06-prompt-1.png",
+      "kind": "encoder_quantization",
+      "pixel_exact": false,
+      "mae_per_255": 14.25376033782959,
+      "ssim": 0.7884734905607852
+    },
+    {
+      "left": "ovis/evidence/a100-ovis-v9-768x1024-2-B/request-03-prompt-1.png",
+      "right": "ovis/evidence/a100-ovis-v9-768x1024-2-B/request-06-prompt-1.png",
+      "kind": "request_repeat",
+      "pixel_exact": true,
+      "mae_per_255": 0.0,
+      "ssim": 1.0
+    },
+    {
+      "left": "ovis/evidence/a100-ovis-v9-768x1024-2-A/request-06-prompt-1.png",
+      "right": "ovis/evidence/a100-ovis-v9-768x1024-2-B/request-06-prompt-1.png",
+      "kind": "encoder_quantization",
+      "pixel_exact": false,
+      "mae_per_255": 14.25376033782959,
+      "ssim": 0.7884734905607852
+    },
+    {
+      "left": "ovis/evidence/a100-ovis-v9-768x1024-1-B/request-07-prompt-2.png",
+      "right": "ovis/evidence/a100-ovis-v9-768x1024-2-B/request-07-prompt-2.png",
+      "kind": "process_repeat",
+      "pixel_exact": true,
+      "mae_per_255": 0.0,
+      "ssim": 1.0
+    },
+    {
+      "left": "ovis/evidence/a100-ovis-v9-768x1024-1-B/request-04-prompt-2.png",
+      "right": "ovis/evidence/a100-ovis-v9-768x1024-1-B/request-07-prompt-2.png",
+      "kind": "request_repeat",
+      "pixel_exact": true,
+      "mae_per_255": 0.0,
+      "ssim": 1.0
+    },
+    {
+      "left": "ovis/evidence/a100-ovis-v9-768x1024-1-A/request-07-prompt-2.png",
+      "right": "ovis/evidence/a100-ovis-v9-768x1024-1-B/request-07-prompt-2.png",
+      "kind": "encoder_quantization",
+      "pixel_exact": false,
+      "mae_per_255": 1.6495895385742188,
+      "ssim": 0.98308345888118
+    },
+    {
+      "left": "ovis/evidence/a100-ovis-v9-768x1024-2-B/request-04-prompt-2.png",
+      "right": "ovis/evidence/a100-ovis-v9-768x1024-2-B/request-07-prompt-2.png",
+      "kind": "request_repeat",
+      "pixel_exact": true,
+      "mae_per_255": 0.0,
+      "ssim": 1.0
+    },
+    {
+      "left": "ovis/evidence/a100-ovis-v9-768x1024-2-A/request-07-prompt-2.png",
+      "right": "ovis/evidence/a100-ovis-v9-768x1024-2-B/request-07-prompt-2.png",
+      "kind": "encoder_quantization",
+      "pixel_exact": false,
+      "mae_per_255": 1.6495895385742188,
+      "ssim": 0.98308345888118
+    },
+    {
+      "left": "ovis/evidence/a100-ovis-v9-768x1024-1-D/request-05-prompt-0.png",
+      "right": "ovis/evidence/a100-ovis-v9-768x1024-2-D/request-05-prompt-0.png",
+      "kind": "process_repeat",
+      "pixel_exact": true,
+      "mae_per_255": 0.0,
+      "ssim": 1.0
+    },
+    {
+      "left": "ovis/evidence/a100-ovis-v9-768x1024-1-D/request-02-prompt-0.png",
+      "right": "ovis/evidence/a100-ovis-v9-768x1024-1-D/request-05-prompt-0.png",
+      "kind": "request_repeat",
+      "pixel_exact": true,
+      "mae_per_255": 0.0,
+      "ssim": 1.0
+    },
+    {
+      "left": "ovis/evidence/a100-ovis-v9-768x1024-1-C/request-05-prompt-0.png",
+      "right": "ovis/evidence/a100-ovis-v9-768x1024-1-D/request-05-prompt-0.png",
+      "kind": "encoder_quantization",
+      "pixel_exact": false,
+      "mae_per_255": 1.3346269130706787,
+      "ssim": 0.9891281613366063
+    },
+    {
+      "left": "ovis/evidence/a100-ovis-v9-768x1024-2-D/request-02-prompt-0.png",
+      "right": "ovis/evidence/a100-ovis-v9-768x1024-2-D/request-05-prompt-0.png",
+      "kind": "request_repeat",
+      "pixel_exact": true,
+      "mae_per_255": 0.0,
+      "ssim": 1.0
+    },
+    {
+      "left": "ovis/evidence/a100-ovis-v9-768x1024-2-C/request-05-prompt-0.png",
+      "right": "ovis/evidence/a100-ovis-v9-768x1024-2-D/request-05-prompt-0.png",
+      "kind": "encoder_quantization",
+      "pixel_exact": false,
+      "mae_per_255": 1.3346269130706787,
+      "ssim": 0.9891281613366063
+    },
+    {
+      "left": "ovis/evidence/a100-ovis-v9-768x1024-1-D/request-06-prompt-1.png",
+      "right": "ovis/evidence/a100-ovis-v9-768x1024-2-D/request-06-prompt-1.png",
+      "kind": "process_repeat",
+      "pixel_exact": true,
+      "mae_per_255": 0.0,
+      "ssim": 1.0
+    },
+    {
+      "left": "ovis/evidence/a100-ovis-v9-768x1024-1-D/request-03-prompt-1.png",
+      "right": "ovis/evidence/a100-ovis-v9-768x1024-1-D/request-06-prompt-1.png",
+      "kind": "request_repeat",
+      "pixel_exact": true,
+      "mae_per_255": 0.0,
+      "ssim": 1.0
+    },
+    {
+      "left": "ovis/evidence/a100-ovis-v9-768x1024-1-C/request-06-prompt-1.png",
+      "right": "ovis/evidence/a100-ovis-v9-768x1024-1-D/request-06-prompt-1.png",
+      "kind": "encoder_quantization",
+      "pixel_exact": false,
+      "mae_per_255": 14.25376033782959,
+      "ssim": 0.7884734905607852
+    },
+    {
+      "left": "ovis/evidence/a100-ovis-v9-768x1024-2-D/request-03-prompt-1.png",
+      "right": "ovis/evidence/a100-ovis-v9-768x1024-2-D/request-06-prompt-1.png",
+      "kind": "request_repeat",
+      "pixel_exact": true,
+      "mae_per_255": 0.0,
+      "ssim": 1.0
+    },
+    {
+      "left": "ovis/evidence/a100-ovis-v9-768x1024-2-C/request-06-prompt-1.png",
+      "right": "ovis/evidence/a100-ovis-v9-768x1024-2-D/request-06-prompt-1.png",
+      "kind": "encoder_quantization",
+      "pixel_exact": false,
+      "mae_per_255": 14.25376033782959,
+      "ssim": 0.7884734905607852
+    },
+    {
+      "left": "ovis/evidence/a100-ovis-v9-768x1024-1-D/request-07-prompt-2.png",
+      "right": "ovis/evidence/a100-ovis-v9-768x1024-2-D/request-07-prompt-2.png",
+      "kind": "process_repeat",
+      "pixel_exact": true,
+      "mae_per_255": 0.0,
+      "ssim": 1.0
+    },
+    {
+      "left": "ovis/evidence/a100-ovis-v9-768x1024-1-D/request-04-prompt-2.png",
+      "right": "ovis/evidence/a100-ovis-v9-768x1024-1-D/request-07-prompt-2.png",
+      "kind": "request_repeat",
+      "pixel_exact": true,
+      "mae_per_255": 0.0,
+      "ssim": 1.0
+    },
+    {
+      "left": "ovis/evidence/a100-ovis-v9-768x1024-1-C/request-07-prompt-2.png",
+      "right": "ovis/evidence/a100-ovis-v9-768x1024-1-D/request-07-prompt-2.png",
+      "kind": "encoder_quantization",
+      "pixel_exact": false,
+      "mae_per_255": 1.6495895385742188,
+      "ssim": 0.98308345888118
+    },
+    {
+      "left": "ovis/evidence/a100-ovis-v9-768x1024-2-D/request-04-prompt-2.png",
+      "right": "ovis/evidence/a100-ovis-v9-768x1024-2-D/request-07-prompt-2.png",
+      "kind": "request_repeat",
+      "pixel_exact": true,
+      "mae_per_255": 0.0,
+      "ssim": 1.0
+    },
+    {
+      "left": "ovis/evidence/a100-ovis-v9-768x1024-2-C/request-07-prompt-2.png",
+      "right": "ovis/evidence/a100-ovis-v9-768x1024-2-D/request-07-prompt-2.png",
+      "kind": "encoder_quantization",
+      "pixel_exact": false,
+      "mae_per_255": 1.6495895385742188,
+      "ssim": 0.98308345888118
+    },
+    {
+      "left": "ovis/evidence/a100-ovis-v9-768x1024-1-F/request-05-prompt-0.png",
+      "right": "ovis/evidence/a100-ovis-v9-768x1024-2-F/request-05-prompt-0.png",
+      "kind": "process_repeat",
+      "pixel_exact": true,
+      "mae_per_255": 0.0,
+      "ssim": 1.0
+    },
+    {
+      "left": "ovis/evidence/a100-ovis-v9-768x1024-1-F/request-02-prompt-0.png",
+      "right": "ovis/evidence/a100-ovis-v9-768x1024-1-F/request-05-prompt-0.png",
+      "kind": "request_repeat",
+      "pixel_exact": true,
+      "mae_per_255": 0.0,
+      "ssim": 1.0
+    },
+    {
+      "left": "ovis/evidence/a100-ovis-v9-768x1024-1-E/request-05-prompt-0.png",
+      "right": "ovis/evidence/a100-ovis-v9-768x1024-1-F/request-05-prompt-0.png",
+      "kind": "encoder_quantization",
+      "pixel_exact": false,
+      "mae_per_255": 1.3346269130706787,
+      "ssim": 0.9891281613366063
+    },
+    {
+      "left": "ovis/evidence/a100-ovis-v9-768x1024-1-D/request-05-prompt-0.png",
+      "right": "ovis/evidence/a100-ovis-v9-768x1024-1-F/request-05-prompt-0.png",
+      "kind": "resident_vs_block",
+      "pixel_exact": true,
+      "mae_per_255": 0.0,
+      "ssim": 1.0
+    },
+    {
+      "left": "ovis/evidence/a100-ovis-v9-768x1024-2-F/request-02-prompt-0.png",
+      "right": "ovis/evidence/a100-ovis-v9-768x1024-2-F/request-05-prompt-0.png",
+      "kind": "request_repeat",
+      "pixel_exact": true,
+      "mae_per_255": 0.0,
+      "ssim": 1.0
+    },
+    {
+      "left": "ovis/evidence/a100-ovis-v9-768x1024-2-E/request-05-prompt-0.png",
+      "right": "ovis/evidence/a100-ovis-v9-768x1024-2-F/request-05-prompt-0.png",
+      "kind": "encoder_quantization",
+      "pixel_exact": false,
+      "mae_per_255": 1.3346269130706787,
+      "ssim": 0.9891281613366063
+    },
+    {
+      "left": "ovis/evidence/a100-ovis-v9-768x1024-2-D/request-05-prompt-0.png",
+      "right": "ovis/evidence/a100-ovis-v9-768x1024-2-F/request-05-prompt-0.png",
+      "kind": "resident_vs_block",
+      "pixel_exact": true,
+      "mae_per_255": 0.0,
+      "ssim": 1.0
+    },
+    {
+      "left": "ovis/evidence/a100-ovis-v9-768x1024-1-F/request-06-prompt-1.png",
+      "right": "ovis/evidence/a100-ovis-v9-768x1024-2-F/request-06-prompt-1.png",
+      "kind": "process_repeat",
+      "pixel_exact": true,
+      "mae_per_255": 0.0,
+      "ssim": 1.0
+    },
+    {
+      "left": "ovis/evidence/a100-ovis-v9-768x1024-1-F/request-03-prompt-1.png",
+      "right": "ovis/evidence/a100-ovis-v9-768x1024-1-F/request-06-prompt-1.png",
+      "kind": "request_repeat",
+      "pixel_exact": true,
+      "mae_per_255": 0.0,
+      "ssim": 1.0
+    },
+    {
+      "left": "ovis/evidence/a100-ovis-v9-768x1024-1-E/request-06-prompt-1.png",
+      "right": "ovis/evidence/a100-ovis-v9-768x1024-1-F/request-06-prompt-1.png",
+      "kind": "encoder_quantization",
+      "pixel_exact": false,
+      "mae_per_255": 14.25376033782959,
+      "ssim": 0.7884734905607852
+    },
+    {
+      "left": "ovis/evidence/a100-ovis-v9-768x1024-1-D/request-06-prompt-1.png",
+      "right": "ovis/evidence/a100-ovis-v9-768x1024-1-F/request-06-prompt-1.png",
+      "kind": "resident_vs_block",
+      "pixel_exact": true,
+      "mae_per_255": 0.0,
+      "ssim": 1.0
+    },
+    {
+      "left": "ovis/evidence/a100-ovis-v9-768x1024-2-F/request-03-prompt-1.png",
+      "right": "ovis/evidence/a100-ovis-v9-768x1024-2-F/request-06-prompt-1.png",
+      "kind": "request_repeat",
+      "pixel_exact": true,
+      "mae_per_255": 0.0,
+      "ssim": 1.0
+    },
+    {
+      "left": "ovis/evidence/a100-ovis-v9-768x1024-2-E/request-06-prompt-1.png",
+      "right": "ovis/evidence/a100-ovis-v9-768x1024-2-F/request-06-prompt-1.png",
+      "kind": "encoder_quantization",
+      "pixel_exact": false,
+      "mae_per_255": 14.25376033782959,
+      "ssim": 0.7884734905607852
+    },
+    {
+      "left": "ovis/evidence/a100-ovis-v9-768x1024-2-D/request-06-prompt-1.png",
+      "right": "ovis/evidence/a100-ovis-v9-768x1024-2-F/request-06-prompt-1.png",
+      "kind": "resident_vs_block",
+      "pixel_exact": true,
+      "mae_per_255": 0.0,
+      "ssim": 1.0
+    },
+    {
+      "left": "ovis/evidence/a100-ovis-v9-768x1024-1-F/request-07-prompt-2.png",
+      "right": "ovis/evidence/a100-ovis-v9-768x1024-2-F/request-07-prompt-2.png",
+      "kind": "process_repeat",
+      "pixel_exact": true,
+      "mae_per_255": 0.0,
+      "ssim": 1.0
+    },
+    {
+      "left": "ovis/evidence/a100-ovis-v9-768x1024-1-F/request-04-prompt-2.png",
+      "right": "ovis/evidence/a100-ovis-v9-768x1024-1-F/request-07-prompt-2.png",
+      "kind": "request_repeat",
+      "pixel_exact": true,
+      "mae_per_255": 0.0,
+      "ssim": 1.0
+    },
+    {
+      "left": "ovis/evidence/a100-ovis-v9-768x1024-1-E/request-07-prompt-2.png",
+      "right": "ovis/evidence/a100-ovis-v9-768x1024-1-F/request-07-prompt-2.png",
+      "kind": "encoder_quantization",
+      "pixel_exact": false,
+      "mae_per_255": 1.6495895385742188,
+      "ssim": 0.98308345888118
+    },
+    {
+      "left": "ovis/evidence/a100-ovis-v9-768x1024-1-D/request-07-prompt-2.png",
+      "right": "ovis/evidence/a100-ovis-v9-768x1024-1-F/request-07-prompt-2.png",
+      "kind": "resident_vs_block",
+      "pixel_exact": true,
+      "mae_per_255": 0.0,
+      "ssim": 1.0
+    },
+    {
+      "left": "ovis/evidence/a100-ovis-v9-768x1024-2-F/request-04-prompt-2.png",
+      "right": "ovis/evidence/a100-ovis-v9-768x1024-2-F/request-07-prompt-2.png",
+      "kind": "request_repeat",
+      "pixel_exact": true,
+      "mae_per_255": 0.0,
+      "ssim": 1.0
+    },
+    {
+      "left": "ovis/evidence/a100-ovis-v9-768x1024-2-E/request-07-prompt-2.png",
+      "right": "ovis/evidence/a100-ovis-v9-768x1024-2-F/request-07-prompt-2.png",
+      "kind": "encoder_quantization",
+      "pixel_exact": false,
+      "mae_per_255": 1.6495895385742188,
+      "ssim": 0.98308345888118
+    },
+    {
+      "left": "ovis/evidence/a100-ovis-v9-768x1024-2-D/request-07-prompt-2.png",
+      "right": "ovis/evidence/a100-ovis-v9-768x1024-2-F/request-07-prompt-2.png",
+      "kind": "resident_vs_block",
+      "pixel_exact": true,
+      "mae_per_255": 0.0,
+      "ssim": 1.0
+    }
+  ],
+  "limits": "SSIM and MAE describe image differences. Subject counts, handles, instructions and fidelity still require manual review."
+}

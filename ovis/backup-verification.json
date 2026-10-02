@@ -1,0 +1,19 @@
+{
+  "schema": 3,
+  "completed_at": "2026-10-02T19:27:51.671542+00:00",
+  "files": 783,
+  "raw_bytes": 6914461324,
+  "all_sha256_verified": true,
+  "source": "446f42d8eb812f0d40d1b402ed7cfc8dbaad7a48",
+  "export_manifest_sha256": "2f5d7497f73a3d845e988ec64911bff772025b30b1f227efdd9ac1614611be55",
+  "normalized_manifest_sha256": "04742172dd3853b2626509e29dc081b681e9d3680c9df386367d14090e475f1c",
+  "sha256_index_sha256": "fc1fc17e1f95920c0d0b2ccfc01b56eba7199a8b0adbc35fcdca189e1bfe52b4",
+  "receipt": {
+    "phase": "queue_completed",
+    "exit": 0,
+    "final_acceptance": false
+  },
+  "compressed_objects": 89,
+  "resume_helper_sha256": "14e5a0bbdb7a4e04b7f7951c65161f7420a07d725150b6a844f6d922c33068ca",
+  "archive_format": "Original metadata tar.gz and per-file gzip; unique SHA chunk writers"
+}

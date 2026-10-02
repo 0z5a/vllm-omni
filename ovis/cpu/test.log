@@ -1,0 +1,20 @@
+Running 13 items in this shard
+.............                                                            [100%]
+=============================== warnings summary ===============================
+../../../vllm_src/.venv/lib/python3.12/site-packages/torch/jit/_script.py:365: 14 warnings
+  /home/zhen/vllm_src/.venv/lib/python3.12/site-packages/torch/jit/_script.py:365: DeprecationWarning: `torch.jit.script_method` is deprecated. Please switch to `torch.compile` or `torch.export`.
+    warnings.warn(
+
+vllm_omni/__init__.py:22
+  /home/zhen/0z5a/flux-ovis-consolidation-20261001/ovis/vllm_omni/__init__.py:22: RuntimeWarning: Failed to import version from _version.py: No module named 'vllm_omni._version'
+  This typically happens in development mode before building.
+  Using fallback version 'dev'.
+    from .version import __version__, __version_tuple__  # isort:skip # noqa: F401
+
+../../../vllm_src/.venv/lib/python3.12/site-packages/bitsandbytes/backends/cpu/ops.py:234
+  /home/zhen/vllm_src/.venv/lib/python3.12/site-packages/bitsandbytes/backends/cpu/ops.py:234: UserWarning: Skipping publisher trust check for 'kernels-community/quantization_bitsandbytes' because Hugging Face Hub is in offline mode.
+    gemm_4bit_forward_kernel = get_kernel("kernels-community/quantization_bitsandbytes").gemm_4bit_forward
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+--- Running Summary
+13 passed, 16 warnings in 2.32s

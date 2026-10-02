@@ -1,0 +1,23 @@
+{
+  "rank": 1,
+  "gathers": {},
+  "before_vae": [
+    []
+  ],
+  "after": [],
+  "resident": false,
+  "encoder_activation_dtypes": {
+    "torch.bfloat16": 392
+  },
+  "encoder_calls": [
+    {
+      "cuda_ms": 101.00736236572266,
+      "host_dispatch_ms": 101.0087369941175
+    },
+    {
+      "cuda_ms": 100.59574127197266,
+      "host_dispatch_ms": 100.59702699072659
+    }
+  ],
+  "encoder_latency_scope": "Untimed positive/negative encoder forward CUDA events; excludes tokenization and input preparation."
+}

@@ -1,0 +1,59 @@
+{
+  "arguments": {
+    "model": "/workspace/0z5a/ovis-a100-sxm4-20261002/ovis/models/Ovis-Image-7B",
+    "cfg_size": 2,
+    "hsdp": "none",
+    "kind": "ovis",
+    "variant": "bf16",
+    "offload": "none",
+    "eager": true,
+    "weight_load_threads": 1,
+    "encoder_graph": "native",
+    "warmups": 2,
+    "requests": 6,
+    "height": 512,
+    "width": 512,
+    "prompts_file": null,
+    "output": "/workspace/0z5a/ovis-a100-sxm4-20261002/ovis/evidence/a100-ovis-v9-512x512-2-A",
+    "profile": true
+  },
+  "omni_config": {
+    "model": "/workspace/0z5a/ovis-a100-sxm4-20261002/ovis/models/Ovis-Image-7B",
+    "dtype": "bfloat16",
+    "num_gpus": 2,
+    "num_weight_load_threads": 1,
+    "distributed_executor_backend": "mp",
+    "parallel_config": {
+      "cfg_parallel_size": 2,
+      "use_hsdp": false,
+      "hsdp_shard_size": -1
+    },
+    "additional_config": {
+      "hsdp_reshard_after_forward": true
+    },
+    "diffusion_attention_config": {
+      "default": {
+        "backend": "TORCH_SDPA"
+      }
+    },
+    "enforce_eager": true,
+    "enable_cpu_offload": false,
+    "enable_layerwise_offload": false,
+    "quantization_config": null,
+    "worker_extension_cls": "harness.audit_ovis_worker_public_ranks.OvisPublicRankAudit",
+    "enable_diffusion_pipeline_profiler": true,
+    "log_stats": false,
+    "init_timeout": 600,
+    "stage_init_timeout": 600
+  },
+  "pid": 18407,
+  "prompts": [
+    "A product photograph of a red teapot beside two blue cups on a wooden table.",
+    "A watercolor storefront with a clearly readable OPEN sign and a bicycle outside.",
+    "Three yellow rubber ducks floating in a turquoise pool, overhead photograph."
+  ],
+  "steps": 30,
+  "guidance_scale": 4.0,
+  "seed": 142,
+  "forced_signals": false
+}

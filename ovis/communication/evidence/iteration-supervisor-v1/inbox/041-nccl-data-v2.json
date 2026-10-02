@@ -1,0 +1,23 @@
+{
+  "id": "041-nccl-data-v2",
+  "after_terminal": [
+    "evidence/a100-ovis-full-v9-entry.exit",
+    "evidence/nccl-v2-coordinated-window.exit"
+  ],
+  "plan": "inputs/ovis-nccl-data-v2.json",
+  "plan_sha256": "d428b6a1949ef6ed7cf6007a8e6f0dc7f07218b8a26f9844921bd3a4e899fced",
+  "run_id": "a100-nccl-data-v2",
+  "sources": [
+    {
+      "manifest": "ovis/evidence/source-manifest.json",
+      "commit": "446f42d8eb812f0d40d1b402ed7cfc8dbaad7a48",
+      "directory": "ovis/ovis"
+    },
+    {
+      "manifest": "inputs/nccl-private-source-v1.json",
+      "commit": "private-nccl-diagnostic-v1",
+      "directory": "harness"
+    }
+  ],
+  "runner_sha256": "2dcb07673ef009b60de8eeb35982b677f423d1fb2ec0524c39699065e6ed8347"
+}

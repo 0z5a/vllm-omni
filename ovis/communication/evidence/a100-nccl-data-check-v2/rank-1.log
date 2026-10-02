@@ -1,0 +1,80 @@
+/workspace/0z5a/ovis-a100-sxm4-20261002/ovis/ovis/vllm_omni/__init__.py:22: RuntimeWarning: Failed to import version from _version.py: No module named 'vllm_omni._version'
+This typically happens in development mode before building.
+Using fallback version 'dev'.
+  from .version import __version__, __version_tuple__  # isort:skip # noqa: F401
+INFO 10-02 13:14:05 [patch.py:253] NVFP4 W4A4 weight_scale NaN-clamp: skipped — upstream serves ModelOpt linears through the generic ModelOptLinearMethod and rejects any NaN weight_scale (unloaded-scale sentinel), so a load-time error replaces the `!!!!` decode-time collapse.
+INFO 10-02 13:14:05 [patch.py:565] inductor factorable-divisibility patch: installed.
+INFO 10-02 13:14:05 [patch.py:630] [cumem-cuda] CuMemAllocator._python_free_callback patched: asleep guard extended to all platforms.
+/usr/local/lib/python3.12/dist-packages/torch/distributed/c10d_logger.py:83: FutureWarning: `torch.distributed.all_gather_into_tensor` is deprecated. Please use `torch.distributed.all_gather_single` instead.
+  return func(*args, **kwargs)
+b377764581b7:41541:41541 [1] NCCL INFO ncclOsDlopen(libnccl-env.so) failed: libnccl-env.so: cannot open shared object file: No such file or directory
+b377764581b7:41541:41541 [1] NCCL INFO ENV/Plugin: Could not find: libnccl-env.so
+b377764581b7:41541:41541 [1] NCCL INFO cudaDriverVersion 13020
+b377764581b7:41541:41541 [1] NCCL INFO NCCL version 2.30.7+cuda13.3
+b377764581b7:41541:41541 [1] NCCL INFO NCCL git version HEAD a5187fa2e
+b377764581b7:41541:41541 [1] NCCL INFO ncclOsDlopen(libnccl-net.so) failed: libnccl-net.so: cannot open shared object file: No such file or directory
+b377764581b7:41541:41541 [1] NCCL INFO NET/Plugin: Could not find: libnccl-net.so
+b377764581b7:41541:41541 [1] NCCL INFO NET/IB : No device found.
+b377764581b7:41541:41541 [1] NCCL INFO NET/IB : Using [RO]; OOB eth0:172.17.0.2<0>
+b377764581b7:41541:41541 [1] NCCL INFO Failed to initialize NET plugin IB
+b377764581b7:41541:41541 [1] NCCL INFO NET/Socket : Using [0]eth0:172.17.0.2<0>
+b377764581b7:41541:41541 [1] NCCL INFO Initialized NET plugin Socket
+b377764581b7:41541:41541 [1] NCCL INFO Assigned NET plugin Socket to comm
+b377764581b7:41541:41541 [1] NCCL INFO ncclOsDlopen(libnccl-rma.so) failed: libnccl-rma.so: cannot open shared object file: No such file or directory
+b377764581b7:41541:41541 [1] NCCL INFO RMA/Plugin: Could not find: libnccl-rma.so
+b377764581b7:41541:41541 [1] NCCL INFO RMA/Plugin: Failed to load external plugin libnccl-rma.so, dlHandle: (nil), ncclRma: (nil)
+b377764581b7:41541:41541 [1] NCCL INFO RMA/Plugin: Failed to initialize any plugin
+b377764581b7:41541:41541 [1] NCCL INFO ncclOsDlopen(libnccl-gin.so) failed: libnccl-gin.so: cannot open shared object file: No such file or directory
+b377764581b7:41541:41541 [1] NCCL INFO GIN/Plugin: Could not find: libnccl-gin.so
+b377764581b7:41541:41541 [1] NCCL INFO GIN/Plugin: Failed to load external plugin libnccl-gin.so, dlHandle: (nil), ncclGin: (nil)
+b377764581b7:41541:41541 [1] NCCL INFO GIN/Plugin: Failed to initialize any GIN plugin
+b377764581b7:41541:41541 [1] NCCL INFO Using network Socket
+b377764581b7:41541:41541 [1] NCCL INFO Loaded NVML from libnvidia-ml.so.1
+b377764581b7:41541:41541 [1] NCCL INFO [Rank 1] ncclCommInitRankConfig comm 0x509b8430 rank 1 nranks 2 cudaDev 1 nvmlDev 1 busId 3000 commId 0xddde97332f1aab46 - Init START
+b377764581b7:41541:41541 [1] NCCL INFO RAS client listening socket at ::1<28028>
+b377764581b7:41541:41541 [1] NCCL INFO TOPO/NET : Importing network plugins to topology
+b377764581b7:41541:41541 [1] NCCL INFO ncclTopoPopulateNics : Filled eth0 in topo with pciPath=(null) net=1 gin=(null) rma=(null) keep=1 coll=(null) rail=-1 plane=-1
+b377764581b7:41541:41541 [1] NCCL INFO === System : maxBw 12.0 totalBw 12.0 ===
+b377764581b7:41541:41541 [1] NCCL INFO CPU/0-0 (1/1/1)
+b377764581b7:41541:41541 [1] NCCL INFO + PCI[5000.0] - NIC/0-0
+b377764581b7:41541:41541 [1] NCCL INFO                 + NET[1.2] - NET/0-0 (0/0/0/1.250000)
+b377764581b7:41541:41541 [1] NCCL INFO + PCI[12.0] - DEV/0-2000 (10de20b010de134f)
+b377764581b7:41541:41541 [1] NCCL INFO               + LOC[5000.0] - GPU/0-2000
+b377764581b7:41541:41541 [1] NCCL INFO + PCI[12.0] - DEV/0-3000 (10de20b010de134f)
+b377764581b7:41541:41541 [1] NCCL INFO               + LOC[5000.0] - GPU/0-3000
+b377764581b7:41541:41541 [1] NCCL INFO ==========================================
+b377764581b7:41541:41541 [1] NCCL INFO GPU/0-2000 :GPU/0-2000 (0/5000.0/LOC) GPU/0-3000 (4/12.0/PHB) CPU/0-0 (2/12.0/PHB) NET/0-0 (4/1.2/PHB) DEV/0-2000 (1/5000.0/LOC) DEV/0-3000 (3/12.0/PHB) 
+b377764581b7:41541:41541 [1] NCCL INFO GPU/0-3000 :GPU/0-2000 (4/12.0/PHB) GPU/0-3000 (0/5000.0/LOC) CPU/0-0 (2/12.0/PHB) NET/0-0 (4/1.2/PHB) DEV/0-2000 (3/12.0/PHB) DEV/0-3000 (1/5000.0/LOC) 
+b377764581b7:41541:41541 [1] NCCL INFO NET/0-0 :GPU/0-2000 (4/1.2/PHB) GPU/0-3000 (4/1.2/PHB) CPU/0-0 (2/1.2/PHB) NET/0-0 (0/5000.0/LOC) DEV/0-2000 (3/1.2/PHB) DEV/0-3000 (3/1.2/PHB) 
+b377764581b7:41541:41541 [1] NCCL INFO ncclTopoGetCpuAffinity: Affinity for GPU 1 is 0-27. (GPU affinity = 0-27 ; CPU affinity = 0-27).
+b377764581b7:41541:41541 [1] NCCL INFO NVLS multicast support is not available on dev 1
+b377764581b7:41541:41541 [1] NCCL INFO Pattern 4, crossNic 0, nChannels 1, bw 10.000000/10.000000, type PHB/PIX, sameChannels 1
+b377764581b7:41541:41541 [1] NCCL INFO  0 : GPU/0-2000 GPU/0-3000
+b377764581b7:41541:41541 [1] NCCL INFO Pattern 1, crossNic 0, nChannels 1, bw 10.000000/10.000000, type PHB/PIX, sameChannels 1
+b377764581b7:41541:41541 [1] NCCL INFO  0 : GPU/0-2000 GPU/0-3000
+b377764581b7:41541:41541 [1] NCCL INFO Rank 1: 1 Net devices
+b377764581b7:41541:41541 [1] NCCL INFO Rank 1: 0 CollNet devices
+b377764581b7:41541:41541 [1] NCCL INFO comm 0x509b8430 rank 1 nRanks 2 nNodes 1 localRanks 2 localRank 1 MNNVL 0
+b377764581b7:41541:41541 [1] NCCL INFO Tree 0 : 0 -> 1 -> -1/-1/-1
+b377764581b7:41541:41541 [1] NCCL INFO Tree 1 : 0 -> 1 -> -1/-1/-1
+b377764581b7:41541:41541 [1] NCCL INFO Ring 00 : 0 -> 1 -> 0
+b377764581b7:41541:41541 [1] NCCL INFO Ring 01 : 0 -> 1 -> 0
+b377764581b7:41541:41541 [1] NCCL INFO Trees [0] -1/-1/-1->1->0 [1] -1/-1/-1->1->0
+b377764581b7:41541:41541 [1] NCCL INFO P2P Chunksize set to 131072
+b377764581b7:41541:41541 [1] NCCL INFO ncclOsDlopen(libnccl-profiler.so) failed: libnccl-profiler.so: cannot open shared object file: No such file or directory
+b377764581b7:41541:41541 [1] NCCL INFO PROFILER/Plugin: Could not find: libnccl-profiler.so
+b377764581b7:41541:41541 [1] NCCL INFO Check P2P Type isAllDirectP2p 0 directMode 0 isAllCudaP2p 1
+b377764581b7:41541:41541 [1] NCCL INFO ncclP2pSchedule: group size used is 2
+b377764581b7:41541:42078 [0] NCCL INFO [Proxy Service UDS] Device 1 CPU core 10
+b377764581b7:41541:42076 [0] NCCL INFO [Proxy Service] Device 1 CPU core 11
+b377764581b7:41541:42076 [1] NCCL INFO proxy listening socket at 172.17.0.2<45111>
+b377764581b7:41541:41541 [1] NCCL INFO ncclOsDlopen(libnccl-tuner.so) failed: libnccl-tuner.so: cannot open shared object file: No such file or directory
+b377764581b7:41541:41541 [1] NCCL INFO TUNER/Plugin: Could not find: libnccl-tuner.so
+b377764581b7:41541:41541 [1] NCCL INFO threadThresholds 8/8/64 | 16/8/64 | 512 | 512
+b377764581b7:41541:41541 [1] NCCL INFO 2 coll channels, 2 collnet channels, 0 nvls channels, 2 p2p channels, 2 p2p channels per peer
+b377764581b7:41541:41541 [1] NCCL INFO ncclCommInitRankConfig comm 0x509b8430 rank 1 nranks 2 cudaDev 1 nvmlDev 1 busId 3000 commId 0xddde97332f1aab46 - Init COMPLETE
+b377764581b7:41541:41541 [1] NCCL INFO Init timings - ncclCommInitRankConfig: rank 1 nranks 2 total 0.23 (kernels 0.20, alloc 0.00, bootstrap 0.01, allgathers 0.00, topo 0.01, graphs 0.00, connections 0.00, rest 0.00)
+b377764581b7:41541:41541 [1] NCCL INFO Symmetric VA size=40GB
+b377764581b7:41541:41541 [1] NCCL INFO Channel 00 : 1[1] -> 0[0] via SHM/direct
+b377764581b7:41541:41541 [1] NCCL INFO Channel 01 : 1[1] -> 0[0] via SHM/direct
+b377764581b7:41541:41541 [1] NCCL INFO Connected all rings, use ring PXN 0 GDR 1

@@ -1,0 +1,11 @@
+{
+  "all_sha256_verified": true,
+  "files": 25,
+  "receipt": {
+    "phase": "queue_completed",
+    "exit": 0,
+    "final_acceptance": false
+  },
+  "tar_sha256": "a66a4902041f513dcf8393f0216a00dadf3f516d98284d0625bd42ee4d4376c1",
+  "scope": "Backup success is separate from diagnostic correctness; failed results are retained."
+}

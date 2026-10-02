@@ -1,0 +1,45 @@
+{
+  "schema": 1,
+  "reviewed_at": "2026-10-02T19:34:28.393030+00:00",
+  "source": "446f42d8eb812f0d40d1b402ed7cfc8dbaad7a48",
+  "review_complete": true,
+  "representative_images_reviewed": 72,
+  "additional_nonexact_repeats_reviewed": true,
+  "additional_nonexact_repeat_pairs_count": 0,
+  "additional_nonexact_repeat_images_reviewed": 0,
+  "hsdp_vs_unsharded_review_complete": true,
+  "hsdp_vs_unsharded_pairs": 48,
+  "nonexact_hsdp_pairs_count": 0,
+  "contact_sheet_sha256": {
+    "ovis-512x512-contact-sheet.png": "e488057cfd613f2977fc698545e9ab252a64567c7ad2f3a5e826ea2907bd4cb4",
+    "ovis-768x1024-contact-sheet.png": "bfdd52a0734db2209b346dfa8872fe7ba8a248666c7118d34b1f97f43b0f4075"
+  },
+  "full_resolution_images_inspected": [
+    {
+      "path": "ovis/evidence/a100-ovis-v9-512x512-1-A/request-05-prompt-0.png",
+      "sha256": "b0dfd6c0dfd724c857ed7e958ce519ccec0c271a6f3a2df5641e7d0269ff5883"
+    },
+    {
+      "path": "ovis/evidence/a100-ovis-v9-512x512-1-B/request-05-prompt-0.png",
+      "sha256": "efb113800a132e6b3ee21e15982b97f63653a802c37345829b93fe420aa555e6"
+    },
+    {
+      "path": "ovis/evidence/a100-ovis-v9-768x1024-1-A/request-06-prompt-1.png",
+      "sha256": "a1b680a45aa889562d08e86714f4475c1947eab59a3aad829fbd600c0f743808"
+    },
+    {
+      "path": "ovis/evidence/a100-ovis-v9-768x1024-1-B/request-06-prompt-1.png",
+      "sha256": "0393d1c1528655e6ebbf9e47de1a175dcdddac0c6b018c692ba738dc5490c54a"
+    },
+    {
+      "path": "ovis/evidence/a100-ovis-v9-768x1024-1-A/request-07-prompt-2.png",
+      "sha256": "4bc9e24be8043971713dbfa08c18b6258b20bdc3eb0e9251fbafe35e442c1cd3"
+    },
+    {
+      "path": "ovis/evidence/a100-ovis-v9-768x1024-1-B/request-07-prompt-2.png",
+      "sha256": "9f8b3dbbd17fa5c9f292ad46e5f4cfc9839ada6b800dd4b76e3b957ea864fa8b"
+    }
+  ],
+  "observations_markdown": "The two contact sheets contain 72 representatives across both resolutions, six precision/residency modes, two process-order repeats and three prompts. All show one red teapot with two blue cups and handles, a watercolor storefront with a bicycle and readable OPEN text, or exactly three yellow rubber ducks in turquoise water. The matched repeat, request-resident/block and HSDP/unsharded pairs are pixel-exact in the archived comparisons. No nonexact repeat or HSDP pairs require additional images.\n\nEncoder quantization is not lossless. In the 512-square teapot pair, the cup interiors change from blue to red, and cup proportions, rim contours, pot reflections and highlights change. The larger storefront pair retains the requested OPEN signs and bicycle, while letter spacing, window details, street/tree layout and facade details change; the FP8 image introduces garbled extra lettering resembling FILOMG LOR. Duck count remains three, with changes to water ripples, caustics, reflections and contours. Subject/count checks pass for these prompts; fidelity differences remain material and are reported rather than treated as pixel equivalence. Baseline images also have prompt/style limitations. This review covers the recorded prompts and seeds only, not general image quality.\n\nThe 36 encoder-quantization comparisons are nonexact (SSIM 0.78847\u20130.98913, maximum MAE 14.25376/255). SSIM/MAE support the difference report; they do not establish semantic correctness. Same-precision process repeats (36), request repeats (72), resident/block pairs (24) and HSDP/unsharded pairs (48) are all exact. Review completion is not a claim of lossless quantization.\n",
+  "review_scope": "Visual review of archived contact sheets and six original-resolution representative PNGs; no additional nonexact repeat/HSDP pairs existed."
+}

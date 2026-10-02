@@ -1,0 +1,50 @@
+[
+  [
+    {
+      "rank": 0,
+      "gathers": {},
+      "before_vae": [
+        []
+      ],
+      "after": [],
+      "resident": false,
+      "encoder_activation_dtypes": {
+        "torch.bfloat16": 392
+      },
+      "encoder_calls": [
+        {
+          "cuda_ms": 101.55110168457031,
+          "host_dispatch_ms": 101.55170108191669
+        },
+        {
+          "cuda_ms": 100.83446502685547,
+          "host_dispatch_ms": 100.83818901330233
+        }
+      ],
+      "encoder_latency_scope": "Untimed positive/negative encoder forward CUDA events; excludes tokenization and input preparation."
+    },
+    {
+      "rank": 1,
+      "gathers": {},
+      "before_vae": [
+        []
+      ],
+      "after": [],
+      "resident": false,
+      "encoder_activation_dtypes": {
+        "torch.bfloat16": 392
+      },
+      "encoder_calls": [
+        {
+          "cuda_ms": 96.21794891357422,
+          "host_dispatch_ms": 96.2199280038476
+        },
+        {
+          "cuda_ms": 95.72441864013672,
+          "host_dispatch_ms": 95.72624205611646
+        }
+      ],
+      "encoder_latency_scope": "Untimed positive/negative encoder forward CUDA events; excludes tokenization and input preparation."
+    }
+  ]
+]

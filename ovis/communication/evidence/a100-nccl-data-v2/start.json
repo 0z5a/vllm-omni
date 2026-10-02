@@ -1,0 +1,53 @@
+{
+  "plan": {
+    "boot_id": "5014bee8-18f5-4eb1-b67d-df7dfb9d9f90",
+    "devices": "0,1",
+    "gpu_uuids": [
+      "GPU-03d6de3a-ca5b-03ca-727f-698cddfe0c46",
+      "GPU-14d8e70c-93be-2085-471f-28f7fed2ec91"
+    ],
+    "required_success": [
+      "evidence/a100-ovis-full-v9-entry.exit",
+      "evidence/nccl-v2-coordinated-window.exit"
+    ],
+    "required_files": [
+      "ovis/evidence/source-manifest.json",
+      "evidence/nccl-v2-coordinated-window.json"
+    ],
+    "steps": [
+      {
+        "argv": [
+          "/workspace/0z5a/ovis-a100-sxm4-20261002/runtime/bin/python",
+          "/workspace/0z5a/ovis-a100-sxm4-20261002/harness/probe_sxm4_nccl_data.py",
+          "--output",
+          "/workspace/0z5a/ovis-a100-sxm4-20261002/evidence/a100-nccl-data-check-v2"
+        ],
+        "cwd": "/workspace/0z5a/ovis-a100-sxm4-20261002",
+        "environment": {
+          "CUDA_VISIBLE_DEVICES": "0,1",
+          "PYTHONDONTWRITEBYTECODE": "1",
+          "OMP_NUM_THREADS": "4",
+          "HF_HUB_OFFLINE": "1",
+          "TRANSFORMERS_OFFLINE": "1",
+          "VLLM_WORKER_MULTIPROC_METHOD": "spawn",
+          "TORCHINDUCTOR_COMPILE_THREADS": "1",
+          "PYTHONPATH": "/workspace/0z5a/ovis-a100-sxm4-20261002/compat-dependencies:/workspace/0z5a/ovis-a100-sxm4-20261002/dependencies:/workspace/0z5a/ovis-a100-sxm4-20261002/ovis/harness/a100-sm80-public-kernel-v1:/workspace/0z5a/ovis-a100-sxm4-20261002/ovis/ovis:/workspace/0z5a/ovis-a100-sxm4-20261002/ovis",
+          "HF_HOME": "/workspace/0z5a/ovis-a100-sxm4-20261002/cache/hf",
+          "TMPDIR": "/workspace/0z5a/ovis-a100-sxm4-20261002/tmp",
+          "TORCHINDUCTOR_CACHE_DIR": "/workspace/0z5a/ovis-a100-sxm4-20261002/cache/a100-nccl-data-v2/inductor",
+          "TRITON_CACHE_DIR": "/workspace/0z5a/ovis-a100-sxm4-20261002/cache/a100-nccl-data-v2/triton",
+          "CUDA_CACHE_PATH": "/workspace/0z5a/ovis-a100-sxm4-20261002/cache/a100-nccl-data-v2/cuda",
+          "VLLM_CACHE_ROOT": "/workspace/0z5a/ovis-a100-sxm4-20261002/cache/a100-nccl-data-v2/vllm",
+          "XDG_CACHE_HOME": "/workspace/0z5a/ovis-a100-sxm4-20261002/cache/a100-nccl-data-v2/xdg",
+          "VLLM_DISABLED_KERNELS": "CutlassFP8ScaledMMLinearKernel"
+        }
+      }
+    ],
+    "purpose": "Second attempt after prior nonblocking flock admission failed before any CUDA/data operation. New explicit coordinator window and actual guards required; unchanged exact-data probe, independent output."
+  },
+  "plan_sha256": "d428b6a1949ef6ed7cf6007a8e6f0dc7f07218b8a26f9844921bd3a4e899fced",
+  "lock": "/tmp/0z5a-a100-perf.lock",
+  "lock_acquired": true,
+  "authorization": "Human provided this host for quantization and authorized Ovis validation",
+  "forced_signals": false
+}

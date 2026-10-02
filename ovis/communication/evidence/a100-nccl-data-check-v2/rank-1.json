@@ -1,0 +1,1170 @@
+{
+  "rank": 1,
+  "checks": [
+    {
+      "operation": "all_gather_into_tensor",
+      "dtype": "torch.bfloat16",
+      "count": 4096,
+      "round": 0,
+      "mismatches": 0,
+      "finite": true
+    },
+    {
+      "operation": "all_reduce_sum",
+      "dtype": "torch.bfloat16",
+      "count": 4096,
+      "round": 0,
+      "mismatches": 0,
+      "finite": true
+    },
+    {
+      "operation": "broadcast_from_0",
+      "dtype": "torch.bfloat16",
+      "count": 4096,
+      "round": 0,
+      "mismatches": 0,
+      "finite": true
+    },
+    {
+      "operation": "broadcast_from_1",
+      "dtype": "torch.bfloat16",
+      "count": 4096,
+      "round": 0,
+      "mismatches": 0,
+      "finite": true
+    },
+    {
+      "operation": "all_gather_into_tensor",
+      "dtype": "torch.bfloat16",
+      "count": 4096,
+      "round": 1,
+      "mismatches": 0,
+      "finite": true
+    },
+    {
+      "operation": "all_reduce_sum",
+      "dtype": "torch.bfloat16",
+      "count": 4096,
+      "round": 1,
+      "mismatches": 0,
+      "finite": true
+    },
+    {
+      "operation": "broadcast_from_0",
+      "dtype": "torch.bfloat16",
+      "count": 4096,
+      "round": 1,
+      "mismatches": 0,
+      "finite": true
+    },
+    {
+      "operation": "broadcast_from_1",
+      "dtype": "torch.bfloat16",
+      "count": 4096,
+      "round": 1,
+      "mismatches": 0,
+      "finite": true
+    },
+    {
+      "operation": "all_gather_into_tensor",
+      "dtype": "torch.bfloat16",
+      "count": 4096,
+      "round": 2,
+      "mismatches": 0,
+      "finite": true
+    },
+    {
+      "operation": "all_reduce_sum",
+      "dtype": "torch.bfloat16",
+      "count": 4096,
+      "round": 2,
+      "mismatches": 0,
+      "finite": true
+    },
+    {
+      "operation": "broadcast_from_0",
+      "dtype": "torch.bfloat16",
+      "count": 4096,
+      "round": 2,
+      "mismatches": 0,
+      "finite": true
+    },
+    {
+      "operation": "broadcast_from_1",
+      "dtype": "torch.bfloat16",
+      "count": 4096,
+      "round": 2,
+      "mismatches": 0,
+      "finite": true
+    },
+    {
+      "operation": "all_gather_into_tensor",
+      "dtype": "torch.bfloat16",
+      "count": 65536,
+      "round": 0,
+      "mismatches": 0,
+      "finite": true
+    },
+    {
+      "operation": "all_reduce_sum",
+      "dtype": "torch.bfloat16",
+      "count": 65536,
+      "round": 0,
+      "mismatches": 0,
+      "finite": true
+    },
+    {
+      "operation": "broadcast_from_0",
+      "dtype": "torch.bfloat16",
+      "count": 65536,
+      "round": 0,
+      "mismatches": 0,
+      "finite": true
+    },
+    {
+      "operation": "broadcast_from_1",
+      "dtype": "torch.bfloat16",
+      "count": 65536,
+      "round": 0,
+      "mismatches": 0,
+      "finite": true
+    },
+    {
+      "operation": "all_gather_into_tensor",
+      "dtype": "torch.bfloat16",
+      "count": 65536,
+      "round": 1,
+      "mismatches": 0,
+      "finite": true
+    },
+    {
+      "operation": "all_reduce_sum",
+      "dtype": "torch.bfloat16",
+      "count": 65536,
+      "round": 1,
+      "mismatches": 0,
+      "finite": true
+    },
+    {
+      "operation": "broadcast_from_0",
+      "dtype": "torch.bfloat16",
+      "count": 65536,
+      "round": 1,
+      "mismatches": 0,
+      "finite": true
+    },
+    {
+      "operation": "broadcast_from_1",
+      "dtype": "torch.bfloat16",
+      "count": 65536,
+      "round": 1,
+      "mismatches": 0,
+      "finite": true
+    },
+    {
+      "operation": "all_gather_into_tensor",
+      "dtype": "torch.bfloat16",
+      "count": 65536,
+      "round": 2,
+      "mismatches": 0,
+      "finite": true
+    },
+    {
+      "operation": "all_reduce_sum",
+      "dtype": "torch.bfloat16",
+      "count": 65536,
+      "round": 2,
+      "mismatches": 0,
+      "finite": true
+    },
+    {
+      "operation": "broadcast_from_0",
+      "dtype": "torch.bfloat16",
+      "count": 65536,
+      "round": 2,
+      "mismatches": 0,
+      "finite": true
+    },
+    {
+      "operation": "broadcast_from_1",
+      "dtype": "torch.bfloat16",
+      "count": 65536,
+      "round": 2,
+      "mismatches": 0,
+      "finite": true
+    },
+    {
+      "operation": "all_gather_into_tensor",
+      "dtype": "torch.bfloat16",
+      "count": 1048576,
+      "round": 0,
+      "mismatches": 0,
+      "finite": true
+    },
+    {
+      "operation": "all_reduce_sum",
+      "dtype": "torch.bfloat16",
+      "count": 1048576,
+      "round": 0,
+      "mismatches": 0,
+      "finite": true
+    },
+    {
+      "operation": "broadcast_from_0",
+      "dtype": "torch.bfloat16",
+      "count": 1048576,
+      "round": 0,
+      "mismatches": 0,
+      "finite": true
+    },
+    {
+      "operation": "broadcast_from_1",
+      "dtype": "torch.bfloat16",
+      "count": 1048576,
+      "round": 0,
+      "mismatches": 0,
+      "finite": true
+    },
+    {
+      "operation": "all_gather_into_tensor",
+      "dtype": "torch.bfloat16",
+      "count": 1048576,
+      "round": 1,
+      "mismatches": 0,
+      "finite": true
+    },
+    {
+      "operation": "all_reduce_sum",
+      "dtype": "torch.bfloat16",
+      "count": 1048576,
+      "round": 1,
+      "mismatches": 0,
+      "finite": true
+    },
+    {
+      "operation": "broadcast_from_0",
+      "dtype": "torch.bfloat16",
+      "count": 1048576,
+      "round": 1,
+      "mismatches": 0,
+      "finite": true
+    },
+    {
+      "operation": "broadcast_from_1",
+      "dtype": "torch.bfloat16",
+      "count": 1048576,
+      "round": 1,
+      "mismatches": 0,
+      "finite": true
+    },
+    {
+      "operation": "all_gather_into_tensor",
+      "dtype": "torch.bfloat16",
+      "count": 1048576,
+      "round": 2,
+      "mismatches": 0,
+      "finite": true
+    },
+    {
+      "operation": "all_reduce_sum",
+      "dtype": "torch.bfloat16",
+      "count": 1048576,
+      "round": 2,
+      "mismatches": 0,
+      "finite": true
+    },
+    {
+      "operation": "broadcast_from_0",
+      "dtype": "torch.bfloat16",
+      "count": 1048576,
+      "round": 2,
+      "mismatches": 0,
+      "finite": true
+    },
+    {
+      "operation": "broadcast_from_1",
+      "dtype": "torch.bfloat16",
+      "count": 1048576,
+      "round": 2,
+      "mismatches": 0,
+      "finite": true
+    },
+    {
+      "operation": "all_gather_into_tensor",
+      "dtype": "torch.bfloat16",
+      "count": 4194304,
+      "round": 0,
+      "mismatches": 0,
+      "finite": true
+    },
+    {
+      "operation": "all_reduce_sum",
+      "dtype": "torch.bfloat16",
+      "count": 4194304,
+      "round": 0,
+      "mismatches": 0,
+      "finite": true
+    },
+    {
+      "operation": "broadcast_from_0",
+      "dtype": "torch.bfloat16",
+      "count": 4194304,
+      "round": 0,
+      "mismatches": 0,
+      "finite": true
+    },
+    {
+      "operation": "broadcast_from_1",
+      "dtype": "torch.bfloat16",
+      "count": 4194304,
+      "round": 0,
+      "mismatches": 0,
+      "finite": true
+    },
+    {
+      "operation": "all_gather_into_tensor",
+      "dtype": "torch.bfloat16",
+      "count": 4194304,
+      "round": 1,
+      "mismatches": 0,
+      "finite": true
+    },
+    {
+      "operation": "all_reduce_sum",
+      "dtype": "torch.bfloat16",
+      "count": 4194304,
+      "round": 1,
+      "mismatches": 0,
+      "finite": true
+    },
+    {
+      "operation": "broadcast_from_0",
+      "dtype": "torch.bfloat16",
+      "count": 4194304,
+      "round": 1,
+      "mismatches": 0,
+      "finite": true
+    },
+    {
+      "operation": "broadcast_from_1",
+      "dtype": "torch.bfloat16",
+      "count": 4194304,
+      "round": 1,
+      "mismatches": 0,
+      "finite": true
+    },
+    {
+      "operation": "all_gather_into_tensor",
+      "dtype": "torch.bfloat16",
+      "count": 4194304,
+      "round": 2,
+      "mismatches": 0,
+      "finite": true
+    },
+    {
+      "operation": "all_reduce_sum",
+      "dtype": "torch.bfloat16",
+      "count": 4194304,
+      "round": 2,
+      "mismatches": 0,
+      "finite": true
+    },
+    {
+      "operation": "broadcast_from_0",
+      "dtype": "torch.bfloat16",
+      "count": 4194304,
+      "round": 2,
+      "mismatches": 0,
+      "finite": true
+    },
+    {
+      "operation": "broadcast_from_1",
+      "dtype": "torch.bfloat16",
+      "count": 4194304,
+      "round": 2,
+      "mismatches": 0,
+      "finite": true
+    },
+    {
+      "operation": "all_gather_into_tensor",
+      "dtype": "torch.float32",
+      "count": 4096,
+      "round": 0,
+      "mismatches": 0,
+      "finite": true
+    },
+    {
+      "operation": "all_reduce_sum",
+      "dtype": "torch.float32",
+      "count": 4096,
+      "round": 0,
+      "mismatches": 0,
+      "finite": true
+    },
+    {
+      "operation": "broadcast_from_0",
+      "dtype": "torch.float32",
+      "count": 4096,
+      "round": 0,
+      "mismatches": 0,
+      "finite": true
+    },
+    {
+      "operation": "broadcast_from_1",
+      "dtype": "torch.float32",
+      "count": 4096,
+      "round": 0,
+      "mismatches": 0,
+      "finite": true
+    },
+    {
+      "operation": "all_gather_into_tensor",
+      "dtype": "torch.float32",
+      "count": 4096,
+      "round": 1,
+      "mismatches": 0,
+      "finite": true
+    },
+    {
+      "operation": "all_reduce_sum",
+      "dtype": "torch.float32",
+      "count": 4096,
+      "round": 1,
+      "mismatches": 0,
+      "finite": true
+    },
+    {
+      "operation": "broadcast_from_0",
+      "dtype": "torch.float32",
+      "count": 4096,
+      "round": 1,
+      "mismatches": 0,
+      "finite": true
+    },
+    {
+      "operation": "broadcast_from_1",
+      "dtype": "torch.float32",
+      "count": 4096,
+      "round": 1,
+      "mismatches": 0,
+      "finite": true
+    },
+    {
+      "operation": "all_gather_into_tensor",
+      "dtype": "torch.float32",
+      "count": 4096,
+      "round": 2,
+      "mismatches": 0,
+      "finite": true
+    },
+    {
+      "operation": "all_reduce_sum",
+      "dtype": "torch.float32",
+      "count": 4096,
+      "round": 2,
+      "mismatches": 0,
+      "finite": true
+    },
+    {
+      "operation": "broadcast_from_0",
+      "dtype": "torch.float32",
+      "count": 4096,
+      "round": 2,
+      "mismatches": 0,
+      "finite": true
+    },
+    {
+      "operation": "broadcast_from_1",
+      "dtype": "torch.float32",
+      "count": 4096,
+      "round": 2,
+      "mismatches": 0,
+      "finite": true
+    },
+    {
+      "operation": "all_gather_into_tensor",
+      "dtype": "torch.float32",
+      "count": 65536,
+      "round": 0,
+      "mismatches": 0,
+      "finite": true
+    },
+    {
+      "operation": "all_reduce_sum",
+      "dtype": "torch.float32",
+      "count": 65536,
+      "round": 0,
+      "mismatches": 0,
+      "finite": true
+    },
+    {
+      "operation": "broadcast_from_0",
+      "dtype": "torch.float32",
+      "count": 65536,
+      "round": 0,
+      "mismatches": 0,
+      "finite": true
+    },
+    {
+      "operation": "broadcast_from_1",
+      "dtype": "torch.float32",
+      "count": 65536,
+      "round": 0,
+      "mismatches": 0,
+      "finite": true
+    },
+    {
+      "operation": "all_gather_into_tensor",
+      "dtype": "torch.float32",
+      "count": 65536,
+      "round": 1,
+      "mismatches": 0,
+      "finite": true
+    },
+    {
+      "operation": "all_reduce_sum",
+      "dtype": "torch.float32",
+      "count": 65536,
+      "round": 1,
+      "mismatches": 0,
+      "finite": true
+    },
+    {
+      "operation": "broadcast_from_0",
+      "dtype": "torch.float32",
+      "count": 65536,
+      "round": 1,
+      "mismatches": 0,
+      "finite": true
+    },
+    {
+      "operation": "broadcast_from_1",
+      "dtype": "torch.float32",
+      "count": 65536,
+      "round": 1,
+      "mismatches": 0,
+      "finite": true
+    },
+    {
+      "operation": "all_gather_into_tensor",
+      "dtype": "torch.float32",
+      "count": 65536,
+      "round": 2,
+      "mismatches": 0,
+      "finite": true
+    },
+    {
+      "operation": "all_reduce_sum",
+      "dtype": "torch.float32",
+      "count": 65536,
+      "round": 2,
+      "mismatches": 0,
+      "finite": true
+    },
+    {
+      "operation": "broadcast_from_0",
+      "dtype": "torch.float32",
+      "count": 65536,
+      "round": 2,
+      "mismatches": 0,
+      "finite": true
+    },
+    {
+      "operation": "broadcast_from_1",
+      "dtype": "torch.float32",
+      "count": 65536,
+      "round": 2,
+      "mismatches": 0,
+      "finite": true
+    },
+    {
+      "operation": "all_gather_into_tensor",
+      "dtype": "torch.float32",
+      "count": 1048576,
+      "round": 0,
+      "mismatches": 0,
+      "finite": true
+    },
+    {
+      "operation": "all_reduce_sum",
+      "dtype": "torch.float32",
+      "count": 1048576,
+      "round": 0,
+      "mismatches": 0,
+      "finite": true
+    },
+    {
+      "operation": "broadcast_from_0",
+      "dtype": "torch.float32",
+      "count": 1048576,
+      "round": 0,
+      "mismatches": 0,
+      "finite": true
+    },
+    {
+      "operation": "broadcast_from_1",
+      "dtype": "torch.float32",
+      "count": 1048576,
+      "round": 0,
+      "mismatches": 0,
+      "finite": true
+    },
+    {
+      "operation": "all_gather_into_tensor",
+      "dtype": "torch.float32",
+      "count": 1048576,
+      "round": 1,
+      "mismatches": 0,
+      "finite": true
+    },
+    {
+      "operation": "all_reduce_sum",
+      "dtype": "torch.float32",
+      "count": 1048576,
+      "round": 1,
+      "mismatches": 0,
+      "finite": true
+    },
+    {
+      "operation": "broadcast_from_0",
+      "dtype": "torch.float32",
+      "count": 1048576,
+      "round": 1,
+      "mismatches": 0,
+      "finite": true
+    },
+    {
+      "operation": "broadcast_from_1",
+      "dtype": "torch.float32",
+      "count": 1048576,
+      "round": 1,
+      "mismatches": 0,
+      "finite": true
+    },
+    {
+      "operation": "all_gather_into_tensor",
+      "dtype": "torch.float32",
+      "count": 1048576,
+      "round": 2,
+      "mismatches": 0,
+      "finite": true
+    },
+    {
+      "operation": "all_reduce_sum",
+      "dtype": "torch.float32",
+      "count": 1048576,
+      "round": 2,
+      "mismatches": 0,
+      "finite": true
+    },
+    {
+      "operation": "broadcast_from_0",
+      "dtype": "torch.float32",
+      "count": 1048576,
+      "round": 2,
+      "mismatches": 0,
+      "finite": true
+    },
+    {
+      "operation": "broadcast_from_1",
+      "dtype": "torch.float32",
+      "count": 1048576,
+      "round": 2,
+      "mismatches": 0,
+      "finite": true
+    },
+    {
+      "operation": "all_gather_into_tensor",
+      "dtype": "torch.float32",
+      "count": 4194304,
+      "round": 0,
+      "mismatches": 0,
+      "finite": true
+    },
+    {
+      "operation": "all_reduce_sum",
+      "dtype": "torch.float32",
+      "count": 4194304,
+      "round": 0,
+      "mismatches": 0,
+      "finite": true
+    },
+    {
+      "operation": "broadcast_from_0",
+      "dtype": "torch.float32",
+      "count": 4194304,
+      "round": 0,
+      "mismatches": 0,
+      "finite": true
+    },
+    {
+      "operation": "broadcast_from_1",
+      "dtype": "torch.float32",
+      "count": 4194304,
+      "round": 0,
+      "mismatches": 0,
+      "finite": true
+    },
+    {
+      "operation": "all_gather_into_tensor",
+      "dtype": "torch.float32",
+      "count": 4194304,
+      "round": 1,
+      "mismatches": 0,
+      "finite": true
+    },
+    {
+      "operation": "all_reduce_sum",
+      "dtype": "torch.float32",
+      "count": 4194304,
+      "round": 1,
+      "mismatches": 0,
+      "finite": true
+    },
+    {
+      "operation": "broadcast_from_0",
+      "dtype": "torch.float32",
+      "count": 4194304,
+      "round": 1,
+      "mismatches": 0,
+      "finite": true
+    },
+    {
+      "operation": "broadcast_from_1",
+      "dtype": "torch.float32",
+      "count": 4194304,
+      "round": 1,
+      "mismatches": 0,
+      "finite": true
+    },
+    {
+      "operation": "all_gather_into_tensor",
+      "dtype": "torch.float32",
+      "count": 4194304,
+      "round": 2,
+      "mismatches": 0,
+      "finite": true
+    },
+    {
+      "operation": "all_reduce_sum",
+      "dtype": "torch.float32",
+      "count": 4194304,
+      "round": 2,
+      "mismatches": 0,
+      "finite": true
+    },
+    {
+      "operation": "broadcast_from_0",
+      "dtype": "torch.float32",
+      "count": 4194304,
+      "round": 2,
+      "mismatches": 0,
+      "finite": true
+    },
+    {
+      "operation": "broadcast_from_1",
+      "dtype": "torch.float32",
+      "count": 4194304,
+      "round": 2,
+      "mismatches": 0,
+      "finite": true
+    },
+    {
+      "operation": "all_gather_into_tensor",
+      "dtype": "torch.int32",
+      "count": 4096,
+      "round": 0,
+      "mismatches": 0,
+      "finite": true
+    },
+    {
+      "operation": "all_reduce_sum",
+      "dtype": "torch.int32",
+      "count": 4096,
+      "round": 0,
+      "mismatches": 0,
+      "finite": true
+    },
+    {
+      "operation": "broadcast_from_0",
+      "dtype": "torch.int32",
+      "count": 4096,
+      "round": 0,
+      "mismatches": 0,
+      "finite": true
+    },
+    {
+      "operation": "broadcast_from_1",
+      "dtype": "torch.int32",
+      "count": 4096,
+      "round": 0,
+      "mismatches": 0,
+      "finite": true
+    },
+    {
+      "operation": "all_gather_into_tensor",
+      "dtype": "torch.int32",
+      "count": 4096,
+      "round": 1,
+      "mismatches": 0,
+      "finite": true
+    },
+    {
+      "operation": "all_reduce_sum",
+      "dtype": "torch.int32",
+      "count": 4096,
+      "round": 1,
+      "mismatches": 0,
+      "finite": true
+    },
+    {
+      "operation": "broadcast_from_0",
+      "dtype": "torch.int32",
+      "count": 4096,
+      "round": 1,
+      "mismatches": 0,
+      "finite": true
+    },
+    {
+      "operation": "broadcast_from_1",
+      "dtype": "torch.int32",
+      "count": 4096,
+      "round": 1,
+      "mismatches": 0,
+      "finite": true
+    },
+    {
+      "operation": "all_gather_into_tensor",
+      "dtype": "torch.int32",
+      "count": 4096,
+      "round": 2,
+      "mismatches": 0,
+      "finite": true
+    },
+    {
+      "operation": "all_reduce_sum",
+      "dtype": "torch.int32",
+      "count": 4096,
+      "round": 2,
+      "mismatches": 0,
+      "finite": true
+    },
+    {
+      "operation": "broadcast_from_0",
+      "dtype": "torch.int32",
+      "count": 4096,
+      "round": 2,
+      "mismatches": 0,
+      "finite": true
+    },
+    {
+      "operation": "broadcast_from_1",
+      "dtype": "torch.int32",
+      "count": 4096,
+      "round": 2,
+      "mismatches": 0,
+      "finite": true
+    },
+    {
+      "operation": "all_gather_into_tensor",
+      "dtype": "torch.int32",
+      "count": 65536,
+      "round": 0,
+      "mismatches": 0,
+      "finite": true
+    },
+    {
+      "operation": "all_reduce_sum",
+      "dtype": "torch.int32",
+      "count": 65536,
+      "round": 0,
+      "mismatches": 0,
+      "finite": true
+    },
+    {
+      "operation": "broadcast_from_0",
+      "dtype": "torch.int32",
+      "count": 65536,
+      "round": 0,
+      "mismatches": 0,
+      "finite": true
+    },
+    {
+      "operation": "broadcast_from_1",
+      "dtype": "torch.int32",
+      "count": 65536,
+      "round": 0,
+      "mismatches": 0,
+      "finite": true
+    },
+    {
+      "operation": "all_gather_into_tensor",
+      "dtype": "torch.int32",
+      "count": 65536,
+      "round": 1,
+      "mismatches": 0,
+      "finite": true
+    },
+    {
+      "operation": "all_reduce_sum",
+      "dtype": "torch.int32",
+      "count": 65536,
+      "round": 1,
+      "mismatches": 0,
+      "finite": true
+    },
+    {
+      "operation": "broadcast_from_0",
+      "dtype": "torch.int32",
+      "count": 65536,
+      "round": 1,
+      "mismatches": 0,
+      "finite": true
+    },
+    {
+      "operation": "broadcast_from_1",
+      "dtype": "torch.int32",
+      "count": 65536,
+      "round": 1,
+      "mismatches": 0,
+      "finite": true
+    },
+    {
+      "operation": "all_gather_into_tensor",
+      "dtype": "torch.int32",
+      "count": 65536,
+      "round": 2,
+      "mismatches": 0,
+      "finite": true
+    },
+    {
+      "operation": "all_reduce_sum",
+      "dtype": "torch.int32",
+      "count": 65536,
+      "round": 2,
+      "mismatches": 0,
+      "finite": true
+    },
+    {
+      "operation": "broadcast_from_0",
+      "dtype": "torch.int32",
+      "count": 65536,
+      "round": 2,
+      "mismatches": 0,
+      "finite": true
+    },
+    {
+      "operation": "broadcast_from_1",
+      "dtype": "torch.int32",
+      "count": 65536,
+      "round": 2,
+      "mismatches": 0,
+      "finite": true
+    },
+    {
+      "operation": "all_gather_into_tensor",
+      "dtype": "torch.int32",
+      "count": 1048576,
+      "round": 0,
+      "mismatches": 0,
+      "finite": true
+    },
+    {
+      "operation": "all_reduce_sum",
+      "dtype": "torch.int32",
+      "count": 1048576,
+      "round": 0,
+      "mismatches": 0,
+      "finite": true
+    },
+    {
+      "operation": "broadcast_from_0",
+      "dtype": "torch.int32",
+      "count": 1048576,
+      "round": 0,
+      "mismatches": 0,
+      "finite": true
+    },
+    {
+      "operation": "broadcast_from_1",
+      "dtype": "torch.int32",
+      "count": 1048576,
+      "round": 0,
+      "mismatches": 0,
+      "finite": true
+    },
+    {
+      "operation": "all_gather_into_tensor",
+      "dtype": "torch.int32",
+      "count": 1048576,
+      "round": 1,
+      "mismatches": 0,
+      "finite": true
+    },
+    {
+      "operation": "all_reduce_sum",
+      "dtype": "torch.int32",
+      "count": 1048576,
+      "round": 1,
+      "mismatches": 0,
+      "finite": true
+    },
+    {
+      "operation": "broadcast_from_0",
+      "dtype": "torch.int32",
+      "count": 1048576,
+      "round": 1,
+      "mismatches": 0,
+      "finite": true
+    },
+    {
+      "operation": "broadcast_from_1",
+      "dtype": "torch.int32",
+      "count": 1048576,
+      "round": 1,
+      "mismatches": 0,
+      "finite": true
+    },
+    {
+      "operation": "all_gather_into_tensor",
+      "dtype": "torch.int32",
+      "count": 1048576,
+      "round": 2,
+      "mismatches": 0,
+      "finite": true
+    },
+    {
+      "operation": "all_reduce_sum",
+      "dtype": "torch.int32",
+      "count": 1048576,
+      "round": 2,
+      "mismatches": 0,
+      "finite": true
+    },
+    {
+      "operation": "broadcast_from_0",
+      "dtype": "torch.int32",
+      "count": 1048576,
+      "round": 2,
+      "mismatches": 0,
+      "finite": true
+    },
+    {
+      "operation": "broadcast_from_1",
+      "dtype": "torch.int32",
+      "count": 1048576,
+      "round": 2,
+      "mismatches": 0,
+      "finite": true
+    },
+    {
+      "operation": "all_gather_into_tensor",
+      "dtype": "torch.int32",
+      "count": 4194304,
+      "round": 0,
+      "mismatches": 0,
+      "finite": true
+    },
+    {
+      "operation": "all_reduce_sum",
+      "dtype": "torch.int32",
+      "count": 4194304,
+      "round": 0,
+      "mismatches": 0,
+      "finite": true
+    },
+    {
+      "operation": "broadcast_from_0",
+      "dtype": "torch.int32",
+      "count": 4194304,
+      "round": 0,
+      "mismatches": 0,
+      "finite": true
+    },
+    {
+      "operation": "broadcast_from_1",
+      "dtype": "torch.int32",
+      "count": 4194304,
+      "round": 0,
+      "mismatches": 0,
+      "finite": true
+    },
+    {
+      "operation": "all_gather_into_tensor",
+      "dtype": "torch.int32",
+      "count": 4194304,
+      "round": 1,
+      "mismatches": 0,
+      "finite": true
+    },
+    {
+      "operation": "all_reduce_sum",
+      "dtype": "torch.int32",
+      "count": 4194304,
+      "round": 1,
+      "mismatches": 0,
+      "finite": true
+    },
+    {
+      "operation": "broadcast_from_0",
+      "dtype": "torch.int32",
+      "count": 4194304,
+      "round": 1,
+      "mismatches": 0,
+      "finite": true
+    },
+    {
+      "operation": "broadcast_from_1",
+      "dtype": "torch.int32",
+      "count": 4194304,
+      "round": 1,
+      "mismatches": 0,
+      "finite": true
+    },
+    {
+      "operation": "all_gather_into_tensor",
+      "dtype": "torch.int32",
+      "count": 4194304,
+      "round": 2,
+      "mismatches": 0,
+      "finite": true
+    },
+    {
+      "operation": "all_reduce_sum",
+      "dtype": "torch.int32",
+      "count": 4194304,
+      "round": 2,
+      "mismatches": 0,
+      "finite": true
+    },
+    {
+      "operation": "broadcast_from_0",
+      "dtype": "torch.int32",
+      "count": 4194304,
+      "round": 2,
+      "mismatches": 0,
+      "finite": true
+    },
+    {
+      "operation": "broadcast_from_1",
+      "dtype": "torch.int32",
+      "count": 4194304,
+      "round": 2,
+      "mismatches": 0,
+      "finite": true
+    }
+  ],
+  "passed": true,
+  "torch": "2.13.0+cu130",
+  "cuda": "13.0",
+  "nccl": [
+    2,
+    29,
+    7
+  ],
+  "nccl_environment": {
+    "NCCL_DEBUG": "INFO",
+    "NCCL_DEBUG_SUBSYS": "INIT,GRAPH"
+  },
+  "scope": "Eager ProcessGroupNCCL data operations used by CFG/FSDP; no transport override, no performance claim"
+}

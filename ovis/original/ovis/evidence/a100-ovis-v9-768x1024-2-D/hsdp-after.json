@@ -1,0 +1,940 @@
+[
+  [
+    {
+      "rank": 0,
+      "gathers": {
+        ":0": 30,
+        "transformer_blocks.0:0": 30,
+        "transformer_blocks.1:0": 30,
+        "transformer_blocks.2:0": 30,
+        "transformer_blocks.3:0": 30,
+        "transformer_blocks.4:0": 30,
+        "transformer_blocks.5:0": 30,
+        "single_transformer_blocks.0:0": 30,
+        "single_transformer_blocks.1:0": 30,
+        "single_transformer_blocks.2:0": 30,
+        "single_transformer_blocks.3:0": 30,
+        "single_transformer_blocks.4:0": 30,
+        "single_transformer_blocks.5:0": 30,
+        "single_transformer_blocks.6:0": 30,
+        "single_transformer_blocks.7:0": 30,
+        "single_transformer_blocks.8:0": 30,
+        "single_transformer_blocks.9:0": 30,
+        "single_transformer_blocks.10:0": 30,
+        "single_transformer_blocks.11:0": 30,
+        "single_transformer_blocks.12:0": 30,
+        "single_transformer_blocks.13:0": 30,
+        "single_transformer_blocks.14:0": 30,
+        "single_transformer_blocks.15:0": 30,
+        "single_transformer_blocks.16:0": 30,
+        "single_transformer_blocks.17:0": 30,
+        "single_transformer_blocks.18:0": 30,
+        "single_transformer_blocks.19:0": 30,
+        "single_transformer_blocks.20:0": 30,
+        "single_transformer_blocks.21:0": 30,
+        "single_transformer_blocks.22:0": 30,
+        "single_transformer_blocks.23:0": 30,
+        "single_transformer_blocks.24:0": 30,
+        "single_transformer_blocks.25:0": 30,
+        "single_transformer_blocks.26:0": 30
+      },
+      "before_vae": [
+        [
+          {
+            "module": "",
+            "group": 0,
+            "sharded": true,
+            "reshard_after_forward": true
+          },
+          {
+            "module": "transformer_blocks.0",
+            "group": 0,
+            "sharded": true,
+            "reshard_after_forward": true
+          },
+          {
+            "module": "transformer_blocks.1",
+            "group": 0,
+            "sharded": true,
+            "reshard_after_forward": true
+          },
+          {
+            "module": "transformer_blocks.2",
+            "group": 0,
+            "sharded": true,
+            "reshard_after_forward": true
+          },
+          {
+            "module": "transformer_blocks.3",
+            "group": 0,
+            "sharded": true,
+            "reshard_after_forward": true
+          },
+          {
+            "module": "transformer_blocks.4",
+            "group": 0,
+            "sharded": true,
+            "reshard_after_forward": true
+          },
+          {
+            "module": "transformer_blocks.5",
+            "group": 0,
+            "sharded": true,
+            "reshard_after_forward": true
+          },
+          {
+            "module": "single_transformer_blocks.0",
+            "group": 0,
+            "sharded": true,
+            "reshard_after_forward": true
+          },
+          {
+            "module": "single_transformer_blocks.1",
+            "group": 0,
+            "sharded": true,
+            "reshard_after_forward": true
+          },
+          {
+            "module": "single_transformer_blocks.2",
+            "group": 0,
+            "sharded": true,
+            "reshard_after_forward": true
+          },
+          {
+            "module": "single_transformer_blocks.3",
+            "group": 0,
+            "sharded": true,
+            "reshard_after_forward": true
+          },
+          {
+            "module": "single_transformer_blocks.4",
+            "group": 0,
+            "sharded": true,
+            "reshard_after_forward": true
+          },
+          {
+            "module": "single_transformer_blocks.5",
+            "group": 0,
+            "sharded": true,
+            "reshard_after_forward": true
+          },
+          {
+            "module": "single_transformer_blocks.6",
+            "group": 0,
+            "sharded": true,
+            "reshard_after_forward": true
+          },
+          {
+            "module": "single_transformer_blocks.7",
+            "group": 0,
+            "sharded": true,
+            "reshard_after_forward": true
+          },
+          {
+            "module": "single_transformer_blocks.8",
+            "group": 0,
+            "sharded": true,
+            "reshard_after_forward": true
+          },
+          {
+            "module": "single_transformer_blocks.9",
+            "group": 0,
+            "sharded": true,
+            "reshard_after_forward": true
+          },
+          {
+            "module": "single_transformer_blocks.10",
+            "group": 0,
+            "sharded": true,
+            "reshard_after_forward": true
+          },
+          {
+            "module": "single_transformer_blocks.11",
+            "group": 0,
+            "sharded": true,
+            "reshard_after_forward": true
+          },
+          {
+            "module": "single_transformer_blocks.12",
+            "group": 0,
+            "sharded": true,
+            "reshard_after_forward": true
+          },
+          {
+            "module": "single_transformer_blocks.13",
+            "group": 0,
+            "sharded": true,
+            "reshard_after_forward": true
+          },
+          {
+            "module": "single_transformer_blocks.14",
+            "group": 0,
+            "sharded": true,
+            "reshard_after_forward": true
+          },
+          {
+            "module": "single_transformer_blocks.15",
+            "group": 0,
+            "sharded": true,
+            "reshard_after_forward": true
+          },
+          {
+            "module": "single_transformer_blocks.16",
+            "group": 0,
+            "sharded": true,
+            "reshard_after_forward": true
+          },
+          {
+            "module": "single_transformer_blocks.17",
+            "group": 0,
+            "sharded": true,
+            "reshard_after_forward": true
+          },
+          {
+            "module": "single_transformer_blocks.18",
+            "group": 0,
+            "sharded": true,
+            "reshard_after_forward": true
+          },
+          {
+            "module": "single_transformer_blocks.19",
+            "group": 0,
+            "sharded": true,
+            "reshard_after_forward": true
+          },
+          {
+            "module": "single_transformer_blocks.20",
+            "group": 0,
+            "sharded": true,
+            "reshard_after_forward": true
+          },
+          {
+            "module": "single_transformer_blocks.21",
+            "group": 0,
+            "sharded": true,
+            "reshard_after_forward": true
+          },
+          {
+            "module": "single_transformer_blocks.22",
+            "group": 0,
+            "sharded": true,
+            "reshard_after_forward": true
+          },
+          {
+            "module": "single_transformer_blocks.23",
+            "group": 0,
+            "sharded": true,
+            "reshard_after_forward": true
+          },
+          {
+            "module": "single_transformer_blocks.24",
+            "group": 0,
+            "sharded": true,
+            "reshard_after_forward": true
+          },
+          {
+            "module": "single_transformer_blocks.25",
+            "group": 0,
+            "sharded": true,
+            "reshard_after_forward": true
+          },
+          {
+            "module": "single_transformer_blocks.26",
+            "group": 0,
+            "sharded": true,
+            "reshard_after_forward": true
+          }
+        ]
+      ],
+      "after": [
+        {
+          "module": "",
+          "group": 0,
+          "sharded": true,
+          "reshard_after_forward": true
+        },
+        {
+          "module": "transformer_blocks.0",
+          "group": 0,
+          "sharded": true,
+          "reshard_after_forward": true
+        },
+        {
+          "module": "transformer_blocks.1",
+          "group": 0,
+          "sharded": true,
+          "reshard_after_forward": true
+        },
+        {
+          "module": "transformer_blocks.2",
+          "group": 0,
+          "sharded": true,
+          "reshard_after_forward": true
+        },
+        {
+          "module": "transformer_blocks.3",
+          "group": 0,
+          "sharded": true,
+          "reshard_after_forward": true
+        },
+        {
+          "module": "transformer_blocks.4",
+          "group": 0,
+          "sharded": true,
+          "reshard_after_forward": true
+        },
+        {
+          "module": "transformer_blocks.5",
+          "group": 0,
+          "sharded": true,
+          "reshard_after_forward": true
+        },
+        {
+          "module": "single_transformer_blocks.0",
+          "group": 0,
+          "sharded": true,
+          "reshard_after_forward": true
+        },
+        {
+          "module": "single_transformer_blocks.1",
+          "group": 0,
+          "sharded": true,
+          "reshard_after_forward": true
+        },
+        {
+          "module": "single_transformer_blocks.2",
+          "group": 0,
+          "sharded": true,
+          "reshard_after_forward": true
+        },
+        {
+          "module": "single_transformer_blocks.3",
+          "group": 0,
+          "sharded": true,
+          "reshard_after_forward": true
+        },
+        {
+          "module": "single_transformer_blocks.4",
+          "group": 0,
+          "sharded": true,
+          "reshard_after_forward": true
+        },
+        {
+          "module": "single_transformer_blocks.5",
+          "group": 0,
+          "sharded": true,
+          "reshard_after_forward": true
+        },
+        {
+          "module": "single_transformer_blocks.6",
+          "group": 0,
+          "sharded": true,
+          "reshard_after_forward": true
+        },
+        {
+          "module": "single_transformer_blocks.7",
+          "group": 0,
+          "sharded": true,
+          "reshard_after_forward": true
+        },
+        {
+          "module": "single_transformer_blocks.8",
+          "group": 0,
+          "sharded": true,
+          "reshard_after_forward": true
+        },
+        {
+          "module": "single_transformer_blocks.9",
+          "group": 0,
+          "sharded": true,
+          "reshard_after_forward": true
+        },
+        {
+          "module": "single_transformer_blocks.10",
+          "group": 0,
+          "sharded": true,
+          "reshard_after_forward": true
+        },
+        {
+          "module": "single_transformer_blocks.11",
+          "group": 0,
+          "sharded": true,
+          "reshard_after_forward": true
+        },
+        {
+          "module": "single_transformer_blocks.12",
+          "group": 0,
+          "sharded": true,
+          "reshard_after_forward": true
+        },
+        {
+          "module": "single_transformer_blocks.13",
+          "group": 0,
+          "sharded": true,
+          "reshard_after_forward": true
+        },
+        {
+          "module": "single_transformer_blocks.14",
+          "group": 0,
+          "sharded": true,
+          "reshard_after_forward": true
+        },
+        {
+          "module": "single_transformer_blocks.15",
+          "group": 0,
+          "sharded": true,
+          "reshard_after_forward": true
+        },
+        {
+          "module": "single_transformer_blocks.16",
+          "group": 0,
+          "sharded": true,
+          "reshard_after_forward": true
+        },
+        {
+          "module": "single_transformer_blocks.17",
+          "group": 0,
+          "sharded": true,
+          "reshard_after_forward": true
+        },
+        {
+          "module": "single_transformer_blocks.18",
+          "group": 0,
+          "sharded": true,
+          "reshard_after_forward": true
+        },
+        {
+          "module": "single_transformer_blocks.19",
+          "group": 0,
+          "sharded": true,
+          "reshard_after_forward": true
+        },
+        {
+          "module": "single_transformer_blocks.20",
+          "group": 0,
+          "sharded": true,
+          "reshard_after_forward": true
+        },
+        {
+          "module": "single_transformer_blocks.21",
+          "group": 0,
+          "sharded": true,
+          "reshard_after_forward": true
+        },
+        {
+          "module": "single_transformer_blocks.22",
+          "group": 0,
+          "sharded": true,
+          "reshard_after_forward": true
+        },
+        {
+          "module": "single_transformer_blocks.23",
+          "group": 0,
+          "sharded": true,
+          "reshard_after_forward": true
+        },
+        {
+          "module": "single_transformer_blocks.24",
+          "group": 0,
+          "sharded": true,
+          "reshard_after_forward": true
+        },
+        {
+          "module": "single_transformer_blocks.25",
+          "group": 0,
+          "sharded": true,
+          "reshard_after_forward": true
+        },
+        {
+          "module": "single_transformer_blocks.26",
+          "group": 0,
+          "sharded": true,
+          "reshard_after_forward": true
+        }
+      ],
+      "resident": false,
+      "encoder_activation_dtypes": {
+        "torch.bfloat16": 392
+      },
+      "encoder_calls": [
+        {
+          "cuda_ms": 132.49693298339844,
+          "host_dispatch_ms": 132.4981809593737
+        },
+        {
+          "cuda_ms": 131.1775360107422,
+          "host_dispatch_ms": 131.180961150676
+        }
+      ],
+      "encoder_latency_scope": "Untimed positive/negative encoder forward CUDA events; excludes tokenization and input preparation."
+    },
+    {
+      "rank": 1,
+      "gathers": {
+        ":0": 30,
+        "transformer_blocks.0:0": 30,
+        "transformer_blocks.1:0": 30,
+        "transformer_blocks.2:0": 30,
+        "transformer_blocks.3:0": 30,
+        "transformer_blocks.4:0": 30,
+        "transformer_blocks.5:0": 30,
+        "single_transformer_blocks.0:0": 30,
+        "single_transformer_blocks.1:0": 30,
+        "single_transformer_blocks.2:0": 30,
+        "single_transformer_blocks.3:0": 30,
+        "single_transformer_blocks.4:0": 30,
+        "single_transformer_blocks.5:0": 30,
+        "single_transformer_blocks.6:0": 30,
+        "single_transformer_blocks.7:0": 30,
+        "single_transformer_blocks.8:0": 30,
+        "single_transformer_blocks.9:0": 30,
+        "single_transformer_blocks.10:0": 30,
+        "single_transformer_blocks.11:0": 30,
+        "single_transformer_blocks.12:0": 30,
+        "single_transformer_blocks.13:0": 30,
+        "single_transformer_blocks.14:0": 30,
+        "single_transformer_blocks.15:0": 30,
+        "single_transformer_blocks.16:0": 30,
+        "single_transformer_blocks.17:0": 30,
+        "single_transformer_blocks.18:0": 30,
+        "single_transformer_blocks.19:0": 30,
+        "single_transformer_blocks.20:0": 30,
+        "single_transformer_blocks.21:0": 30,
+        "single_transformer_blocks.22:0": 30,
+        "single_transformer_blocks.23:0": 30,
+        "single_transformer_blocks.24:0": 30,
+        "single_transformer_blocks.25:0": 30,
+        "single_transformer_blocks.26:0": 30
+      },
+      "before_vae": [
+        [
+          {
+            "module": "",
+            "group": 0,
+            "sharded": true,
+            "reshard_after_forward": true
+          },
+          {
+            "module": "transformer_blocks.0",
+            "group": 0,
+            "sharded": true,
+            "reshard_after_forward": true
+          },
+          {
+            "module": "transformer_blocks.1",
+            "group": 0,
+            "sharded": true,
+            "reshard_after_forward": true
+          },
+          {
+            "module": "transformer_blocks.2",
+            "group": 0,
+            "sharded": true,
+            "reshard_after_forward": true
+          },
+          {
+            "module": "transformer_blocks.3",
+            "group": 0,
+            "sharded": true,
+            "reshard_after_forward": true
+          },
+          {
+            "module": "transformer_blocks.4",
+            "group": 0,
+            "sharded": true,
+            "reshard_after_forward": true
+          },
+          {
+            "module": "transformer_blocks.5",
+            "group": 0,
+            "sharded": true,
+            "reshard_after_forward": true
+          },
+          {
+            "module": "single_transformer_blocks.0",
+            "group": 0,
+            "sharded": true,
+            "reshard_after_forward": true
+          },
+          {
+            "module": "single_transformer_blocks.1",
+            "group": 0,
+            "sharded": true,
+            "reshard_after_forward": true
+          },
+          {
+            "module": "single_transformer_blocks.2",
+            "group": 0,
+            "sharded": true,
+            "reshard_after_forward": true
+          },
+          {
+            "module": "single_transformer_blocks.3",
+            "group": 0,
+            "sharded": true,
+            "reshard_after_forward": true
+          },
+          {
+            "module": "single_transformer_blocks.4",
+            "group": 0,
+            "sharded": true,
+            "reshard_after_forward": true
+          },
+          {
+            "module": "single_transformer_blocks.5",
+            "group": 0,
+            "sharded": true,
+            "reshard_after_forward": true
+          },
+          {
+            "module": "single_transformer_blocks.6",
+            "group": 0,
+            "sharded": true,
+            "reshard_after_forward": true
+          },
+          {
+            "module": "single_transformer_blocks.7",
+            "group": 0,
+            "sharded": true,
+            "reshard_after_forward": true
+          },
+          {
+            "module": "single_transformer_blocks.8",
+            "group": 0,
+            "sharded": true,
+            "reshard_after_forward": true
+          },
+          {
+            "module": "single_transformer_blocks.9",
+            "group": 0,
+            "sharded": true,
+            "reshard_after_forward": true
+          },
+          {
+            "module": "single_transformer_blocks.10",
+            "group": 0,
+            "sharded": true,
+            "reshard_after_forward": true
+          },
+          {
+            "module": "single_transformer_blocks.11",
+            "group": 0,
+            "sharded": true,
+            "reshard_after_forward": true
+          },
+          {
+            "module": "single_transformer_blocks.12",
+            "group": 0,
+            "sharded": true,
+            "reshard_after_forward": true
+          },
+          {
+            "module": "single_transformer_blocks.13",
+            "group": 0,
+            "sharded": true,
+            "reshard_after_forward": true
+          },
+          {
+            "module": "single_transformer_blocks.14",
+            "group": 0,
+            "sharded": true,
+            "reshard_after_forward": true
+          },
+          {
+            "module": "single_transformer_blocks.15",
+            "group": 0,
+            "sharded": true,
+            "reshard_after_forward": true
+          },
+          {
+            "module": "single_transformer_blocks.16",
+            "group": 0,
+            "sharded": true,
+            "reshard_after_forward": true
+          },
+          {
+            "module": "single_transformer_blocks.17",
+            "group": 0,
+            "sharded": true,
+            "reshard_after_forward": true
+          },
+          {
+            "module": "single_transformer_blocks.18",
+            "group": 0,
+            "sharded": true,
+            "reshard_after_forward": true
+          },
+          {
+            "module": "single_transformer_blocks.19",
+            "group": 0,
+            "sharded": true,
+            "reshard_after_forward": true
+          },
+          {
+            "module": "single_transformer_blocks.20",
+            "group": 0,
+            "sharded": true,
+            "reshard_after_forward": true
+          },
+          {
+            "module": "single_transformer_blocks.21",
+            "group": 0,
+            "sharded": true,
+            "reshard_after_forward": true
+          },
+          {
+            "module": "single_transformer_blocks.22",
+            "group": 0,
+            "sharded": true,
+            "reshard_after_forward": true
+          },
+          {
+            "module": "single_transformer_blocks.23",
+            "group": 0,
+            "sharded": true,
+            "reshard_after_forward": true
+          },
+          {
+            "module": "single_transformer_blocks.24",
+            "group": 0,
+            "sharded": true,
+            "reshard_after_forward": true
+          },
+          {
+            "module": "single_transformer_blocks.25",
+            "group": 0,
+            "sharded": true,
+            "reshard_after_forward": true
+          },
+          {
+            "module": "single_transformer_blocks.26",
+            "group": 0,
+            "sharded": true,
+            "reshard_after_forward": true
+          }
+        ]
+      ],
+      "after": [
+        {
+          "module": "",
+          "group": 0,
+          "sharded": true,
+          "reshard_after_forward": true
+        },
+        {
+          "module": "transformer_blocks.0",
+          "group": 0,
+          "sharded": true,
+          "reshard_after_forward": true
+        },
+        {
+          "module": "transformer_blocks.1",
+          "group": 0,
+          "sharded": true,
+          "reshard_after_forward": true
+        },
+        {
+          "module": "transformer_blocks.2",
+          "group": 0,
+          "sharded": true,
+          "reshard_after_forward": true
+        },
+        {
+          "module": "transformer_blocks.3",
+          "group": 0,
+          "sharded": true,
+          "reshard_after_forward": true
+        },
+        {
+          "module": "transformer_blocks.4",
+          "group": 0,
+          "sharded": true,
+          "reshard_after_forward": true
+        },
+        {
+          "module": "transformer_blocks.5",
+          "group": 0,
+          "sharded": true,
+          "reshard_after_forward": true
+        },
+        {
+          "module": "single_transformer_blocks.0",
+          "group": 0,
+          "sharded": true,
+          "reshard_after_forward": true
+        },
+        {
+          "module": "single_transformer_blocks.1",
+          "group": 0,
+          "sharded": true,
+          "reshard_after_forward": true
+        },
+        {
+          "module": "single_transformer_blocks.2",
+          "group": 0,
+          "sharded": true,
+          "reshard_after_forward": true
+        },
+        {
+          "module": "single_transformer_blocks.3",
+          "group": 0,
+          "sharded": true,
+          "reshard_after_forward": true
+        },
+        {
+          "module": "single_transformer_blocks.4",
+          "group": 0,
+          "sharded": true,
+          "reshard_after_forward": true
+        },
+        {
+          "module": "single_transformer_blocks.5",
+          "group": 0,
+          "sharded": true,
+          "reshard_after_forward": true
+        },
+        {
+          "module": "single_transformer_blocks.6",
+          "group": 0,
+          "sharded": true,
+          "reshard_after_forward": true
+        },
+        {
+          "module": "single_transformer_blocks.7",
+          "group": 0,
+          "sharded": true,
+          "reshard_after_forward": true
+        },
+        {
+          "module": "single_transformer_blocks.8",
+          "group": 0,
+          "sharded": true,
+          "reshard_after_forward": true
+        },
+        {
+          "module": "single_transformer_blocks.9",
+          "group": 0,
+          "sharded": true,
+          "reshard_after_forward": true
+        },
+        {
+          "module": "single_transformer_blocks.10",
+          "group": 0,
+          "sharded": true,
+          "reshard_after_forward": true
+        },
+        {
+          "module": "single_transformer_blocks.11",
+          "group": 0,
+          "sharded": true,
+          "reshard_after_forward": true
+        },
+        {
+          "module": "single_transformer_blocks.12",
+          "group": 0,
+          "sharded": true,
+          "reshard_after_forward": true
+        },
+        {
+          "module": "single_transformer_blocks.13",
+          "group": 0,
+          "sharded": true,
+          "reshard_after_forward": true
+        },
+        {
+          "module": "single_transformer_blocks.14",
+          "group": 0,
+          "sharded": true,
+          "reshard_after_forward": true
+        },
+        {
+          "module": "single_transformer_blocks.15",
+          "group": 0,
+          "sharded": true,
+          "reshard_after_forward": true
+        },
+        {
+          "module": "single_transformer_blocks.16",
+          "group": 0,
+          "sharded": true,
+          "reshard_after_forward": true
+        },
+        {
+          "module": "single_transformer_blocks.17",
+          "group": 0,
+          "sharded": true,
+          "reshard_after_forward": true
+        },
+        {
+          "module": "single_transformer_blocks.18",
+          "group": 0,
+          "sharded": true,
+          "reshard_after_forward": true
+        },
+        {
+          "module": "single_transformer_blocks.19",
+          "group": 0,
+          "sharded": true,
+          "reshard_after_forward": true
+        },
+        {
+          "module": "single_transformer_blocks.20",
+          "group": 0,
+          "sharded": true,
+          "reshard_after_forward": true
+        },
+        {
+          "module": "single_transformer_blocks.21",
+          "group": 0,
+          "sharded": true,
+          "reshard_after_forward": true
+        },
+        {
+          "module": "single_transformer_blocks.22",
+          "group": 0,
+          "sharded": true,
+          "reshard_after_forward": true
+        },
+        {
+          "module": "single_transformer_blocks.23",
+          "group": 0,
+          "sharded": true,
+          "reshard_after_forward": true
+        },
+        {
+          "module": "single_transformer_blocks.24",
+          "group": 0,
+          "sharded": true,
+          "reshard_after_forward": true
+        },
+        {
+          "module": "single_transformer_blocks.25",
+          "group": 0,
+          "sharded": true,
+          "reshard_after_forward": true
+        },
+        {
+          "module": "single_transformer_blocks.26",
+          "group": 0,
+          "sharded": true,
+          "reshard_after_forward": true
+        }
+      ],
+      "resident": false,
+      "encoder_activation_dtypes": {
+        "torch.bfloat16": 392
+      },
+      "encoder_calls": [
+        {
+          "cuda_ms": 130.62594604492188,
+          "host_dispatch_ms": 130.62787801027298
+        },
+        {
+          "cuda_ms": 129.58522033691406,
+          "host_dispatch_ms": 129.5868221204728
+        }
+      ],
+      "encoder_latency_scope": "Untimed positive/negative encoder forward CUDA events; excludes tokenization and input preparation."
+    }
+  ]
+]

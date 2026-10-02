@@ -1,0 +1,22 @@
+{
+  "observed_at_unix": 1790936529.0454285,
+  "source": "446f42d8eb812f0d40d1b402ed7cfc8dbaad7a48",
+  "boot_id": "5014bee8-18f5-4eb1-b67d-df7dfb9d9f90",
+  "gpus": [
+    {
+      "index": 0,
+      "uuid": "GPU-03d6de3a-ca5b-03ca-727f-698cddfe0c46",
+      "name": "NVIDIA A100-SXM4-40GB",
+      "driver": "595.71.05",
+      "memory_total_mib": 40960
+    },
+    {
+      "index": 1,
+      "uuid": "GPU-14d8e70c-93be-2085-471f-28f7fed2ec91",
+      "name": "NVIDIA A100-SXM4-40GB",
+      "driver": "595.71.05",
+      "memory_total_mib": 40960
+    }
+  ],
+  "observation": "Read-only nvidia-smi; no CUDA allocation by snapshot"
+}

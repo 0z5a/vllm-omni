@@ -1,0 +1,29 @@
+{
+  "utc": "2026-10-02T11:24:15.566128+00:00",
+  "boot_id": "5014bee8-18f5-4eb1-b67d-df7dfb9d9f90",
+  "gpus": [
+    {
+      "uuid": "GPU-03d6de3a-ca5b-03ca-727f-698cddfe0c46",
+      "pci_bus": "00000000:02:00.0",
+      "driver": "595.71.05",
+      "iommu_group": "/sys/kernel/iommu_groups/48",
+      "iommu_group_type": "DMA-FQ"
+    },
+    {
+      "uuid": "GPU-14d8e70c-93be-2085-471f-28f7fed2ec91",
+      "pci_bus": "00000000:03:00.0",
+      "driver": "595.71.05",
+      "iommu_group": "/sys/kernel/iommu_groups/49",
+      "iommu_group_type": "DMA-FQ"
+    }
+  ],
+  "dmi": {
+    "board_vendor": "MSI",
+    "board_name": "X99S SLI PLUS (MS-7885)"
+  },
+  "cpu_hypervisor_flag": false,
+  "gpu_execution": false,
+  "changed_settings": false,
+  "primary_reference": "https://docs.nvidia.com/deeplearning/nccl/user-guide/docs/troubleshooting/gpu_troubleshooting.html#linux-bare-metal-iommu-and-pcie-peer-to-peer",
+  "inference": "GPU DMA-FQ IOMMU group types and native peer-copy errors are consistent with the documented Linux bare-metal translated-IOMMU limitation; not controlled proof of causality. Actual model NCCL data and transport still require checking. No IOMMU/driver/transport changes."
+}

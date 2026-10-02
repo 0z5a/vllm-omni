@@ -2,8 +2,9 @@
 
 - [Qwen Image 2.1: dual-order A100 complete-request comparison](qwen/REPORT.md). 13.25% lower latency with six BF16 head layers resident and an additional 2.44 GiB reserved memory. This is not an equal-residency fusion-only gain. PR #7945 remains Draft; external ReadTheDocs inventory HTTP429 is not a passing CI result.
 - [FLUX Kontext and Klein: separate hardware and execution cohorts](flux/REPORT.md). Includes negative results, actual graph controls and image/hidden-state differences.
+- [Ovis: completed dual-A100 combined matrix and image review](ovis/README.md). This cohort tests source 446f42d8; final shared-adapter validation and retained-PR CI remain separate gates.
 
-Original request records, derived reports, representative contact sheets and canonical archive indexes are included. All indexed original files were rehashed before copying. Full native traces, hidden-state tensors and the remaining raw images are retained in the original SHA-backed archives; they are not all uploaded here. Canonical indexes refer to those complete archives, while `published-sha256.json` lists the compact files actually published. No model weights are included. Ovis's unfinished matrix is not represented as passed.
+Original request records, derived reports, representative contact sheets and canonical archive indexes are included. All indexed original files were rehashed before copying. Full native traces, hidden-state tensors and the remaining raw images are retained in the original SHA-backed archives; they are not all uploaded here. Canonical indexes refer to those complete archives, while `published-sha256.json` lists the compact files actually published. No model weights are included.
 
 ## Reproduction inputs
 

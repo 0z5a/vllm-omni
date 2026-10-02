@@ -1,0 +1,30 @@
+{
+  "time_utc": "2026-10-02T08:12:16.567195+00:00",
+  "source": "446f42d8eb812f0d40d1b402ed7cfc8dbaad7a48",
+  "baseline": "27a6321a6311870fe68c2c9c13b694f2612ff779",
+  "all_tracked_files_match": true,
+  "tracked_files": 4323,
+  "checked_files": [
+    "docs/user_guide/diffusion/parallelism/hsdp.md",
+    "docs/user_guide/diffusion_features.md",
+    "recipes/ATH-MaaS/Ovis-Image.md",
+    "tests/diffusion/models/ovis_image/test_ovis_image_hsdp.py",
+    "tests/diffusion/models/ovis_image/test_ovis_image_hsdp_residency.py",
+    "tests/diffusion/models/ovis_image/test_text_encoder_quantization.py",
+    "vllm_omni/diffusion/models/ovis_image/ovis_image_transformer.py",
+    "vllm_omni/diffusion/models/ovis_image/pipeline_ovis_image.py",
+    "vllm_omni/diffusion/models/ovis_image/quantization.py"
+  ],
+  "cpu_result": "13 passed, 16 warnings in 2.32s",
+  "cpu_exit": 0,
+  "static_exit": 0,
+  "actionlint": "Skipped; no workflow changes",
+  "evidence_sha256": {
+    "evidence/rtx5080/ovis-source-manifest.json": "aa6b4f9711de5f49046dcbac42ca5cc9d5e12833443dfa866fefd808e42994d9",
+    "evidence/rtx5080/ovis-cpu-v4.log": "0f67758a40382f28be2864ea86a88bd86a02a95487390a3811246fe6f4e66c49",
+    "evidence/rtx5080/ovis-cpu-v4.exit": "5feceb66ffc86f38d952786c6d696c79c2dbc239dd4e91b46729d73a27fb57e9",
+    "evidence/ovis-precommit-v3.log": "b809a7b6fd6bc41b938ab8f533e8574e0bab297d2512313ef7124cc9b3dc2eb1",
+    "evidence/ovis-precommit-v3.exit": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+    "evidence/ovis-precommit-files.json": "bf5b45301dfcd71a7ad161b67c34fcc31aa6dc81ef5f136f97a0f3b4eab0972a"
+  }
+}

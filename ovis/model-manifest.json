@@ -1,0 +1,102 @@
+{
+  "repo_id": "ATH-MaaS/Ovis-Image-7B",
+  "revision": "41be1c5821a92c970d63d7eb595a2fd3fe32b22e",
+  "files": [
+    {
+      "path": "model_index.json",
+      "size": 414,
+      "sha256": "8389696f4175bcf1ae057dde8d47a30971d7922bccda5ad6eb0665f8d88f720c"
+    },
+    {
+      "path": "scheduler/scheduler_config.json",
+      "size": 273,
+      "sha256": "63b6d2fa93579e383a308009bfd5ae12e61f8950017dd749302f8d54bb3520b6"
+    },
+    {
+      "path": "text_encoder/config.json",
+      "size": 1393,
+      "sha256": "1e949e30f10307b4c15081123d4109daf7b34866a444864a98acb3e11717c73a"
+    },
+    {
+      "path": "text_encoder/model-00001-of-00002.safetensors",
+      "size": 4969538328,
+      "sha256": "7d7489c13e12ab8bae21c43c7aab93782fc188d284a6eeb5dc06093eb72a8aff"
+    },
+    {
+      "path": "text_encoder/model-00002-of-00002.safetensors",
+      "size": 1912795064,
+      "sha256": "f252831dfac8bfd8b5d557426c4e3b48863602a8b0996758ed2b9f5e34eabcd4"
+    },
+    {
+      "path": "text_encoder/model.safetensors.index.json",
+      "size": 23723,
+      "sha256": "a7dbfdd006548dcbee9bdca5e94f698174f3326ff4b0b64e7f75acc7c1ab5074"
+    },
+    {
+      "path": "tokenizer/added_tokens.json",
+      "size": 707,
+      "sha256": "c0284b582e14987fbd3d5a2cb2bd139084371ed9acbae488829a1c900833c680"
+    },
+    {
+      "path": "tokenizer/chat_template.jinja",
+      "size": 1582,
+      "sha256": "8a4944057f29b1d4fbcedb25ff9492c0b92cf1f315c6d806dd35ed1fc4b334ec"
+    },
+    {
+      "path": "tokenizer/merges.txt",
+      "size": 1671853,
+      "sha256": "8831e4f1a044471340f7c0a83d7bd71306a5b867e95fd870f74d0c5308a904d5"
+    },
+    {
+      "path": "tokenizer/special_tokens_map.json",
+      "size": 613,
+      "sha256": "76862e765266b85aa9459767e33cbaf13970f327a0e88d1c65846c2ddd3a1ecd"
+    },
+    {
+      "path": "tokenizer/tokenizer.json",
+      "size": 11422654,
+      "sha256": "aeb13307a71acd8fe81861d94ad54ab689df773318809eed3cbe794b4492dae4"
+    },
+    {
+      "path": "tokenizer/tokenizer_config.json",
+      "size": 5404,
+      "sha256": "443bfa629eb16387a12edbf92a76f6a6f10b2af3b53d87ba1550adfcf45f7fa0"
+    },
+    {
+      "path": "tokenizer/vocab.json",
+      "size": 2776833,
+      "sha256": "ca10d7e9fb3ed18575dd1e277a2579c16d108e32f27439684afa0e10b1440910"
+    },
+    {
+      "path": "transformer/config.json",
+      "size": 339,
+      "sha256": "c92b97b1bb5f0484c17daf0841d0178eb283db12b3eb2d6d719bfda2f9cd5ee3"
+    },
+    {
+      "path": "transformer/diffusion_pytorch_model-00001-of-00002.safetensors",
+      "size": 9982976024,
+      "sha256": "c9f3fdf7fb030497a4e7907cc1bc97362fc30180ae087970d35dddb90767794b"
+    },
+    {
+      "path": "transformer/diffusion_pytorch_model-00002-of-00002.safetensors",
+      "size": 4757992496,
+      "sha256": "b7ceb6befeb153e856f09d85a04427939541e92093a6f848c8b0df9d307a097a"
+    },
+    {
+      "path": "transformer/diffusion_pytorch_model.safetensors.index.json",
+      "size": 61002,
+      "sha256": "8df5f0e4467dc63b427f2b978a45709b9752b3f5e582b454af0ff67f44da2518"
+    },
+    {
+      "path": "vae/config.json",
+      "size": 774,
+      "sha256": "bc1e208f414a315365fbecf426838f43b87c9d5c051219e0968a56e2644b2998"
+    },
+    {
+      "path": "vae/diffusion_pytorch_model.safetensors",
+      "size": 167666902,
+      "sha256": "f5b59a26851551b67ae1fe58d32e76486e1e812def4696a4bea97f16604d40a3"
+    }
+  ],
+  "transport": "Official Hugging Face immutable revision; exact pinned Git/LFS hashes required"
+}

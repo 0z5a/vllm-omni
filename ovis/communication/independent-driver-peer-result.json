@@ -1,0 +1,213 @@
+{
+  "scope": "native Driver-owned legacy allocations; no fake Driver, no Torch, no performance qualification",
+  "driver_version": 13020,
+  "pid": 9347,
+  "cases": [
+    {
+      "scope": "same_device_DtoD",
+      "source": 0,
+      "target": 0,
+      "expected": 0.125,
+      "mismatches": 0,
+      "first_values": [
+        0.125,
+        0.125,
+        0.125,
+        0.125,
+        0.125,
+        0.125,
+        0.125,
+        0.125
+      ]
+    },
+    {
+      "scope": "mapped_peer_DtoD_eager",
+      "source": 0,
+      "target": 1,
+      "expected": 0.125,
+      "mismatches": 4096,
+      "first_values": [
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null
+      ]
+    },
+    {
+      "scope": "explicit_PeerAsync_eager",
+      "source": 0,
+      "target": 1,
+      "expected": 0.125,
+      "mismatches": 4096,
+      "first_values": [
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null
+      ]
+    },
+    {
+      "scope": "mapped_peer_DtoD_graph_changed_input",
+      "source": 0,
+      "target": 1,
+      "expected": 0.125,
+      "mismatches": 4096,
+      "first_values": [
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null
+      ]
+    },
+    {
+      "scope": "mapped_peer_DtoD_graph_changed_input",
+      "source": 0,
+      "target": 1,
+      "expected": -0.75,
+      "mismatches": 4096,
+      "first_values": [
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null
+      ]
+    },
+    {
+      "scope": "mapped_peer_DtoD_graph_changed_input",
+      "source": 0,
+      "target": 1,
+      "expected": 2.0,
+      "mismatches": 4096,
+      "first_values": [
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null
+      ]
+    },
+    {
+      "scope": "same_device_DtoD",
+      "source": 1,
+      "target": 1,
+      "expected": 0.125,
+      "mismatches": 0,
+      "first_values": [
+        0.125,
+        0.125,
+        0.125,
+        0.125,
+        0.125,
+        0.125,
+        0.125,
+        0.125
+      ]
+    },
+    {
+      "scope": "mapped_peer_DtoD_eager",
+      "source": 1,
+      "target": 0,
+      "expected": 0.125,
+      "mismatches": 4096,
+      "first_values": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ]
+    },
+    {
+      "scope": "explicit_PeerAsync_eager",
+      "source": 1,
+      "target": 0,
+      "expected": 0.125,
+      "mismatches": 4096,
+      "first_values": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ]
+    },
+    {
+      "scope": "mapped_peer_DtoD_graph_changed_input",
+      "source": 1,
+      "target": 0,
+      "expected": 0.125,
+      "mismatches": 4096,
+      "first_values": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ]
+    },
+    {
+      "scope": "mapped_peer_DtoD_graph_changed_input",
+      "source": 1,
+      "target": 0,
+      "expected": -0.75,
+      "mismatches": 4096,
+      "first_values": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ]
+    },
+    {
+      "scope": "mapped_peer_DtoD_graph_changed_input",
+      "source": 1,
+      "target": 0,
+      "expected": 2.0,
+      "mismatches": 4096,
+      "first_values": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ]
+    }
+  ],
+  "source_sha256": "53571814a75487d78a32e341e3911a449f139a8cce23a52c25df9d59a8d42d98",
+  "correctness": "failed"
+}
