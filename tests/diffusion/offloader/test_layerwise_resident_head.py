@@ -38,7 +38,7 @@ class ResidentPipeline(nn.Module):
 
 @pytest.mark.parametrize(
     "device",
-    [pytest.param("cpu", marks=pytest.mark.cpu), pytest.param("cuda", marks=hardware_marks(res={"cuda": "A100"}))],
+    [pytest.param("cpu", marks=pytest.mark.cpu), pytest.param("cuda", marks=hardware_marks(res={"cuda": "L4"}))],
 )
 def test_resident_head_survives_repeated_requests_and_reenable(device, monkeypatch):
     if device == "cuda" and not torch.cuda.is_available():
