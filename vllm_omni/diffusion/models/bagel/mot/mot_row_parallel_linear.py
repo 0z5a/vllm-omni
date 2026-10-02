@@ -283,11 +283,16 @@ class MoTRowParallelLinear(RowParallelLinear):
         2) MoT GEMM: text/vae each use different fp8 weights and weight_scale
         3) Dequantization: completed by MoT kernel internal epilogue
         """
-        from vllm import _custom_ops as ops
+        from vllm_omni.quantization import fp8_online
 
         x_2d = x.view(-1, x.shape[-1])
         input_scale = getattr(self, "input_scale", None)
-        x_fp8, x_scale = ops.scaled_fp8_quant(
+        # Dynamic per-token activation quantization.  fp8_online keeps the
+        # exact vLLM semantics (including the double-precision scale divide and
+        # the PTX tie rule) and adds a CUDA fast path for sm_80 and newer on the
+        # shapes where it is measured to win; every other case is delegated back
+        # to vllm.
+        x_fp8, x_scale = fp8_online.scaled_fp8_quant(
             x_2d,
             input_scale,
             use_per_token_if_dynamic=True,
