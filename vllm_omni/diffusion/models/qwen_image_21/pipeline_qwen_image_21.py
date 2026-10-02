@@ -296,7 +296,7 @@ class QwenImage21Pipeline(
     _dit_modules: ClassVar[list[str]] = ["transformer"]
     _encoder_modules: ClassVar[list[str]] = ["text_encoder"]
     _vae_modules: ClassVar[list[str]] = ["vae"]
-    _offload_plan = OffloadPlan(layerwise_resident_layers={"transformer": 2})
+    _offload_plan = OffloadPlan(layerwise_resident_layers={"transformer": 6})
 
     def __init__(
         self,
