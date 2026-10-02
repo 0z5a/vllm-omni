@@ -16,6 +16,26 @@ import torch
 Region = tuple[int, int, int]
 
 
+def coalesce_page_regions(
+    local: tuple[Region, ...], remote: tuple[Region, ...], regions_per_layer: int
+) -> tuple[list[Region], list[Region]]:
+    """Merge paired contiguous pages without crossing a layer's allocation."""
+    local_runs: list[Region] = []
+    remote_runs: list[Region] = []
+    for index, (destination, source) in enumerate(zip(local, remote, strict=True)):
+        if index % regions_per_layer and all(
+            previous[0] + previous[1] == current[0] and previous[2] == current[2]
+            for previous, current in ((local_runs[-1], destination), (remote_runs[-1], source))
+        ):
+            for runs, region in ((local_runs, destination), (remote_runs, source)):
+                address, size, device = runs[-1]
+                runs[-1] = (address, size + region[1], device)
+        else:
+            local_runs.append(destination)
+            remote_runs.append(source)
+    return local_runs, remote_runs
+
+
 class PageReadyEvent(Protocol):
     def synchronize(self) -> None: ...
 
@@ -112,15 +132,14 @@ class KVPagePool:
         if len(set(block_ids)) != len(block_ids) or any(not 0 <= block < num_blocks for block in block_ids):
             raise ValueError("KV block IDs must be distinct and inside their registered pool")
         regions = []
+        size = math.prod(self.geometry.page_shape) * next(iter(self.caches.values())).element_size()
         for tensor in self.caches.values():
-            size = math.prod(self.geometry.page_shape) * tensor.element_size()
+            address, device = tensor.data_ptr(), tensor.device.index or 0
+            block_stride = tensor.stride(self.block_axis) * tensor.element_size()
+            kv_offsets = (0, tensor.stride(0) * tensor.element_size()) if tensor.ndim == 5 else (0,)
             for block in block_ids:
-                for kv in range(2 if tensor.ndim == 5 else 1):
-                    offset = block * tensor.stride(self.block_axis)
-                    if tensor.ndim == 5:
-                        offset += kv * tensor.stride(0)
-                    offset *= tensor.element_size()
-                    regions.append((tensor.data_ptr() + offset, size, tensor.device.index or 0))
+                for kv_offset in kv_offsets:
+                    regions.append((address + block * block_stride + kv_offset, size, device))
         return tuple(regions)
 
     def validate_offer(self, offer: PageOffer, block_ids: Sequence[int]) -> tuple[Region, ...]:

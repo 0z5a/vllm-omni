@@ -20,7 +20,15 @@ import zmq
 
 from ..utils.logging import get_connector_logger
 from .base import OmniConnectorBase
-from .paged_transfer import KVPagePool, PageGeometry, PageOffer, PageReadyEvent, Region, ReservedKVPages
+from .paged_transfer import (
+    KVPagePool,
+    PageGeometry,
+    PageOffer,
+    PageReadyEvent,
+    Region,
+    ReservedKVPages,
+    coalesce_page_regions,
+)
 
 if TYPE_CHECKING:
     from nixl._api import nixl_prepped_dlist_handle, nixl_xfer_handle
@@ -73,6 +81,13 @@ class _PendingPayload:
 
 
 @dataclass
+class _PageClaim:
+    offer: PageOffer
+    readers: frozenset[str]
+    endpoint: tuple[str, int]
+
+
+@dataclass
 class _PageRead:
     key: str
     offer: PageOffer
@@ -121,7 +136,7 @@ class NixlConnector(OmniConnectorBase):
         self._page_pools: set[KVPagePool] = set()
         self._page_remote_agents: dict[tuple[KVPagePool, bytes], str] = {}
         self._page_reads: dict[str, _PageRead] = {}
-        self._page_claims: dict[tuple[str, str, str, str], PageOffer] = {}
+        self._page_claims: dict[tuple[str, str, str], _PageClaim] = {}
         self._metrics: dict[str, int] = {
             "puts": 0,
             "gets": 0,
@@ -129,6 +144,9 @@ class NixlConnector(OmniConnectorBase):
             "bytes_transferred": 0,
             "page_exports": 0,
             "page_reads": 0,
+            "page_descriptors_submitted": 0,
+            "page_claim_queries": 0,
+            "page_claim_cache_hits": 0,
             "page_pool_registrations": 0,
             "page_bytes_published": 0,
             "page_bytes_completed": 0,
@@ -453,10 +471,25 @@ class NixlConnector(OmniConnectorBase):
         geometry: PageGeometry,
     ) -> PageOffer | None:
         """Claim every CFG reader atomically before the first page READ."""
+        readers = frozenset(page_claim_ids)
+        with self._state_lock:
+            submitted = {(read.key, read.offer.generation, read.offer.claim_id) for read in self._page_reads.values()}
+            if (key, generation, claim_id) in submitted:
+                return None
+            cached = self._page_claims.get((key, generation, claim_id))
+            if (
+                cached is not None
+                and cached.readers == readers
+                and cached.endpoint == (host, port)
+                and cached.offer.geometry == geometry
+            ):
+                self._metrics["page_claim_cache_hits"] += 1
+                return cached.offer
         if self._zmq_ctx is None:
             with self._state_lock:
                 if self._zmq_ctx is None:
                     self._zmq_ctx = zmq.Context()
+        self._metrics["page_claim_queries"] += 1
         metadata = self._query_metadata_at(
             key,
             host,
@@ -470,22 +503,25 @@ class NixlConnector(OmniConnectorBase):
             return None
         offer = msgspec.convert(metadata, type=self.page_offer_type)
         with self._state_lock:
-            self._page_claims[(key, offer.generation, offer.pool_epoch, offer.claim_id)] = offer
+            live_readers = msgspec.convert(metadata.get("page_claim_ids", (offer.claim_id,)), type=tuple[str, ...])
+            submitted = {(read.key, read.offer.generation, read.offer.claim_id) for read in self._page_reads.values()}
+            for reader in live_readers:
+                if (key, offer.generation, reader) in submitted:
+                    continue
+                claimed = msgspec.structs.replace(offer, claim_id=reader)
+                self._page_claims[(key, offer.generation, reader)] = _PageClaim(claimed, readers, (host, port))
         return offer
 
     def cancel_page_claim(self, key: str, offer: PageOffer) -> bool:
         """ACK an unsubmitted claim; active or ambiguous DMA cannot be cancelled."""
-        claim = (key, offer.generation, offer.pool_epoch, offer.claim_id)
+        claim = (key, offer.generation, offer.claim_id)
         with self._state_lock:
-            if any(
-                (read.key, read.offer.generation, read.offer.pool_epoch, read.offer.claim_id) == claim
-                for read in self._page_reads.values()
-            ):
+            if any(read.key == key and read.offer == offer for read in self._page_reads.values()):
                 raise RuntimeError("Cannot cancel a submitted NIXL page READ")
             cached = self._page_claims.get(claim)
             if cached is None:
                 return True
-            if cached != offer:
+            if cached.offer != offer:
                 raise ValueError("Cannot cancel a different NIXL page claim")
             if not self._notify_transfer_done(key, msgspec.structs.asdict(offer)):
                 return False
@@ -505,8 +541,9 @@ class NixlConnector(OmniConnectorBase):
                 set(target.block_ids).intersection(blocks) for _, blocks in pool.reservations.values()
             ):
                 raise ValueError("Destination KV pages are still owned by a previous transfer or computation")
-            claim = (key, offer.generation, offer.pool_epoch, offer.claim_id)
-            if self._page_claims.get(claim) != offer:
+            claim = (key, offer.generation, offer.claim_id)
+            cached = self._page_claims.get(claim)
+            if cached is None or cached.offer != offer:
                 raise ValueError("Stale or already submitted NIXL page claim")
             del self._page_claims[claim]
             read_id = uuid.uuid4().hex
@@ -529,19 +566,23 @@ class NixlConnector(OmniConnectorBase):
                 self._page_remote_agents[peer] = self._acquire_remote_agent(offer.agent_metadata)
             read.remote_agent = self._acquire_remote_agent(offer.agent_metadata)
             memory_type = self._resolve_memory_type(next(iter(pool.caches.values())))
-            local_descs = self._agent.get_xfer_descs(list(regions), memory_type)
-            remote_descs = self._agent.get_xfer_descs(list(offer.regions), memory_type)
+            local_regions, remote_regions = coalesce_page_regions(
+                regions, offer.regions, len(regions) // len(pool.geometry.layers)
+            )
+            local_descs = self._agent.get_xfer_descs(local_regions, memory_type)
+            remote_descs = self._agent.get_xfer_descs(remote_regions, memory_type)
             read.dlists.append(self._agent.prep_xfer_dlist(_INIT_AGENT, local_descs))
             read.dlists.append(self._agent.prep_xfer_dlist(read.remote_agent, remote_descs))
             read.handle = self._agent.make_prepped_xfer(
                 "READ",
                 read.dlists[0],
-                list(range(len(regions))),
+                list(range(len(local_regions))),
                 read.dlists[1],
-                list(range(len(regions))),
+                list(range(len(remote_regions))),
             )
             self._agent.transfer(read.handle)
             self._metrics["page_reads"] += 1
+            self._metrics["page_descriptors_submitted"] += len(local_regions)
         return read_id
 
     def poll_page_read(self, read_id: str) -> bool:
@@ -1080,7 +1121,10 @@ class NixlConnector(OmniConnectorBase):
                         pending.claims.update(readers)
                     elif claim not in pending.claims:
                         return _META_NOT_FOUND
-                reply = msgspec.msgpack.encode({**metadata, "claim_id": claim})
+                reply_metadata = {**metadata, "claim_id": claim}
+                if pending.page_pool is not None:
+                    reply_metadata["page_claim_ids"] = tuple(pending.claims)
+                reply = msgspec.msgpack.encode(reply_metadata)
                 pending.claims.add(claim)
                 return reply
         if payload.startswith(_XFER_DONE_MSG):
