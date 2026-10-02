@@ -35,4 +35,3 @@ The installed vLLM 0.29.0 compiled `QuantFP8.forward_native` path bypasses #22's
 
 - 17 targeted config and scheduler tests passed in the existing 0z5a Python environment.
 - Python syntax compilation and `git diff --check` passed.
-
