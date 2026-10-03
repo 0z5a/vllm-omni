@@ -66,9 +66,9 @@ class PrefixCacheWriteLayout:
 class PrefixCacheSchedulerAdapter:
     """Translate scheduler output and post-update batch state.
 
-    ``aborted_req_ids`` is deliberately optional: current main does not carry
-    an explicit abort side channel, and finished IDs must never be guessed to
-    be aborted.
+    ``aborted_req_ids`` is deliberately optional: current vLLM/Omni scheduler
+    outputs do not carry an explicit abort side channel yet. Finished IDs are
+    never guessed to be aborted.
     """
 
     def __init__(self) -> None:

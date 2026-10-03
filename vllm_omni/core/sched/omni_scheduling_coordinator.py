@@ -25,11 +25,7 @@ def uses_native_mrv2_data_plane(
     *,
     use_v2_model_runner: bool,
 ) -> bool:
-    return bool(
-        use_v2_model_runner
-        and getattr(model_config, "async_chunk", False)
-        and getattr(model_config, "supports_native_mrv2_data_plane", False)
-    )
+    return bool(use_v2_model_runner and getattr(model_config, "supports_native_mrv2_data_plane", False))
 
 
 def uses_full_payload_input_coordinator(model_config: Any) -> bool:
@@ -383,14 +379,17 @@ class OmniSchedulingCoordinator:
                             )
 
             if model_mode != "ar":
-                new_ids = self._flatten_prompt_token_ids(metadata.get("code_predictor_codes"))
+                new_codes = metadata.get("code_predictor_codes")
+                new_ids = self._flatten_prompt_token_ids(new_codes)
                 runtime_seed = None
                 if "left_context_size" in metadata:
                     runtime_seed = {
                         "meta": {"left_context_size": metadata["left_context_size"]},
                     }
                 request._omni_initial_model_buffer = runtime_seed
-                if new_ids:
+                # An explicit empty snapshot clears a previous codec chunk
+                # or prewarmed placeholder. Missing codes leave it intact.
+                if new_codes is not None:
                     request.prompt_token_ids = new_ids
                     request.num_prompt_tokens = len(new_ids)
                     request._all_token_ids.clear()
