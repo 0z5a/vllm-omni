@@ -13,7 +13,6 @@ from vllm_omni.diffusion.hooks import HookRegistry, ModelHook
 from vllm_omni.platforms import current_omni_platform
 
 from .base import OffloadBackend, OffloadConfig, SupportsModelCpuOffload
-from .config import DIT_COMPONENT
 from .module_residency import PinnedModuleStager
 from .plan_resolver import resolve_offload_plan
 
@@ -385,6 +384,7 @@ class ModelLevelOffloadBackend(OffloadBackend):
         encoders = [component.module for component in resolved.encoders]
         vaes = [component.module for component in resolved.vaes]
         residents = [component.module for component in resolved.residents]
+        selected_dits = [component.module for component in resolved.dits if component.selected]
         selected_encoders = [component.module for component in resolved.encoders if component.selected]
 
         all_modules = [*dits, *encoders, *vaes, *residents]
@@ -412,11 +412,16 @@ class ModelLevelOffloadBackend(OffloadBackend):
                 device=self.device,
                 pin_memory=self.config.pin_cpu_memory,
                 use_hsdp=self.config.use_hsdp,
-                offload_dit_modules=(dits if self.config.offloads(DIT_COMPONENT) else ()),
+                offload_dit_modules=selected_dits,
                 offload_encoder_modules=selected_encoders,
                 # Fixed DiT staging keeps decode-graph weight pointers valid;
-                # other platforms keep plain move semantics.
-                persistent_dit_staging=self.device.type == "cuda",
+                # only models that capture weight pointers (Qwen-Image-2.1's
+                # CUDA-graph decode) pay for it — every other model keeps
+                # plain move semantics so offloading actually frees DiT VRAM
+                # while the encoders run.
+                persistent_dit_staging=(
+                    self.device.type == "cuda" and any(getattr(dit, "enable_cuda_graph_decode", False) for dit in dits)
+                ),
             )
         except BaseException:
             try:
