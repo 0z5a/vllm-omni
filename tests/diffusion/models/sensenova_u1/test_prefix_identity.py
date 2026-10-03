@@ -87,7 +87,7 @@ def test_hashes_are_stable_across_processes():
         "print(m.canonical_block_hash(i,list(range(8)),0,4).hex())"
     )
     outs = {
-        subprocess.run([sys.executable, "-c", code], capture_output=True, text=True, check=True).stdout.strip()
+        subprocess.run([sys.executable, "-c", code], capture_output=True, text=True, check=True).stdout.splitlines()[-1]
         for _ in range(2)
     }
     assert len(outs) == 1, f"hash is not stable across processes: {outs}"
