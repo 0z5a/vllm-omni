@@ -540,7 +540,7 @@ class OmniPrefixCacheManager:
                 if num_computed > 0:
                     # block_ids is per-kv-group; group 0 only.
                     block_groups = event.block_ids
-                    if not block_groups:
+                    if not block_groups or not block_groups[0]:
                         # Fail at the cause: a hit we cannot snapshot now would
                         # crash at materialize time with less context (materialize is
                         # forbidden from reading the live batch).
