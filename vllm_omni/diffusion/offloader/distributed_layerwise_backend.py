@@ -1016,9 +1016,6 @@ class DistributedLayerwiseOffloadBackend(OffloadBackend):
         self.rank = 0
         self._blocks: list[list[nn.Module]] = []
         self._all_hook_groups: list[list[DistributedLayerwiseOffloadHook]] = []
-        # Encoder hook groups are a subset of ``_all_hook_groups``; the subset
-        # is tracked separately so host-registration can target them.
-        self._encoder_hook_groups: list[list[DistributedLayerwiseOffloadHook]] = []
         self._resident_blocks: list[nn.Module] = []
         self._resident_layer_group: PinnedResidentLayerGroup | None = None
         self._residency_pipeline_ref: weakref.ReferenceType[nn.Module] | None = None
@@ -1027,10 +1024,7 @@ class DistributedLayerwiseOffloadBackend(OffloadBackend):
         self._using_mmap = False
         self._using_rank_local_mmap = False
         self._using_registered_mmap = False
-        # Rank-local components whose host masters are already materialised by
-        # the ordinary loader are consumed in place instead of being copied
-        # into a second pinned buffer. Only the text encoder takes this path
-        # today; the DiT keeps its checkpoint views.
+        # Reuse loader-owned encoder tensors with bounded pinned staging.
         self._using_encoder_host_sources = False
         self.host_weight_plan = host_weight_plan
         self._host_weight_lease: HostWeightLease | None = None
@@ -1435,18 +1429,7 @@ class DistributedLayerwiseOffloadBackend(OffloadBackend):
         return None, 1, 0
 
     def _text_encoder_reuses_host_sources(self) -> bool:
-        """Whether the rank-local text encoder can keep its loader-made CPU tensors.
-
-        The DiT already established that rank-local host sources are safe to
-        consume in this process. A single-rank encoder transport then reads the
-        exact tensors its own rank materialised, so the parallel pinned shard
-        copy only duplicates host memory and DLO setup time.
-
-        This path streams a whole block through one bounded host slot per step,
-        which only holds up when the host can actually serve pinned staging. On
-        a host that cannot pin, the encoder keeps the shard-and-pin transport it
-        had before instead of taking a slower route.
-        """
+        """Reuse local encoder masters when pinned staging is available."""
         if not self._using_rank_local_mmap:
             return False
         if self._component_transport(TEXT_ENCODER_COMPONENT)[1] > 1:
@@ -1543,9 +1526,7 @@ class DistributedLayerwiseOffloadBackend(OffloadBackend):
         module = component.module
         encoder_hooks: list[DistributedLayerwiseOffloadHook] = []
         for blocks in block_groups:
-            group_hooks = self._install_hook_group(blocks, TEXT_ENCODER_COMPONENT)
-            self._encoder_hook_groups.append(group_hooks)
-            encoder_hooks.extend(group_hooks)
+            encoder_hooks.extend(self._install_hook_group(blocks, TEXT_ENCODER_COMPONENT))
         # Track the module before placement, which may fail, so outer rollback
         # also removes its partially-installed block hooks and marker state.
         self._encoder_modules.append(module)
@@ -1738,8 +1719,6 @@ class DistributedLayerwiseOffloadBackend(OffloadBackend):
                 )
             logger.info("DLO is using host tensors materialized by the ordinary loader")
 
-        # Loader-materialized rank-local masters are consumed in place. Decide
-        # that before component preparation installs the encoder hooks.
         self._using_encoder_host_sources = self._text_encoder_reuses_host_sources()
 
         # Apply each selected encoder transfer while keeping explicit VAEs and
@@ -1790,9 +1769,7 @@ class DistributedLayerwiseOffloadBackend(OffloadBackend):
             self._residency_pipeline_ref = weakref.ref(pipeline)
 
         all_hooks = [hook for group in self._all_hook_groups for hook in group]
-        # Loader-materialized rank-local components stream through the same
-        # bounded host staging slots as the checkpoint views, so the two-slot
-        # budget has to cover the largest block of every rank-local component.
+        # Both staging slots must fit every rank-local component.
         staging_hooks = [hook for hook in all_hooks if hook.rank_local_mmap]
         self._configure_hwr_transfer(all_hooks)
 
@@ -1829,9 +1806,7 @@ class DistributedLayerwiseOffloadBackend(OffloadBackend):
         # skip sync-prefetch when the slot still contains their own data.
         shared_slot_group = [-1, -1]
 
-        # Fallback: a rank-local hook the registration pass did not cover still
-        # needs bounded staging. Allocate pageable slots for it rather than
-        # failing startup; the H2D copy stays correct, only its bandwidth drops.
+        # Unregistered host sources still need staging when pinning is unavailable.
         unregistered = [hook for hook in staging_hooks if not hook.registered_mmap]
         if unregistered and unified_cpu_staging is None:
             logger.warning(
@@ -2042,7 +2017,6 @@ class DistributedLayerwiseOffloadBackend(OffloadBackend):
 
         self._blocks.clear()
         self._all_hook_groups.clear()
-        self._encoder_hook_groups.clear()
         self._resident_blocks.clear()
         self._resident_layer_group = None
         self._encoder_modules.clear()
@@ -2111,11 +2085,7 @@ class DistributedLayerwiseOffloadBackend(OffloadBackend):
         *,
         pinned: bool | None = None,
     ) -> list[dict[torch.dtype, torch.Tensor] | None]:
-        """Allocate two bounded host slots for rank-local mmap -> device copies.
-
-        ``pinned`` overrides the pinning policy taken from the hooks; the
-        pageable fallback uses it when the host cannot pin at all.
-        """
+        """Allocate two host slots, optionally overriding the hooks' pinning policy."""
         max_sizes: dict[torch.dtype, int] = {}
         for hook in hooks:
             for dtype, metas in hook.metadata.items():

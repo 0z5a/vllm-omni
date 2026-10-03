@@ -2762,6 +2762,13 @@ def _materialized_encoder_backend():
     return backend, carrier, lease
 
 
+def _materialized_encoder_hooks(
+    backend: DistributedLayerwiseOffloadBackend, pipeline: _MaterializedEncoderPipeline
+) -> list[DistributedLayerwiseOffloadHook]:
+    blocks = set(pipeline.text_encoder.encoder.block)
+    return [hook for group in backend._all_hook_groups for hook in group if hook.next_block in blocks]
+
+
 def _pinnable_host(monkeypatch: pytest.MonkeyPatch) -> None:
     """Declare pinned staging available for tests of the host-source path."""
     monkeypatch.setattr(
@@ -2794,7 +2801,7 @@ def test_encoder_keeps_shard_and_pin_when_host_cannot_pin(
 
     backend.enable(pipeline)
 
-    encoder_hooks = [hook for group in backend._encoder_hook_groups for hook in group]
+    encoder_hooks = _materialized_encoder_hooks(backend, pipeline)
     assert encoder_hooks, "encoder block hooks were not installed"
     # Falls back to the pre-existing shard-and-pin transport.
     assert not any(hook.rank_local_mmap for hook in encoder_hooks)
@@ -2819,7 +2826,7 @@ def test_pageable_staging_fallback_covers_unregistered_rank_local_hooks(
 
     backend.enable(pipeline)
 
-    encoder_hooks = [hook for group in backend._encoder_hook_groups for hook in group]
+    encoder_hooks = _materialized_encoder_hooks(backend, pipeline)
     assert encoder_hooks, "encoder block hooks were not installed"
     for hook in encoder_hooks:
         buffers = hook.cpu_staging_buffers
@@ -2839,7 +2846,7 @@ def test_materialized_encoder_uses_rank_local_host_sources(patched_offload_runti
     _pinnable_host(monkeypatch)
     backend.enable(pipeline)
 
-    encoder_hooks = [hook for group in backend._encoder_hook_groups for hook in group]
+    encoder_hooks = _materialized_encoder_hooks(backend, pipeline)
     assert encoder_hooks, "encoder block hooks were not installed"
     assert all(hook.rank_local_mmap for hook in encoder_hooks)
     # Rank-local sources keep references to the loader's tensors, so no private
@@ -2856,7 +2863,7 @@ def test_bounded_staging_covers_encoder_blocks(patched_offload_runtime, monkeypa
     _pinnable_host(monkeypatch)
     backend.enable(pipeline)
 
-    encoder_hook = backend._encoder_hook_groups[0][0]
+    encoder_hook = _materialized_encoder_hooks(backend, pipeline)[0]
     buffers = encoder_hook.cpu_staging_buffers
     assert buffers, "encoder hooks were not given bounded host staging"
     for slot in buffers:
