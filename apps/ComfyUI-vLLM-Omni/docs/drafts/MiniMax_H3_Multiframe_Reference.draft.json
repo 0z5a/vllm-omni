@@ -23,7 +23,7 @@
       "title": "WF-04 DEVELOPMENT DRAFT — generation disabled",
       "properties": {},
       "widgets_values": [
-        "WF-04 is waiting for GUIDE-01, GUIDE-02 and NODE-02. The intended aspect ratio and audio output still require validation with the final guide implementation. Generate Video and Save Video remain muted: this graph has no timeline-guide path. The three guide notes are connection placeholders, not executable guide nodes. See ../minimax-h3-multiframe.md before integrating the remaining dependencies."
+        "#8460 provides the model/offline timeline-guide contract. This remote layout still needs GUIDE-02 nodes and /v1/videos guide serialization. Keep Generate Video and Save Video muted until those paths and real-model execution are validated. The three guide notes send no media. The semantic image reference is supported by the pinned base client."
       ],
       "color": "#432",
       "bgcolor": "#000"
@@ -314,6 +314,60 @@
           "shape": 7,
           "type": "VIDEO",
           "link": null
+        },
+        {
+          "name": "image_3",
+          "type": "IMAGE",
+          "shape": 7,
+          "link": null
+        },
+        {
+          "name": "image_4",
+          "type": "IMAGE",
+          "shape": 7,
+          "link": null
+        },
+        {
+          "name": "image_5",
+          "type": "IMAGE",
+          "shape": 7,
+          "link": null
+        },
+        {
+          "name": "image_6",
+          "type": "IMAGE",
+          "shape": 7,
+          "link": null
+        },
+        {
+          "name": "image_7",
+          "type": "IMAGE",
+          "shape": 7,
+          "link": null
+        },
+        {
+          "name": "image_8",
+          "type": "IMAGE",
+          "shape": 7,
+          "link": null
+        },
+        {
+          "name": "image_9",
+          "type": "IMAGE",
+          "shape": 7,
+          "link": null
+        },
+        {
+          "name": "audio_3",
+          "type": "AUDIO",
+          "shape": 7,
+          "link": null
+        },
+        {
+          "name": "video_3",
+          "type": "VIDEO",
+          "shape": 7,
+          "link": null
         }
       ],
       "outputs": [
@@ -351,7 +405,7 @@
       "title": "GUIDE-02 pending: anchor 2 at frame 36",
       "properties": {},
       "widgets_values": [
-        "Connect h3_frame_ref_2.png to the real GUIDE-02 image input at frame 36 (1.5s). Chain guide outputs in order, then connect the last guide to Generate Video. The node type and serialized API fields are unresolved; this note does not send any data. Do not replace a timeline guide with an ordinary semantic reference."
+        "Place this image at pixel frame 36 with offline multi_modal_data.timeline_guides: frame_index=36, image=<image>. GUIDE-02 must provide the real remote node and HTTP encoding; this note does not send a guide. Keep guides separate from semantic references and preserve 36 -> 72 -> 120 order."
       ],
       "color": "#432",
       "bgcolor": "#000"
@@ -375,7 +429,7 @@
       "title": "GUIDE-02 pending: anchor 3 at frame 72",
       "properties": {},
       "widgets_values": [
-        "Connect h3_frame_ref_3.png to the real GUIDE-02 image input at frame 72 (3s). Chain guide outputs in order, then connect the last guide to Generate Video. The node type and serialized API fields are unresolved; this note does not send any data. Do not replace a timeline guide with an ordinary semantic reference."
+        "Place this image at pixel frame 72 with offline multi_modal_data.timeline_guides: frame_index=72, image=<image>. GUIDE-02 must provide the real remote node and HTTP encoding; this note does not send a guide. Keep guides separate from semantic references and preserve 36 -> 72 -> 120 order."
       ],
       "color": "#432",
       "bgcolor": "#000"
@@ -399,7 +453,7 @@
       "title": "GUIDE-02 pending: anchor 4 at frame 120",
       "properties": {},
       "widgets_values": [
-        "Connect h3_frame_ref_4.png to the real GUIDE-02 image input at frame 120 (5s). Chain guide outputs in order, then connect the last guide to Generate Video. The node type and serialized API fields are unresolved; this note does not send any data. Do not replace a timeline guide with an ordinary semantic reference."
+        "Place this image at pixel frame 120 with offline multi_modal_data.timeline_guides: frame_index=120, image=<image>. GUIDE-02 must provide the real remote node and HTTP encoding; this note does not send a guide. Keep guides separate from semantic references and preserve 36 -> 72 -> 120 order."
       ],
       "color": "#432",
       "bgcolor": "#000"
@@ -688,6 +742,24 @@
             "name": "duration"
           },
           "link": null
+        },
+        {
+          "name": "first_frame",
+          "type": "IMAGE",
+          "shape": 7,
+          "link": null
+        },
+        {
+          "name": "last_frame",
+          "type": "IMAGE",
+          "shape": 7,
+          "link": null
+        },
+        {
+          "name": "latent_edit",
+          "type": "LATENT_MASK_EDITING",
+          "shape": 7,
+          "link": null
         }
       ],
       "outputs": [
@@ -796,10 +868,10 @@
       "mode": 0,
       "inputs": [],
       "outputs": [],
-      "title": "Optional Ref2VA Turbo — integrate after dependencies",
+      "title": "Base H3 only — guides reject Turbo and acceleration",
       "properties": {},
       "widgets_values": [
-        "Use server-format minimax_h3_ref2v_turbo_4step_v0.1_bf16.safetensors, 5 sigma points (4 denoiser forwards), flow_shift=12, audio_flow_shift=3, scale=1. Connect a real Remote LoRA node using the server-local artifact path. The ComfyUI-repacked adapter and FastH3 are not interchangeable with this Ref2VA adapter. These are documented target settings, not a tested Turbo workflow."
+        "#8460 requires base H3 weights and cache-free quality=lossless. Timeline guides reject active LoRA/Turbo, FastH3 and distilled schedules. Keep the LoRA and FastH3 inputs disconnected. Turbo requires a separate supported workflow."
       ],
       "color": "#432",
       "bgcolor": "#000"
@@ -853,8 +925,8 @@
     "workflowRendererVersion": "LG",
     "wf04": {
       "task": "WF-04",
-      "status": "BLOCKED_DEPENDENCIES",
-      "baseline_sha": "85da94339130337b49e610d08276aedcf84f6b96",
+      "status": "BLOCKED_REMOTE_GUIDE_INTEGRATION",
+      "baseline_sha": "755d73bdbc64b45b6e1327d7636d9ab330ca3324",
       "source": {
         "repository": "Comfy-Org/workflow_templates",
         "revision": "aaac56dd5cc5497533d92cbe50edc35ea660e587",
@@ -895,9 +967,16 @@
         }
       ],
       "dependencies": {
-        "GUIDE-01": null,
+        "GUIDE-01": {
+          "pr": "https://github.com/vllm-project/vllm-omni/pull/8460",
+          "head": "755d73bdbc64b45b6e1327d7636d9ab330ca3324",
+          "scope": "model and offline API"
+        },
         "GUIDE-02": null,
-        "NODE-02": null
+        "NODE-02": {
+          "head": "755d73bdbc64b45b6e1327d7636d9ab330ca3324",
+          "scope": "base client already serializes ordered semantic references, including image-only input"
+        }
       },
       "guide_node_type": null,
       "guide_api_fields": null,
@@ -905,7 +984,13 @@
         "real_comfyui_execution": "NOT_RUN",
         "real_model": "NOT_RUN",
         "saved_audio": "NOT_RUN"
-      }
+      },
+      "offline_guide_fields": [
+        "frame_index",
+        "image",
+        "video",
+        "audio"
+      ]
     }
   },
   "version": 0.4
