@@ -99,18 +99,13 @@ Actual item tokens are not inflated to fit a tier: a five-slice image has
 Video frames reuse the image path. Larger explicit budgets are supported
 but increase persistent graph memory, competing with Talker and Code2Wav.
 
-**This path does not reproduce the eager output yet.** With the command above,
-on an L20 with vLLM `0.29.1rc1.dev197`, the same 224x224 image the eager
-encoder answers correctly comes back as a repeated token
-(`'validator\n' * 32`). Capture itself succeeds; what a replay puts into the
-encoder does not. Use the flag to develop the graph path only, and compare
-against the same request with the flag absent.
-
-This remains development-only: shared metadata preparation and uncaptured
-layout fallback integration, the compatible dependency pin, and complete
-three-stage serving/performance/memory acceptance must
-be validated before enabling it in a deployment. Component graph replay
-tests alone do not establish these serving guarantees.
+Compare complete image/video requests with encoder graphs OFF and ON under
+the same compatible vLLM build and decoder configuration. The real-checkpoint
+parity test requires identical text and treats differences as failures.
+For repeatable greedy tokens across changing decoder batches, set
+`VLLM_BATCH_INVARIANT=1` in both comparison arms. Check actual encoder replay
+and output equality alongside throughput; component tests alone do not establish
+complete serving performance. Current hardware results are in [PR #7659](https://github.com/vllm-project/vllm-omni/pull/7659).
 
 ## Send multimodal requests
 

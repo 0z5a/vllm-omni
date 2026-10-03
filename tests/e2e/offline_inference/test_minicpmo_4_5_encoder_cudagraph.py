@@ -210,12 +210,7 @@ def _graph_state(runner) -> tuple[bool, int, int]:
 
 @pytest.fixture
 def graph_and_eager_texts(run_level: str) -> tuple[str, str, str, str]:
-    """Greedy image/video text from both arms, prepared outside the xfail region.
-
-    Engine loads and worker capture/replay assertions describe the harness.
-    Running them in a fixture keeps a failed second engine, an OOM during teardown or a graph profile that never reached Stage 0
-    from being absorbed by the explicit xfail on the final comparison.
-    """
+    """Load both checkpoint arms and verify native replay before comparing text."""
     with _arm(run_level, _GRAPH_DEPLOY) as graph_runner:
         before = _graph_state(graph_runner)
         assert before[0] and before[1] > 0, "Stage 0 did not capture encoder graphs"
@@ -278,10 +273,8 @@ def test_oversized_image_falls_back_without_failing(omni_runner_function, offlin
 @pytest.mark.omni
 @hardware_test(res={"cuda": "H100"}, num_cards=1)
 def test_encoder_graph_matches_eager_encoder(graph_and_eager_texts) -> None:
-    """Only final text divergence is expected to fail; setup and teardown must pass."""
+    """Real-checkpoint image and video text must match the eager encoder."""
     graph_image, eager_image, graph_video, eager_video = graph_and_eager_texts
 
-    if graph_image != eager_image or graph_video != eager_video:
-        pytest.xfail(
-            f"Encoder replay differs: image={graph_image!r}/{eager_image!r}, video={graph_video!r}/{eager_video!r}"
-        )
+    assert graph_image == eager_image
+    assert graph_video == eager_video
