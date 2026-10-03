@@ -37,7 +37,7 @@ from torch.library import Library
 from vllm.triton_utils import HAS_TRITON, tl, triton
 from vllm.utils.torch_utils import direct_register_custom_op
 
-from vllm_omni.diffusion.layers.numerics import mul_rn_f32, round_bf16_to_fp32
+from vllm_omni.diffusion.layers.numerics import mul_rn_f32
 from vllm_omni.platforms import current_omni_platform
 
 _HEADS_PER_PROGRAM = 4
@@ -87,8 +87,8 @@ def _concat_prefix_kv_kernel(
         mantissa = bits & 7
         normal_bits = ((bits & 128) << 24) | ((exponent + 120) << 23) | (mantissa << 20)
         normal = normal_bits.to(tl.float32, bitcast=True)
-        subnormal = mantissa.to(tl.float32) * (1.0 / 512.0)
-        subnormal = tl.where((bits & 128) != 0, -subnormal, subnormal)
+        subnormal_bits = (mantissa.to(tl.float32) * (1.0 / 512.0)).to(tl.uint32, bitcast=True)
+        subnormal = (subnormal_bits | ((bits & 128) << 24)).to(tl.float32, bitcast=True)
         cached = tl.where(exponent == 0, subnormal, normal)
         cached = tl.where((bits & 127) == 127, float("nan"), cached)
         scale = tl.load(
@@ -97,7 +97,7 @@ def _concat_prefix_kv_kernel(
             other=0.0,
         )
         cached = mul_rn_f32(cached, scale[:, None])
-        tl.store(out_ptr + out_offset, round_bf16_to_fp32(cached), mask=live)
+        tl.store(out_ptr + out_offset, cached, mask=live)
     else:
         fresh = tl.load(
             target_ptr
