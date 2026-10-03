@@ -29,6 +29,10 @@ def prepare_hunyuan15_text_encoder_fp8(
         raise ValueError(
             "HunyuanVideo-1.5 text_encoder supports dynamic online FP8 from an unquantized checkpoint only."
         )
+    if device.type == "cuda":
+        major, minor = torch.cuda.get_device_capability(device)
+        if major * 10 + minor < 89:
+            raise ValueError("HunyuanVideo-1.5 text_encoder dynamic FP8 requires an NVIDIA SM89 or newer GPU.")
     layers = encoder.layers
     replaced = 0
     linear_names = [name for name, layer in layers.named_modules() if isinstance(layer, nn.Linear)]
