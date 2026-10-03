@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: Apache-2.0
-# SPDX-FileCopyrightText: Copyright contributors to the vLLM-Omni project
+# SPDX-FileCopyrightText: Copyright contributors to the vLLM project
 
 import torch
 from vllm.triton_utils import tl, triton
@@ -172,13 +172,7 @@ def qk_norm_rope_kernel(
 
 
 def _batch_stride(table: torch.Tensor, batch_size: int) -> int:
-    """Row stride the kernel must use to reach this table's row for a batch index.
-
-    A singleton table is shared by every batch, so it is pinned to row 0 instead of being
-    stepped through. Any other batch count has to be the query batch the table is used with:
-    the kernel walks ``table[batch_idx]``, so a table with fewer rows than the batch reads past
-    its end and one with more silently ignores the extra rows.
-    """
+    """Broadcast singleton RoPE tables; otherwise require one row per query batch."""
     if table.shape[0] == 1:
         return 0
     if table.shape[0] != batch_size:
@@ -187,11 +181,7 @@ def _batch_stride(table: torch.Tensor, batch_size: int) -> int:
 
 
 def _cos_sin_batch_stride(cos: torch.Tensor, sin: torch.Tensor, batch_size: int) -> int:
-    """Batch stride for one cos/sin pair, checked before the launch.
-
-    The kernel addresses ``sin`` with the ``cos`` strides and never reads the sin shapes, so the
-    pair has to describe the same layout for the two tables to be read consistently.
-    """
+    """The kernel indexes both tables with the cos strides."""
     if sin.shape != cos.shape:
         raise ValueError(
             f"cos and sin RoPE tables must have the same shape, got {tuple(cos.shape)} and {tuple(sin.shape)}"
