@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: Apache-2.0
-# SPDX-FileCopyrightText: Copyright contributors to the vLLM-Omni project
+# SPDX-FileCopyrightText: Copyright contributors to the vLLM project
 """Unit tests for BitsAndBytes quantization config."""
 
 import importlib.util
@@ -36,7 +36,7 @@ def _ensure_bitsandbytes_importable(monkeypatch: pytest.MonkeyPatch) -> None:
         return
     bnb = types.ModuleType("bitsandbytes")
     bnb_functional = types.ModuleType("bitsandbytes.functional")
-    bnb.__dict__["functional"] = bnb_functional
+    bnb.functional = bnb_functional
     monkeypatch.setitem(sys.modules, "bitsandbytes", bnb)
     monkeypatch.setitem(sys.modules, "bitsandbytes.functional", bnb_functional)
 
@@ -198,7 +198,6 @@ def quant_config():
     )
 
 
-@pytest.mark.cuda
 @cuda_available
 @bitsandbytes_available
 class TestCudaBnBSmoke:
