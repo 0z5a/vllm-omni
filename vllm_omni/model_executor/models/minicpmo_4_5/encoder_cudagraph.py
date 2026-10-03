@@ -3,13 +3,12 @@
 """Offline vision encoder graphs; audio and stateful duplex remain eager."""
 
 from collections.abc import Hashable
-from typing import Any, cast
+from typing import TYPE_CHECKING, cast
 
 import torch
 from transformers.modeling_attn_mask_utils import _prepare_4d_attention_mask
 from vllm.config import VllmConfig
 from vllm.model_executor.models.interfaces import SupportsEncoderCudaGraph, supports_encoder_cudagraph
-from vllm.v1.worker import encoder_cudagraph_defs
 from vllm.v1.worker.encoder_cudagraph_defs import (
     EncoderCudaGraphCaptureInputs,
     EncoderCudaGraphConfig,
@@ -19,12 +18,16 @@ from vllm.v1.worker.encoder_cudagraph_defs import (
 
 from vllm_omni.platforms import current_omni_platform
 
-_AXIS_KEY = getattr(encoder_cudagraph_defs, "ENCODER_CUDAGRAPH_AXIS_KEYS_KWARG", "encoder_cudagraph_axis_keys")
+if TYPE_CHECKING:
+    from vllm_omni.model_executor.models.minicpmo_4_5.minicpmo_4_5_omni_llm import MiniCPMVImagePixelInputs
+
+_AXIS_KEY = "encoder_cudagraph_axis_keys"
 _LAYOUT_KEY = "minicpmo_encoder_layout"
 # Reuse selected-batch metadata across the manager's spec and replay calls.
 _PARSE_KEY = "minicpmo_encoder_parse"
 _SPECS_KEY = "minicpmo_encoder_specs"
 _PATCH_CAPS = (1024, 1152, 2048)
+_EncoderData = tuple[str, list[torch.Tensor], torch.Tensor, list[int]]
 
 
 def bind_minicpmo_encoder_cudagraph(model: torch.nn.Module, thinker: torch.nn.Module) -> None:
@@ -36,24 +39,22 @@ def bind_minicpmo_encoder_cudagraph(model: torch.nn.Module, thinker: torch.nn.Mo
     """
     if not supports_encoder_cudagraph(thinker):
         return
-    if thinker.vpm is None:
+    source = cast(_MiniCPMO45EncoderCudaGraphMixin, thinker)
+    if source.vpm is None:
         return
-    names = (
-        "supports_encoder_cudagraph",
-        "get_encoder_cudagraph_config",
-        "get_input_modality",
-        "get_max_frames_per_video",
-        "get_encoder_cudagraph_budget_range",
-        "get_encoder_cudagraph_item_specs",
-        "select_encoder_cudagraph_items",
-        "postprocess_encoder_output",
-        "prepare_encoder_cudagraph_capture_inputs",
-        "prepare_encoder_cudagraph_replay_buffers",
-        "encoder_cudagraph_forward",
-        "encoder_eager_forward",
-    )
-    for name in names:
-        setattr(model, name, getattr(thinker, name))
+    target = cast(SupportsEncoderCudaGraph, model)
+    target.supports_encoder_cudagraph = source.supports_encoder_cudagraph
+    target.get_encoder_cudagraph_config = source.get_encoder_cudagraph_config
+    target.get_input_modality = source.get_input_modality
+    target.get_max_frames_per_video = source.get_max_frames_per_video
+    target.get_encoder_cudagraph_budget_range = source.get_encoder_cudagraph_budget_range
+    target.get_encoder_cudagraph_item_specs = source.get_encoder_cudagraph_item_specs
+    target.select_encoder_cudagraph_items = source.select_encoder_cudagraph_items
+    target.postprocess_encoder_output = source.postprocess_encoder_output
+    target.prepare_encoder_cudagraph_capture_inputs = source.prepare_encoder_cudagraph_capture_inputs
+    target.prepare_encoder_cudagraph_replay_buffers = source.prepare_encoder_cudagraph_replay_buffers
+    target.encoder_cudagraph_forward = source.encoder_cudagraph_forward
+    target.encoder_eager_forward = source.encoder_eager_forward
 
 
 def _ceiling(value: int, tiers: tuple[int, ...]) -> int:
@@ -64,7 +65,7 @@ def _ceiling(value: int, tiers: tuple[int, ...]) -> int:
 
 
 class _MiniCPMO45EncoderCudaGraphMixin(SupportsEncoderCudaGraph):
-    def get_input_modality(self, mm_kwargs: dict[str, Any]) -> str:
+    def get_input_modality(self, mm_kwargs: dict[str, object]) -> str:
         if "audio_features" in mm_kwargs:
             return "audio"
         return "video" if "video_pixel_values" in mm_kwargs else "image"
@@ -125,27 +126,27 @@ class _MiniCPMO45EncoderCudaGraphMixin(SupportsEncoderCudaGraph):
             )
         return ("vision", extent)
 
-    def _encoder_data(self, mm_kwargs: dict[str, Any]):
+    def _encoder_data(self, mm_kwargs: dict[str, object]) -> _EncoderData:
         cached = mm_kwargs.get(_PARSE_KEY)
         if cached is not None:
-            return cached
+            return cast(_EncoderData, cached)
         modality = self.get_input_modality(mm_kwargs)
         kwargs = (
             {key.removeprefix("video_"): value for key, value in mm_kwargs.items()}
             if modality == "video"
             else mm_kwargs
         )
-        if len(kwargs["pixel_values"]) == 0:
-            parsed = modality, [], torch.empty((0, 2), dtype=torch.int32), []
+        if len(cast(torch.Tensor | list[list[torch.Tensor]], kwargs["pixel_values"])) == 0:
+            parsed: _EncoderData = modality, [], torch.empty((0, 2), dtype=torch.int32), []
             mm_kwargs[_PARSE_KEY] = parsed
             return parsed
-        data = self._parse_and_validate_vision_input(modality, **kwargs)
+        data = cast("MiniCPMVImagePixelInputs", self._parse_and_validate_vision_input(modality, **kwargs))
         counts = data["num_slices"].tolist()
         parsed = modality, data["pixel_values"], data["tgt_sizes"], counts
         mm_kwargs[_PARSE_KEY] = parsed
         return parsed
 
-    def get_encoder_cudagraph_item_specs(self, mm_kwargs: dict[str, Any]) -> list[EncoderItemSpec]:
+    def get_encoder_cudagraph_item_specs(self, mm_kwargs: dict[str, object]) -> list[EncoderItemSpec]:
         if _SPECS_KEY in mm_kwargs:
             return cast(list[EncoderItemSpec], mm_kwargs[_SPECS_KEY])
         modality, features, metadata, counts = self._encoder_data(mm_kwargs)
@@ -155,7 +156,7 @@ class _MiniCPMO45EncoderCudaGraphMixin(SupportsEncoderCudaGraph):
             for count, group in zip(counts, patch_counts)
         ]
 
-    def select_encoder_cudagraph_items(self, mm_kwargs: dict[str, Any], indices: list[int]) -> dict[str, Any]:
+    def select_encoder_cudagraph_items(self, mm_kwargs: dict[str, object], indices: list[int]) -> dict[str, object]:
         modality, features, metadata, counts = self._encoder_data(mm_kwargs)
         offsets = [0]
         for count in counts:
@@ -167,7 +168,7 @@ class _MiniCPMO45EncoderCudaGraphMixin(SupportsEncoderCudaGraph):
         groups = metadata.split(counts)
         sizes = [groups[index] for index in indices]
         pixel_groups = [features[offsets[index] : offsets[index + 1]] for index in indices]
-        selected = {
+        selected: dict[str, object] = {
             pixel_key: pixel_groups,
             size_key: sizes,
         }
@@ -197,7 +198,8 @@ class _MiniCPMO45EncoderCudaGraphMixin(SupportsEncoderCudaGraph):
         path: str = "default",
         axis_keys: tuple[Hashable, ...] | None = None,
     ) -> EncoderCudaGraphCaptureInputs:
-        kind, extent = axis_keys[0]
+        assert axis_keys is not None
+        kind, extent = cast(tuple[str, int], axis_keys[0])
         capacity = max(1, token_budget // int(self.config.query_num))
         patch = int(self.vpm.embeddings.patch_size)
         values = {
@@ -211,12 +213,12 @@ class _MiniCPMO45EncoderCudaGraphMixin(SupportsEncoderCudaGraph):
 
     def prepare_encoder_cudagraph_replay_buffers(
         self,
-        mm_kwargs: dict[str, Any],
+        mm_kwargs: dict[str, object],
         max_batch_size: int,
         max_frames_per_batch: int,
         path: str = "default",
     ) -> EncoderCudaGraphReplayBuffers:
-        kind, extent = mm_kwargs[_LAYOUT_KEY]
+        kind, extent = cast(tuple[str, int], mm_kwargs[_LAYOUT_KEY])
         modality, features, metadata, counts = self._encoder_data(mm_kwargs)
         device, dtype = next(self.vpm.parameters()).device, next(self.vpm.parameters()).dtype
         patch = int(self.vpm.embeddings.patch_size)
@@ -246,7 +248,7 @@ class _MiniCPMO45EncoderCudaGraphMixin(SupportsEncoderCudaGraph):
             hidden, pos_embed=values["resampler_positions"].permute(1, 0, 2), key_padding_mask=values["resampler_mask"]
         ).flatten(0, 1)
 
-    def encoder_eager_forward(self, mm_kwargs: dict[str, Any], path: str = "default") -> torch.Tensor:
+    def encoder_eager_forward(self, mm_kwargs: dict[str, object], path: str = "default") -> torch.Tensor:
         return torch.cat(self.get_multimodal_embeddings(**mm_kwargs))
 
 
