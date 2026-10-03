@@ -60,6 +60,20 @@ def test_concat_prefix_kv_matches_eager_dequant(device, batch, prefix_len, targe
 
 @pytest.mark.cuda
 @pytest.mark.gpu
+def test_all_e4m3_encodings_match_torch_dequantization():
+    raw = torch.arange(256, dtype=torch.int16, device="cuda").to(torch.uint8).reshape(1, 1, 2, HEAD_DIM)
+    prefix = raw.view(torch.float8_e4m3fn)
+    scale = torch.tensor([0.75, 2.0], dtype=torch.float32, device="cuda").reshape(1, 1, 2, 1)
+    target = torch.ones(1, 3, 2, HEAD_DIM, dtype=torch.bfloat16, device="cuda")
+    actual = concat_prefix_kv(prefix, scale, target)
+    expected = _eager_concat(prefix, scale, target)
+    torch.testing.assert_close(actual, expected, rtol=0, atol=0, equal_nan=True)
+    finite = torch.isfinite(expected)
+    assert torch.equal(actual.view(torch.int16)[finite], expected.view(torch.int16)[finite])
+
+
+@pytest.mark.cuda
+@pytest.mark.gpu
 def test_fused_path_accepts_the_strided_v_layout(monkeypatch):
     """V is a strided view into the packed qkv output; the fused kernel must still take it."""
     monkeypatch.setattr(

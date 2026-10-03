@@ -77,11 +77,20 @@ def _concat_prefix_kv_kernel(
     if token < prefix_len:
         # Distinct names per branch: Triton unifies same-named variables across an if/else
         # and these carry different dtypes.
-        cached = tl.load(
+        bits = tl.load(
             prefix_ptr + batch * prefix_stride_b + token * prefix_stride_r + heads[:, None] * prefix_stride_h + dims,
             mask=live,
-            other=0.0,
-        ).to(tl.float32)
+            other=0,
+        ).to(tl.uint32)
+        # Decode E4M3 bytes so Ampere does not need a native FP8 conversion.
+        exponent = (bits >> 3) & 15
+        mantissa = bits & 7
+        normal_bits = ((bits & 128) << 24) | ((exponent + 120) << 23) | (mantissa << 20)
+        normal = normal_bits.to(tl.float32, bitcast=True)
+        subnormal = mantissa.to(tl.float32) * (1.0 / 512.0)
+        subnormal = tl.where((bits & 128) != 0, -subnormal, subnormal)
+        cached = tl.where(exponent == 0, subnormal, normal)
+        cached = tl.where((bits & 127) == 127, float("nan"), cached)
         scale = tl.load(
             scale_ptr + batch * scale_stride_b + token * scale_stride_r + heads * scale_stride_h,
             mask=heads < num_heads,
@@ -140,7 +149,7 @@ def _launch(prefix: torch.Tensor, prefix_scale: torch.Tensor | None, target: tor
         return out
     grid = (out.shape[1], batch, triton.cdiv(num_heads, _HEADS_PER_PROGRAM))
     _concat_prefix_kv_kernel[grid](
-        prefix,
+        prefix.view(torch.uint8),
         prefix_scale,
         target,
         out,
