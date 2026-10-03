@@ -99,7 +99,7 @@ class TestDistributedLayerwiseOffloadHook:
         hook.offload_layer()
         assert not hook.is_materialized
 
-    def test_initialize_failure_keeps_next_block_materialized(self, monkeypatch):
+    def test_initialize_failure_keeps_next_block_materialized(self, monkeypatch, patched_offload_runtime):
         current_block = nn.Linear(2, 2)
         next_block = nn.Linear(2, 2)
         expected = {name: tensor.detach().clone() for name, tensor in next_block.state_dict().items()}
@@ -1130,13 +1130,15 @@ def test_unregistration_precedes_lease_close_and_retries_failures(
     backend.enabled = True
     monkeypatch.setattr(current_omni_platform, "synchronize", lambda: None)
 
+    cleanup = backend.disable if cleanup_method == "disable" else backend.shutdown
+
     with pytest.raises(HostRegistrationCleanupError, match="failed to unregister"):
-        getattr(backend, cleanup_method)()
+        cleanup()
     assert not lease.closed
     assert backend._host_registration is not None
     assert dist_backend_module._ACTIVE_HWR_REGISTRATIONS == [(backend._host_registration, lease)]
 
-    getattr(backend, cleanup_method)()
+    cleanup()
 
     assert lease.closed
     assert backend._host_registration is None
@@ -2826,7 +2828,9 @@ class TestDistributedComponentSelection:
             assert registry is None or registry.get_hook("distributed_layerwise_offload") is None
             torch.testing.assert_close(block.weight, expected)
 
-    def test_multirank_enable_failure_cleanup_skips_restore_collective(self, monkeypatch, mocker):
+    def test_multirank_enable_failure_cleanup_skips_restore_collective(
+        self, monkeypatch, mocker, patched_offload_runtime
+    ):
         backend = DistributedLayerwiseOffloadBackend(
             OffloadConfig(
                 strategy=OffloadStrategy.DISTRIBUTED_LAYER_WISE,
@@ -2893,7 +2897,9 @@ class TestDistributedComponentSelection:
         worker.shutdown()
 
         allgather_hook.restore_next_block_to_cpu.assert_not_called()
-        rank_local_hook.restore_next_block_to_cpu.assert_called_once_with()
+        rank_local_hook.restore_next_block_to_cpu.assert_not_called()
+        assert allgather_hook.next_block.weight.numel() == 0
+        assert rank_local_hook.next_block.weight.numel() == 0
         assert not backend.enabled
         assert not backend._all_hook_groups
 
