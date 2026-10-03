@@ -1329,6 +1329,7 @@ _DIFFUSION_STAGE_METADATA_FIELDS = frozenset(
         "retains_state_across_chunks",
         "supports_running_prefix_cache_reset",
         "scheduler_cls",
+        "single_stage_pipeline",
         "stage_connector_spec",
         "worker_type",
     }
