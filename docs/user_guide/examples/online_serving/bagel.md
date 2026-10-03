@@ -55,8 +55,8 @@ The AR stage can use upstream vLLM's encoder CUDA Graph manager for
 `img2text`. It captures the fixed-resolution ViT, connector, and positional
 embedding addition. The released checkpoint resizes images to 980×980,
 producing 4900 tokens per image; graph budgets therefore control image batch
-capacity, not image resolution. This integration uses the vLLM 0.29 protocol
-and does not require capture axes.
+capacity. The callback also accepts the optional axis-key argument used by
+vLLM 0.30.
 
 For example, capture capacities for one and two images on Stage 0:
 
@@ -70,22 +70,6 @@ The manager falls back to eager when one image exceeds every captured token
 budget. Different image dimensions are not additional supported graph tiers:
 the model requires its configured ViT input size. The `img2img` VAE/RoPE path
 and the single-stage diffusion pipeline are outside this encoder capture.
-
-Encoder latency depends on hardware and batch size; enabling graphs does
-not guarantee a speedup. To measure the encoder separately from the LM and
-serving stack, run from the repository root with a downloaded checkpoint:
-
-```bash
-python benchmarks/encoder/benchmark_bagel_encoder_cudagraph.py \
-    --model /path/to/BAGEL-7B-MoT \
-    --weights /path/to/BAGEL-7B-MoT/ema.safetensors \
-    --batch-sizes 1 2 --arm both --output encoder-screen.json
-```
-
-This loads only the ViT and connector, verifies eager/graph embeddings, and
-reports raw wall-clock samples including graph dispatch and copies. Use
-`--arm eager` and `--arm graph` in separate processes for independent
-measurements. These encoder-only results are not TTFT or serving throughput.
 
 The focused tests need the matching vLLM runtime. CPU tests do not load
 checkpoint weights; CUDA tests use a small SigLIP on one GPU:
@@ -295,12 +279,18 @@ curl http://localhost:8091/v1/chat/completions \
   -d @payload.json
 ```
 
-BAGEL img2img derives its generated image size from the input image. It
-preserves the input aspect ratio, aligns dimensions to the latent stride, and
-applies the checkpoint size limit; explicit `height` and `width` values do not
-override this model-specific resize policy. In step mode, the effective size is
-resolved before scheduler admission so requests with different resulting
-shapes are not combined.
+When no output size is requested (`size=auto` on `/v1/images/edits`, or no
+`height`/`width` in a chat request), BAGEL img2img derives the canvas from the
+input image: it preserves the input aspect ratio, aligns dimensions to the
+latent stride (16 px), and applies the checkpoint size limit. An explicit
+`size`, `height`, or `width` is honored instead, in both the single-stage and
+the two-stage deployment; the input image is still resized to a stride-aligned
+size for the VAE/ViT prefill. The latent grid needs multiples of 16, so a
+requested side that is not one is floored to the next multiple (1000x700
+generates 992x688) and the server logs a warning; the response reports the
+generated size. A side above the checkpoint limit is rejected with HTTP 400.
+In step mode, the effective size is resolved before scheduler admission so
+requests with different resulting shapes are not combined.
 
 ### Image to Text (img2text)
 
@@ -366,8 +356,8 @@ curl http://localhost:8091/v1/chat/completions \
 | `--server` / `-s` | `http://localhost:8091` | Server URL |
 | `--image-url` / `-i` | `None` | Input image URL or local path (img2img/img2text) |
 | `--modality` / `-m` | `text2img` | `text2img`, `img2img`, `img2text`, `text2text` |
-| `--height` | `512` | Text-to-image output height; BAGEL img2img derives its size from the input image |
-| `--width` | `512` | Text-to-image output width; BAGEL img2img derives its size from the input image |
+| `--height` | `512` | Output height, a multiple of 16; omit both `--height` and `--width` to let img2img derive the size from the input image |
+| `--width` | `512` | Output width, a multiple of 16; omit both `--height` and `--width` to let img2img derive the size from the input image |
 | `--steps` | `25` | Number of inference steps |
 | `--seed` | `42` | Random seed |
 | `--negative` | `None` | Negative prompt for CFG |

@@ -1,10 +1,10 @@
 # SPDX-License-Identifier: Apache-2.0
 # SPDX-FileCopyrightText: Copyright contributors to the vLLM-Omni project
 
-from collections.abc import Iterable, Mapping, Sequence
+from collections.abc import Hashable, Iterable, Mapping, Sequence
 from dataclasses import replace
 from math import isqrt
-from typing import Any
+from typing import Any, cast
 
 import torch
 import torch.nn as nn
@@ -698,13 +698,13 @@ class OmniBagelForConditionalGeneration(BagelForConditionalGeneration, SupportsE
         return tokens, tokens * items
 
     @staticmethod
-    def _encoder_pixel_values(mm_kwargs: dict[str, Any]) -> torch.Tensor:
-        pixels = mm_kwargs["pixel_values"]
+    def _encoder_pixel_values(mm_kwargs: dict[str, object]) -> torch.Tensor:
+        pixels = cast(torch.Tensor, mm_kwargs["pixel_values"])
         if pixels.ndim == 5:
             pixels = pixels.flatten(0, 1)
         return pixels
 
-    def get_encoder_cudagraph_item_specs(self, mm_kwargs: dict[str, Any]) -> list[EncoderItemSpec]:
+    def get_encoder_cudagraph_item_specs(self, mm_kwargs: dict[str, object]) -> list[EncoderItemSpec]:
         pixels = self._encoder_pixel_values(mm_kwargs)
         config = self.config.vit_config
         expected = (config.num_channels, config.image_size, config.image_size)
@@ -713,7 +713,7 @@ class OmniBagelForConditionalGeneration(BagelForConditionalGeneration, SupportsE
         tokens = self._encoder_tokens_per_image()
         return [EncoderItemSpec(input_size=tokens, output_tokens=tokens) for _ in range(pixels.shape[0])]
 
-    def select_encoder_cudagraph_items(self, mm_kwargs: dict[str, Any], indices: list[int]) -> dict[str, Any]:
+    def select_encoder_cudagraph_items(self, mm_kwargs: dict[str, object], indices: list[int]) -> dict[str, object]:
         pixels = self._encoder_pixel_values(mm_kwargs)
         if (
             indices
@@ -732,6 +732,7 @@ class OmniBagelForConditionalGeneration(BagelForConditionalGeneration, SupportsE
         device: torch.device,
         dtype: torch.dtype,
         path: str = "default",
+        axis_keys: tuple[Hashable, ...] | None = None,
     ) -> EncoderCudaGraphCaptureInputs:
         config = self.config.vit_config
         tokens = self._encoder_tokens_per_image()
@@ -751,7 +752,7 @@ class OmniBagelForConditionalGeneration(BagelForConditionalGeneration, SupportsE
 
     def prepare_encoder_cudagraph_replay_buffers(
         self,
-        mm_kwargs: dict[str, Any],
+        mm_kwargs: dict[str, object],
         max_batch_size: int,
         max_frames_per_batch: int,
         path: str = "default",
@@ -762,7 +763,7 @@ class OmniBagelForConditionalGeneration(BagelForConditionalGeneration, SupportsE
         features = self.connector(self.vit_model(inputs["pixel_values"]))
         return (features + inputs["pos_embeds"]).flatten(0, 1)
 
-    def encoder_eager_forward(self, mm_kwargs: dict[str, Any], path: str = "default") -> torch.Tensor:
+    def encoder_eager_forward(self, mm_kwargs: dict[str, object], path: str = "default") -> torch.Tensor:
         return torch.cat(self._process_image_input(mm_kwargs), dim=0)
 
     def _process_img2img_input(self, multimodal_input):
