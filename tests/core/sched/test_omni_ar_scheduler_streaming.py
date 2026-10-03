@@ -26,6 +26,7 @@ from vllm_omni.core.sched.omni_ar_scheduler import OmniARAsyncScheduler, OmniARS
 from vllm_omni.distributed.omni_connectors.transfer_adapter.chunk_transfer_adapter import (
     OmniChunkTransferAdapter,
 )
+from tests.helpers.omni_scheduler import bind_omits_transfer_helpers
 
 # isort: on
 
@@ -150,7 +151,7 @@ def _run_resumable_segment_stop(
     sched = MagicMock()
     sched.requests = {session.request_id: session}
     sched.perf_metrics = None
-    sched.structured_output_manager.should_advance.return_value = False
+    sched.structured_output_manager.accept_tokens.return_value = True
 
     def stop_request(request: Request, _token_ids: list[int]):
         request.status = RequestStatus.FINISHED_STOPPED
@@ -175,6 +176,7 @@ def _run_resumable_segment_stop(
     sched.kv_cache_manager.estimate_cached_tokens.return_value = 0
     sched.finished_req_ids_dict = {}
     sched.make_stats.return_value = None
+    bind_omits_transfer_helpers(sched)
 
     scheduler_output = MagicMock(spec=SchedulerOutput)
     scheduler_output.num_scheduled_tokens = {session.request_id: 1}
@@ -298,7 +300,7 @@ def test_running_decode_step_without_inter_stage_payload_does_not_raise() -> Non
     sched = MagicMock()
     sched.requests = {session.request_id: session}
     sched.perf_metrics = None
-    sched.structured_output_manager.should_advance.return_value = False
+    sched.structured_output_manager.accept_tokens.return_value = True
     sched._update_request_with_output.return_value = ([42], False)
     sched._process_kv_transfer_trigger.return_value = False
     sched.chunk_transfer_adapter = MagicMock()
@@ -312,6 +314,7 @@ def test_running_decode_step_without_inter_stage_payload_does_not_raise() -> Non
     sched.kv_cache_manager.estimate_cached_tokens.return_value = 0
     sched.finished_req_ids_dict = {}
     sched.make_stats.return_value = None
+    bind_omits_transfer_helpers(sched)
 
     scheduler_output = MagicMock(spec=SchedulerOutput)
     scheduler_output.num_scheduled_tokens = {session.request_id: 1}
@@ -381,7 +384,7 @@ def test_stale_async_frame_is_dropped_before_output_processing() -> None:
     sched = MagicMock()
     sched.requests = {session.request_id: session}
     sched.perf_metrics = None
-    sched.structured_output_manager.should_advance.return_value = False
+    sched.structured_output_manager.accept_tokens.return_value = True
 
     def discard_stale_output(request: Request, token_ids: list[int]) -> tuple[list[int], bool]:
         request.async_tokens_to_discard = 0
@@ -400,6 +403,7 @@ def test_stale_async_frame_is_dropped_before_output_processing() -> None:
     sched.kv_cache_manager.estimate_cached_tokens.return_value = 0
     sched.finished_req_ids_dict = {}
     sched.make_stats.return_value = None
+    bind_omits_transfer_helpers(sched)
 
     scheduler_output = MagicMock(spec=SchedulerOutput)
     scheduler_output.num_scheduled_tokens = {session.request_id: 1}
@@ -1527,7 +1531,9 @@ def test_async_chunk_reserves_parked_slots_during_ar_admission(monkeypatch, nati
     sched.use_v2_model_runner = native
     sched.max_num_running_reqs = 8
     sched.input_coordinator = (
-        SimpleNamespace(_waiting_for_chunk_running=[parked], restore_queues=lambda _w, _r: None) if native else None
+        SimpleNamespace(_async_chunk=True, _waiting_for_chunk_running=[parked], restore_queues=lambda _w, _r: None)
+        if native
+        else None
     )
     sched.chunk_transfer_adapter = (
         None
