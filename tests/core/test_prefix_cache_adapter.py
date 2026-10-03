@@ -66,6 +66,18 @@ def test_resume_and_abort_require_explicit_sources():
     assert events[0].kind is PrefixCacheEventKind.FINISHED
 
 
+def test_missing_abort_side_channel_never_infers_aborted():
+    adapter = PrefixCacheSchedulerAdapter()
+    scheduler_output = SimpleNamespace(
+        scheduled_new_reqs=[],
+        scheduled_cached_reqs=None,
+        finished_req_ids={"finished"},
+        num_scheduled_tokens={},
+    )
+    events = adapter.translate_scheduler_output(scheduler_output)
+    assert [(event.req_id, event.kind) for event in events] == [("finished", PrefixCacheEventKind.FINISHED)]
+
+
 def test_resumed_event_snapshots_cached_request_payload():
     adapter = PrefixCacheSchedulerAdapter()
     events = adapter.translate_scheduler_output(
@@ -109,6 +121,8 @@ def test_same_id_terminal_and_new_is_started():
     adapter.translate_scheduler_output(output(new=[SimpleNamespace(req_id="r")]))
     events = adapter.translate_scheduler_output(output(new=[SimpleNamespace(req_id="r")], finished={"r"}))
     assert [event.kind for event in events] == [PrefixCacheEventKind.STARTED, PrefixCacheEventKind.FINISHED]
+    events = adapter.translate_scheduler_output(output(new=[SimpleNamespace(req_id="r")]))
+    assert [event.kind for event in events] == [PrefixCacheEventKind.EXTENDED]
 
 
 def test_write_layout_uses_post_order_batch_and_slots():
