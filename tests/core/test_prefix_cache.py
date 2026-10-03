@@ -42,7 +42,11 @@ except ModuleNotFoundError:
     sys.modules["vllm.v1"] = __import__("types").ModuleType("vllm.v1")
     sys.modules["vllm.v1.kv_cache_interface"] = _kv_iface
 
-from vllm_omni.core.prefix_cache.adapter import PrefixCacheSchedulerAdapter
+from vllm_omni.core.prefix_cache.adapter import (
+    PrefixCacheEventKind,
+    PrefixCacheRequestEvent,
+    PrefixCacheSchedulerAdapter,
+)
 from vllm_omni.core.prefix_cache.controller import StagingBufferHolder
 from vllm_omni.core.prefix_cache.group_view import (
     FullAttentionGroupView,
@@ -355,6 +359,13 @@ def test_absent_hit_fails_fast():
         mgr.materialize(sid, ["c"])
     if d2h is not None:
         assert not mgr._controller._staging_pool._busy[d2h.staging_slot]
+
+
+def test_empty_hit_block_group_fails_at_register():
+    mgr, _ = make_manager()
+    event = PrefixCacheRequestEvent("empty", PrefixCacheEventKind.STARTED, hit_end=4, block_ids=((),))
+    with pytest.raises(OmniPrefixCacheUnmatchError, match="carries no block_ids"):
+        mgr.new_step_starts((event,))
 
 
 @pytest.mark.parametrize("hit_end", [1, 3, 4, 5, 6, 7])
@@ -1452,6 +1463,43 @@ def test_same_step_hit_prefetch_starts_at_save(caplog):
     assert torch.equal(fut.result()[:8], expected_rows(view.slots_for("b", 0, 8)))
     outs = mgr.materialize(sid, ["a", "b"])
     assert torch.equal(outs.hidden_states["b"][:8], expected_rows(view.slots_for("b", 0, 8)))
+
+
+@pytest.mark.parametrize("reuse_blocks", [False, True], ids=["fresh", "reused"])
+@pytest.mark.parametrize("deferred_mm", [False, True], ids=["immediate", "deferred"])
+def test_same_step_hit_refreshes_prefetch_after_write(reuse_blocks, deferred_mm):
+    policy = ModelCachePolicy(deferred_keys=frozenset({"mm"}) if deferred_mm else frozenset())
+    mgr, view = make_manager(policy=policy)
+    try:
+        blocks = [0, 1] if reuse_blocks else [8, 9]
+        sid = run_step(mgr, view, {"old": (blocks, 0, 8)}, mm={"mm": torch.full((8, 2), 100.0)})
+        mgr.materialize(sid, ["old"])
+        mgr.new_step_starts(FakeSchedOut(finished=["old"]))
+
+        mgr.new_step_starts(
+            FakeSchedOut(
+                new_reqs=[FakeNewReq("a", 0, [[0, 1]]), FakeNewReq("b", 8, [[0, 1, 2]])],
+                num_scheduled={"a": 8, "b": 4},
+            )
+        )
+        old_prefetch = dict(mgr._hit_prefetch["b"])
+        # Complete the early reads before A publishes the prefix B actually hits.
+        for future in old_prefetch.values():
+            future.result(timeout=5)
+
+        view.order = ["a", "b"]
+        view.req_blocks.update(a=[0, 1], b=[0, 1, 2])
+        view.computed.update(a=0, b=8)
+        hidden = torch.cat([torch.full((8, HIDDEN), 20.0), torch.full((4, HIDDEN), 30.0)])
+        mm = torch.cat([torch.full((8, 2), 200.0), torch.full((4, 2), 300.0)])
+        sid = mgr.save_outputs(hidden, {"mm": mm}, num_tokens_unpadded=12, num_tokens_padded=12)
+        outs = mgr.materialize(sid, ["a", "b"])
+
+        assert torch.equal(outs.hidden_states["b"][:8], hidden[:8])
+        assert torch.equal(outs.hidden_states["b"][8:], hidden[8:])
+        assert torch.equal(outs.mm_outputs["mm"]["b"], mm)
+    finally:
+        mgr.shutdown()
 
 
 def test_delayed_read_of_reassigned_hit_raises():
