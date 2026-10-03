@@ -1049,6 +1049,7 @@ def test_sub_config_fields_match_structured_scopes():
         "interleave_mm_strings",
         "media_io_kwargs",
         "final_output",
+        "single_stage_pipeline",
         "supports_running_prefix_cache_reset",
         "active_stream_window",
         "session_mode",
@@ -1951,6 +1952,9 @@ def test_diffusion_stage_payload_keys_roundtrip(source, key_container):
     diffusion_kwargs = omni_config_module.extract_diffusion_stage_config_kwargs(
         engine_args, stage_id=restored_stage.stage_id, include_engine_adapter_metadata=True
     )
+    assert legacy_args["single_stage_pipeline"] is True
+    assert engine_args["single_stage_pipeline"] is True
+    assert "single_stage_pipeline" not in diffusion_kwargs
     for name in topology_keys:
         diffusion_kwargs[name] = key_container(diffusion_kwargs[name])
     od_config = OmniDiffusionConfig.from_kwargs(**diffusion_kwargs)
