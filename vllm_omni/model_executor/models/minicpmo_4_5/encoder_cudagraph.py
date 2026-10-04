@@ -142,7 +142,8 @@ class _MiniCPMO45EncoderCudaGraphMixin(SupportsEncoderCudaGraph):
             return parsed
         data = cast("MiniCPMVImagePixelInputs", self._parse_and_validate_vision_input(modality, **kwargs))
         counts = data["num_slices"].tolist()
-        parsed = modality, data["pixel_values"], data["tgt_sizes"], counts
+        # Layout selection uses host integers; copy sizes once for all items.
+        parsed = modality, data["pixel_values"], data["tgt_sizes"].cpu(), counts
         mm_kwargs[_PARSE_KEY] = parsed
         return parsed
 
@@ -225,8 +226,8 @@ class _MiniCPMO45EncoderCudaGraphMixin(SupportsEncoderCudaGraph):
         pixels = torch.zeros(len(features), 3, patch, extent * patch, device=device, dtype=dtype)
         for index, feature in enumerate(features):
             pixels[index, ..., : feature.shape[-1]] = feature
-        sizes = metadata.to(device)
-        mask = torch.arange(extent, device=device)[None, :] < sizes.prod(-1)[:, None]
+        sizes = metadata
+        mask = torch.arange(extent, device="cpu")[None, :] < sizes.prod(-1)[:, None]
         position_ids = self.vpm.embeddings._create_position_ids(mask[:, None, :], sizes, device=device)
         positions, padding_mask = self.resampler.prepare_metadata(sizes, device=device, dtype=dtype)
         positions = torch.nn.functional.pad(positions.permute(1, 0, 2), (0, 0, 0, extent - positions.shape[0]))
@@ -234,7 +235,7 @@ class _MiniCPMO45EncoderCudaGraphMixin(SupportsEncoderCudaGraph):
         values = {
             "pixels": pixels,
             "position_ids": position_ids,
-            "vision_mask": _prepare_4d_attention_mask(mask, dtype),
+            "vision_mask": _prepare_4d_attention_mask(mask.to(device), dtype),
             "resampler_positions": positions,
             "resampler_mask": padding_mask,
         }

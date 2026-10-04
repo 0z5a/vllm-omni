@@ -24,7 +24,10 @@ pytestmark = [pytest.mark.core_model, pytest.mark.gpu, pytest.mark.cuda]
 @pytest.mark.skipif(not torch.cuda.is_available(), reason="Requires CUDA")
 @pytest.mark.parametrize("modality", ["image", "video"])
 @pytest.mark.parametrize("dtype, grid", [(torch.float32, (2, 3)), (torch.bfloat16, (32, 32))])
-def test_manager_graph_replay_matches_encoder_entry_point(modality: str, dtype, grid, monkeypatch) -> None:
+@pytest.mark.parametrize("metadata_device", ["cpu", "cuda"])
+def test_manager_graph_replay_matches_encoder_entry_point(
+    modality: str, dtype, grid, metadata_device: str, monkeypatch
+) -> None:
     from vllm.v1.worker.gpu_model_runner import GPUModelRunner
 
     torch.manual_seed(42)
@@ -80,7 +83,7 @@ def test_manager_graph_replay_matches_encoder_entry_point(modality: str, dtype, 
                     [torch.randn(3, 2, grid[0] * grid[1] * 2, device="cuda", dtype=dtype) for _ in range(count)]
                     for count in counts
                 ],
-                prefix + "tgt_sizes": [torch.tensor([list(grid)] * count) for count in counts],
+                prefix + "tgt_sizes": [torch.tensor([list(grid)] * count, device=metadata_device) for count in counts],
             }
             expected = model.get_multimodal_embeddings(**kwargs)
             actual = manager.execute(kwargs)
@@ -102,7 +105,7 @@ def test_manager_graph_replay_matches_encoder_entry_point(modality: str, dtype, 
             prefix + "pixel_values": [
                 [torch.randn(3, 2, grid[0] * grid[1] * 2, device="cuda", dtype=dtype) for _ in range(9)]
             ],
-            prefix + "tgt_sizes": [torch.tensor([list(grid)] * 9)],
+            prefix + "tgt_sizes": [torch.tensor([list(grid)] * 9, device=metadata_device)],
         }
         expected = model.get_multimodal_embeddings(**oversized)
         actual = manager.execute(oversized)
