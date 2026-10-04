@@ -45,7 +45,6 @@ from __future__ import annotations
 import hashlib
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass
-from typing import Any
 
 __all__ = [
     "PrefixCacheIdentity",
@@ -64,7 +63,7 @@ __all__ = [
 REUSABLE_BRANCHES = ("cond", "uncond", "img_cond")
 
 
-def stable_hash_function(data: Any) -> bytes:
+def stable_hash_function(data: object) -> bytes:
     """Deterministic bytes hash over a nested structure of ints/strs/tuples/bytes.
 
     Used as vLLM's `hash_function` argument. Python's built-in `hash()` is salted
@@ -73,7 +72,7 @@ def stable_hash_function(data: Any) -> bytes:
     """
     digest = hashlib.sha256()
 
-    def feed(value: Any) -> None:
+    def feed(value: object) -> None:
         if value is None:
             digest.update(b"n")
         elif isinstance(value, bool):
@@ -111,7 +110,7 @@ class PrefixCacheIdentity:
     # Optional extra execution-identity keys (e.g. a genuinely participating
     # adapter id). Only things that change the prefix computation belong here:
     # seed / output size / sampling parameters generally do not.
-    extra: tuple[Any, ...] = ()
+    extra: tuple[object, ...] = ()
 
     def __post_init__(self) -> None:
         if self.branch not in REUSABLE_BRANCHES:
@@ -123,7 +122,7 @@ class PrefixCacheIdentity:
         if not 0 <= self.tp_rank < self.tp_size:
             raise ValueError(f"tp_rank must be in [0, {self.tp_size}), got {self.tp_rank}")
 
-    def extra_keys(self) -> tuple[Any, ...]:
+    def extra_keys(self) -> tuple[object, ...]:
         """The `extra_keys` payload for vLLM's `hash_block_tokens`.
 
         Includes the whole rank topology, not only this rank: a handle is only
@@ -144,7 +143,7 @@ def canonical_block_hash(
     block_size: int,
     *,
     parent_hash: bytes | None = None,
-    hash_function: Callable[[Any], bytes] = stable_hash_function,
+    hash_function: Callable[[object], bytes] = stable_hash_function,
 ) -> bytes:
     """Hash exactly one full block of `token_ids`.
 
@@ -173,7 +172,7 @@ def prefix_block_hashes(
     block_size: int,
     num_reusable_tokens: int,
     *,
-    hash_function: Callable[[Any], bytes] = stable_hash_function,
+    hash_function: Callable[[object], bytes] = stable_hash_function,
 ) -> list[bytes]:
     """Ancestor-chained hashes for the reusable prefix, one per full block.
 
