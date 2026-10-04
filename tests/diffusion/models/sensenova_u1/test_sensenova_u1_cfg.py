@@ -75,14 +75,15 @@ def test_cfg_zero_star_accepts_step_i():
 def test_denoising_preserves_all_images_and_metadata(batch_size, think_text, monkeypatch):
     pipe = _pipeline_without_init()
     torch.nn.Module.__init__(pipe)
-    pipe.patch_size = pipe.merge_size = 1
+    pipe.patch_size = 2
+    pipe.merge_size = 1
     pipe.model_cfg = SimpleNamespace(add_noise_scale_embedding=False)
     pipe.fm_modules = {"timestep_embedder": lambda t: t[:, None]}
     monkeypatch.setattr(pipe, "_extract_feature", lambda x, **kwargs: torch.zeros(x.shape[0], 3))
     monkeypatch.setattr(pipe, "_denoise", lambda image, ns, t, z, *args: torch.zeros_like(z))
     monkeypatch.setattr(output_formatter, "supports_audio_output", lambda _: False)
     ns = SimpleNamespace(
-        image_prediction=torch.stack([torch.full((3, 2, 2), value) for value in (-1.0, 1.0)[:batch_size]]),
+        image_prediction=torch.stack([torch.full((3, 4, 4), value) for value in (-1.0, 1.0)[:batch_size]]),
         timesteps=torch.tensor([1.0, 0.0]),
         grid_h=2,
         grid_w=2,
@@ -90,7 +91,7 @@ def test_denoising_preserves_all_images_and_metadata(batch_size, think_text, mon
         token_w=2,
         grid_hw=torch.tensor([[2, 2]]),
     )
-    params = SimpleNamespace(num_steps=1, batch_size=batch_size, image_size=(2, 2))
+    params = SimpleNamespace(num_steps=1, batch_size=batch_size, image_size=(4, 4))
     result = pipe._run_denoising_loop(ns, {}, params, think_text)
     formatted = format_diffusion_outputs(
         request=OmniDiffusionRequest(
