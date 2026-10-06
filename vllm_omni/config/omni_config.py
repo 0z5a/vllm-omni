@@ -482,6 +482,7 @@ class OmniStageModelConfig(_TrackExplicitConfigFields):
     interleave_mm_strings: bool | None = None
     media_io_kwargs: dict[str, Any] | None = None
     final_output: bool = False
+    supports_running_prefix_cache_reset: bool = True
     active_stream_window: int = Field(default=0, ge=0)
     session_mode: str = "turn"
     duplex_max_sessions: int = Field(default=1, ge=1)
@@ -723,11 +724,15 @@ class OmniStageDiffusionParallelConfig(OmniStageParallelConfig):
             raise ValueError("allgather_degree > 1 is mutually exclusive with ulysses_degree/ring_degree > 1")
         if self.ulysses_mode not in {"strict", "advanced_uaa"}:
             raise ValueError("ulysses_mode must be 'strict' or 'advanced_uaa'")
-        if self.vae_parallel_mode not in {"tile", "spatial_shard_height", "spatial_shard_width"}:
+        if self.vae_parallel_mode not in {"tile", "batch", "spatial_shard_height", "spatial_shard_width"}:
             raise ValueError(
-                "vae_parallel_mode must be one of {'tile', 'spatial_shard_height', 'spatial_shard_width'}, "
+                "vae_parallel_mode must be one of {'tile', 'batch', 'spatial_shard_height', 'spatial_shard_width'}, "
                 f"but got {self.vae_parallel_mode!r}."
             )
+        if self.vae_parallel_mode == "batch" and (
+            self.data_parallel_size != 1 or self.pipeline_parallel_size != 1 or self.cfg_parallel_size != 1
+        ):
+            raise ValueError("VAE batch parallel decode requires DP, PP, and CFG parallel sizes to be 1")
 
         other_parallel_world_size = (
             self.pipeline_parallel_size
@@ -820,6 +825,7 @@ class _DiffusionConfigProjection:
     prompt_embed_cache_size: int = Field(default=32, ge=1)
     enable_session_state_manager: bool = False
     diffusion_load_format: str = "default"
+    hsdp_weight_load_strategy: str = "full"
     diffusers_load_kwargs: dict[str, Any] = field(default_factory=dict)
     diffusers_call_kwargs: dict[str, Any] = field(default_factory=dict)
     diffusers_pipeline_cls: Any = None
@@ -1146,6 +1152,9 @@ _DIFFUSION_MOVED_SHARED_FIELDS = frozenset(
         "disable_autocast",
     }
 )
+# Runtime-populated OmniDiffusionConfig state (init=False) that is never
+# user-configurable and therefore not part of the projection.
+_DIFFUSION_INTERNAL_FIELDS = frozenset({"ray_worker_env"})
 
 
 _STAGE_DEPLOY_ENGINE_FIELDS: tuple[str, ...] = tuple(_STAGE_DEPLOY_FIELDS)
@@ -1331,6 +1340,7 @@ _DIFFUSION_STAGE_METADATA_FIELDS = frozenset(
         "model_arch",
         "model_stage",
         "retains_state_across_chunks",
+        "supports_running_prefix_cache_reset",
         "scheduler_cls",
         "stage_connector_spec",
         "worker_type",
@@ -1978,6 +1988,8 @@ def _build_model_config(
     if "active_stream_window" not in kwargs:
         kwargs["active_stream_window"] = _copy_value(deploy.active_stream_window)
     kwargs["final_output"] = topology.final_output
+    if not topology.supports_running_prefix_cache_reset:
+        kwargs["supports_running_prefix_cache_reset"] = False
     if "custom_voice_dir" not in kwargs and deploy.custom_voice_dir is not None:
         kwargs["custom_voice_dir"] = _copy_value(deploy.custom_voice_dir)
     stage_runner = resolve_stage_model_runner(deploy, stage_deploy)

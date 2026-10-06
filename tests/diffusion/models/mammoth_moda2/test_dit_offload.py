@@ -12,6 +12,7 @@ from tests.diffusion.offloader.helpers import patch_offload_runtime
 from vllm_omni.diffusion.forward_context import set_forward_context
 from vllm_omni.diffusion.model_loader.host_weight_plan import _planned_source_prefixes
 from vllm_omni.diffusion.models.mammoth_moda2.pipeline_mammothmoda2_dit import (
+    MammothModa2DiTPipeline,
     _build_mammoth_config,
     _validate_sequence_parallel_runtime,
 )
@@ -30,6 +31,21 @@ def test_native_diffusion_extras_default_is_an_independent_dict():
     assert first.extras == second.extras == {}
     first.extras["mammoth_experimental_dlo"] = True
     assert second.extras == {}
+
+
+@pytest.mark.parametrize("with_refiner", [False, True])
+def test_conditioning_uses_runtime_device_with_cpu_weight_placeholders(with_refiner):
+    pipeline = MammothModa2DiTPipeline.__new__(MammothModa2DiTPipeline)
+    torch.nn.Module.__init__(pipeline)
+    # A meta device distinguishes execution from CPU storage without a GPU.
+    pipeline.device = torch.device("meta")
+    pipeline.gen_transformer = torch.nn.Linear(2, 2, dtype=torch.bfloat16)
+    pipeline.gen_image_condition_refiner = torch.nn.Linear(2, 2) if with_refiner else None
+    assert next(pipeline.parameters()).device == torch.device("cpu")
+
+    device, dtype = pipeline._model_device_and_dtype()
+    assert device == pipeline.device
+    assert dtype == (torch.float32 if with_refiner else torch.bfloat16)
 
 
 def _dlo_config(degree=1, *, allgather=False, **kwargs):
@@ -112,6 +128,7 @@ def test_sp_dlo_requires_explicit_experimental_opt_in(allgather):
 @pytest.mark.parametrize(
     ("field", "value", "message"),
     [
+        ("step_execution", True, "request mode"),
         ("enforce_eager", False, "eager"),
         ("cache_backend", "cache_dit", "cache"),
         ("max_num_seqs", 2, "max_num_seqs"),
