@@ -17,7 +17,11 @@ from vllm_omni.diffusion.distributed import parallel_state, sp_sharding
 from vllm_omni.diffusion.distributed.sp_plan import SequenceParallelConfig, validate_sp_plan
 from vllm_omni.diffusion.forward_context import get_forward_context, set_forward_context
 from vllm_omni.diffusion.hooks import sequence_parallel as sp_hooks
-from vllm_omni.diffusion.models.mammoth_moda2.mammothmoda2_dit_model import Transformer2DModel, TransformerBlock
+from vllm_omni.diffusion.models.mammoth_moda2.mammothmoda2_dit_model import (
+    Transformer2DModel,
+    TransformerBlock,
+    _with_packed_rope_table,
+)
 
 from .test_dit_attention import _reference_attention
 
@@ -73,7 +77,8 @@ def test_refiners_stay_local_in_a_fresh_sp_forward_context(hooks_applied):
 
 
 @pytest.mark.parametrize("rank", [0, 1])
-def test_real_hooks_preserve_global_rope_masks_and_reset_cfg_padding(monkeypatch, rank):
+@pytest.mark.parametrize("rope_mode", ["raw", "eager", "packed"])
+def test_real_hooks_preserve_global_rope_masks_and_reset_cfg_padding(monkeypatch, rank, rope_mode):
     model = _model()
     sp_hooks.apply_sequence_parallel(model, SequenceParallelConfig(ulysses_degree=2), model._sp_plan)
     # Simulate rank ownership only. No process group or collective is claimed.
@@ -98,14 +103,22 @@ def test_real_hooks_preserve_global_rope_masks_and_reset_cfg_padding(monkeypatch
             local_hidden = full_hidden.chunk(2, dim=1)[rank]
             local_mask = full_mask.chunk(2, dim=1)[rank]
             local_rope = tuple(F.pad(x, (0, 0, 0, pad)).chunk(2, dim=1)[rank] for x in rotary)
+            if rope_mode != "raw":
+                rotary = _with_packed_rope_table(rotary, 0 if rope_mode == "packed" else None)
             seen = []
 
             def check_layer(hidden_states, attention_mask, image_rotary_emb, temb, query_attention_mask):
                 torch.testing.assert_close(hidden_states, local_hidden, rtol=0, atol=0)
                 torch.testing.assert_close(attention_mask, full_mask)
                 torch.testing.assert_close(query_attention_mask, local_mask)
-                for actual, expected in zip(image_rotary_emb, local_rope):
+                assert len(image_rotary_emb) == len(rotary)
+                for actual, expected in zip(image_rotary_emb[:2], local_rope):
                     torch.testing.assert_close(actual, expected, rtol=0, atol=0)
+                if rope_mode == "packed":
+                    expected_table = torch.cat((local_rope[0][..., 0::2], local_rope[1][..., 0::2]), dim=-1)
+                    torch.testing.assert_close(image_rotary_emb[2], expected_table.reshape(-1, 6), rtol=0, atol=0)
+                elif rope_mode == "eager":
+                    assert image_rotary_emb[2] is None
                 assert ctx.sp_active and ctx._sp_shard_depth == 1
                 assert ctx._sp_equal_pad_stack == [True]
                 assert ctx.sp_rank_local_seq_lens_equal
@@ -129,6 +142,30 @@ def test_real_hooks_preserve_global_rope_masks_and_reset_cfg_padding(monkeypatch
             assert ctx.sp_original_seq_len is None
             assert ctx._sp_shard_depth == 0 and not ctx.sp_active
             assert ctx._sp_equal_pad_stack == []
+
+
+@pytest.mark.parametrize("packed", [False, True])
+def test_single_rank_preserves_the_prepared_rope_table(monkeypatch, packed):
+    model = _model()
+    hidden = torch.randn(1, 7, 126)
+    mask = torch.ones(1, 7, dtype=torch.bool)
+    angles = torch.randn(1, 7, 6)
+    rotary = _with_packed_rope_table((angles.cos(), angles.sin()), 0 if packed else None)
+    seen = []
+
+    def check_layer(hidden_states, attention_mask, image_rotary_emb, temb, query_attention_mask):
+        assert len(image_rotary_emb) == 3
+        assert image_rotary_emb[2] is rotary[2]
+        torch.testing.assert_close(image_rotary_emb[0], rotary[0], rtol=0, atol=0)
+        torch.testing.assert_close(image_rotary_emb[1], rotary[1], rtol=0, atol=0)
+        seen.append(True)
+        return hidden_states
+
+    for layer in model.layers:
+        monkeypatch.setattr(layer, "forward", check_layer)
+    actual = model._apply_transformer_layers(hidden, mask, rotary, None)
+    torch.testing.assert_close(actual, hidden, rtol=0, atol=0)
+    assert len(seen) == len(model.layers)
 
 
 def test_processor_uses_global_key_mask_and_local_output_mask(monkeypatch):
