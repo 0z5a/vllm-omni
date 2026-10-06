@@ -246,6 +246,8 @@ _DLO_RUNNER_PARAMS = [
                     },
                     "1": {
                         "devices": "0,1",
+                        # DLO requires one request even when the default recipe batches.
+                        "max_num_seqs": 1,
                         "ulysses_degree": 2,
                         "ulysses_mode": "advanced_uaa",
                         "enable_distributed_layerwise_offload": True,
