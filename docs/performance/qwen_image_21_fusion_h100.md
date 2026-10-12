@@ -29,7 +29,7 @@ C64 means client concurrency. Per-second monitoring found no foreign GPU process
 
 Mean throughput: 0.427628 -> 0.618625 images/s, **+44.6643%**.
 Mean P95 reduction: **31.0477%**. This describes two paired rounds at this fixed load.
-All **256 paired timed images are pixel-identical** after decoding; 59 fusion GPU tests pass.
+All **256 paired timed images have identical decoded RGB pixels**; 59 fusion GPU tests pass.
 Sampled maximum single-device memory: 33.506 GiB baseline, 33.494 GiB fusion.
 One-second NVML sampling can miss instantaneous peaks. Generated images are model output,
 not ground truth.
