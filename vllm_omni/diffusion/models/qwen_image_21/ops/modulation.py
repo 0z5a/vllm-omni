@@ -165,20 +165,24 @@ def _supported(x: torch.Tensor, params: torch.Tensor, token_mask: torch.Tensor |
         and x.ndim == 3
         and x.is_contiguous()
         and params.dtype is _SUPPORTED_DTYPE
+        and params.device == x.device
         and params.ndim == 2
         and params.shape[-1] == channels
         and params.stride(-1) == 1
         # With a mask the trailing row is the t=0 row; without one every sample reads
         # its own row, so the parameter count is exactly the batch size.
         and params.shape[0] == (x.shape[0] + 1 if token_mask is not None else x.shape[0])
-        and (token_mask is None or (token_mask.dtype is torch.bool and token_mask.shape == (x.shape[1],)))
+        and (
+            token_mask is None
+            or (token_mask.dtype is torch.bool and token_mask.shape == (x.shape[1],) and token_mask.device == x.device)
+        )
     )
 
 
 def _check_rows(x: torch.Tensor, params: torch.Tensor, token_mask: torch.Tensor | None) -> None:
     """Reject a parameter count that matches neither the masked nor the mask-free mode."""
     required = x.shape[0] + 1 if token_mask is not None else x.shape[0]
-    if params.ndim != 2 or params.shape[0] not in (required, 1):
+    if params.ndim != 2 or params.shape[0] != required:
         raise ValueError(
             f"expected {required} modulation rows for batch {x.shape[0]} "
             f"with token_mask {'set' if token_mask is not None else 'unset'}, got {tuple(params.shape)}"
@@ -304,7 +308,14 @@ def apply_gated_residual(
         raise ValueError(f"residual and sublayer must match, got {tuple(residual.shape)} vs {tuple(sublayer.shape)}")
     _check_rows(residual, params, token_mask)
     # Inductor can combine the residual with the next normalization and modulation.
-    if torch.compiler.is_compiling() or not _supported(residual, params, token_mask):
+    # The fused kernel shares the residual's strides with both activation inputs.
+    if (
+        torch.compiler.is_compiling()
+        or not _supported(residual, params, token_mask)
+        or not sublayer.is_contiguous()
+        or sublayer.dtype != residual.dtype
+        or sublayer.device != residual.device
+    ):
         return _reference_gated_residual(residual, sublayer, params, token_mask, prepared)
     return torch.ops.vllm_omni.qwen_image_21_gated_residual(residual, sublayer, params, token_mask, prepared)
 

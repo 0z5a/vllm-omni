@@ -100,7 +100,7 @@ def _qk_norm_rope_kernel(
     freq_offset = token * freqs_stride_s + pairs * 2
     cos = tl.load(freqs_ptr + freq_offset)
     sin = tl.load(freqs_ptr + freq_offset + 1)
-    # ATen contracts a different imaginary product on SM80 than on SM120. Keep the
+    # ATen contracts a different imaginary product on SM80/SM90 than on SM120. Keep the
     # qualified contraction order so values at a BF16 rounding boundary stay exact.
     out_real = fma_rn_f32(real, cos[None, :], -mul_rn_f32(imag, sin[None, :]))
     if imag_fma_on_real:
@@ -132,7 +132,8 @@ def _launch(
     # Complex64 -> FP32 doubles the stride of every outer axis, so read the view's own
     # strides rather than the complex tensor's.
     view = freqs.view(torch.float32)
-    sm80 = torch.cuda.get_device_capability(qk.device) == (8, 0)
+    capability = torch.cuda.get_device_capability(qk.device)
+    sm80 = capability == (8, 0)
     heads_per_program = 8 if sm80 else _HEADS_PER_PROGRAM
     grid = (seq, batch, triton.cdiv(num_heads, heads_per_program))
     _qk_norm_rope_kernel[grid](
@@ -157,7 +158,7 @@ def _launch(
         head_dim=head_dim,
         half_dim=head_dim // 2,
         heads_per_program=heads_per_program,
-        imag_fma_on_real=sm80,
+        imag_fma_on_real=capability in ((8, 0), (9, 0)),
         # One warp per head keeps ATen's reduction order when widening the group.
         num_warps=heads_per_program,
     )
