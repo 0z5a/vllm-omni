@@ -133,6 +133,39 @@ def test_fused_modulation_falls_back_for_ineligible_inputs():
         apply_modulation(x, torch.randn(batch + 3, channels, device="cuda", dtype=torch.bfloat16), mask)
 
 
+@pytest.mark.cpu
+@pytest.mark.parametrize("batch,masked", [(2, False), (4, False), (1, True), (2, True), (4, True)])
+@pytest.mark.parametrize("gated", [False, True])
+def test_single_modulation_row_is_rejected_when_the_mode_requires_more(batch, masked, gated):
+    x = torch.ones(batch, 8, 16, dtype=torch.bfloat16)
+    params = torch.ones(1, 16, dtype=torch.bfloat16)
+    mask = torch.ones(8, dtype=torch.bool) if masked else None
+    with pytest.raises(ValueError):
+        if gated:
+            apply_gated_residual(x, x, params, mask)
+        else:
+            apply_modulation(x, params, mask)
+
+
+@pytest.mark.cuda
+@pytest.mark.gpu
+@pytest.mark.parametrize("case", ["strided", "fp32"])
+@pytest.mark.parametrize("masked", [False, True])
+def test_gated_residual_falls_back_for_an_ineligible_sublayer(case, masked):
+    torch.manual_seed(7945)
+    batch, seq, channels = 2, 32, 256
+    residual = torch.randn(batch, seq, channels, device="cuda", dtype=torch.bfloat16)
+    packed = torch.randn(batch, seq, 2 * channels, device="cuda", dtype=torch.bfloat16)
+    sublayer = packed[..., :channels] if case == "strided" else packed[..., :channels].float().contiguous()
+    assert not sublayer.is_contiguous() or sublayer.dtype != residual.dtype
+    params = torch.randn(batch + int(masked), channels, device="cuda", dtype=torch.bfloat16)
+    mask = torch.arange(seq, device="cuda") >= seq // 2 if masked else None
+    expected = _eager_gated_residual(residual, sublayer, params, mask)
+    actual = apply_gated_residual(residual, sublayer, params, mask)
+    assert actual.dtype == expected.dtype
+    torch.testing.assert_close(actual, expected, rtol=0, atol=0)
+
+
 @pytest.mark.cuda
 @pytest.mark.gpu
 def test_block_forward_is_unchanged_by_modulation_fusion(monkeypatch):
