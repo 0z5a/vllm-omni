@@ -48,7 +48,8 @@ The four newly added CUDA fallback regressions have not run on the macOS submiss
 Use the pinned server sources above when reproducing the table; subsequent main changes to
 sampling defaults are outside this recorded cohort. On an already allocated four-GPU machine,
 start four independent services on ports 8000-8003,
-each assigned exactly one GPU. For each server, set its device and port:
+each assigned exactly one GPU. Set MODEL to the pinned local checkpoint; for each server,
+set its device and port:
 
 ```bash
 CUDA_VISIBLE_DEVICES=0 OMP_NUM_THREADS=8 MKL_NUM_THREADS=8 \
@@ -66,7 +67,7 @@ The CLI creates a reproducible fixed-shape cohort; keep its emitted request reco
 python benchmarks/diffusion/benchmark_image_replicas.py \
   --endpoint http://127.0.0.1:8000 --endpoint http://127.0.0.1:8001 \
   --endpoint http://127.0.0.1:8002 --endpoint http://127.0.0.1:8003 \
-  --model Qwen/Qwen-Image-2.1 --prompt "$PROMPT" --seed 42 \
+  --model "$MODEL" --prompt "$PROMPT" --seed 42 \
   --concurrency 64 --requests 128 --warmup 8 \
   --width 1024 --height 1024 --steps 50 --cfg 1 --output "$RESULT_DIR"
 ```
