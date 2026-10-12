@@ -35,7 +35,8 @@ One-second NVML sampling can miss instantaneous peaks. Generated images are mode
 not ground truth.
 
 Older shared-node throughput numbers are superseded. Their output comparisons remain historical evidence.
-This measurement uses fusion only; the PR's separate six-resident-layer offload change is not active.
+This PR contains fusion only. The original six-resident-layer offload implementation is preserved
+on a separate legacy branch and is excluded from this comparison.
 
 The current PR adds stricter row validation and eager fallback for strided or differently
 typed/device sublayers. The measured contiguous BF16 path uses the same GPU kernels.
@@ -44,7 +45,9 @@ The four newly added CUDA fallback regressions have not run on the macOS submiss
 
 ## Reproduce a paired comparison
 
-On an already allocated four-GPU machine, start four independent services on ports 8000-8003,
+Use the pinned server sources above when reproducing the table; subsequent main changes to
+sampling defaults are outside this recorded cohort. On an already allocated four-GPU machine,
+start four independent services on ports 8000-8003,
 each assigned exactly one GPU. For each server, set its device and port:
 
 ```bash
