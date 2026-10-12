@@ -627,6 +627,9 @@ class SeedVR2Pipeline(nn.Module):
         missing = targets.keys() - loaded
         if missing:
             raise ValueError(f"Missing SeedVR2 checkpoint keys: {sorted(missing)}")
+        # Also covers checkpoint copies into inference tensors without version counters.
+        for block in self.transformer.blocks:
+            block.attn.rope.clear_frequency_cache()
         return loaded
 
     @torch.inference_mode()
@@ -647,7 +650,7 @@ class SeedVR2Pipeline(nn.Module):
             condition = latent.permute(0, 2, 3, 4, 1).squeeze(0) * 0.9152
             noise = sample_noise(condition, generator)
             video = torch.cat((noise, condition, torch.ones_like(condition[..., :1])), dim=-1).reshape(-1, 33)
-            shape = torch.tensor([condition.shape[:3]], device=self.device, dtype=torch.long)
+            shape = tuple(condition.shape[:3])
             text_shape = torch.tensor([[self.text.shape[0]]], device=self.device, dtype=torch.long)
             timestep = torch.tensor([1000.0], device=self.device, dtype=torch.float16)
             runtime = self.transformer.build_runtime(

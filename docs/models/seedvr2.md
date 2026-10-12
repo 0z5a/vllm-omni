@@ -216,6 +216,39 @@ window within the whole-clip pixel budget; it does not raise the
 uses fixed one-step, CFG=1 conditioning and requires `imageio[ffmpeg]` for
 audio muxing. The 7,200-frame 768×1344 case is still undergoing full GPU E2E.
 
+## Prepared window-SP metadata
+
+Video production pipelines need to process many spatial and temporal tokens.
+The existing window-SP implementation provides a multi-GPU execution path;
+prepared CPU geometry and bounded device plans reduce repeated preparation
+within that path. This preparation does not introduce streaming model execution
+or change temporal window handoff.
+
+The eager DiT reuses equal-length grouped SDPA row indices and complete RoPE
+sin/cos tables across layers within each request and layout. Window boundaries,
+FP32 rotary arithmetic, checkpoint precision, and the attention backend are
+unchanged. This does not skip transformer computation or alter the VAE.
+
+Full rotary tables are request-owned and bounded; modules with different
+frequency values do not share them. The checkpoint loader invalidates frequency
+signatures and axis tables on reload. Set `VLLM_OMNI_SEEDVR2_DIT_CACHE=0` before
+starting a worker to use the uncached reference path; the default is enabled.
+
+Run the cache regression checks from the checkout:
+
+```bash
+PYTHONPATH=. python -m pytest tests/diffusion/models/seedvr2/test_dit_cache.py \
+  -m 'core_model and cpu' --run-level=core_model
+PYTHONPATH=. python -m pytest tests/diffusion/models/seedvr2/test_dit_cache.py \
+  -m 'core_model and cuda' --run-level=core_model
+```
+
+These tests need no model weights; CUDA tests additionally need a CUDA device.
+For whole-clip HTTP throughput, use
+`benchmarks/diffusion/benchmark_seedvr2_highc.py`. It accepts an input CSV manifest
+and run metadata, retains every response, and decodes every returned frame.
+It reports both HTTP-delivered and fully decoded valid frames per second.
+
 ## Temporal and spatial VAE tiling
 
 Add `--vae-use-tiling` to bound VAE intermediate activations along time. The
@@ -253,7 +286,7 @@ parallel outputs are numerically close rather than bitwise identical.
 | Randomness | Per-request generator; preserve reference latent strides when sampling noise |
 | Sequence parallelism | Native engine SP1/2/4 correctness verified on five-frame L20 cases |
 | VAE placement | Replicated by default; optional height sharding on the window-SP group |
-| Unsupported | VFR, multichannel audio, 7B, other sampling schedules, quantization, cache acceleration, VAE width sharding / batch slicing, CPU offload, CFG/TP/PP parallelism, compiled execution, LoRA |
+| Unsupported | VFR, multichannel audio, 7B, other sampling schedules, quantization, approximate activation caching, VAE width sharding / batch slicing, CPU offload, CFG/TP/PP parallelism, compiled execution, LoRA |
 
 Unsupported engine modes are rejected before process hooks and worker creation.
 `ulysses_degree` selects the model-owned SP group. This branch assigns whole
