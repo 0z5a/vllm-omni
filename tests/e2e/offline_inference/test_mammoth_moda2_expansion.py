@@ -253,9 +253,7 @@ _DLO_RUNNER_PARAMS = [
                         "enable_distributed_layerwise_offload": True,
                         "dlo_use_allgather": use_allgather,
                         "extras": {"mammoth_experimental_dlo": True},
-                        "worker_extension_cls": (
-                            "benchmarks.mammoth_moda2.qualification_worker.QualificationWorkerExtension"
-                        ),
+                        "worker_extension_cls": ("tests.helpers.mammoth_moda2_worker.QualificationWorkerExtension"),
                     },
                 },
             },
@@ -272,7 +270,7 @@ _DLO_RUNNER_PARAMS = [
 @pytest.mark.diffusion
 @pytest.mark.parallel
 @pytest.mark.parametrize("omni_runner,dlo_mode", _DLO_RUNNER_PARAMS, indirect=["omni_runner"])
-@hardware_test(res={"cuda": "H100"}, num_cards=2)
+@hardware_test(res={"cuda": ["H100", "B200"]}, num_cards=2)
 def test_mammothmoda2_dlo_repeated_t2i_e2e(omni_runner: OmniRunner, dlo_mode: str, tmp_path: Path):
     """Full checkpoint AR -> DiT -> VAE, reusing the same DLO backend across requests."""
     replies = omni_runner.omni.engine.collective_rpc(

@@ -93,12 +93,12 @@ def _runtime_replay(rank, device, dtype):
                 request = requests[text_len]
                 torch.manual_seed(500 + text_len)
                 with set_forward_context(omni_diffusion_config=baseline_config):
-                    expected = baseline(request).output
+                    expected = baseline(request)[0].output
                 # Request-level seeds must dominate different rank-local RNG
                 # states, including when the original caller omitted a seed.
                 torch.manual_seed(500 + text_len + rank)
                 with set_forward_context(omni_diffusion_config=sp_config):
-                    actual = pipeline(request).output
+                    actual = pipeline(request)[0].output
                     ctx = get_forward_context()
                     assert (ctx.sp_original_seq_len, ctx.sp_padding_size, ctx._sp_shard_depth) == (None, 0, 0)
                     assert ctx._sp_equal_pad_stack == []
@@ -181,10 +181,10 @@ def _worker(rank, port, output_dir, dtype, backend):
                     local_seq = (global_seq + 1) // 2
                     seen_main, seen_refiners, seen_attention = [], [], []
 
-                    def main_hook(module, inputs):
+                    def main_hook(module, inputs, kwargs):
                         assert inputs[0].shape == (1, local_seq, 2520)
-                        assert inputs[1].shape == (1, local_seq * 2)
-                        assert inputs[4].shape == (1, local_seq)
+                        assert kwargs["attention_mask"].shape == (1, local_seq * 2)
+                        assert kwargs["query_attention_mask"].shape == (1, local_seq)
                         assert ctx._sp_shard_depth == 1
                         assert ctx._sp_equal_pad_stack == [True]
                         assert ctx.sp_rank_local_seq_lens_equal
@@ -203,7 +203,7 @@ def _worker(rank, port, output_dir, dtype, backend):
                         assert inputs[0].dtype == output.dtype == dtype
                         seen_attention.append(True)
 
-                    handles = [layer.register_forward_pre_hook(main_hook) for layer in model.layers]
+                    handles = [layer.register_forward_pre_hook(main_hook, with_kwargs=True) for layer in model.layers]
                     handles += [layer.attn.omni_attn.register_forward_hook(attention_hook) for layer in model.layers]
                     handles += [
                         layer.register_forward_pre_hook(refiner_hook)
