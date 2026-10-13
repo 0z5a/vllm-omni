@@ -394,9 +394,11 @@ def validate_seedvr2_config(config: OmniDiffusionConfig) -> None:
     parallel = config.parallel_config
     validate_seedvr2_parallel_config(parallel)
     if (graph_config is not None or vae_graph_config is not None) and (
-        parallel.sequence_parallel_size not in (2, 4) or not config.vae_use_tiling
+        parallel.sequence_parallel_size not in (1, 2, 4) or not config.vae_use_tiling
     ):
-        raise ValueError("SeedVR2 model-owned graphs currently require SP2/SP4 and VAE tiling")
+        raise ValueError("SeedVR2 model-owned graphs require a single GPU or SP2/SP4 and VAE tiling")
+    if vae_graph_config is not None and parallel.sequence_parallel_size not in (2, 4):
+        raise ValueError("SeedVR2 VAE decoder graphs require SP2/SP4 height sharding")
     if vae_graph_config is not None and parallel.vae_patch_parallel_size != parallel.sequence_parallel_size:
         raise ValueError("SeedVR2 VAE decoder graphs require VAE height sharding on the complete SP group")
     if parallel.data_parallel_size is not None and parallel.data_parallel_size > 1:

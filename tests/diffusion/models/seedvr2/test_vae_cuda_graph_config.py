@@ -18,13 +18,14 @@ pytestmark = [pytest.mark.cpu, pytest.mark.core_model, pytest.mark.diffusion]
 
 
 def test_temporal_graph_configuration_and_eager_override():
-    extras = {CONFIG_KEY: {"profiles": [[5, 60, 106], [2, 60, 106], [3, 44, 80]]}}
+    profile: dict[str, object] = {"profiles": [[5, 60, 106], [2, 60, 106], [3, 44, 80]]}
+    extras = {CONFIG_KEY: profile}
     config = VAEDecoderGraphConfig.from_extras(extras, enforce_eager=False)
     assert config.profiles == ((2, 60, 106), (3, 44, 80), (5, 60, 106))
     assert VAEDecoderGraphConfig.from_extras(extras, enforce_eager=True) is None
     assert VAEDecoderGraphConfig.from_extras({}, enforce_eager=False) is None
     assert config.fuse_normalization is False
-    extras[CONFIG_KEY]["fuse_normalization"] = True
+    profile["fuse_normalization"] = True
     assert VAEDecoderGraphConfig.from_extras(extras, enforce_eager=False).fuse_normalization
 
 

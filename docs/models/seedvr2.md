@@ -354,3 +354,10 @@ See the [RTX 5090 recipe](https://github.com/vllm-project/vllm-omni/blob/main/re
 input/output contract, complete serving command, and media checks. The local
 tests in `tests/diffusion/models/seedvr2/test_seedvr2_e2e.py` exercise the full
 3B pipeline, all colour modes, and HTTP restoration with USP 1 and 8.
+
+NaDiT CUDA Graphs also support one GPU with SP disabled. Use four independent
+single-GPU servers to compare this strategy with SP4 or two SP2 servers on the
+same four-GPU budget. Decoder CUDA Graphs currently require SP2/SP4 height
+sharding; compare NaDiT-only graph profiles when isolating SP and graph effects.
+Report the additional decoder graph and spatial normalization fusion settings
+separately from that comparison.

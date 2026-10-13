@@ -8,6 +8,7 @@ import torch
 from vllm_omni.diffusion.models.seedvr2 import nadit as n
 from vllm_omni.diffusion.models.seedvr2.nadit_cuda_graph import (
     CONFIG_KEY,
+    NaDiTCoreGraphs,
     NaDiTGraphConfig,
     _versions,
     validate_transition_descriptors,
@@ -116,3 +117,41 @@ def test_model_retires_graph_before_storage_change(operation):
         assert observed[0].tolist() == [1, 1]
         assert model.weight.tolist() == [0, 0]
     assert model.core_graphs is None and len(observed) == 1
+
+
+def test_single_gpu_graph_control_avoids_distributed_collectives(monkeypatch):
+    graphs = NaDiTCoreGraphs.__new__(NaDiTCoreGraphs)
+    graphs.world = 1
+    graphs.cpu_group = None
+    synchronized = []
+
+    def unexpected_collective(*args, **kwargs):
+        raise AssertionError("single-GPU graphs must not issue a distributed control collective")
+
+    monkeypatch.setattr(torch.distributed, "all_gather_object", unexpected_collective)
+    monkeypatch.setattr(torch.distributed, "barrier", unexpected_collective)
+    monkeypatch.setattr(torch.accelerator, "synchronize", lambda: synchronized.append(True))
+    payload = {"geometry": [2, 60, 106]}
+    assert graphs._gather(payload) == [payload]
+    graphs._drain()
+    assert synchronized == [True]
+
+
+def test_single_gpu_nadit_graph_config_is_independent_of_sp():
+    from vllm_omni.diffusion.data import DiffusionParallelConfig, OmniDiffusionConfig
+    from vllm_omni.diffusion.models.seedvr2.pipeline_seedvr2 import validate_seedvr2_config
+    from vllm_omni.diffusion.models.seedvr2.vae_cuda_graph import CONFIG_KEY as VAE_KEY
+
+    config = OmniDiffusionConfig(
+        model="SeedVR2",
+        dtype=torch.float16,
+        enforce_eager=False,
+        max_num_seqs=1,
+        vae_use_tiling=True,
+        parallel_config=DiffusionParallelConfig(ulysses_degree=1, vae_patch_parallel_size=1),
+        extras={CONFIG_KEY: {"profiles": [[2, 60, 106]]}},
+    )
+    validate_seedvr2_config(config)
+    config.extras[VAE_KEY] = {"profiles": [[2, 60, 106]]}
+    with pytest.raises(ValueError, match="VAE decoder graphs require SP2/SP4"):
+        validate_seedvr2_config(config)

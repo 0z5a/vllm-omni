@@ -146,10 +146,11 @@ class NaDiTCoreGraphs:
         probe = model.build_runtime(
             model.token_grid_for(config.profiles[0]), text_len=text.shape[0], parallel_config=parallel_config
         )
-        if probe.world_size not in (2, 4) or dist.get_world_size() != probe.world_size:
-            raise ValueError("SeedVR2 NaDiT graphs currently require one SP2/SP4 group per service")
+        if probe.world_size not in (1, 2, 4) or (dist.is_initialized() and dist.get_world_size() != probe.world_size):
+            raise ValueError("SeedVR2 NaDiT graphs require a single GPU or one SP2/SP4 group per service")
         self.group, self.world, self.rank = probe.group, probe.world_size, probe.rank
-        self.cpu_group = dist.new_group(backend="gloo")
+        if self.world > 1:
+            self.cpu_group = dist.new_group(backend="gloo")
         self.pool_bytes = 0
         self.identity = _execution_identity(model)
         self.closed = False
@@ -181,13 +182,16 @@ class NaDiTCoreGraphs:
         logger.info("SeedVR2 NaDiT CUDA graph manifest: %s", json.dumps(self.manifest))
 
     def _gather(self, value):
+        if self.world == 1:
+            return [value]
         values = [None] * self.world
         dist.all_gather_object(values, value, group=self.cpu_group)
         return values
 
     def _drain(self):
         torch.accelerator.synchronize()
-        dist.barrier(group=self.cpu_group)
+        if self.world > 1:
+            dist.barrier(group=self.cpu_group)
 
     def _prepare(self, geometry, text, parallel_config):
         free, _ = current_omni_platform.get_device_memory()
