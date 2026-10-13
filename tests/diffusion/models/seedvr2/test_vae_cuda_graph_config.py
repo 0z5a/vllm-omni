@@ -23,6 +23,9 @@ def test_temporal_graph_configuration_and_eager_override():
     assert config.profiles == ((2, 60, 106), (3, 44, 80), (5, 60, 106))
     assert VAEDecoderGraphConfig.from_extras(extras, enforce_eager=True) is None
     assert VAEDecoderGraphConfig.from_extras({}, enforce_eager=False) is None
+    assert config.fuse_normalization is False
+    extras[CONFIG_KEY]["fuse_normalization"] = True
+    assert VAEDecoderGraphConfig.from_extras(extras, enforce_eager=False).fuse_normalization
 
 
 @pytest.mark.parametrize(
@@ -43,6 +46,8 @@ def test_temporal_graph_configuration_and_eager_override():
         {"profiles": [[2, 4, 6]], "max_pool_bytes": 0},
         {"profiles": [[2, 4, 6]], "eager_headroom_bytes": True},
         {"profiles": [[2, 4, 6]], "recapture_on_miss": True},
+        {"profiles": [[2, 4, 6]], "fuse_normalization": 1},
+        {"profiles": [[2, 4, 6]], "fuse_normalization": "true"},
     ],
 )
 def test_invalid_vae_graph_profiles_are_startup_errors(value):
@@ -75,6 +80,7 @@ def test_vae_retires_graph_before_storage_or_group_change(operation):
             observed.append(model.decoder.conv_in.weight.dtype)
 
     model.decoder_graphs = Graphs()
+    model.fused_spatial_normalization = True
     if operation == "move":
         model.to(dtype=torch.float64)
     elif operation == "reload":
@@ -82,6 +88,7 @@ def test_vae_retires_graph_before_storage_or_group_change(operation):
     else:
         model.set_parallel_size(1)
     assert observed == [original_dtype] and model.decoder_graphs is None
+    assert model.fused_spatial_normalization is False
 
 
 @pytest.mark.parametrize("combined", [False, True])

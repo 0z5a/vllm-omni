@@ -23,13 +23,19 @@ class VAEDecoderGraphConfig:
     profiles: tuple[tuple[int, int, int], ...]
     max_pool_bytes: int = 4 * 1024**3
     eager_headroom_bytes: int = 8 * 1024**3
+    fuse_normalization: bool = False
 
     @classmethod
     def from_extras(cls, extras: dict[str, Any], *, enforce_eager: bool):
         value = extras.get(CONFIG_KEY)
         if enforce_eager or value is None:
             return None
-        if not isinstance(value, dict) or set(value) - {"profiles", "max_pool_bytes", "eager_headroom_bytes"}:
+        if not isinstance(value, dict) or set(value) - {
+            "profiles",
+            "max_pool_bytes",
+            "eager_headroom_bytes",
+            "fuse_normalization",
+        }:
             raise ValueError(f"{CONFIG_KEY} requires profiles and optional byte budgets")
         shapes = value.get("profiles")
         if not isinstance(shapes, list) or not 1 <= len(shapes) <= 4:
@@ -46,7 +52,10 @@ class VAEDecoderGraphConfig:
         budgets = {key: value.get(key, getattr(cls, key)) for key in ["max_pool_bytes", "eager_headroom_bytes"]}
         if any(type(x) is not int or x <= 0 for x in budgets.values()):
             raise ValueError("VAE decoder graph budgets must be positive integer byte counts")
-        return cls(tuple(sorted(parsed)), **budgets)
+        fusion = value.get("fuse_normalization", False)
+        if type(fusion) is not bool:
+            raise ValueError("VAE normalization fusion must be a boolean")
+        return cls(tuple(sorted(parsed)), **budgets, fuse_normalization=fusion)
 
 
 def temporal_phases(frames: int):
@@ -61,6 +70,7 @@ def _identity(model):
         model.use_tiling,
         id(model._spatial_group),
         type(model.decoder),
+        model.fused_spatial_normalization,
         tuple(
             (
                 name,
@@ -93,12 +103,15 @@ class VAEDecoderGraphs:
         self.entries, self.manifest = {}, []
         self.pending_graphs = []
         self.pool_bytes = 0
+        model.fused_spatial_normalization = config.fuse_normalization
         self.identity = _identity(model)
         self.closed = self.retired = self.failed = self._leased = False
         self.last_event = None
         self.stats = dict(replays=0, eager_misses=0, retired=0, first=0, continuation=0, tail=0)
         model.decoder_graphs = self
-        signatures = self._gather((config.profiles, config.max_pool_bytes, config.eager_headroom_bytes))
+        signatures = self._gather(
+            (config.profiles, config.max_pool_bytes, config.eager_headroom_bytes, config.fuse_normalization)
+        )
         if any(value != signatures[0] for value in signatures):
             raise RuntimeError("SeedVR2 ranks disagree on VAE decoder graph profiles")
         geometries = sorted({shape[1:] for shape in config.profiles})
@@ -189,7 +202,13 @@ class VAEDecoderGraphs:
             initial = initial.to(dtype).reshape(1, 16, frames, height, width)
             owned = []
             for value in (initial, initial * 0.5 + 0.0625, initial):
-                expected = model._decode_eager(value, chunk_size=2)
+                # Compare the captured fused path against original arithmetic.
+                fusion = model.fused_spatial_normalization
+                try:
+                    model.fused_spatial_normalization = False
+                    expected = model._decode_eager(value, chunk_size=2)
+                finally:
+                    model.fused_spatial_normalization = fusion
                 self._drain()
                 actual = self._execute(entry, value)
                 self._drain()

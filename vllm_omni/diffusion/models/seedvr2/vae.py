@@ -26,6 +26,7 @@ class SpatialContext:
     group: dist.ProcessGroup
     rank: int
     units: tuple[int, ...]
+    fused_normalization: bool = False
 
     def split(self, x: torch.Tensor) -> torch.Tensor:
         scale = x.shape[-2] // sum(self.units)
@@ -50,7 +51,12 @@ class SpatialContext:
         global_mean = moments[0] / moments[1]
         centered = (variance + (mean - global_mean).square()) * count
         dist.all_reduce(centered, group=self.group)
-        normalized = grouped.sub_(global_mean).mul_(torch.rsqrt(centered / moments[1] + norm.eps)).reshape_as(x)
+        inverse = torch.rsqrt(centered / moments[1] + norm.eps)
+        if self.fused_normalization and grouped.device.type == "cuda" and grouped.is_contiguous():
+            from .vae_norm import apply_spatial_norm
+
+            return apply_spatial_norm(grouped, global_mean, inverse, norm, tuple(x.shape), x.dtype)
+        normalized = grouped.sub_(global_mean).mul_(inverse).reshape_as(x)
         normalized.mul_(norm.weight.float().view(1, -1, 1, 1, 1))
         normalized.add_(norm.bias.float().view(1, -1, 1, 1, 1))
         return normalized.to(x.dtype)
@@ -323,6 +329,7 @@ class SeedVR2VAE(nn.Module, DistributedVaeMixin):
         self.use_tiling = False
         self._spatial_group: dist.ProcessGroup | None = None
         self.decoder_graphs = None
+        self.fused_spatial_normalization = False
         self.encoder = Encoder3d(channels, groups, latent_channels)
         self.decoder = Decoder3d(channels, groups, latent_channels)
 
@@ -330,6 +337,7 @@ class SeedVR2VAE(nn.Module, DistributedVaeMixin):
         if self.decoder_graphs is not None:
             self.decoder_graphs.close()
             self.decoder_graphs = None
+        self.fused_spatial_normalization = False
 
     def _apply(self, fn, recurse=True):
         self.release_captured_graphs()
@@ -358,7 +366,7 @@ class SeedVR2VAE(nn.Module, DistributedVaeMixin):
             size = dist.get_world_size(group)
             if latent_height >= size:
                 units = tuple((i + 1) * latent_height // size - i * latent_height // size for i in range(size))
-                spatial = SpatialContext(group, dist.get_rank(group), units)
+                spatial = SpatialContext(group, dist.get_rank(group), units, self.fused_spatial_normalization)
         return TemporalContext(tile_spatial=self.use_tiling, spatial=spatial)
 
     def encode(self, x: torch.Tensor, *, chunk_size: int | None = None) -> DiagonalGaussianDistribution:
