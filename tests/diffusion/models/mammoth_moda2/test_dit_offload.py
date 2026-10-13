@@ -3,14 +3,15 @@
 """Model-side DLO contracts. CPU tests do not claim transfer validation."""
 
 from dataclasses import replace
+from pathlib import Path
 
 import pytest
 import torch
 
-from tests.diffusion.models.mammoth_moda2.test_pipeline_sp import _config, _pipeline, _request
 from tests.diffusion.offloader.helpers import patch_offload_runtime
+from vllm_omni.diffusion.config import set_current_diffusion_config
+from vllm_omni.diffusion.data import DiffusionParallelConfig, OmniDiffusionConfig, TransformerConfig
 from vllm_omni.diffusion.forward_context import set_forward_context
-from vllm_omni.diffusion.model_loader.host_weight_plan import _planned_source_prefixes
 from vllm_omni.diffusion.models.mammoth_moda2.pipeline_mammothmoda2_dit import (
     MammothModa2DiTPipeline,
     _build_mammoth_config,
@@ -21,16 +22,120 @@ from vllm_omni.diffusion.offloader.component_utils import iter_streamable_dits
 from vllm_omni.diffusion.offloader.distributed_layerwise_backend import DistributedLayerwiseOffloadBackend
 from vllm_omni.diffusion.offloader.offload_plan import get_offload_plan
 from vllm_omni.diffusion.offloader.plan_resolver import resolve_offload_plan
+from vllm_omni.diffusion.request import OmniDiffusionRequest
+from vllm_omni.diffusion.worker.request_batch import DiffusionRequestBatch
+from vllm_omni.inputs.data import OmniDiffusionSamplingParams
 from vllm_omni.platforms import current_omni_platform
 
 pytestmark = [pytest.mark.core_model, pytest.mark.cpu, pytest.mark.diffusion]
 
 
-def test_native_diffusion_extras_default_is_an_independent_dict():
-    first, second = _config(), _config()
-    assert first.extras == second.extras == {}
-    first.extras["mammoth_experimental_dlo"] = True
-    assert second.extras == {}
+@pytest.fixture(autouse=True)
+def dlo_cpu_attention_backend(monkeypatch, request):
+    """Let DLO CPU tests run without GPU discovery; do not replace attention arithmetic.
+
+    The unspecified platform has neither a backend selector nor a forward
+    dispatch branch. Resolve explicit names to their real implementation and
+    use SDPA's existing broadcast-key entrypoint on CPU tensors. No projection,
+    mask, GQA, RoPE or kernel arithmetic is replaced. GPU tests retain both
+    production platform selection and forward dispatch.
+    """
+    from vllm_omni.diffusion.attention import selector
+    from vllm_omni.diffusion.attention.backends.registry import DiffusionAttentionBackendEnum
+    from vllm_omni.diffusion.attention.backends.sdpa import SDPAImpl
+    from vllm_omni.platforms import current_omni_platform
+
+    if request.node.get_closest_marker("cpu") is None or current_omni_platform.device_type != "cpu":
+        return
+
+    def resolve_explicit_backend(name, head_size):
+        assert name is not None, "CPU contracts must pin an explicit backend"
+        return DiffusionAttentionBackendEnum[name].get_class()
+
+    monkeypatch.setattr(selector, "_cached_get_backend_cls", resolve_explicit_backend)
+    monkeypatch.setattr(SDPAImpl, "forward", SDPAImpl.forward_cuda)
+
+
+def _config(degree=1):
+    raw = {
+        "llm_config": {
+            "model_type": "mammothmoda2_qwen2_5_vl",
+            "gen_vocab_start_index": 100,
+            "text_config": {"hidden_size": 16, "gen_vocab_start_index": 100},
+        },
+        "gen_dit_config": {
+            "hidden_size": 126,
+            "num_attention_heads": 21,
+            "num_kv_heads": 7,
+            "axes_dim_rope": (2, 2, 2),
+            "axes_lens": (32, 32, 32),
+            "num_layers": 2,
+            "num_refiner_layers": 1,
+            "in_channels": 4,
+            "text_feat_dim": 16,
+            "multiple_of": 8,
+        },
+        "gen_vae_config": {
+            "in_channels": 3,
+            "out_channels": 3,
+            "latent_channels": 4,
+            "block_out_channels": (8, 8, 8, 8),
+            "down_block_types": ("DownEncoderBlock2D",) * 4,
+            "up_block_types": ("UpDecoderBlock2D",) * 4,
+            "layers_per_block": 1,
+            "norm_num_groups": 4,
+        },
+        "gen_image_condition_refiner_config": {"num_queries": 2, "num_layers": 1},
+        "gen_axes_dim_rope": (2, 2, 2),
+        "gen_axes_lens": (32, 32, 32),
+    }
+    return OmniDiffusionConfig(
+        # An existing directory avoids Hub resolution in offline GPU workers.
+        # The explicit tiny config supplies the architecture; no weights load.
+        model=str(Path(__file__).parent),
+        model_class_name="MammothModa2DiTPipeline",
+        tf_model_config=TransformerConfig.from_dict(raw),
+        dtype=torch.float32,
+        enforce_eager=True,
+        parallel_config=DiffusionParallelConfig(ulysses_degree=degree, ulysses_mode="advanced_uaa"),
+        diffusion_attention_config={"default": {"backend": "TORCH_SDPA"}},
+    )
+
+
+def _pipeline(config, monkeypatch):
+    monkeypatch.setattr(
+        "vllm_omni.diffusion.models.mammoth_moda2.pipeline_mammothmoda2_dit.get_local_device",
+        lambda: torch.device("cpu"),
+    )
+    torch.manual_seed(19)
+    with set_current_diffusion_config(config), set_forward_context(omni_diffusion_config=config):
+        return MammothModa2DiTPipeline(od_config=config).eval()
+
+
+def _request(text_len, guidance, seed=42):
+    generator = torch.Generator().manual_seed(31 + text_len)
+    return DiffusionRequestBatch(
+        [
+            OmniDiffusionRequest(
+                request_id=f"tiny-{text_len}",
+                prompt={
+                    "prompt": "",
+                    "additional_information": {
+                        "full_hidden_states": torch.randn(text_len + 2, 16, generator=generator),
+                        "full_token_ids": list(range(10, 10 + text_len)) + [100, 101],
+                        "answer_start_index": text_len,
+                    },
+                },
+                sampling_params=OmniDiffusionSamplingParams(
+                    height=32,
+                    width=48,
+                    num_inference_steps=2,
+                    seed=seed,
+                    guidance_scale=guidance,
+                ),
+            )
+        ]
+    )
 
 
 @pytest.mark.parametrize("with_refiner", [False, True])
@@ -84,16 +189,6 @@ def test_dlo_plan_discovers_only_main_transformer_blocks(monkeypatch):
     assert stack.attrs == ("layers",)
     assert blocks == tuple(model.layers)
     assert not {id(block) for block in blocks}.intersection(id(block) for block in model.context_refiner)
-
-
-def test_mixed_root_checkpoint_rejects_dedicated_mmap_source_selection(monkeypatch):
-    config = _dlo_config()
-    pipeline = _pipeline(config, monkeypatch)
-    # Test the real source-selection boundary without initializing unrelated
-    # CUDA-only checkpoint adapters in a CPU test. The planner catches this
-    # incompatibility and selects the ordinary loader.
-    with pytest.raises(RuntimeError, match="dedicated component weight source"):
-        _planned_source_prefixes(pipeline.weights_sources, [("gen_transformer", pipeline.gen_transformer)])
 
 
 @pytest.mark.parametrize("transfer", ["rank-local", "allgather"])

@@ -607,10 +607,9 @@ hooks, Q-Former, DiT, sequential CFG, request-level seed handling, scheduler and
 VAE with synthetic AR conditioning. It tests explicit/default-seed A/B/A
 requests; it is not a released-conditioning or full-checkpoint E2E test.
 
-```bash
-CUDA_VISIBLE_DEVICES=0,1 OMP_NUM_THREADS=4 python -m pytest -q \
-  tests/diffusion/distributed/test_mammothmoda2_ulysses.py
-```
+The standalone SP regression suite is maintained with the
+[SP contribution](https://github.com/vllm-project/vllm-omni/pull/7160).
+This contribution keeps the DLO lifecycle and full-checkpoint tests below.
 
 The full-weight qualification used Preview revision
 `ef5a5e41dbf0de1ef6275586b7580f0d4248b4c6`, vLLM 0.28.0, Torch 2.13.0+cu130,

@@ -13,8 +13,7 @@ import torch.distributed as dist
 from torch.nn.attention import SDPBackend, sdpa_kernel
 from vllm.utils.network_utils import get_open_port
 
-from tests.diffusion.models.mammoth_moda2.test_dit_offload import _dlo_config
-from tests.diffusion.models.mammoth_moda2.test_pipeline_sp import _config, _request
+from tests.diffusion.models.mammoth_moda2.test_dit_offload import _config, _dlo_config, _request
 from tests.helpers.mark import hardware_test
 from vllm_omni.diffusion.config import set_current_diffusion_config
 from vllm_omni.diffusion.distributed.parallel_state import (
