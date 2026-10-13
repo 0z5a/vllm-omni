@@ -1031,7 +1031,7 @@ class DeviceWindowPlanCache:
     """Model-owned, byte-bounded read-only indices. No activations or groups.
 
     An evicted plan stays alive while a request holds its tensors. This bounds
-    cache residency, not memory held by active consumers.
+    cache residency, not memory held by active consumers or CUDA graph pools.
     Callers must never mutate cached tensors or put live request state here.
     """
 
@@ -2205,6 +2205,7 @@ class SeedVR2NaDiT(nn.Module):
         self.window = tuple(int(v) for v in window)
         self.window_method = tuple(window_method)
         self.device_plan_cache = DeviceWindowPlanCache()
+        self.core_graphs = None
 
         self.vid_in = _NaPatchIn(in_channels=vid_in_channels, patch_size=self.patch_size, dim=vid_dim)
         self.txt_in = nn.Linear(txt_in_dim, txt_dim) if txt_in_dim != txt_dim else nn.Identity()
@@ -2236,8 +2237,18 @@ class SeedVR2NaDiT(nn.Module):
         self.vid_out = _NaPatchOut(out_channels=vid_out_channels, patch_size=self.patch_size, dim=vid_dim)
 
     def _apply(self, fn, recurse=True):
+        self.release_captured_graphs()
         self.device_plan_cache.clear()
         return super()._apply(fn, recurse=recurse)
+
+    def release_captured_graphs(self):
+        if self.core_graphs is not None:
+            self.core_graphs.close()
+            self.core_graphs = None
+
+    def _load_from_state_dict(self, *args, **kwargs):
+        self.release_captured_graphs()
+        return super()._load_from_state_dict(*args, **kwargs)
 
     # -- runtime -----------------------------------------------------------
     def build_runtime(
@@ -2318,10 +2329,32 @@ class SeedVR2NaDiT(nn.Module):
 
         first_layout = runtime.layout_for_layer(0)
         local_rows = runtime.local_rows_for(canonical_rows, first_layout)
+        entry = getattr(runtime, "_seedvr2_core_graph_entry", None)
+        if entry is None:
+            vid_hidden = self.forward_core(local_rows, txt_tokens, timestep, runtime)
+        else:
+            vid_hidden = self.core_graphs.replay(entry, (local_rows, txt_tokens, timestep), runtime)
+        vid_hidden = runtime.to_canonical_rows(vid_hidden, runtime.layout_for_layer(self.num_layers - 1))
+        return NaDiTOutput(vid_sample=unpatchify(vid_hidden, token_grid, self.patch_size))
+
+    def forward_core(
+        self,
+        local_rows: torch.Tensor,
+        txt_tokens: torch.Tensor,
+        timestep: torch.Tensor,
+        runtime: SeedVR2WindowRuntime,
+    ) -> torch.Tensor:
+        """Project rank-local input, execute all blocks, and project local output.
+
+        Text input projection, patchify/row selection and final canonical
+        reconstruction remain in ``forward``. This boundary does not enable
+        CUDA graphs or change request ownership: callers own the runtime and
+        must keep every rank's collective order consistent.
+        """
         vid_hidden = self.vid_in.proj(local_rows)
         emb = self.emb_in(timestep, device=vid_hidden.device, dtype=vid_hidden.dtype)
 
-        current = first_layout.key
+        current = runtime.layout_for_layer(0).key
         for index, block in enumerate(self.blocks):
             layout = runtime.layout_for_layer(index)
             vid_hidden = runtime.ensure_layout(vid_hidden, current, layout.key)
@@ -2329,9 +2362,7 @@ class SeedVR2NaDiT(nn.Module):
             ctx = runtime.context(layout, vid_hidden.device)
             vid_hidden, txt_tokens = block(vid_hidden, txt_tokens, emb, ctx, runtime)
 
-        vid_hidden = self._output_projection(vid_hidden, emb)
-        vid_hidden = runtime.to_canonical_rows(vid_hidden, runtime.layout_for_layer(self.num_layers - 1))
-        return NaDiTOutput(vid_sample=unpatchify(vid_hidden, token_grid, self.patch_size))
+        return self._output_projection(vid_hidden, emb)
 
     # -- attention path reporting -----------------------------------------
     def attention_path_summary(self) -> dict:

@@ -216,13 +216,7 @@ window within the whole-clip pixel budget; it does not raise the
 uses fixed one-step, CFG=1 conditioning and requires `imageio[ffmpeg]` for
 audio muxing. The 7,200-frame 768×1344 case is still undergoing full GPU E2E.
 
-## Prepared window-SP metadata
-
-Video production pipelines need to process many spatial and temporal tokens.
-The existing window-SP implementation provides a multi-GPU execution path;
-prepared CPU geometry and bounded device plans reduce repeated preparation
-within that path. This preparation does not introduce streaming model execution
-or change temporal window handoff.
+## Exact DiT metadata reuse
 
 The eager DiT reuses equal-length grouped SDPA row indices and complete RoPE
 sin/cos tables across layers within each request and layout. Window boundaries,
@@ -248,6 +242,55 @@ For whole-clip HTTP throughput, use
 `benchmarks/diffusion/benchmark_seedvr2_highc.py`. It accepts an input CSV manifest
 and run metadata, retains every response, and decodes every returned frame.
 It reports both HTTP-delivered and fully decoded valid frames per second.
+
+## Model-owned exact-profile CUDA graphs
+
+SeedVR2 can prepare NaDiT core and causal VAE decoder graphs independently.
+Both require SP2 or SP4, VAE tiling, FP16, and `cache_backend=none`. Decoder
+graphs additionally require VAE height sharding on the complete SP group.
+They use the existing two-latent-frame decoder chunks: first, continuation,
+and one-frame tail phases retain fixed history addresses for the full request.
+Profiles containing only a single first chunk do not retain temporal history.
+Each phase output is copied before its slot is reused. A new first phase
+replaces the previous request's history.
+
+For example, a four-GPU service can opt into both components using native
+stage overrides:
+
+```bash
+vllm serve "$MODEL_DIR" --omni --model-class-name SeedVR2Pipeline \
+  --dtype float16 --num-gpus 4 --vae-use-tiling \
+  --distributed-executor-backend mp --api-server-count 1 \
+  --stage-overrides '{"0":{"max_num_seqs":1,"step_execution":false,"enforce_eager":false,"ulysses_degree":4,"vae_patch_parallel_size":4,"vae_parallel_mode":"spatial_shard_height","extras":{"seedvr2_nadit_cuda_graph":{"profiles":[[2,60,106],[3,44,80]]},"seedvr2_vae_decoder_cuda_graph":{"profiles":[[2,60,106],[3,44,80],[5,32,56]],"max_pool_bytes":8589934592}}}}'
+```
+
+Each `profiles` list contains one to four exact latent `[T,H,W]` shapes.
+These examples cover 5 frames at 848×480, a padded 9-frame clip at 640×352,
+and, for the decoder, 17 frames at 448×256. They do not add shape padding or
+change sampling. Omit either extras key to disable that component. Setting the
+resolved stage's `enforce_eager=true` disables both components, including when
+profiles are present. In the command above, change the stage override to true;
+its explicit false takes precedence over the top-level `--enforce-eager` flag.
+Manual graph execution bypasses generic compile; it does not enable
+`--enable-cuda-graph-decode`.
+
+Each component accepts positive integer `max_pool_bytes` and
+`eager_headroom_bytes`. The pool default is 1 GiB for NaDiT and 4 GiB for the
+decoder; both retain 8 GiB of eager headroom. Residency includes private
+graph pools and pinned storage. The SP4 admission budget reserves
+both configured pool budgets. All ranks agree on a hit or eager fallback
+before GPU request preparation; unsupported geometry or an insufficient
+pool budget uses the original eager path, without request-time capture.
+Replacing weights, moving the model, or changing the VAE group retires its
+graphs before those storage or group changes. A failed collective requires
+restarting the complete service.
+
+On four H100 GPUs with 65,247 MiB visible per GPU, these three decoder profiles
+retained at most 7.24 GiB per rank at SP4 and 14.92 GiB at SP2. Their validated
+startup budgets were 8 GiB and 16 GiB respectively. For SP2, change both parallel
+degrees to two and set the decoder's `max_pool_bytes` to `17179869184`. The
+default 4 GiB budget can leave some profiles on the eager path. These residency
+measurements do not imply that enabling decoder graphs improves throughput.
 
 ## Temporal and spatial VAE tiling
 
