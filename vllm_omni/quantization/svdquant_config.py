@@ -317,6 +317,8 @@ class DiffusionSVDQuantLinearMethod(LinearMethodBase):
         layer.register_parameter("wtscale", wtscale)
 
         del input_size, output_size
+        # vLLM's NVFP4 kernels derive K padding from the per-partition input size.
+        layer.input_size_per_partition = input_size_per_partition
         layer.output_size_per_partition = output_size_per_partition
 
     def process_weights_after_loading(self, layer: torch.nn.Module) -> None:
