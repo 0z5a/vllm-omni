@@ -5,6 +5,7 @@ import pytest
 import torch
 from vllm.platforms import current_platform
 
+from tests.helpers.mark import hardware_marks
 from vllm_omni.quantization.svdquant_config import (
     DiffusionSVDQuantConfig,
     DiffusionSVDQuantLinearMethod,
@@ -13,7 +14,7 @@ from vllm_omni.quantization.svdquant_config import (
 )
 from vllm_omni.quantization.tools.export_minimax_h3_low_memory_checkpoint import pack_nvfp4
 
-pytestmark = [pytest.mark.local_model, pytest.mark.cuda, pytest.mark.diffusion]
+pytestmark = [pytest.mark.local_model, pytest.mark.diffusion, *hardware_marks(res={"cuda": "B200"}, num_cards=1)]
 
 
 @pytest.mark.parametrize("input_size,output_size", [(256, 128), (5376, 21504), (14336, 5376)])
