@@ -6,6 +6,7 @@ from types import SimpleNamespace
 import pytest
 import torch
 
+from tests.helpers.mark import hardware_marks, hardware_test
 from vllm_omni.diffusion.models.qwen_image_21 import qwen_image_21_transformer as transformer
 from vllm_omni.diffusion.models.qwen_image_21.ops.modulation import (
     apply_gated_residual,
@@ -35,7 +36,10 @@ def _eager_gated_residual(residual, sublayer, params, mask):
 
 @pytest.mark.parametrize(
     "device",
-    [pytest.param("cpu", marks=pytest.mark.cpu), pytest.param("cuda", marks=[pytest.mark.cuda, pytest.mark.gpu])],
+    [
+        pytest.param("cpu", marks=pytest.mark.cpu),
+        pytest.param("cuda", marks=hardware_marks(res={"cuda": "H100"}, num_cards=1)),
+    ],
 )
 @pytest.mark.parametrize("batch", [1, 2, 4])
 @pytest.mark.parametrize("seq,prefix", [(512, 0), (256, 64), (32, 30)])
@@ -72,8 +76,7 @@ def test_fused_modulation_matches_eager_pointwise(device, batch, seq, prefix):
     )
 
 
-@pytest.mark.cuda
-@pytest.mark.gpu
+@hardware_test(res={"cuda": "H100"}, num_cards=1)
 def test_t_zero_row_only_reaches_unmasked_tokens():
     torch.manual_seed(0)
     batch, seq = 2, 64
@@ -89,8 +92,7 @@ def test_t_zero_row_only_reaches_unmasked_tokens():
         torch.testing.assert_close(out[row, 10:], x[row, 10:] * (1 + params[row].unsqueeze(0)), rtol=0, atol=0)
 
 
-@pytest.mark.cuda
-@pytest.mark.gpu
+@hardware_test(res={"cuda": "H100"}, num_cards=1)
 @pytest.mark.parametrize("masked", [False, True])
 def test_compiled_residual_norm_modulation_matches_torch(masked):
     def fused(residual, sublayer, gate, scale, mask):
@@ -115,8 +117,7 @@ def test_compiled_residual_norm_modulation_matches_torch(masked):
         torch.testing.assert_close(actual(*inputs), expected(*inputs), atol=0, rtol=0)
 
 
-@pytest.mark.cuda
-@pytest.mark.gpu
+@hardware_test(res={"cuda": "H100"}, num_cards=1)
 def test_fused_modulation_falls_back_for_ineligible_inputs():
     torch.manual_seed(0)
     batch, seq, channels = 2, 32, 1024
@@ -147,8 +148,7 @@ def test_single_modulation_row_is_rejected_when_the_mode_requires_more(batch, ma
             apply_modulation(x, params, mask)
 
 
-@pytest.mark.cuda
-@pytest.mark.gpu
+@hardware_test(res={"cuda": "H100"}, num_cards=1)
 @pytest.mark.parametrize("case", ["strided", "fp32"])
 @pytest.mark.parametrize("masked", [False, True])
 def test_gated_residual_falls_back_for_an_ineligible_sublayer(case, masked):
@@ -166,8 +166,7 @@ def test_gated_residual_falls_back_for_an_ineligible_sublayer(case, masked):
     torch.testing.assert_close(actual, expected, rtol=0, atol=0)
 
 
-@pytest.mark.cuda
-@pytest.mark.gpu
+@hardware_test(res={"cuda": "H100"}, num_cards=1)
 def test_block_forward_is_unchanged_by_modulation_fusion(monkeypatch):
     _single_rank(monkeypatch)
     torch.manual_seed(0)

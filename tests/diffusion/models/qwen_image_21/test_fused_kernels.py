@@ -6,6 +6,7 @@ from types import SimpleNamespace
 import pytest
 import torch
 
+from tests.helpers.mark import hardware_marks, hardware_test
 from vllm_omni.diffusion.models.qwen_image_21 import qwen_image_21_transformer as transformer
 from vllm_omni.diffusion.models.qwen_image_21.ops.qk_norm_rope import apply_qk_norm_rope
 from vllm_omni.diffusion.models.qwen_image_21.ops.swiglu import fused_silu_mul
@@ -41,7 +42,10 @@ def _freqs(seq, device, dtype=torch.complex64):
 
 @pytest.mark.parametrize(
     "device",
-    [pytest.param("cpu", marks=pytest.mark.cpu), pytest.param("cuda", marks=[pytest.mark.cuda, pytest.mark.gpu])],
+    [
+        pytest.param("cpu", marks=pytest.mark.cpu),
+        pytest.param("cuda", marks=hardware_marks(res={"cuda": "H100"}, num_cards=1)),
+    ],
 )
 @pytest.mark.parametrize("batch,seq,num_q_heads", [(1, 1, 4), (1, 17, 4), (2, 255, 4), (1, 256, 4), (1, 4097, 32)])
 def test_fused_qk_norm_rope_matches_eager_rounding(monkeypatch, device, batch, seq, num_q_heads):
@@ -63,8 +67,7 @@ def test_fused_qk_norm_rope_matches_eager_rounding(monkeypatch, device, batch, s
         assert tensor.data_ptr() != packed.data_ptr()
 
 
-@pytest.mark.cuda
-@pytest.mark.gpu
+@hardware_test(res={"cuda": "H100"}, num_cards=1)
 def test_fused_qk_norm_rope_leaves_v_untouched(monkeypatch):
     _single_rank(monkeypatch)
     torch.manual_seed(0)
@@ -84,8 +87,7 @@ def test_fused_qk_norm_rope_leaves_v_untouched(monkeypatch):
     torch.testing.assert_close(packed[..., q_size + kv_size :], value_before, rtol=0, atol=0)
 
 
-@pytest.mark.cuda
-@pytest.mark.gpu
+@hardware_test(res={"cuda": "H100"}, num_cards=1)
 def test_fused_ops_fall_back_for_ineligible_inputs(monkeypatch):
     _single_rank(monkeypatch)
     torch.manual_seed(0)
@@ -112,7 +114,10 @@ def test_fused_ops_fall_back_for_ineligible_inputs(monkeypatch):
 
 @pytest.mark.parametrize(
     "device",
-    [pytest.param("cpu", marks=pytest.mark.cpu), pytest.param("cuda", marks=[pytest.mark.cuda, pytest.mark.gpu])],
+    [
+        pytest.param("cpu", marks=pytest.mark.cpu),
+        pytest.param("cuda", marks=hardware_marks(res={"cuda": "H100"}, num_cards=1)),
+    ],
 )
 @pytest.mark.parametrize("elements", [1, 4095, 4096, 12288, 100000])
 def test_fused_silu_mul_matches_eager(device, elements):
@@ -144,8 +149,7 @@ def _iterative_qk_norm_rope(qk, q_weight, k_weight, freqs, eps, num_q_heads):
     return tuple(apply_qk_norm_rope(qk, q_weight, k_weight, freqs, eps, num_q_heads))
 
 
-@pytest.mark.cuda
-@pytest.mark.gpu
+@hardware_test(res={"cuda": "H100"}, num_cards=1)
 def test_attention_forward_is_unchanged_by_fusion(monkeypatch):
     _single_rank(monkeypatch)
     torch.manual_seed(0)
@@ -174,8 +178,7 @@ def test_attention_forward_is_unchanged_by_fusion(monkeypatch):
     torch.testing.assert_close(fused, unfused, rtol=0, atol=0)
 
 
-@pytest.mark.cuda
-@pytest.mark.gpu
+@hardware_test(res={"cuda": "H100"}, num_cards=1)
 def test_mlp_forward_is_unchanged_by_fusion(monkeypatch):
     _single_rank(monkeypatch)
     torch.manual_seed(0)

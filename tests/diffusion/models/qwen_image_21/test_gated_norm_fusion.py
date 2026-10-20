@@ -5,10 +5,11 @@ import pytest
 import torch
 import torch.nn.functional as F
 
+from tests.helpers.mark import hardware_marks
 from vllm_omni.diffusion.models.qwen_image_21.ops.gated_norm import apply_gated_norm_modulation
 from vllm_omni.diffusion.models.qwen_image_21.ops.modulation import select_modulation_rows
 
-pytestmark = [pytest.mark.core_model, pytest.mark.diffusion, pytest.mark.cuda, pytest.mark.gpu]
+pytestmark = [pytest.mark.core_model, pytest.mark.diffusion, *hardware_marks(res={"cuda": "H100"}, num_cards=1)]
 
 
 @pytest.mark.parametrize("batch,seq", [(1, 37), (2, 256), (1, 4097)])
