@@ -10,10 +10,11 @@ from typing import Any
 import pytest
 import torch
 
+from tests.helpers.mark import hardware_marks
 from vllm_omni.data_entry_keys import EmbeddingsStruct, HiddenStatesStruct, MetaStruct, OmniPayloadStruct
 from vllm_omni.platforms import current_omni_platform
 
-pytestmark = [pytest.mark.core_model, pytest.mark.cuda, pytest.mark.parallel]
+pytestmark = [pytest.mark.core_model, *hardware_marks(res={"cuda": "L4"}, num_cards=2), pytest.mark.parallel]
 
 
 def _native_nixl_available() -> bool:
@@ -272,14 +273,8 @@ def test_native_two_process_structured_mixed_device_transfer(direct, payload_kin
 
     producer.start()
     consumer.start()
-    producer.join(timeout=60)
-    consumer.join(timeout=60)
-    if producer.is_alive():
-        producer.terminate()
-        producer.join(timeout=10)
-    if consumer.is_alive():
-        consumer.terminate()
-        consumer.join(timeout=10)
+    producer.join()
+    consumer.join()
 
     records = [result.get(timeout=5) for _ in range(5)]
     print("Native ownership records:", records)
