@@ -7,6 +7,7 @@ import torch
 from vllm.sampling_params import SamplingParams
 from vllm.v1.worker.gpu_input_batch import CachedRequestState, InputBatch
 
+from tests.helpers.mark import hardware_marks
 from vllm_omni.core.prefix_cache.adapter import (
     PrefixCacheEventKind,
     PrefixCacheRequestEvent,
@@ -16,7 +17,7 @@ from vllm_omni.core.prefix_cache.group_view import FullAttentionGroupView
 from vllm_omni.core.prefix_cache.interface import HIDDEN_KEY, PrefixCacheConfig
 from vllm_omni.core.prefix_cache.manager import OmniPrefixCacheManager
 
-pytestmark = [pytest.mark.core_model, pytest.mark.cuda]
+pytestmark = [pytest.mark.core_model, *hardware_marks(res={"cuda": "L4"}, num_cards=1)]
 
 
 @pytest.mark.parametrize("allocator_size,kernel_size", [(16, 16), (32, 16), (128, 16), (128, 32), (128, 64)])
