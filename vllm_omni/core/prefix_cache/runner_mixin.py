@@ -75,6 +75,15 @@ class PrefixCacheRunnerMixin:
         """
         return self._omni_cache_policy.needs_full_hidden_states
 
+    def _model_mm_outputs_written_in_sample(self) -> bool:
+        """True when the step snapshot cannot hold the model's mm outputs.
+
+        Such a model appends them in ``sample()``, after
+        ``_prefix_cache_save_step``; the output path discards the step
+        context and builds the payload from the live outputs.
+        """
+        return self._omni_cache_policy.mm_outputs_written_in_sample
+
     def _ensure_omni_prefix_cache(self) -> None:
         """One-shot construction (caller gates on the staged config).
 
@@ -112,8 +121,8 @@ class PrefixCacheRunnerMixin:
         if self.omni_prefix_cache is None and self._omni_prefix_cache_cfg is not None:
             self._ensure_omni_prefix_cache()
         if self.omni_prefix_cache is not None:
-            if self._prefix_cache_adapter is None:
-                self._prefix_cache_adapter = PrefixCacheSchedulerAdapter()
+            if self._prefix_cache_adapter is None or self._prefix_cache_group_view is None:
+                raise RuntimeError("prefix-cache adapter and view were not initialized together")
             step = self._prefix_cache_adapter.translate_step(scheduler_output)
             self._prefix_cache_step = step
             self.omni_prefix_cache.new_step_starts(step)
@@ -151,6 +160,19 @@ class PrefixCacheRunnerMixin:
             num_tokens_padded=num_tokens_padded,
             write_layout=layout,
         )
+
+    def _shutdown_omni_prefix_cache(self) -> None:
+        """Stop the manager and release the runner-owned cache unit."""
+        cache = self.omni_prefix_cache
+        try:
+            if cache is not None:
+                cache.shutdown()
+        finally:
+            self.omni_prefix_cache = None
+            self._prefix_cache_adapter = None
+            self._prefix_cache_group_view = None
+            self._prefix_cache_step = None
+            self._omni_prefix_cache_cfg = None
 
     def _prefix_cache_materialize(
         self, step_id: int | None, req_ids: list[str]
