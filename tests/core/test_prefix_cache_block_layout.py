@@ -8,10 +8,12 @@ from vllm.sampling_params import SamplingParams
 from vllm.v1.kv_cache_interface import FullAttentionSpec, KVCacheGroupSpec, SlidingWindowSpec
 from vllm.v1.worker.gpu_input_batch import CachedRequestState, InputBatch
 
+from tests.helpers.mark import hardware_marks
 from vllm_omni.core.prefix_cache.adapter import (
     PrefixCacheEventKind,
     PrefixCacheRequestEvent,
     PrefixCacheSchedulerAdapter,
+    PrefixCacheStep,
     PrefixCacheWriteLayout,
 )
 from vllm_omni.core.prefix_cache.group_view import (
@@ -22,7 +24,7 @@ from vllm_omni.core.prefix_cache.group_view import (
 from vllm_omni.core.prefix_cache.interface import HIDDEN_KEY, OmniPrefixCacheUnmatchError, PrefixCacheConfig
 from vllm_omni.core.prefix_cache.manager import OmniPrefixCacheManager
 
-pytestmark = [pytest.mark.core_model, pytest.mark.cuda]
+pytestmark = [pytest.mark.core_model, *hardware_marks(res={"cuda": "L4"}, num_cards=1)]
 
 
 def _assert_manager_layout(layout: PrefixCacheWriteLayout, expected: torch.Tensor, block_size: int) -> None:
@@ -30,11 +32,14 @@ def _assert_manager_layout(layout: PrefixCacheWriteLayout, expected: torch.Tenso
     assert torch.equal(layout.slots_cpu, expected)
     manager = OmniPrefixCacheManager(PrefixCacheConfig(num_blocks=32, block_size=block_size), eager=True)
     manager.new_step_starts(
-        tuple(
-            PrefixCacheRequestEvent(
-                write.req_id, PrefixCacheEventKind.STARTED, scheduled_tokens=write.row_end - write.row_start
-            )
-            for write in layout.writes
+        PrefixCacheStep(
+            tuple(
+                PrefixCacheRequestEvent(
+                    write.req_id, PrefixCacheEventKind.STARTED, scheduled_tokens=write.row_end - write.row_start
+                )
+                for write in layout.writes
+            ),
+            tuple((write.req_id, write.row_end - write.row_start) for write in layout.writes),
         )
     )
     hidden = torch.arange(layout.total_rows, dtype=torch.float32).unsqueeze(1)
