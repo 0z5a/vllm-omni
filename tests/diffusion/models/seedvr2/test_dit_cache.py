@@ -5,6 +5,7 @@
 import pytest
 import torch
 
+from tests.helpers.mark import hardware_marks
 from vllm_omni.diffusion.models.seedvr2 import nadit as n
 from vllm_omni.diffusion.models.seedvr2.pipeline_seedvr2 import SeedVR2Pipeline
 from vllm_omni.platforms import current_omni_platform
@@ -12,7 +13,12 @@ from vllm_omni.platforms import current_omni_platform
 pytestmark = [pytest.mark.core_model, pytest.mark.diffusion]
 
 
-@pytest.fixture(params=[pytest.param("cpu", marks=pytest.mark.cpu), pytest.param("cuda", marks=pytest.mark.cuda)])
+@pytest.fixture(
+    params=[
+        pytest.param("cpu", marks=pytest.mark.cpu),
+        pytest.param("cuda", marks=hardware_marks(res={"cuda": "L4"}, num_cards=1)),
+    ]
+)
 def device(request: pytest.FixtureRequest) -> torch.device:
     if request.param == "cuda" and not (current_omni_platform.is_cuda() and torch.accelerator.is_available()):
         pytest.skip("CUDA required")

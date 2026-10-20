@@ -6,6 +6,7 @@ import pytest
 import torch
 from torch.utils._python_dispatch import TorchDispatchMode
 
+from tests.helpers.mark import hardware_marks, hardware_test
 from vllm_omni.diffusion.models.seedvr2 import nadit as n
 
 pytestmark = [pytest.mark.core_model, pytest.mark.diffusion]
@@ -18,7 +19,13 @@ class NoDeviceScalar(TorchDispatchMode):
         return func(*args, **(kwargs or {}))
 
 
-@pytest.mark.parametrize("device", ["cpu", pytest.param("cuda", marks=pytest.mark.cuda)])
+@pytest.mark.parametrize(
+    "device",
+    [
+        pytest.param("cpu", marks=pytest.mark.cpu),
+        pytest.param("cuda", marks=hardware_marks(res={"cuda": "L4"}, num_cards=1)),
+    ],
+)
 @pytest.mark.parametrize("grid", [(2, 3, 5), (1, 1, 1), (3, 11, 7)])
 @pytest.mark.parametrize("world", [1, 2, 4])
 @pytest.mark.parametrize("text_len", [0, 3])
@@ -169,7 +176,7 @@ def test_canonical_rows_real_distributed_uneven_and_empty(world, tmp_path):
     )
 
 
-@pytest.mark.cuda
+@hardware_test(res={"cuda": "L4"}, num_cards=2)
 def test_implicit_cuda_device_has_a_concrete_cache_identity():
     if torch.accelerator.device_count() < 2:
         pytest.skip("two CUDA devices required")
