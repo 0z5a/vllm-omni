@@ -1,0 +1,6 @@
+{"index": 0, "warmup": true, "seconds": 24.461999655002728, "prompt_tokens": 960, "cached_tokens": 0, "token_ids": [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1], "text": ""}
+{"index": 1, "warmup": false, "seconds": 0.30158857099013403, "prompt_tokens": 960, "cached_tokens": 928, "token_ids": [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1], "text": ""}
+{"index": 2, "warmup": false, "seconds": 0.3049975240137428, "prompt_tokens": 960, "cached_tokens": 928, "token_ids": [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1], "text": ""}
+{"index": 3, "warmup": false, "seconds": 0.45373673702124506, "prompt_tokens": 960, "cached_tokens": 928, "token_ids": [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1], "text": ""}
+{"index": 4, "warmup": false, "seconds": 0.3310923469834961, "prompt_tokens": 960, "cached_tokens": 928, "token_ids": [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1], "text": ""}
+{"index": 5, "warmup": false, "seconds": 0.3443943820311688, "prompt_tokens": 960, "cached_tokens": 928, "token_ids": [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1], "text": ""}

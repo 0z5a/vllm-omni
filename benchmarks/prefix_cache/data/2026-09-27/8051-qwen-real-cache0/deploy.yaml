@@ -1,0 +1,15 @@
+stages:
+- async_scheduling: false
+  devices: '0'
+  enable_prefix_caching: false
+  enforce_eager: true
+  engine_extras:
+    attention_config:
+      backend: FLASHINFER
+    block_size: 128
+  gpu_memory_utilization: 0.4
+  max_model_len: 2048
+  max_num_batched_tokens: 1024
+  max_num_seqs: 1
+  stage_id: 0
+  tensor_parallel_size: 1
