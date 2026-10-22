@@ -258,6 +258,57 @@ def test_wan22_custom_enabler_passes_taylorseer_calibrator(
         assert modifier._context_kwargs["calibrator_config"] is calibrator_config
 
 
+@patch("vllm_omni.diffusion.cache.cachedit.backend.cache_dit")
+@patch("vllm_omni.diffusion.cache.cachedit.model_specific.BlockAdapter")
+@patch("vllm_omni.diffusion.cache.cachedit.model_specific.cache_dit")
+def test_wan22_custom_enabler_low_noise_expert_only(mock_cache_dit, mock_block_adapter, mock_backend_cache_dit):
+    """boundary_ratio=1.0 loads only transformer_2; cache and refresh must target it."""
+    transformer_2 = Mock()
+    transformer_2.blocks = [Mock()]
+    pipeline = SimpleNamespace(transformer=None, transformer_2=transformer_2)
+
+    refresh = cd_model_specific.enable_cache_for_wan22(pipeline, SAMPLE_CACHE_CONFIG)
+
+    mock_cache_dit.enable_cache.assert_called_once()
+    adapter_kwargs = mock_block_adapter.call_args.kwargs
+    assert adapter_kwargs["transformer"] is transformer_2
+    assert adapter_kwargs["blocks"] == [transformer_2.blocks]
+
+    refresh(pipeline, 40, False)
+    mock_backend_cache_dit.refresh_context.assert_called_once()
+    assert mock_backend_cache_dit.refresh_context.call_args.args[0] is transformer_2
+    assert mock_backend_cache_dit.refresh_context.call_args.kwargs["num_inference_steps"] == 40
+
+    # forward()'s per-schedule refresh must hit the same expert.
+    mock_backend_cache_dit.refresh_context.reset_mock()
+    pipeline._cache_dit_refresh_for_schedule(pipeline, torch.arange(30), None, False)
+    mock_backend_cache_dit.refresh_context.assert_called_once()
+    assert mock_backend_cache_dit.refresh_context.call_args.args[0] is transformer_2
+    assert mock_backend_cache_dit.refresh_context.call_args.kwargs["num_inference_steps"] == 30
+
+
+def test_wan22_custom_enabler_without_any_transformer_raises():
+    pipeline = SimpleNamespace(transformer=None, transformer_2=None)
+
+    with pytest.raises(ValueError, match="no loaded transformer"):
+        cd_model_specific.enable_cache_for_wan22(pipeline, SAMPLE_CACHE_CONFIG)
+
+
+@pytest.mark.parametrize(
+    ("engine_boundary", "request_boundary", "expected_boundary"),
+    [
+        (None, None, 0.875),  # omitted everywhere: default 0.875
+        (None, 0.9, 0.9),  # request override when the engine has none
+        (0.875, 0.9, 0.875),  # engine override wins over the request
+    ],
+)
+def test_resolve_wan_boundary_ratio(engine_boundary, request_boundary, expected_boundary):
+    from vllm_omni.diffusion.models.wan2_2.pipeline_wan2_2 import resolve_wan_boundary_ratio
+
+    sampling_params = SimpleNamespace(boundary_ratio=request_boundary)
+    assert resolve_wan_boundary_ratio(engine_boundary, sampling_params) == expected_boundary
+
+
 @pytest.mark.parametrize("boundary_ratio", [None, 0.875])
 def test_wan22_step_split_matches_shifted_denoise_schedule(boundary_ratio):
     """The per-expert Cache-DiT step counts must follow the schedule forward() runs.
