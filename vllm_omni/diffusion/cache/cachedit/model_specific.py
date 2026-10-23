@@ -32,6 +32,7 @@ from vllm_omni.diffusion.cache.cachedit.backend import (
     _make_pipeline_transformer_getter,
     _maybe_build_block_adapter,
     enable_cache_for_dit,
+    resolve_has_separate_cfg,
 )
 from vllm_omni.diffusion.cache.cachedit.config import CacheDiTConfig
 
@@ -120,7 +121,7 @@ def enable_cache_for_wan22(pipeline: Any, cache_config: Any) -> RefreshCacheCont
                 params_modifiers=[
                     ParamsModifier(cache_config=db_cache_config, calibrator_config=calibrator_config),
                 ],
-                has_separate_cfg=True,
+                has_separate_cfg=resolve_has_separate_cfg(True),
             ),
             cache_config=db_cache_config,
             calibrator_config=calibrator_config,
@@ -173,7 +174,7 @@ def enable_cache_for_wan22(pipeline: Any, cache_config: Any) -> RefreshCacheCont
                     calibrator_config=calibrator_config,
                 ),
             ],
-            has_separate_cfg=True,
+            has_separate_cfg=resolve_has_separate_cfg(True),
         ),
         cache_config=db_cache_config,
         calibrator_config=calibrator_config,
@@ -252,7 +253,7 @@ def enable_cache_for_wan22_s2v(pipeline: Any, cache_config: Any) -> RefreshCache
             params_modifiers=[
                 ParamsModifier(cache_config=db_cache_config, calibrator_config=calibrator_config),
             ],
-            has_separate_cfg=True,
+            has_separate_cfg=resolve_has_separate_cfg(True),
         ),
         cache_config=db_cache_config,
         calibrator_config=calibrator_config,
