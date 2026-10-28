@@ -1539,14 +1539,13 @@ class Cosmos3OmniDiffusersPipeline(
             if isinstance(cond_full, tuple) or isinstance(cond_no_control, tuple) or isinstance(uncond_full, tuple):
                 raise ValueError("Cosmos3 transfer control+text CFG expects video-only tensor predictions.")
             cfg_reference = cond_full
-            # Text CFG is applied below; avoid multiplying the control delta
-            # by text guidance a second time (Cosmos Framework parity).
-            # A zero text scale discards this branch, so keep a finite scale.
-            effective_control_guidance = (
-                control_guidance / guidance_scale if guidance_scale != 0.0 else control_guidance
+            # Preserve text CFG on cond_full and add (control_guidance - 1)
+            # times the control delta, independent of text guidance.
+            combined = (
+                uncond_full
+                + guidance_scale * (cond_full - uncond_full)
+                + (control_guidance - 1.0) * (cond_full - cond_no_control)
             )
-            control_cond = cond_no_control + effective_control_guidance * (cond_full - cond_no_control)
-            combined = uncond_full + guidance_scale * (control_cond - uncond_full)
         else:
             raise ValueError(f"Unknown Cosmos3 transfer CFG branch_mode={mode!r}.")
 
