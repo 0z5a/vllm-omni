@@ -1228,6 +1228,83 @@ def test_hunyuan_rocm_reliability_disables_expert_parallel() -> None:
         assert "HunyuanImage Expert Parallel Startup" not in pipeline_path.read_text(encoding="utf-8")
 
 
+def test_weekly_omni_e2e_is_full_weight_and_weekly_only() -> None:
+    weekly_text = AMD_WEEKLY_PIPELINE.read_text(encoding="utf-8")
+    group = _find_group("Omni E2E Weekly", AMD_WEEKLY_PIPELINE)
+    jobs = {
+        "MiMo-Audio · 1-GPU": (
+            "mi300_1",
+            120,
+            "cards_1",
+            "tests/e2e/online_serving/test_mimo_audio_expansion.py",
+            ("test_text_to_text_001",),
+            "artifacts/rocm-mimo-audio-weekly/**/*",
+            "Expected exactly one MiMo-Audio ROCm node",
+            "omni_mimo_audio_function",
+            "Expected exactly one executed MiMo-Audio test",
+        ),
+        "Ming-flash-omni offline · 4-GPU": (
+            "mi300_4",
+            180,
+            "cards_4",
+            "tests/e2e/offline_inference/test_ming_flash_omni_expansion.py",
+            (
+                "test_text_to_text",
+                "test_image_to_text",
+                "test_audio_to_text",
+                "test_video_to_text",
+                "test_mixed_to_text",
+                "test_text_to_audio",
+                "test_image_to_audio",
+            ),
+            "artifacts/rocm-ming-flash-omni-weekly/**/*",
+            "Expected exactly $${#nodes[@]} Ming-flash-omni offline ROCm nodes",
+            "omni_ming_flash_omni_function",
+            "Expected exactly seven executed Ming-flash-omni offline tests",
+        ),
+    }
+
+    assert group["group"] == "Omni E2E Weekly"
+    assert "if" not in group
+    assert [step["label"] for step in group["steps"]] == list(jobs)
+    mimo_source = Path("tests/e2e/online_serving/test_mimo_audio_expansion.py").read_text(encoding="utf-8")
+    assert "CI failed 8571" in mimo_source
+    dependencies = yaml.safe_load(
+        Path(".buildkite/common/ci_source_file_dependencies.yml").read_text(encoding="utf-8")
+    )["source_file_dependencies"]
+    for step in group["steps"]:
+        pool, timeout, cards, filename, nodes, artifact, expected, dependency, execution = jobs[step["label"]]
+        command = "\n".join(step["commands"])
+        assert "if" not in step
+        assert step["agent_pool"] == pool
+        assert step["grade"] == "NonBlocking"
+        assert step["depends_on"] == "amd-build"
+        assert step["mirror_hardwares"] == ["amdproduction"]
+        assert step["timeout_in_minutes"] == timeout
+        assert step["source_file_dependencies"] == dependency
+        assert step["artifact_paths"] == [artifact]
+        assert f"slow and rocm and MI325 and omni and {cards}" in command
+        assert "--run-level full_model" in command
+        assert filename in command
+        assert expected in command
+        assert execution in command
+        assert command.count("--shard-id=0 --num-shards=1") == 2
+        assert "skipped != 0" in command
+        assert "BUILDKITE_BUILD_CHECKOUT_PATH" in command
+        for node in nodes:
+            assert node in command
+        assert filename in dependencies[dependency]
+    mimo_command = "\n".join(_find_step("MiMo-Audio · 1-GPU", AMD_WEEKLY_PIPELINE)["commands"])
+    assert "test_audio_to_text_audio_001" not in mimo_command
+    assert "tests/e2e/online_serving/test_ming_flash_omni_expansion.py" not in weekly_text
+    assert "test_covo_audio_expansion.py" not in weekly_text
+    assert "test_qwen2_5_omni_expansion.py" not in weekly_text
+    for pipeline_path in (AMD_READY_PIPELINE, AMD_MERGE_PIPELINE, AMD_NIGHTLY_PIPELINE):
+        text = pipeline_path.read_text(encoding="utf-8")
+        for label in jobs:
+            assert label not in text
+
+
 def test_cosyvoice_offline_zero_shot_runs_nightly_on_rocm() -> None:
     path = "tests/e2e/offline_inference/test_cosyvoice3_expansion.py"
     markers = "slow and tts and rocm and MI325 and cards_1"
