@@ -659,6 +659,7 @@ source_file_dependencies:
   diffusion_hunyuan_image3_reliability:
     - *hunyuan_image3
     - tests/dfx/reliability/test_hunyuan_image.py
+    - tests/dfx/reliability/test_hunyuan_image_ep_startup.py
     - tests/dfx/reliability/scenarios/
     - tests/dfx/reliability/helpers.py
     - tests/dfx/conftest.py

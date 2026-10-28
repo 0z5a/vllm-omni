@@ -1161,6 +1161,71 @@ def test_weekly_reliability_is_distinct_from_nightly() -> None:
         assert filename not in nightly
     assert "tests/dfx/reliability/" not in nightly
     assert "Qwen3-Omni Function Expansion" not in AMD_WEEKLY_PIPELINE.read_text(encoding="utf-8")
+    hunyuan_step = _find_step("Reliability Test · hunyuan-image", AMD_WEEKLY_PIPELINE)
+    hunyuan_command = "\n".join(hunyuan_step["commands"])
+    assert "test_hunyuan_image_ep_startup.py" not in hunyuan_command
+
+
+def test_hunyuan_rocm_reliability_disables_expert_parallel() -> None:
+    from vllm_omni.config.stage_config import resolve_deploy_yaml
+
+    base = resolve_deploy_yaml("vllm_omni/deploy/hunyuan_image3_dit.yaml")
+    base_parallel = base["stages"][0]["parallel_config"]
+    reliability = Path("tests/dfx/reliability/test_hunyuan_image.py").read_text(encoding="utf-8")
+    startup = Path("tests/dfx/reliability/test_hunyuan_image_ep_startup.py").read_text(encoding="utf-8")
+    accuracy = Path("tests/e2e/accuracy/test_hunyuan_image3_pixel_accuracy.py").read_text(encoding="utf-8")
+    step = _find_step("HunyuanImage Expert Parallel Startup", AMD_WEEKLY_PIPELINE)
+    command = "\n".join(step["commands"])
+    reliability_step = _find_step("Reliability Test · hunyuan-image", AMD_WEEKLY_PIPELINE)
+    reliability_command = "\n".join(reliability_step["commands"])
+    nightly_accuracy = _find_step("HunyuanImage3 Offline Pixel Accuracy", AMD_NIGHTLY_PIPELINE)
+    dependencies = yaml.safe_load(AMD_SOURCE_DEPENDENCIES.read_text(encoding="utf-8"))["source_file_dependencies"][
+        "diffusion_hunyuan_image3_reliability"
+    ]
+
+    assert base_parallel["enable_expert_parallel"] is True
+    assert base_parallel["tensor_parallel_size"] == 4
+    assert "current_omni_platform.is_rocm()" in reliability
+    assert "hunyuan_image3_dit.yaml" in reliability
+    assert '"parallel_config.enable_expert_parallel": False' in reliability
+    assert 'params["update"]' in reliability
+    assert "hunyuan_image3_dit_rocm_reliability.yaml" not in reliability
+    assert "hunyuan_image3_dit.yaml" in startup
+    assert "send_health_http_request" in startup
+    assert "send_images_generations_http_request" not in startup
+    assert "hunyuan_image3_dit_rocm_reliability.yaml" not in startup
+    assert '"enable_expert_parallel": True' in accuracy
+    assert step["agent_pool"] == "mi300_4"
+    assert step["grade"] == "NonBlocking"
+    assert step["depends_on"] == "amd-build"
+    assert step["mirror_hardwares"] == ["amdproduction"]
+    assert step["timeout_in_minutes"] == 45
+    assert step["source_file_dependencies"] == "diffusion_hunyuan_image3_reliability"
+    assert step["artifact_paths"] == ["artifacts/rocm-hunyuan-image-ep-startup/**/*"]
+    assert "full_model and slow and diffusion and rocm and MI325 and cards_4" in command
+    assert "test_hunyuan_image_ep_startup.py" in command
+    assert "Expected exactly one HunyuanImage expert-parallel startup node" in command
+    assert command.count("--shard-id=0 --num-shards=1") == 2
+    assert "timeout --signal=TERM --kill-after=2m 30m" in command
+    assert "Expected exactly one executed HunyuanImage expert-parallel startup test" in command
+    assert "skipped != 0" in command
+    assert reliability_step["source_file_dependencies"] == "diffusion_hunyuan_image3_reliability"
+    assert reliability_step["env"] == {
+        "VLLM_ROCM_USE_AITER": "0",
+        "DIFFUSION_ATTENTION_BACKEND": "TORCH_SDPA",
+    }
+    assert reliability_step["artifact_paths"] == ["artifacts/rocm-hunyuan-image-reliability/**/*"]
+    assert reliability_command.count("--shard-id=0 --num-shards=1") == 2
+    assert "Expected exactly 16 HunyuanImage reliability nodes" in reliability_command
+    assert "Expected exactly 16 executed HunyuanImage reliability tests" in reliability_command
+    assert "skipped != 0" in reliability_command
+    assert "vllm_omni/deploy/hunyuan_image3_dit_rocm_reliability.yaml" not in dependencies
+    assert "tests/dfx/reliability/test_hunyuan_image_ep_startup.py" in dependencies
+    assert "env" not in step
+    assert nightly_accuracy["grade"] == "NonBlocking"
+    assert nightly_accuracy["agent_pool"] == "mi300_4"
+    for pipeline_path in (AMD_READY_PIPELINE, AMD_MERGE_PIPELINE, AMD_NIGHTLY_PIPELINE):
+        assert "HunyuanImage Expert Parallel Startup" not in pipeline_path.read_text(encoding="utf-8")
 
 
 def test_cosyvoice_offline_zero_shot_runs_nightly_on_rocm() -> None:
