@@ -10,7 +10,7 @@ import sys
 import threading
 import time
 import uuid
-from collections.abc import Sequence
+from collections.abc import Iterable, Sequence
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any
 
@@ -55,6 +55,18 @@ _ACK = b"nixl_ack"
 # abandoned claim must keep both its agent and allocations alive until process
 # exit; dropping the last Python reference is not a safe cancellation policy.
 _RETAINED_PRODUCERS: set[Any] = set()
+
+
+def _wait_for_stream_writes(tensors: Iterable[torch.Tensor]) -> None:
+    """Wait for kernels queued on this thread's stream that may touch ``tensors``.
+
+    NIXL READs are not ordered with PyTorch streams. A payload must be fully
+    written before a peer reads it, and receive memory recycled by the caching
+    allocator must be free of queued kernels before a peer writes into it.
+    Writers on other streams must be finished by the caller.
+    """
+    for device in {tensor.device for tensor in tensors if tensor.device.type != "cpu"}:
+        torch.accelerator.current_stream(device).synchronize()
 
 
 @dataclass
@@ -308,6 +320,7 @@ class NixlConnector(OmniConnectorBase):
                 tensors, tensor_specs = self._normalize_tensor_payload(tensor)
                 kind = _KIND_OBJECT
 
+            _wait_for_stream_writes(tensors)
             grouped_tensors: dict[str, list[tuple[int, torch.Tensor]]] = {}
             for tensor_index, tensor in enumerate(tensors):
                 # Preserve spec/skeleton slots, but never register empty DMA regions.
@@ -701,6 +714,7 @@ class NixlConnector(OmniConnectorBase):
             descriptor_groups = self._validated_descriptor_groups(metadata, tensor_specs)
 
             local_tensors = [self._allocate_tensor_from_spec(spec, metadata.get("kind")) for spec in tensor_specs]
+            _wait_for_stream_writes(local_tensors)
             if descriptor_groups:
                 remote_agent = self._acquire_remote_agent(metadata["agent_metadata"])
             for descriptor_group in descriptor_groups:
