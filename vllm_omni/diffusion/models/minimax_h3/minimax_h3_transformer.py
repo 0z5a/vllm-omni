@@ -865,6 +865,10 @@ class MiniMaxH3DiTModel(nn.Module):
         )
         self.controlnet = None
         if getattr(od_config, "controlnet_model_path", None):
+            if arch.adaln_lookup_timesteps is not None:
+                # Lookup checkpoints drop the dense time embedder, so the control
+                # branch has no real t_emb to condition on; reject rather than guess.
+                raise ValueError("H3 control is not supported with adaln_lookup_timesteps checkpoints")
             self.controlnet = MiniMaxH3ControlNet(arch)
         self.sp_prepare = MiniMaxH3SPPrepare()
         self.local_sp_prepare = MiniMaxH3SPPrepare()
