@@ -506,6 +506,9 @@ def test_dummy_forward_uses_upstream_execution_state(runner_kind, randomize_inpu
         runner_kind
     ]
     runner = object.__new__(runner_cls)
+    if runner_kind == "generation":
+        # __new__ bypasses initialization; model an idle step before this dummy.
+        runner._prev_step_idle = True
     runner._staged_writes = staged_writes.StagedWrites()
     hidden = torch.ones(1, 2)
     runner.model = MagicMock(
@@ -578,5 +581,7 @@ def test_dummy_forward_uses_upstream_execution_state(runner_kind, randomize_inpu
     assert isinstance(runner.execute_model_state, ExecuteModelState)
     assert runner.execute_model_state.input_batch is input_batch
     assert runner.execute_model_state.cudagraph_stats is None
-    if runner_kind != "generation":
+    if runner_kind == "generation":
+        assert not runner._prev_step_idle
+    else:
         runner.prepare_dummy_attn.assert_called_once_with(input_batch, True)
