@@ -60,7 +60,7 @@ encoder sees.
 | Canvas | 1344×768 (16:9), 24 FPS, `duration=5.167` → 124 frames (`17×7+5`) |
 | Sampling | 50 steps, `guidance_scale=1`, `true_cfg_scale=1`, seed 738004 (fixed) |
 | H3 params | `flow_shift=12`, `audio_flow_shift=3`, `audio_mode=native` |
-| Request | Ref2VA, one `input_references` image, three `guide_files` PNGs, `quality=lossless` |
+| Request | Ref2VA, one `input_references` image, three PNG `guide_files`, `quality=lossless` |
 
 The native template samples 20 steps with `res_multistep`; vLLM-Omni uses the
 server's H3 scheduler, so the template keeps the base H3 default of 50 steps.

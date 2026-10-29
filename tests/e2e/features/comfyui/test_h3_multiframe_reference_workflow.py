@@ -176,7 +176,9 @@ def test_multiframe_workflow_defaults_and_portable_assets(workflow):
 
 def _loaded_image(filename: str) -> torch.Tensor:
     """A distinct 1x32x64x3 image per anchor, keyed by the loader filename."""
-    value = int(re.search(r"(\d+)\.png$", filename).group(1)) * 50
+    match = re.search(r"(\d+)\.png$", filename)
+    assert match, filename
+    value = int(match.group(1)) * 50
     return torch.full((1, 32, 64, 3), value / 255.0)
 
 
