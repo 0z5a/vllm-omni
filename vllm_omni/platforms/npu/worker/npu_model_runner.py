@@ -72,6 +72,7 @@ class OmniNPUModelRunner(NPUAuxOutputMixin, OmniGPUModelRunner, NPUModelRunner):
                 speculative_config=self.speculative_config,
                 dcp_world_size=self.parallel_config.decode_context_parallel_size,
                 allow_dcp=False,
+                model_cache_policy=self._omni_cache_policy,
             )
             if cfg is not None:
                 self._omni_prefix_cache_cfg = cfg
@@ -464,7 +465,9 @@ class OmniNPUModelRunner(NPUAuxOutputMixin, OmniGPUModelRunner, NPUModelRunner):
             self._finalize_dump_data(dump=False)
             return hidden_states, hidden_states
 
-    def _model_forward(
+    # Ascend passes the padded token count positionally; keep its native
+    # signature when overriding the GPU helper in this multiple-inheritance adapter.
+    def _model_forward(  # type: ignore[override]
         self,
         num_tokens_padded: int,
         input_ids: torch.Tensor | None = None,

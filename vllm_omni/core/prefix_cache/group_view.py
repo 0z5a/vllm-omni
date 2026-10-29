@@ -13,9 +13,10 @@ from __future__ import annotations
 from collections.abc import Sequence
 from typing import TYPE_CHECKING
 
+import numpy as np
 import torch
 
-from vllm_omni.core.prefix_cache.interface import OmniPrefixCacheUnmatchError, PrefixCacheConfig
+from vllm_omni.core.prefix_cache.interface import ModelCachePolicy, OmniPrefixCacheUnmatchError, PrefixCacheConfig
 
 if TYPE_CHECKING:
     from vllm.config.cache import CacheConfig
@@ -54,33 +55,33 @@ class FullAttentionGroupView:
         The device slot_mapping would need a stream sync to read back, which
         stalls the whole forward; the CPU block table carries the same
         information (positions are num_computed .. +num_scheduled per request).
+        Positions past the table width are dropped. Vectorized: this runs on
+        the engine thread every step.
         """
-        block_table = self._block_table_cpu()
         # BlockTable expands allocator IDs into kernel-block IDs. Both
         # geometries address the same flat token storage, including tails.
-        bs = self.block_size if self.dcp_world_size > 1 else self.kernel_block_size
-        split = self.blocks_per_kv_block if self.dcp_world_size > 1 else 1
-        max_blocks = int(block_table.shape[1]) // split
-        computed = self._input_batch.num_computed_tokens_cpu
-        parts: list[torch.Tensor] = []
-        for req_id in req_ids:
-            n = int(num_scheduled.get(req_id, 0))
-            if n <= 0:
-                continue
-            req_idx = self._input_batch.req_id_to_index[req_id]
-            start = int(computed[req_idx])
-            pos = torch.arange(start, start + n, dtype=torch.long)
-            offs = pos // bs
-            if int(offs[-1]) >= max_blocks:
-                keep = offs < max_blocks
-                pos, offs = pos[keep], offs[keep]
-                if pos.numel() == 0:
-                    continue
-            block_ids = block_table[req_idx, offs * split].to(torch.long)
-            if self.dcp_world_size > 1:
-                block_ids //= split
-            parts.append(block_ids * bs + (pos % bs))
-        return torch.cat(parts) if parts else torch.empty((0,), dtype=torch.long)
+        dcp = self.dcp_world_size > 1
+        bs = self.block_size if dcp else self.kernel_block_size
+        split = self.blocks_per_kv_block if dcp else 1
+        index_of = self._input_batch.req_id_to_index
+        sched = [(index_of[req_id], n) for req_id in req_ids if (n := int(num_scheduled.get(req_id, 0))) > 0]
+        if not sched:
+            return torch.empty((0,), dtype=torch.long)
+        rows, counts = np.array(sched, dtype=np.int64).T
+        starts = np.asarray(self._input_batch.num_computed_tokens_cpu)[rows].astype(np.int64)
+        first = np.cumsum(counts) - counts
+        pos = np.arange(int(counts.sum()), dtype=np.int64) + np.repeat(starts - first, counts)
+        row = np.repeat(rows, counts)
+        table = self._block_table_cpu().numpy()
+        max_blocks = table.shape[1] // split
+        blocks = pos // bs
+        if int(blocks.max()) >= max_blocks:
+            keep = blocks < max_blocks
+            pos, row, blocks = pos[keep], row[keep], blocks[keep]
+        block_ids = table[row, blocks * split].astype(np.int64)
+        if dcp:
+            block_ids //= split
+        return torch.from_numpy(block_ids * bs + pos % bs)
 
 
 def check_prefix_cache_block_layout(block_table: BlockTable, block_size: int, dcp_world_size: int = 1) -> None:
@@ -179,17 +180,22 @@ def stage_prefix_cache_config(
     speculative_config: object = None,
     dcp_world_size: int = 1,
     allow_dcp: bool = True,
+    model_cache_policy: ModelCachePolicy = ModelCachePolicy(),
 ) -> PrefixCacheConfig | None:
     """Runner-side gate shared by the GPU and NPU model runners.
 
     Returns None when the stage does not run an omni prefix cache
-    (``enable_prefix_caching`` off, or a pooling stage that never saves).
+    (``enable_prefix_caching`` off, a pooling stage that never saves, or
+    an explicit native-KV-only model). Native-only stages leave native KV
+    cache configuration and its validation untouched.
     Otherwise refuses kv_consumer / kv_both, speculative decoding,
     sub-block matching and unsupported kv groups, then sizes the config from
     the scheduler. One place so a platform runner cannot silently skip a
     refusal the other one has.
     """
     if not cache_config.enable_prefix_caching or is_pooling_model:
+        return None
+    if model_cache_policy.native_kv_cache_only:
         return None
     if dcp_world_size > 1 and not allow_dcp:
         raise OmniPrefixCacheUnmatchError("omni prefix caching DCP output storage is supported on CUDA only")
