@@ -3283,3 +3283,66 @@ def test_drama3_ready_adds_one_nonblocking_text_to_audio_node() -> None:
     for name in _DRAMA3_EXCLUDED:
         assert "rocm" not in _hardware_decorator(source, name)
     assert source.count('"rocm": "MI325"') == 1
+
+
+_DEVICE_REDUCTION_READY_MARKER = "core_model and diffusion and rocm and MI325 and cards_1"
+_DEVICE_REDUCTION_READY_NODES = (
+    "tests/diffusion/test_device_reduction.py::test_device_reduction_matches_a_float32_reference[dtype0]",
+    "tests/diffusion/test_device_reduction.py::test_device_reduction_matches_a_float32_reference[dtype1]",
+    "tests/diffusion/test_device_reduction.py::test_device_reduction_matches_a_float32_reference[dtype2]",
+    "tests/diffusion/test_device_reduction.py::"
+    "test_device_reduction_deviates_from_a_narrow_postprocess_by_at_most_one[dtype0]",
+    "tests/diffusion/test_device_reduction.py::"
+    "test_device_reduction_deviates_from_a_narrow_postprocess_by_at_most_one[dtype1]",
+    "tests/diffusion/test_device_reduction.py::test_device_reduction_shrinks_hop1_payload_4x",
+    "tests/diffusion/test_device_reduction.py::test_device_reduction_stays_on_device",
+    "tests/diffusion/test_device_reduction.py::test_device_reduction_without_denormalize_matches_already_unit_range",
+    "tests/diffusion/test_diffusion_engine.py::test_move_tensor_tree_moves_nested_cuda_tensors_to_cpu",
+    "tests/diffusion/test_wan_device_reduction.py::"
+    "test_wan_media_reduction_matches_float32_reference_and_bounds_native_path",
+    "tests/diffusion/test_wan_device_reduction.py::test_wan_uint8_media_finalization_does_not_rescale",
+    "tests/diffusion/test_wan_device_reduction.py::test_diffusion_output_to_cpu_moves_wan_media_off_device",
+    "tests/diffusion/test_wan_device_reduction.py::test_small_typed_media_is_on_cpu_before_ipc",
+    "tests/diffusion/test_wan_device_reduction.py::test_wan_float_media_finalization_matches_the_legacy_path",
+    "tests/diffusion/test_wan_device_reduction.py::test_oom_fallback_media_packs_without_device_widening",
+    "tests/diffusion/test_wan_device_reduction.py::test_oom_fallback_recovers_the_allocator",
+    "tests/diffusion/test_wan_device_reduction.py::test_oom_fallback_releases_late_uint8_traceback_before_clone",
+)
+
+
+def test_device_reduction_ready_pins_collected_gpu_nodes() -> None:
+    """READY fail-closes on the one-card device-reduction GPU nodes.
+
+    Local collection returned the dtype ids for test_device_reduction.py and
+    the engine case. test_wan_device_reduction.py did not import
+    (vllm.renderers.chat_utils). Its nodes are the unparametrized GPU
+    functions. The non-5D CPU case stays off this marker.
+    """
+    step = _find_step("ROCm · Diffusion Device-Reduction GPU Test", AMD_READY_PIPELINE)
+    command = "\n".join(step["commands"])
+    body = command.split("nodes=(", 1)[1].split(")", 1)[0]
+    quoted = tuple(re.findall(r'"(tests/[^"]+)"', body))
+    reduction = Path("tests/diffusion/test_device_reduction.py").read_text(encoding="utf-8")
+    wan = Path("tests/diffusion/test_wan_device_reduction.py").read_text(encoding="utf-8")
+    engine = Path("tests/diffusion/test_diffusion_engine.py").read_text(encoding="utf-8")
+
+    assert step["agent_pool"] == "mi300_1"
+    assert step["mirror_hardwares"] == ["amdproduction"]
+    assert step["grade"] == "NonBlocking"
+    assert step["timeout_in_minutes"] == 20
+    assert "timeout --signal=TERM --kill-after=1m 15m" in command
+    assert _marker_expressions(step) == [
+        _DEVICE_REDUCTION_READY_MARKER,
+        _DEVICE_REDUCTION_READY_MARKER,
+    ]
+    assert command.count('--run-level "core_model"') == 2
+    assert quoted == _DEVICE_REDUCTION_READY_NODES
+    assert len(quoted) == 17
+    assert "test_device_reduction_rejects_non_5d" not in command
+    assert "test_mossimage_ops.py" not in command
+    assert "test_diffusion_worker.py" not in command
+    assert "test_wan22" not in command
+    assert "diff -u /tmp/device-reduction-ready-expected.txt" in command
+    assert reduction.count("@_also_rocm_mi325") == 5
+    assert 'res={"cuda": "L4", "rocm": "MI325"}, num_cards=1' in wan
+    assert engine.count('res={"cuda": "L4", "rocm": "MI325"}, num_cards=1') == 1
