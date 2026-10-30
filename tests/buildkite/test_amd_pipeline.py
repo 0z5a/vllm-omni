@@ -3435,3 +3435,35 @@ def test_worker_copy_ready_pins_remaining_one_card_nodes() -> None:
     assert "assert-pytest-collection.sh 1416" in r2_01_command
     for path in _WORKER_COPY_FILES:
         assert path not in r2_01_command
+
+
+_PAUSE_KEEP_READY_MARKER = "core_model and diffusion and rocm and MI325 and cards_2"
+_PAUSE_KEEP_READY_NODE = (
+    "tests/diffusion/distributed/test_pause_keep_two_ranks.py::test_keep_pause_two_ranks_ack_and_rank_failure"
+)
+
+
+def test_pause_keep_two_ranks_ready_pins_the_mi325_node() -> None:
+    """READY fail-closes on the two-rank pause-keep case."""
+    step = _find_step("ROCm · Pause-Keep Two-Rank GPU Test", AMD_READY_PIPELINE)
+    command = "\n".join(step["commands"])
+    source = Path("tests/diffusion/distributed/test_pause_keep_two_ranks.py").read_text(encoding="utf-8")
+
+    assert step["agent_pool"] == "mi300_2"
+    assert step["mirror_hardwares"] == ["amdproduction"]
+    assert step["grade"] == "NonBlocking"
+    assert step["timeout_in_minutes"] == 40
+    assert "timeout --signal=TERM --kill-after=1m 30m" in command
+    assert "export VLLM_OMNI_DLO_DP_WAVE_TIMEOUT=900" in command
+    assert "VLLM_ROCM_USE_AITER=0" not in command
+    assert _marker_expressions(step) == [
+        _PAUSE_KEEP_READY_MARKER,
+        _PAUSE_KEEP_READY_MARKER,
+    ]
+    assert command.count('--run-level "core_model"') == 2
+    assert command.count(_PAUSE_KEEP_READY_NODE) == 1
+    assert "diff -u /tmp/pause-keep-ready-expected.txt" in command
+    assert "cards_3" not in command
+    assert "cards_4" not in command
+    assert "test_diffusion_worker.py" not in command
+    assert 'res={"cuda": "L4", "rocm": "MI325"}, num_cards=2' in source
