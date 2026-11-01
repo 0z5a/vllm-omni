@@ -16,6 +16,11 @@ the committer:
     JOIN_ON_FINISH   committer copies the device clone → owned host
                      tensors, then writes the pool.
 
+Opt-in direct writes (OMNI_PREFIX_CACHE_DIRECT_WRITE=1) are a JOIN_NEXT_STEP
+variant with no staging page: StepWriteContext.start_writes() copies the
+step's single immediate key into the final pinned pool rows; the committer
+only waits that event and records completion.
+
 Async: high-priority then low-priority queues, then pool write.
 Eager: StepWriteContext.start_writes() waits and writes inline (CPU tests / no CUDA).
 """
@@ -44,6 +49,7 @@ from vllm_omni.core.prefix_cache.interface import (
     Tid,
     WriteSchedule,
 )
+from vllm_omni.core.prefix_cache.transfer_plan import TransferPlan
 
 logger = logging.getLogger(__name__)
 
@@ -208,6 +214,8 @@ class WriteTask:
     staging_slot: int | None = None
     # Immediate path: this step's CUDA device→host event (shared). None if deferred.
     step_d2h_event: torch.cuda.Event | None = None
+    direct: bool = False
+    direct_spans: int = 0
     # slot -> (which chunk, row in that tensor). Built on demand
     # when a write has more than one `_WriteChunk`; pool write uses slot, the tensor uses row.
     _slot_to_row: dict[int, tuple[int, int]] | None = None
@@ -522,24 +530,39 @@ class StepSnapshot:
         self._pool.release(self._claim.staging_slot, self._holder)
 
 
+@dataclass(frozen=True)
+class DirectPoolWrite:
+    """One immediate key copied straight into final pool rows (no staging page)."""
+
+    key: str
+    source: torch.Tensor
+    plan: TransferPlan
+
+
 class StepWriteContext:
     """Own a step's write registrations and shared resource reservations.
 
     Registers new tasks and appends to deferred tasks that may span steps.
     Exiting without a successful start fails affected tasks and releases
-    reservations and the step snapshot.
+    reservations and the step snapshot. A direct step has no snapshot: its
+    immediate write is copied into the pool by ``start_writes``.
     """
 
     def __init__(
         self,
         controller: OmniPrefixCacheController,
-        snapshot: StepSnapshot,
+        snapshot: StepSnapshot | None,
         tensors: dict[WriteSchedule, dict[str, torch.Tensor]],
         tickets: dict[WriteSchedule, _BudgetTicket],
         slots: torch.Tensor | None,
         freeze_event: torch.cuda.Event | None,
+        direct: DirectPoolWrite | None = None,
     ) -> None:
+        if (snapshot is None) == (direct is None):
+            raise OmniPrefixCacheUnmatchError("a step write needs exactly one of a staging snapshot or a direct write")
         self.snapshot = snapshot
+        self._direct = direct
+        self._direct_event: torch.cuda.Event | None = None
         self._controller = controller
         self._tensors = tensors
         self._tickets = tickets
@@ -559,9 +582,13 @@ class StepWriteContext:
         self._closed = True
         try:
             if not self._started:
-                # Do not recycle a page while its device copy is in flight.
+                # Do not recycle a page (or drop a direct source) while its
+                # device copy is in flight.
                 try:
-                    self.snapshot.wait()
+                    if self.snapshot is not None:
+                        self.snapshot.wait()
+                    if self._direct_event is not None:
+                        self._direct_event.synchronize()
                 finally:
                     for task in self._touched.values():
                         if self._controller._tasks.get(task.tid) is task:
@@ -569,7 +596,8 @@ class StepWriteContext:
                         else:
                             self._controller._release_staged_bytes(task)
                             self._controller._release_task_slot(task)
-                    self.snapshot.release()
+                    if self.snapshot is not None:
+                        self.snapshot.release()
         finally:
             self._controller._release_unused_tickets(self._tickets.values())
 
@@ -601,8 +629,13 @@ class StepWriteContext:
         )
         self._touched[tid] = task
         immediate = schedule is WriteSchedule.JOIN_NEXT_STEP
-        if immediate:
+        if immediate and self._direct is not None:
+            # Host rows land in the pool itself; `step_d2h_event` is set by start_writes.
+            task.direct = True
+            task.direct_spans = len(self._direct.plan.spans)
+        elif immediate:
             snapshot = self.snapshot
+            assert snapshot is not None
             chunk.host = snapshot.host_rows(start, end)
             task.staging_slot = snapshot.staging_slot
             task.step_d2h_event = snapshot.event
@@ -635,16 +668,25 @@ class StepWriteContext:
         """Close registration and dispatch immediate writes; leave deferred tasks pending.
 
         May execute writes inline, so call without holding the state lock.
+        A direct step first launches its pool copy; registration (and the
+        manager's copy-on-write of reused slots) must already be done.
         """
         self._check_open()
+        if self._direct is not None:
+            direct = self._direct
+            self._direct_event = self._controller.stage_direct_pool(
+                direct.key, direct.source, direct.plan, self._freeze_event
+            )
+            for task in self._queued:
+                task.step_d2h_event = self._direct_event
         self._controller._dispatch(self._queued)
         self._started = True
 
 
 class OmniPrefixCacheController:
-    """Staging pool + committer. Step device→host is launched at save;
-    this thread waits that event (JOIN_NEXT_STEP) or copies deferred
-    rows (JOIN_ON_FINISH), then writes into the CPU pool.
+    """Staging pool and committer. Step D2H starts at save; the committer
+    waits for its event. Direct writes already target the pool, while the
+    staging and deferred paths write pool rows after host data is ready.
     """
 
     def __init__(self, pool: PrefixBlockPool, config: PrefixCacheConfig, eager: bool | None = None):
@@ -682,12 +724,17 @@ class OmniPrefixCacheController:
         slots: torch.Tensor | None,
         num_tokens: int,
         freeze_event: torch.cuda.Event | None,
+        direct_plan: TransferPlan | None = None,
     ) -> StepWriteContext:
         """Reserve clones and launch staging outside the manager lock.
 
         Inputs are frozen device snapshots. Each packed clone is charged
         once, regardless of how many per-request writes share its rows.
+        With ``direct_plan`` the single immediate key skips staging; its
+        pool copy starts in ``StepWriteContext.start_writes``.
         """
+        if direct_plan is not None and (len(immediate) != 1 or deferred):
+            raise OmniPrefixCacheUnmatchError("direct prefix-cache write needs exactly one immediate key")
         tensors = {WriteSchedule.JOIN_NEXT_STEP: immediate, WriteSchedule.JOIN_ON_FINISH: deferred}
         tickets = {
             schedule: _BudgetTicket(sum(t.numel() * t.element_size() for t in rows.values()))
@@ -696,6 +743,10 @@ class OmniPrefixCacheController:
         }
         if tickets:
             self.reserve_bytes(sum(ticket.nbytes for ticket in tickets.values()))
+        if direct_plan is not None:
+            key, source = next(iter(immediate.items()))
+            direct = DirectPoolWrite(key=key, source=source, plan=direct_plan)
+            return StepWriteContext(self, None, tensors, tickets, slots, freeze_event, direct=direct)
         holder = StagingBufferHolder.for_step(step_id)
         try:
             claim = self._stage_step_host(immediate, num_tokens, freeze_event, holder)
@@ -770,6 +821,34 @@ class OmniPrefixCacheController:
             return StepD2HClaim(staging_slot=slot, views=views, event=event)
         except Exception:
             self._staging_pool.release(slot, step_holder)
+            raise
+
+    def stage_direct_pool(
+        self,
+        key: str,
+        source: torch.Tensor,
+        plan: TransferPlan,
+        freeze_event: torch.cuda.Event | None,
+    ) -> torch.cuda.Event | None:
+        """Copy a reserved single-request snapshot into final pinned pool rows."""
+
+        def copy() -> None:
+            for span in plan.spans:
+                dst = self._pool.contiguous_rows(key, span.dst, span.length)
+                if source.is_cuda and not dst.is_pinned():
+                    raise OmniPrefixCacheUnmatchError("direct prefix-cache destination is not pinned")
+                dst.copy_(source[span.src : span.src + span.length], non_blocking=source.is_cuda)
+
+        if self._eager or not source.is_cuda:
+            copy()
+            return None
+        if self._copy_stream is None:
+            raise OmniPrefixCacheUnmatchError("direct prefix-cache copy requires a CUDA stream")
+        try:
+            return self._d2h_on_stream(self._copy_stream, freeze_event, copy)
+        except Exception:
+            # A failed submission can leave earlier spans in flight.
+            self._copy_stream.synchronize()
             raise
 
     def _release_task_slot(self, task: WriteTask) -> None:
@@ -1169,8 +1248,16 @@ class OmniPrefixCacheController:
 
     @torch.inference_mode()
     def _scatter(self, task: WriteTask) -> None:
-        for key, slots, host in task.scatter_rows():
-            self._pool.write(key, slots, host)
+        if task.direct:
+            with task.lock:
+                if any(slots.numel() for slots in task.reassigned.values()):
+                    raise OmniPrefixCacheUnmatchError("direct prefix-cache rows were reassigned before completion")
+            self._pool.stats.direct_writes += 1
+            self._pool.stats.direct_rows += int(task.chunks[0].slots_cpu.numel())
+            self._pool.stats.direct_spans += task.direct_spans
+        else:
+            for key, slots, host in task.scatter_rows():
+                self._pool.write(key, slots, host)
         # `done` is set LAST: a join(done) waiter (the save barrier) must find
         # the completion record on its next drain and the staging slot free —
         # a done-but-undrained window would leave occupancy IN_TRANSIT and

@@ -88,6 +88,7 @@ from vllm_omni.core.prefix_cache.interface import (
     is_hidden_key,
     without_hidden,
 )
+from vllm_omni.core.prefix_cache.transfer_plan import TransferPlan, compile_write_plan
 
 logger = logging.getLogger(__name__)
 
@@ -285,6 +286,8 @@ class _StepContext:
 
     # Staging slot for this step id (empty views when only leftover mm).
     d2h_snapshot: StepSnapshot | None = None
+    # Direct writes read their current rows through a version-bound pool ref.
+    current_refs: dict[TensorName, _SlotRef] = field(default_factory=dict)
 
 
 class _SlotStatus(NamedTuple):
@@ -418,7 +421,10 @@ class OmniPrefixCacheManager:
         eager: bool | None = None,
     ):
         self._config = config
-        self._pool = PrefixBlockPool(config)
+        self._direct_write = os.environ.get("OMNI_PREFIX_CACHE_DIRECT_WRITE") == "1"
+        # Direct writes copy device rows straight into the pool, which only
+        # overlaps compute when the pool is pinned; the default pool is pageable.
+        self._pool = PrefixBlockPool(config, pin_memory=self._direct_write and torch.cuda.is_available())
         self._controller = OmniPrefixCacheController(self._pool, config, eager=eager)
         self._policy = ModelCachePolicy()
         # Serializes engine vs async-builder public entries. Non-reentrant:
@@ -557,19 +563,22 @@ class OmniPrefixCacheManager:
         """Write this step's outputs into the cache; returns the step id.
 
         Engine thread only, after the forward and before materialize.
-        Immediately-cached rows: one on-device clone, one whole-step
-        device→host into the staging pool, then one JOIN_NEXT_STEP
-        write for the step's requests, managed by the controller.
+        Immediately-cached rows: one on-device clone, then one JOIN_NEXT_STEP
+        write for the step's requests, managed by the controller. The
+        default path copies the clone into whole-step staging; eligible
+        single-request saves (OMNI_PREFIX_CACHE_DIRECT_WRITE=1) copy it
+        directly into the reserved pinned pool rows instead.
         Deferred rows stay on the device clone (JOIN_ON_FINISH); the
         committer copies them later. Leftover mm (this-step deferred rows
         + mm not written to the pool) is copied to CPU here so materialize
         never reads live graph buffers.
         Snapshots everything materialize needs. The returned step id MUST
         be consumed exactly once — by materialize() or discard_step().
-        Every step id claims one staging slot (saves with only leftover mm
-        included); a later save waits for a free slot and times out if
-        none return. ``owned`` inputs are fresh, unaliased storage the
-        caller hands over, so they are kept instead of cloned.
+        Default-path step ids claim one staging slot (saves with only
+        leftover mm included); a later default-path save waits for a free
+        slot and times out if none return. ``owned`` inputs are fresh,
+        unaliased storage the caller hands over, so they are kept instead
+        of cloned.
 
         The state lock never covers a blocking wait: the previous step's
         JOIN_NEXT_STEP wait, the clone build, the GPU-byte-budget reserve
@@ -628,9 +637,12 @@ class OmniPrefixCacheManager:
                 freeze_event = torch.cuda.Event()
                 freeze_event.record()
 
+        direct_plan = self._direct_plan(step_outputs, slots_cpu, req_order, num_tokens_unpadded)
         step_id = self._next_step_id
         try:
-            with self._prepare_step(step_id, step_outputs, slots_cpu, num_tokens_unpadded, freeze_event) as write_ctx:
+            with self._prepare_step(
+                step_id, step_outputs, slots_cpu, num_tokens_unpadded, freeze_event, direct_plan
+            ) as write_ctx:
                 self._publish_saved_step(
                     step_id=step_id,
                     req_order=req_order,
@@ -641,13 +653,19 @@ class OmniPrefixCacheManager:
                     slots_cpu=slots_cpu,
                     mm_keys=set(mm_outputs.keys()),
                     write_ctx=write_ctx,
+                    direct=direct_plan is not None,
                 )
                 # Eager execution and queue dispatch must remain outside the lock.
+                # A direct step launches its pool copy here, after the COW claim.
                 write_ctx.start_writes()
                 return step_id
         except BaseException:
             with self._state_lock:
-                self._step_ctxs.pop(step_id, None)
+                ctx = self._step_ctxs.pop(step_id, None)
+                if ctx is not None and ctx.current_refs:
+                    # Published direct step: pool rows may be partly overwritten.
+                    self._fatal_write_failure = f"direct prefix-cache copy failed for step {step_id}"
+                    self._drop_pending_reads_locked(ctx.current_refs.values())
             raise
 
     @torch.inference_mode()
@@ -707,7 +725,9 @@ class OmniPrefixCacheManager:
                 ctx.mm_cpu_snapshot_event.synchronize()
                 ctx.mm_cpu_snapshot = _unpin_leftover(ctx.mm_cpu_snapshot)
             current: dict[str, torch.Tensor] = {}
-            if ctx.d2h_snapshot is not None:
+            if ctx.current_refs:
+                current = {key: self._fetch_source(ref) for key, ref in ctx.current_refs.items()}
+            elif ctx.d2h_snapshot is not None:
                 # Whole-step device→host was launched at save. One event wait
                 # (usually already complete), then a contiguous copy-out per
                 # key so consumers no longer depend on the reusable slot.
@@ -742,6 +762,9 @@ class OmniPrefixCacheManager:
         finally:
             if ctx is not None and not step_released:
                 self._release_step_staging(ctx)
+            if ctx is not None:
+                for ref in ctx.current_refs.values():
+                    self._unregister_pending_read(ref)
 
     def reserve_device_bytes(self, nbytes: int) -> None:
         """Charge device rows the runner holds for a later save (its decode
@@ -762,6 +785,7 @@ class OmniPrefixCacheManager:
         """
         ctx = self._take_step_ctx(step_id)
         self._release_step_staging(ctx)
+        self._drop_pending_reads_locked(ctx.current_refs.values())
 
     def shutdown(self) -> None:
         self._prefetch_pool.shutdown(wait=False, cancel_futures=True)
@@ -842,6 +866,50 @@ class OmniPrefixCacheManager:
 
     # ---------------------------------------------------------- save
 
+    def _direct_plan(
+        self,
+        outputs: _StepOutputs,
+        slots_cpu: torch.Tensor | None,
+        req_order: list[str],
+        rows: int,
+    ) -> TransferPlan | None:
+        """Keep the experimental path to one owned, well-coalesced field."""
+        if (
+            not self._direct_write
+            or len(req_order) != 1
+            or len(outputs.immediate) != 1
+            or outputs.deferred
+            or slots_cpu is None
+            or rows < 256
+            or rows >= self._config.staging_capacity_tokens
+            # First chunk only: the step's shared immediate task tracks every
+            # written request but bumps write_n only for the first one.
+            or req_order[0] in self._request_tasks.tasks
+        ):
+            return None
+        key, source = next(iter(outputs.immediate.items()))
+        if source.ndim != 2 or source.shape[0] != rows or not source.is_contiguous():
+            return None
+        storage = outputs.new_key_storage.get(key)
+        if storage is None:
+            if not self._pool.has_key(key):
+                return None
+            if self._pool.row_dtype(key) != source.dtype or self._pool.row_width(key) != source.shape[1]:
+                return None
+            if source.is_cuda and not self._pool.row_is_pinned(key):
+                return None
+        elif storage.dtype != source.dtype or storage.shape[-1] != source.shape[1]:
+            return None
+        if source.is_cuda and storage is not None and not storage.is_pinned():
+            return None
+        plan = compile_write_plan(slots_cpu)
+        if plan is None or not plan.coalesces() or len(plan.spans) > 16:
+            return None
+        end = plan.spans[-1].dst + plan.spans[-1].length
+        if plan.spans[0].dst < 0 or end > self._config.num_blocks * self._config.block_size:
+            return None
+        return plan
+
     def _prepare_step(
         self,
         step_id: StepId,
@@ -849,6 +917,7 @@ class OmniPrefixCacheManager:
         slots: torch.Tensor | None,
         num_tokens: int,
         freeze_event: torch.cuda.Event | None,
+        direct_plan: TransferPlan | None = None,
     ) -> StepWriteContext:
         """Prepare unlocked; annotate backpressure with manager-owned diagnostics."""
         try:
@@ -859,6 +928,7 @@ class OmniPrefixCacheManager:
                 slots=slots,
                 num_tokens=num_tokens,
                 freeze_event=freeze_event,
+                direct_plan=direct_plan,
             )
         except OmniPrefixCacheStagingTimeoutError as e:
             with self._state_lock:
@@ -900,6 +970,7 @@ class OmniPrefixCacheManager:
         slots_cpu: torch.Tensor | None,
         mm_keys: set[str],
         write_ctx: StepWriteContext,
+        direct: bool = False,
     ) -> None:
         """Takes ``_state_lock``. Register this step's writes and store the
         consume-once snapshot. Copies live hits into the snapshot, then
@@ -913,6 +984,11 @@ class OmniPrefixCacheManager:
         if step_outputs.immediate or step_outputs.deferred:
             assert slots_cpu is not None
             self._register_step_writes(write_ctx, step_outputs, slots_cpu, req_order, query_start, num_sched)
+        # Direct: this step's rows are IN_TRANSIT on its own task now; read
+        # them back through a version-bound ref (COW-protected on slot reuse).
+        current_refs = (
+            {key: self._slot_ref(slots_cpu, key, req_order[0]) for key in step_outputs.immediate} if direct else {}
+        )
         if self._hit_spans:
             # Same-step hits: their rows are registered now (IN_TRANSIT on
             # this step's tasks); start the gather before the next step.
@@ -928,6 +1004,7 @@ class OmniPrefixCacheManager:
             mm_cpu_snapshot=step_outputs.leftover,
             mm_cpu_snapshot_event=step_outputs.leftover_event,
             d2h_snapshot=write_ctx.snapshot,
+            current_refs=current_refs,
         )
         self._clear_hit_infos()
 
@@ -1249,10 +1326,22 @@ class OmniPrefixCacheManager:
         """Drop ``src`` from ``_pending_reads``. Identity, not dataclass eq
         (tensors in the ref make ``==`` unusable). Safe if already removed."""
         with self._state_lock:
-            n = len(self._pending_reads)
-            self._pending_reads = [ref for ref in self._pending_reads if ref is not src]
-            if len(self._pending_reads) < n:
-                self._count_pending_slots(src, -1)
+            self._drop_pending_reads_locked((src,))
+
+    def _drop_pending_reads_locked(self, refs: Iterable[_SlotRef]) -> None:
+        """Caller holds ``_state_lock``. Drop each still-registered ref once,
+        uncounting its slots; refs already removed are skipped, so a slot's
+        pending count never goes below its live refs (COW relies on it)."""
+        drop = {id(ref): ref for ref in refs}
+        if not drop:
+            return
+        kept: list[_SlotRef] = []
+        for ref in self._pending_reads:
+            if id(ref) in drop and drop[id(ref)] is ref:
+                self._count_pending_slots(ref, -1)
+            else:
+                kept.append(ref)
+        self._pending_reads = kept
 
     def _fetch_source(self, src: _SlotRef) -> torch.Tensor:
         """Fetch a planned row source into a fresh buffer (execute phase, no lock).
