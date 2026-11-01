@@ -240,8 +240,11 @@ def test_plannable_write_snapshot_expands_to_every_row_once():
 
 
 def make_pool(num_slots: int, width: int = 4) -> PrefixBlockPool:
+    # Pool storage is deliberately uninitialised (the manager zeroes rows that
+    # were absent at plan time), so install zeroed storage: the whole-pool
+    # comparisons below then also catch a write that spills into a neighbour row.
     pool = PrefixBlockPool(PrefixCacheConfig(num_blocks=num_slots, block_size=1))
-    pool.ensure_key("k", torch.float32, width)
+    pool.install_key("k", torch.zeros((num_slots, 1, width), dtype=torch.float32))
     return pool
 
 
