@@ -365,10 +365,34 @@ def _validate_experimental_dlo_runtime(od_config: OmniDiffusionConfig, config: M
     return True
 
 
-def _validate_sequence_parallel_runtime(od_config: OmniDiffusionConfig, config: Mammothmoda2Config) -> None:
+def _validate_sequence_parallel_runtime(od_config: OmniDiffusionConfig, config: Mammothmoda2Config) -> bool:
+    """Validate SP/DLO admission before any module is built.
+
+    Returns whether the experimental DLO path is enabled.
+    """
     experimental_dlo = _validate_experimental_dlo_runtime(od_config, config)
-    if od_config.parallel_config.sequence_parallel_size == 1:
-        return
+    parallel = od_config.parallel_config
+    if parallel.sequence_parallel_size == 1:
+        return experimental_dlo
+    # Mirrors Transformer2DModel._validate_sequence_parallel so unsupported
+    # degrees fail here instead of after construction and weight load.
+    if (
+        parallel.ulysses_degree != 2
+        or parallel.sequence_parallel_size != 2
+        or parallel.ring_degree != 1
+        or parallel.allgather_degree != 1
+        or parallel.cfg_parallel_size != 1
+        or parallel.tensor_parallel_size != 1
+        or parallel.pipeline_parallel_size != 1
+        or parallel.data_parallel_size not in (None, 1)
+        or parallel.vae_patch_parallel_size != 1
+        or parallel.use_hsdp
+        or parallel.enable_expert_parallel
+    ):
+        raise ValueError(
+            "MammothModa2 SP currently supports only two-rank Ulysses with replicated refiners/VAE "
+            "and without Ring, TP, PP, DP, HSDP, EP or CFG parallelism."
+        )
     if getattr(config.llm_config, "model_type", "") != "mammothmoda2_qwen2_5_vl":
         raise ValueError("MammothModa2 sequence parallelism is limited to Preview text-to-image, not Dev.")
     if od_config.step_execution or od_config.max_num_seqs != 1:
@@ -382,6 +406,7 @@ def _validate_sequence_parallel_runtime(od_config: OmniDiffusionConfig, config: 
         raise ValueError(
             "MammothModa2 SP requires eager execution without cache acceleration, quantization or offload."
         )
+    return experimental_dlo
 
 
 @dataclass(frozen=True)
@@ -421,10 +446,9 @@ class MammothModa2DiTPipeline(nn.Module, DiffusionPipelineProfilerMixin, Support
     _dit_modules: ClassVar[list[str]] = ["gen_transformer"]
     _encoder_modules: ClassVar[list[str]] = ["gen_image_condition_refiner"]
     _vae_modules: ClassVar[list[str]] = ["gen_vae"]
-    # One circular ring, executed for every conditional/unconditional pass.
-    # Auxiliary refiners and VAE remain resident; no encoder/mmap capability
-    # or leading-resident-layer lifecycle is claimed by this experiment.
-    _offload_plan: ClassVar[OffloadPlan] = OffloadPlan(block_attrs={"gen_transformer": ("layers",)})
+    # Set per instance only for the experimental DLO path (see __init__), so
+    # ordinary layerwise offload keeps skipping the DiT as before.
+    _offload_plan: ClassVar[OffloadPlan | None] = None
 
     stacked_params_mapping: ClassVar[list[tuple[str, str, int | str]]] = [
         (
@@ -465,7 +489,11 @@ class MammothModa2DiTPipeline(nn.Module, DiffusionPipelineProfilerMixin, Support
         self.od_config = od_config
         self.device = get_local_device()
         self.config = _build_mammoth_config(od_config)
-        _validate_sequence_parallel_runtime(od_config, self.config)
+        if _validate_sequence_parallel_runtime(od_config, self.config):
+            # One circular ring, executed for every conditional/unconditional pass.
+            # Auxiliary refiners and VAE remain resident; no encoder/mmap capability
+            # or leading-resident-layer lifecycle is claimed by this experiment.
+            self._offload_plan = OffloadPlan(block_attrs={"gen_transformer": ("layers",)})
         self.weights_sources = [_root_weight_source(od_config)]
 
         # --- Build DiT / VAE modules (names must match checkpoint keys) ---

@@ -27,7 +27,9 @@ from vllm_omni.diffusion.worker.request_batch import DiffusionRequestBatch
 from vllm_omni.inputs.data import OmniDiffusionSamplingParams
 from vllm_omni.platforms import current_omni_platform
 
-pytestmark = [pytest.mark.core_model, pytest.mark.cpu, pytest.mark.diffusion]
+# The DiT's vLLM linear layers query the TP group at construction; CPU tests
+# run without one (fixture in this package's conftest).
+pytestmark = [pytest.mark.core_model, pytest.mark.cpu, pytest.mark.diffusion, pytest.mark.usefixtures("mock_tp1")]
 
 
 @pytest.fixture(autouse=True)
@@ -191,6 +193,27 @@ def test_dlo_plan_discovers_only_main_transformer_blocks(monkeypatch):
     assert not {id(block) for block in blocks}.intersection(id(block) for block in model.context_refiner)
 
 
+def test_ordinary_layerwise_offload_keeps_dit_unstreamed_without_experimental_flag(monkeypatch):
+    # Matches main: without the opt-in, the DiT declares no layerwise blocks.
+    config = replace(_config(), enable_layerwise_offload=True)
+    pipeline = _pipeline(config, monkeypatch)
+    assert MammothModa2DiTPipeline._offload_plan is None
+    assert get_offload_plan(pipeline) is None
+    resolved = resolve_offload_plan(pipeline, OffloadConfig.from_od_config(config))
+    (component,) = resolved.dits
+    assert component.path == "gen_transformer"
+    assert component.selected
+    assert component.stacks == ()
+    assert not list(iter_streamable_dits(resolved, pipeline.device))
+
+
+def test_explicit_dit_layer_offload_without_experimental_flag_finds_no_blocks(monkeypatch):
+    config = replace(_config(), diffusion_offload_config={"mode": "layer", "components": ["dit"]})
+    pipeline = _pipeline(config, monkeypatch)
+    with pytest.raises(ValueError, match="no streamable layerwise-offload blocks"):
+        resolve_offload_plan(pipeline, OffloadConfig.from_od_config(config))
+
+
 @pytest.mark.parametrize("transfer", ["rank-local", "allgather"])
 def test_compact_config_does_not_mislabel_ordinary_layer_backend(transfer):
     config = replace(
@@ -242,6 +265,18 @@ def test_dlo_rejects_four_rank_ulysses_at_construction(monkeypatch):
     )
     with pytest.raises(ValueError, match="two-rank Ulysses"):
         _pipeline(_dlo_config(4), monkeypatch)
+
+
+@pytest.mark.parametrize("parallel", [{"ulysses_degree": 4}, {"ulysses_degree": 2, "ring_degree": 2}])
+def test_sp_rejects_unsupported_degrees_at_construction(monkeypatch, parallel):
+    monkeypatch.setattr(
+        "vllm_omni.diffusion.models.mammoth_moda2.pipeline_mammothmoda2_dit.AutoencoderKL.from_config",
+        lambda *_args, **_kwargs: pytest.fail("VAE constructed before SP validation"),
+    )
+    # Both layouts span four ranks; _config(4) sizes the world to match.
+    config = replace(_config(4), parallel_config=DiffusionParallelConfig(ulysses_mode="advanced_uaa", **parallel))
+    with pytest.raises(ValueError, match="two-rank Ulysses"):
+        _pipeline(config, monkeypatch)
 
 
 def test_dlo_rejects_dev_before_construction(monkeypatch):

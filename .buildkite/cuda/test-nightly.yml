@@ -266,7 +266,9 @@ steps:
             --run-level "full_model"
 
       - label: ":full_moon: Diffusion X2I(&A&T) · Function Test with H100 · 2-GPU"
-        source_file_dependencies: diffusion_qwen_image_function
+        source_file_dependencies:
+          - diffusion_qwen_image_function
+          - diffusion_mammoth_moda2_function
         timeout_in_minutes: 120
         commands:
           - >-
